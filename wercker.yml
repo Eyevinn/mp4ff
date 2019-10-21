@@ -1,0 +1,17 @@
+box: wercker/golang
+
+build:
+  steps:
+    - setup-go-workspace
+    - script:
+        name: Install goconvey
+        code: go get github.com/smartystreets/goconvey/convey
+    - script:
+        name: Go get
+        code: go get -v ./...
+    - script:
+        name: Go build
+        code: go build ./...
+    - script:
+        name: Go test
+        code: go test -p 1 -v ./...
