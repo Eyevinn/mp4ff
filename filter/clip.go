@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/jfbus/mp4"
+	"bitbucket.org/unitxtra/gomp4/mp4"
 )
 
 var (

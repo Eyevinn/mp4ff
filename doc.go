@@ -1,4 +1,4 @@
 /*
-Package mp4 implements encoding/decoding of MP4 media.
+Package gomp4 implements encoding/decoding of MP4 media.
 */
-package mp4
+package gomp4

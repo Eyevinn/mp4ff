@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
+	"bitbucket.org/unitxtra/gomp4/filter"
+	"bitbucket.org/unitxtra/gomp4/mp4"
 	cli "github.com/jawher/mow.cli"
-	"github.com/jfbus/mp4"
-	"github.com/jfbus/mp4/filter"
 )
 
 func main() {
