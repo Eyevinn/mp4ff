@@ -63,6 +63,9 @@ type BoxHeader struct {
 func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	buf := make([]byte, BoxHeaderSize)
 	n, err := r.Read(buf)
+	if n == 0 {
+		return BoxHeader{}, nil
+	}
 	if err != nil {
 		return BoxHeader{}, err
 	}
@@ -92,12 +95,17 @@ type BoxDecoder func(r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
 func DecodeBox(h BoxHeader, r io.Reader) (Box, error) {
-	d := decoders[h.Type]
-	if d == nil {
-		log.Printf("Error while decoding %s : unknown box type", h.Type)
-		return nil, ErrUnknownBoxType
+	var err error
+	var b Box
+	d, ok := decoders[h.Type]
+
+	if !ok {
+		b, err = DecodeUnknown(h.Type, io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
+		log.Printf("Found unknown box type %v", h.Type)
+	} else {
+		b, err = d(io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
+		log.Printf("Found supported box %v", h.Type)
 	}
-	b, err := d(io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
 	if err != nil {
 		log.Printf("Error while decoding %s : %s", h.Type, err)
 		return nil, err
@@ -110,7 +118,7 @@ func DecodeContainer(r io.Reader) ([]Box, error) {
 	l := []Box{}
 	for {
 		h, err := DecodeHeader(r)
-		if err == io.EOF {
+		if err == io.EOF || h.Size == 0 {
 			return l, nil
 		}
 		if err != nil {

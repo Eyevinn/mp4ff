@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+	"log"
+	"os"
+)
 
 // A MPEG-4 media
 //
@@ -12,10 +16,11 @@ import "io"
 //
 // Other boxes can also be present (pdin, moof, mfra, free, ...), but are not decoded.
 type MP4 struct {
-	Ftyp  *FtypBox
-	Moov  *MoovBox
-	Mdat  *MdatBox
-	boxes []Box
+	Ftyp         *FtypBox
+	Moov         *MoovBox
+	Mdat         *MdatBox
+	boxes        []Box
+	isFragmented bool
 }
 
 // Decode decodes a media from a Reader
@@ -25,7 +30,14 @@ func Decode(r io.Reader) (*MP4, error) {
 	}
 LoopBoxes:
 	for {
+		//f := r.(*os.File)
+		//p, err := f.Seek(0, os.SEEK_CUR)
+		//log.Printf("Byte position is %v", p)
+
 		h, err := DecodeHeader(r)
+		if err == io.EOF || h.Size == 0 {
+			break LoopBoxes
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -39,10 +51,22 @@ LoopBoxes:
 			v.Ftyp = box.(*FtypBox)
 		case "moov":
 			v.Moov = box.(*MoovBox)
+			if len(v.Moov.Trak[0].Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+				v.isFragmented = true
+			}
 		case "mdat":
-			v.Mdat = box.(*MdatBox)
-			v.Mdat.ContentSize = h.Size - BoxHeaderSize
-			break LoopBoxes
+			if !v.isFragmented {
+				v.Mdat = box.(*MdatBox)
+				v.Mdat.ContentSize = h.Size - BoxHeaderSize
+			}
+			if rs, seekable := r.(io.Seeker); seekable {
+				nextPos := int64(h.Size) - BoxHeaderSize
+				newPos, err := rs.Seek(nextPos, os.SEEK_CUR)
+				if err != nil {
+					log.Fatal("Could not seek")
+				}
+				log.Printf("New pos after mdat is %v", newPos)
+			}
 		}
 	}
 	return v, nil
@@ -61,20 +85,10 @@ func (m *MP4) Boxes() []Box {
 
 // Encode encodes a media to a Writer
 func (m *MP4) Encode(w io.Writer) error {
-	err := m.Ftyp.Encode(w)
-	if err != nil {
-		return err
-	}
-	err = m.Moov.Encode(w)
-	if err != nil {
-		return err
-	}
-	for _, b := range m.boxes {
-		if b.Type() != "ftyp" && b.Type() != "moov" {
-			err = b.Encode(w)
-			if err != nil {
-				return err
-			}
+	for _, b := range m.Boxes() {
+		err := b.Encode(w)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
