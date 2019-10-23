@@ -116,6 +116,10 @@ func DecodeBox(h BoxHeader, r io.Reader) (Box, error) {
 		log.Printf("Found supported box %v, size %v", h.Type, h.Size)
 		b, err = d(io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
 	}
+	if h.Size != uint32(b.Size()) {
+		log.Printf("### Warning: %v size mismatch %d %d", h.Type, h.Size, b.Size())
+	}
+	//log.Printf("Box type %v, size %d", b.Type(), b.Size())
 	if err != nil {
 		log.Printf("Error while decoding %s : %s", h.Type, err)
 		return nil, err

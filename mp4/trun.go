@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -11,9 +12,9 @@ import (
 //
 type TrunBox struct {
 	Version          byte
-	Flags            uint32
+	flags            uint32
 	sampleCount      uint32
-	dataOffset       int32
+	DataOffset       int32
 	firstSampleFlags uint32
 	samples          []*Sample
 }
@@ -25,6 +26,20 @@ const sampleSizePresentFlag = 0x200
 const sampleFlagsPresentFlag = 0x400
 const sampleCTOPresentFlag = 0x800
 
+/*
+// NewTrunBox - Create a new TrunBox
+func NewTrunBox(baseMediaDecodeTime uint64) *TrunBox {
+	var version byte = 0
+	if baseMediaDecodeTime >= 4294967296 {
+		version = 1
+	}
+	return &TrunBox{
+		Version:             version,
+		flags:               0,
+		BaseMediaDecodeTime: baseMediaDecodeTime,
+	}
+} */
+
 // DecodeTrun - box-specific decode
 func DecodeTrun(r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
@@ -35,12 +50,12 @@ func DecodeTrun(r io.Reader) (Box, error) {
 	versionAndFlags := s.ReadUint32()
 	t := &TrunBox{
 		Version:     byte(versionAndFlags >> 24),
-		Flags:       versionAndFlags & 0xffffff,
+		flags:       versionAndFlags & 0xffffff,
 		sampleCount: s.ReadUint32(),
 	}
 
 	if t.HasDataOffset() {
-		t.dataOffset = s.ReadInt32()
+		t.DataOffset = s.ReadInt32()
 	}
 
 	if t.HasFirstSampleFlags() {
@@ -92,13 +107,13 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox) {
 	var i uint32
 	for i = 0; i < t.sampleCount; i++ {
 		if !t.HasSampleDuration() {
-			t.samples[i].dur = defaultSampleDuration
+			t.samples[i].Dur = defaultSampleDuration
 		}
 		if !t.HasSampleSize() {
-			t.samples[i].size = defaultSampleSize
+			t.samples[i].Size = defaultSampleSize
 		}
 		if !t.HasSampleFlags() {
-			t.samples[i].flags = defaultSampleFlags
+			t.samples[i].Flags = defaultSampleFlags
 		}
 	}
 }
@@ -110,32 +125,32 @@ func (t *TrunBox) SampleCount() uint32 {
 
 // HasDataOffset - interpted dataOffsetPresent flag
 func (t *TrunBox) HasDataOffset() bool {
-	return t.Flags&0x01 != 0
+	return t.flags&0x01 != 0
 }
 
 // HasFirstSampleFlags - interpreted firstSampleFlagsPresent flag
 func (t *TrunBox) HasFirstSampleFlags() bool {
-	return t.Flags&firstSamplePresentFlag != 0
+	return t.flags&firstSamplePresentFlag != 0
 }
 
 // HasSampleDuration - interpreted sampleDurationPresent flag
 func (t *TrunBox) HasSampleDuration() bool {
-	return t.Flags&sampleDurationPresentFlag != 0
+	return t.flags&sampleDurationPresentFlag != 0
 }
 
 // HasSampleFlags - interpreted sampleFlagsPresent flag
 func (t *TrunBox) HasSampleFlags() bool {
-	return t.Flags&sampleFlagsPresentFlag != 0
+	return t.flags&sampleFlagsPresentFlag != 0
 }
 
 // HasSampleSize - interpreted sampleSizePresent flag
 func (t *TrunBox) HasSampleSize() bool {
-	return t.Flags&sampleSizePresentFlag != 0
+	return t.flags&sampleSizePresentFlag != 0
 }
 
 // HasSampleCTO - interpreted sampleCompositionTimeOffset flag
 func (t *TrunBox) HasSampleCTO() bool {
-	return t.Flags&sampleCTOPresentFlag != 0
+	return t.flags&sampleCTOPresentFlag != 0
 }
 
 // Type - return box type
@@ -177,11 +192,11 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	}
 	buf := makebuf(t)
 	bb := NewBufferWrapper(buf)
-	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
+	versionAndFlags := (uint32(t.Version) << 24) + t.flags
 	bb.WriteUint32(versionAndFlags)
 	bb.WriteUint32(t.sampleCount)
 	if t.HasDataOffset() {
-		bb.WriteInt32(t.dataOffset)
+		bb.WriteInt32(t.DataOffset)
 	}
 	if t.HasFirstSampleFlags() {
 		bb.WriteUint32(t.firstSampleFlags)
@@ -189,19 +204,54 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	var i uint32
 	for i = 0; i < t.sampleCount; i++ {
 		if t.HasSampleDuration() {
-			bb.WriteUint32(t.samples[i].dur)
+			bb.WriteUint32(t.samples[i].Dur)
 		}
 		if t.HasSampleSize() {
-			bb.WriteUint32(t.samples[i].size)
+			bb.WriteUint32(t.samples[i].Size)
 		}
 		if t.HasSampleFlags() {
-			bb.WriteUint32(t.samples[i].flags)
+			bb.WriteUint32(t.samples[i].Flags)
 		}
 		if t.HasSampleCTO() {
-			bb.WriteInt32(t.samples[i].cto)
+			bb.WriteInt32(t.samples[i].Cto)
 		}
 
 	}
 	_, err = w.Write(buf)
 	return err
+}
+
+type SampleComplete struct {
+	Sample
+	DecodeTime       uint64
+	PresentationTime uint64
+	Data             []byte
+}
+
+// GetSampleData - Return list of Samples
+func (t *TrunBox) GetSampleData(r io.ReadSeeker, baseOffset uint64, baseTime uint64) []*SampleComplete {
+	samples := make([]*SampleComplete, 0, t.SampleCount())
+	var accDur uint64 = 0
+	accPos := baseOffset
+	r.Seek(int64(accPos), io.SeekStart)
+	for i, s := range t.samples {
+		dTime := baseTime + accDur
+		pTime := uint64(int64(dTime) + int64(s.Cto))
+		fmt.Printf("Sample %d, len %d\n", i, s.Size)
+		sr := io.LimitReader(r, int64(s.Size))
+		data, err := ioutil.ReadAll(sr)
+		if err != nil {
+			panic("Strange stuff when reading sample")
+		}
+
+		newSample := &SampleComplete{
+			Sample:           *s,
+			DecodeTime:       dTime,
+			PresentationTime: pTime,
+			Data:             data,
+		}
+		samples = append(samples, newSample)
+		accDur += uint64(s.Dur)
+	}
+	return samples
 }

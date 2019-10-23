@@ -20,14 +20,15 @@ func DecodeTraf(r io.Reader) (Box, error) {
 		return nil, err
 	}
 	t := &TrafBox{}
+	t.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "tfhd":
 			t.Tfhd = b.(*TfhdBox)
 		case "tfdt":
 			t.Tfdt = b.(*TfdtBox)
-		//case "trun":
-		//	t.Trun = b.(*TrunBox)
+		case "trun":
+			t.Trun = b.(*TrunBox)
 		default:
 		}
 	}

@@ -8,9 +8,10 @@ import (
 //
 // Contains all meta-data. To be able to stream a file, the moov box should be placed before the mdat box.
 type MoofBox struct {
-	boxes []Box
-	Mfhd  *MfhdBox
-	Traf  *TrafBox
+	boxes    []Box
+	Mfhd     *MfhdBox
+	Traf     *TrafBox
+	StartPos uint64
 }
 
 // DecodeMoof - box-specific decode
@@ -25,7 +26,7 @@ func DecodeMoof(r io.Reader) (Box, error) {
 		switch b.Type() {
 		case "mfhd":
 			m.Mfhd = b.(*MfhdBox)
-		case "iods":
+		case "traf":
 			m.Traf = b.(*TrafBox)
 		}
 	}

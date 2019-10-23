@@ -1,17 +1,19 @@
 package mp4
 
+// Sample - sample as used in trun box
 type Sample struct {
-	flags uint32
-	dur   uint32
-	size  uint32
-	cto   int32
+	Flags uint32
+	Dur   uint32
+	Size  uint32
+	Cto   int32
 }
 
+// NewSample - create Sample
 func NewSample(flags uint32, dur uint32, size uint32, cto int32) *Sample {
 	return &Sample{
-		flags: flags,
-		dur:   dur,
-		size:  size,
-		cto:   cto,
+		Flags: flags,
+		Dur:   dur,
+		Size:  size,
+		Cto:   cto,
 	}
 }

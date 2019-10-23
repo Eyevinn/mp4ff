@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Decoding Time to Sample Box (stts - mandatory)
+// SttsBox -  Decoding Time to Sample Box (stts - mandatory)
 //
 // Contained in : Sample Table box (stbl)
 //
@@ -25,6 +25,7 @@ type SttsBox struct {
 	SampleTimeDelta []uint32
 }
 
+// DecodeStts - box-specific decode
 func DecodeStts(r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -46,6 +47,7 @@ func DecodeStts(r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// Type - return box type
 func (b *SttsBox) Type() string {
 	return "stts"
 }
@@ -54,7 +56,7 @@ func (b *SttsBox) Size() int {
 	return BoxHeaderSize + 8 + len(b.SampleCount)*8
 }
 
-// GetTimeCode returns the timecode (duration since the beginning of the media)
+// GetTimeCode - return the timecode (duration since the beginning of the media)
 // of the beginning of a sample
 func (b *SttsBox) GetTimeCode(sample, timescale uint32) time.Duration {
 	sample--
@@ -73,6 +75,7 @@ func (b *SttsBox) GetTimeCode(sample, timescale uint32) time.Duration {
 	return time.Second * time.Duration(units) / time.Duration(timescale)
 }
 
+// Dump - write box-specific details
 func (b *SttsBox) Dump() {
 	fmt.Println("Time to sample:")
 	for i := range b.SampleCount {
@@ -80,6 +83,7 @@ func (b *SttsBox) Dump() {
 	}
 }
 
+// Encode - write box to w
 func (b *SttsBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

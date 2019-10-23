@@ -34,7 +34,7 @@ func DecodeMfhd(r io.Reader) (Box, error) {
 }
 
 func (m *MfhdBox) Type() string {
-	return "mdhd"
+	return "mfhd"
 }
 
 func (m *MfhdBox) Size() int {
@@ -43,7 +43,6 @@ func (m *MfhdBox) Size() int {
 
 func (m *MfhdBox) Dump() {
 	fmt.Printf("Media Fragment Header:\n Sequence Number: %d\n", m.SequenceNumber)
-
 }
 
 func (m *MfhdBox) Encode(w io.Writer) error {

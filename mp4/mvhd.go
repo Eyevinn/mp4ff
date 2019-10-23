@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Movie Header Box (mvhd - mandatory)
+// MvhdBox - Movie Header Box (mvhd - mandatory)
 //
 // Contained in : Movie Box (‘moov’)
 //
@@ -32,6 +32,7 @@ type MvhdBox struct {
 	notDecoded       []byte
 }
 
+// DecodeMvhd - box-specific decode
 func DecodeMvhd(r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -50,18 +51,22 @@ func DecodeMvhd(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - return box type
 func (b *MvhdBox) Type() string {
 	return "mvhd"
 }
 
+// Size - return calculated size
 func (b *MvhdBox) Size() int {
 	return BoxHeaderSize + 26 + len(b.notDecoded)
 }
 
+// Dump - write box details
 func (b *MvhdBox) Dump() {
 	fmt.Printf("Movie Header:\n Timescale: %d units/sec\n Duration: %d units (%s)\n Rate: %s\n Volume: %s\n", b.Timescale, b.Duration, time.Duration(b.Duration/b.Timescale)*time.Second, b.Rate, b.Volume)
 }
 
+// Encode - write box to w
 func (b *MvhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

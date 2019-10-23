@@ -1,6 +1,9 @@
 package mp4
 
-import "io"
+import (
+	"io"
+	"io/ioutil"
+)
 
 // Media Data Box (mdat - optional)
 //
@@ -10,35 +13,31 @@ import "io"
 //
 // It is not read, only the io.Reader is stored, and will be used to Encode (io.Copy) the box to a io.Writer.
 type MdatBox struct {
-	ContentSize uint32
-	r           io.Reader
+	Data []byte
 }
 
 func DecodeMdat(r io.Reader) (Box, error) {
-	// r is a LimitedReader
-	if lr, limited := r.(*io.LimitedReader); limited {
-		r = lr.R
+
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
 	}
-	return &MdatBox{r: r}, nil
+	return &MdatBox{data}, nil
 }
 
-func (b *MdatBox) Type() string {
+func (m *MdatBox) Type() string {
 	return "mdat"
 }
 
-func (b *MdatBox) Size() int {
-	return BoxHeaderSize + int(b.ContentSize)
+func (m *MdatBox) Size() int {
+	return BoxHeaderSize + len(m.Data)
 }
 
-func (b *MdatBox) Reader() io.Reader {
-	return b.r
-}
-
-func (b *MdatBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (m *MdatBox) Encode(w io.Writer) error {
+	err := EncodeHeader(m, w)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(w, b.r)
+	w.Write(m.Data)
 	return err
 }

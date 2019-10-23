@@ -15,6 +15,8 @@ type MoovBox struct {
 	Iods *IodsBox
 	Trak []*TrakBox
 	Udta *UdtaBox
+	//Mvex *MvexBox
+	boxes []Box
 }
 
 func DecodeMoov(r io.Reader) (Box, error) {
@@ -23,6 +25,7 @@ func DecodeMoov(r io.Reader) (Box, error) {
 		return nil, err
 	}
 	m := &MoovBox{}
+	m.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "mvhd":
@@ -43,17 +46,11 @@ func (b *MoovBox) Type() string {
 }
 
 func (b *MoovBox) Size() int {
-	sz := b.Mvhd.Size()
-	if b.Iods != nil {
-		sz += b.Iods.Size()
+	sz := BoxHeaderSize
+	for _, box := range b.boxes {
+		sz += box.Size()
 	}
-	for _, t := range b.Trak {
-		sz += t.Size()
-	}
-	if b.Udta != nil {
-		sz += b.Udta.Size()
-	}
-	return sz + BoxHeaderSize
+	return sz
 }
 
 func (b *MoovBox) Dump() {

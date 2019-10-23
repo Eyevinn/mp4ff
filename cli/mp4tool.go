@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
-	"bitbucket.org/unitxtra/gomp4/filter"
 	"bitbucket.org/unitxtra/gomp4/mp4"
 	cli "github.com/jawher/mow.cli"
 )
@@ -22,54 +20,55 @@ func main() {
 			if err != nil {
 				fmt.Println(err)
 			}
-			v.Dump()
+			v.Dump(fd)
 		}
 	})
+	/*
+		cmd.Command("clip", "Generates a clip", func(cmd *cli.Cmd) {
+			start := cmd.IntOpt("s start", 0, "start time (sec)")
+			duration := cmd.IntOpt("d duration", 10, "duration (sec)")
+			src := cmd.StringArg("SRC", "", "the source file name")
+			dst := cmd.StringArg("DST", "", "the destination file name")
+			cmd.Action = func() {
+				in, err := os.Open(*src)
+				if err != nil {
+					fmt.Println(err)
+				}
+				defer in.Close()
+				v, err := mp4.Decode(in)
+				if err != nil {
+					fmt.Println(err)
+				}
+				out, err := os.Create(*dst)
+				if err != nil {
+					fmt.Println(err)
+				}
+				defer out.Close()
+				filter.EncodeFiltered(out, v, filter.Clip(time.Duration(*start)*time.Second, time.Duration(*duration)*time.Second))
+			}
+		})
 
-	cmd.Command("clip", "Generates a clip", func(cmd *cli.Cmd) {
-		start := cmd.IntOpt("s start", 0, "start time (sec)")
-		duration := cmd.IntOpt("d duration", 10, "duration (sec)")
-		src := cmd.StringArg("SRC", "", "the source file name")
-		dst := cmd.StringArg("DST", "", "the destination file name")
-		cmd.Action = func() {
-			in, err := os.Open(*src)
-			if err != nil {
-				fmt.Println(err)
+		cmd.Command("copy", "Decodes a media and reencodes it to another file", func(cmd *cli.Cmd) {
+			src := cmd.StringArg("SRC", "", "the source file name")
+			dst := cmd.StringArg("DST", "", "the destination file name")
+			cmd.Action = func() {
+				in, err := os.Open(*src)
+				if err != nil {
+					fmt.Println(err)
+				}
+				defer in.Close()
+				v, err := mp4.Decode(in)
+				if err != nil {
+					fmt.Println(err)
+				}
+				out, err := os.Create(*dst)
+				if err != nil {
+					fmt.Println(err)
+				}
+				defer out.Close()
+				v.Encode(out)
 			}
-			defer in.Close()
-			v, err := mp4.Decode(in)
-			if err != nil {
-				fmt.Println(err)
-			}
-			out, err := os.Create(*dst)
-			if err != nil {
-				fmt.Println(err)
-			}
-			defer out.Close()
-			filter.EncodeFiltered(out, v, filter.Clip(time.Duration(*start)*time.Second, time.Duration(*duration)*time.Second))
-		}
-	})
-
-	cmd.Command("copy", "Decodes a media and reencodes it to another file", func(cmd *cli.Cmd) {
-		src := cmd.StringArg("SRC", "", "the source file name")
-		dst := cmd.StringArg("DST", "", "the destination file name")
-		cmd.Action = func() {
-			in, err := os.Open(*src)
-			if err != nil {
-				fmt.Println(err)
-			}
-			defer in.Close()
-			v, err := mp4.Decode(in)
-			if err != nil {
-				fmt.Println(err)
-			}
-			out, err := os.Create(*dst)
-			if err != nil {
-				fmt.Println(err)
-			}
-			defer out.Close()
-			v.Encode(out)
-		}
-	})
+		})
+	*/
 	cmd.Run(os.Args)
 }

@@ -5,12 +5,13 @@ import (
 	"io/ioutil"
 )
 
+// UnknownBox - Box that we don't know how to parse
 type UnknownBox struct {
 	name       string
 	notDecoded []byte
 }
 
-// DecodeUnknown decodes an unknown box
+// DecodeUnknown - decode an unknown box
 func DecodeUnknown(name string, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -19,14 +20,17 @@ func DecodeUnknown(name string, r io.Reader) (Box, error) {
 	return &UnknownBox{name, data}, nil
 }
 
+// Type - return box type
 func (b *UnknownBox) Type() string {
 	return b.name
 }
 
+// Size - return calculated size
 func (b *UnknownBox) Size() int {
 	return BoxHeaderSize + len(b.notDecoded)
 }
 
+// Encode - write box to w
 func (b *UnknownBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
