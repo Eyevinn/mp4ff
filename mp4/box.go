@@ -50,6 +50,11 @@ func init() {
 		"meta": DecodeMeta,
 		"mdat": DecodeMdat,
 		"free": DecodeFree,
+		"moof": DecodeMoof,
+		"mfhd": DecodeMfhd,
+		"traf": DecodeTraf,
+		"tfhd": DecodeTfhd,
+		"tfdt": DecodeTfdt,
 	}
 }
 
@@ -84,13 +89,14 @@ func EncodeHeader(b Box, w io.Writer) error {
 	return err
 }
 
-// A box
+// Box is the general interface
 type Box interface {
 	Type() string
 	Size() int
 	Encode(w io.Writer) error
 }
 
+// BoxDecoder is function signature of the Box Decode method
 type BoxDecoder func(r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
@@ -100,11 +106,12 @@ func DecodeBox(h BoxHeader, r io.Reader) (Box, error) {
 	d, ok := decoders[h.Type]
 
 	if !ok {
+		log.Printf("Found unknown box type %v, size %v", h.Type, h.Size)
 		b, err = DecodeUnknown(h.Type, io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
-		log.Printf("Found unknown box type %v", h.Type)
+
 	} else {
+		log.Printf("Found supported box %v, size %v", h.Type, h.Size)
 		b, err = d(io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
-		log.Printf("Found supported box %v", h.Type)
 	}
 	if err != nil {
 		log.Printf("Error while decoding %s : %s", h.Type, err)
