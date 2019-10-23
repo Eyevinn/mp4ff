@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	// BoxHeaderSize - standard size + name header
 	BoxHeaderSize = 8
 )
 
@@ -55,10 +56,11 @@ func init() {
 		"traf": DecodeTraf,
 		"tfhd": DecodeTfhd,
 		"tfdt": DecodeTfdt,
+		"trun": DecodeTrun,
 	}
 }
 
-// The header of a box
+// BoxHeader - 8-byte header of a box
 type BoxHeader struct {
 	Type string
 	Size uint32
@@ -139,7 +141,7 @@ func DecodeContainer(r io.Reader) ([]Box, error) {
 	}
 }
 
-// An 8.8 fixed point number
+// Fixed16 - An 8.8 fixed point number
 type Fixed16 uint16
 
 func (f Fixed16) String() string {
@@ -154,7 +156,7 @@ func putFixed16(bytes []byte, i Fixed16) {
 	binary.BigEndian.PutUint16(bytes, uint16(i))
 }
 
-// A 16.16 fixed point number
+// Fixed32 -  A 16.16 fixed point number
 type Fixed32 uint32
 
 func (f Fixed32) String() string {
