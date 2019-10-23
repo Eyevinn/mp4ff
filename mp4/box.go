@@ -14,9 +14,10 @@ const (
 )
 
 var (
-	ErrUnknownBoxType  = errors.New("unknown box type")
+	// ErrTruncatedHeader - could not read full header
 	ErrTruncatedHeader = errors.New("truncated header")
-	ErrBadFormat       = errors.New("bad format")
+	// ErrBadFormat - box structure not parsable
+	ErrBadFormat = errors.New("bad format")
 )
 
 var decoders map[string]BoxDecoder

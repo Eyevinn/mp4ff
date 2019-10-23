@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-// A MPEG-4 media
+// MP4 - an MPEG-4 file asset
 //
 // A MPEG-4 media contains three main boxes :
 //

@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 )
 
-// Track Header Box (tkhd - mandatory)
+// TkhdBox - Track Header Box (tkhd - mandatory)
 //
 // Status : only version 0 is decoded. version 1 is not supported
 //

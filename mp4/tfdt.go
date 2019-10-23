@@ -39,12 +39,12 @@ func DecodeTfdt(r io.Reader) (Box, error) {
 	return b, nil
 }
 
-// Type - returns box type
+// Type - return box type
 func (t *TfdtBox) Type() string {
 	return "tfdt"
 }
 
-// Size - returns calculated size
+// Size - return calculated size
 func (t *TfdtBox) Size() int {
 	return BoxHeaderSize + 8 + 4*int(t.Version)
 }
