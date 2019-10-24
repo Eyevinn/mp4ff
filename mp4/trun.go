@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -191,29 +190,29 @@ func (t *TrunBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(t)
-	bb := NewBufferWrapper(buf)
+	sw := NewSliceWriter(buf)
 	versionAndFlags := (uint32(t.Version) << 24) + t.flags
-	bb.WriteUint32(versionAndFlags)
-	bb.WriteUint32(t.sampleCount)
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(t.sampleCount)
 	if t.HasDataOffset() {
-		bb.WriteInt32(t.DataOffset)
+		sw.WriteInt32(t.DataOffset)
 	}
 	if t.HasFirstSampleFlags() {
-		bb.WriteUint32(t.firstSampleFlags)
+		sw.WriteUint32(t.firstSampleFlags)
 	}
 	var i uint32
 	for i = 0; i < t.sampleCount; i++ {
 		if t.HasSampleDuration() {
-			bb.WriteUint32(t.samples[i].Dur)
+			sw.WriteUint32(t.samples[i].Dur)
 		}
 		if t.HasSampleSize() {
-			bb.WriteUint32(t.samples[i].Size)
+			sw.WriteUint32(t.samples[i].Size)
 		}
 		if t.HasSampleFlags() {
-			bb.WriteUint32(t.samples[i].Flags)
+			sw.WriteUint32(t.samples[i].Flags)
 		}
 		if t.HasSampleCTO() {
-			bb.WriteInt32(t.samples[i].Cto)
+			sw.WriteInt32(t.samples[i].Cto)
 		}
 
 	}
@@ -221,23 +220,15 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-type SampleComplete struct {
-	Sample
-	DecodeTime       uint64
-	PresentationTime uint64
-	Data             []byte
-}
-
-// GetSampleData - Return list of Samples
+// GetSampleData - return list of Samples
 func (t *TrunBox) GetSampleData(r io.ReadSeeker, baseOffset uint64, baseTime uint64) []*SampleComplete {
 	samples := make([]*SampleComplete, 0, t.SampleCount())
 	var accDur uint64 = 0
 	accPos := baseOffset
 	r.Seek(int64(accPos), io.SeekStart)
-	for i, s := range t.samples {
+	for _, s := range t.samples {
 		dTime := baseTime + accDur
 		pTime := uint64(int64(dTime) + int64(s.Cto))
-		fmt.Printf("Sample %d, len %d\n", i, s.Size)
 		sr := io.LimitReader(r, int64(s.Size))
 		data, err := ioutil.ReadAll(sr)
 		if err != nil {

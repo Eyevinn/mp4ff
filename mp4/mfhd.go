@@ -51,10 +51,10 @@ func (m *MfhdBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(m)
-	bw := NewBufferWrapper(buf)
+	sw := NewSliceWriter(buf)
 	versionAndFlags := (uint32(m.Version) << 24) + m.Flags
-	bw.WriteUint32(versionAndFlags)
-	bw.WriteUint32(m.SequenceNumber)
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(m.SequenceNumber)
 	_, err = w.Write(buf)
 	return err
 }

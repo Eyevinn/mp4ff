@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 )
 
-// Composition Time to Sample Box (ctts - optional)
+// CttsBox - Composition Time to Sample Box (ctts - optional)
 //
 // Contained in: Sample Table Box (stbl)
 //

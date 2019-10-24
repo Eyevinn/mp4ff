@@ -138,24 +138,24 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(t)
-	bw := NewBufferWrapper(buf)
+	sw := NewSliceWriter(buf)
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
-	bw.WriteUint32(versionAndFlags)
-	bw.WriteUint32(t.TrackID)
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(t.TrackID)
 	if t.HasBaseDataOffset() {
-		bw.WriteUint64(t.BaseDataOffset)
+		sw.WriteUint64(t.BaseDataOffset)
 	}
 	if t.HasSampleDescriptionIndex() {
-		bw.WriteUint32(t.SampleDescriptionIndex)
+		sw.WriteUint32(t.SampleDescriptionIndex)
 	}
 	if t.HasDefaultSampleDuration() {
-		bw.WriteUint32(t.DefaultSampleDuration)
+		sw.WriteUint32(t.DefaultSampleDuration)
 	}
 	if t.HasDefaultSampleSize() {
-		bw.WriteUint32(t.DefaultSampleSize)
+		sw.WriteUint32(t.DefaultSampleSize)
 	}
 	if t.HasDefaultSampleFlags() {
-		bw.WriteUint32(t.DefaultSampleFlags)
+		sw.WriteUint32(t.DefaultSampleFlags)
 	}
 
 	_, err = w.Write(buf)

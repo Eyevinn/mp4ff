@@ -6,20 +6,20 @@ import (
 	"io/ioutil"
 )
 
-// FtypBox - File Type Box (ftyp - mandatory)
-type FtypBox struct {
+// StypBox  Segment Type Box (styp)
+type StypBox struct {
 	MajorBrand       string
 	MinorVersion     []byte
 	CompatibleBrands []string
 }
 
-// DecodeFtyp - box-specific decode
-func DecodeFtyp(r io.Reader) (Box, error) {
+// DecodeStyp - box-specific decode
+func DecodeStyp(r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	b := &FtypBox{
+	b := &StypBox{
 		MajorBrand:       string(data[0:4]),
 		MinorVersion:     data[4:8],
 		CompatibleBrands: []string{},
@@ -33,22 +33,22 @@ func DecodeFtyp(r io.Reader) (Box, error) {
 }
 
 // Type - return box type
-func (b *FtypBox) Type() string {
-	return "ftyp"
+func (b *StypBox) Type() string {
+	return "Styp"
 }
 
 // Size - return calculated size
-func (b *FtypBox) Size() int {
+func (b *StypBox) Size() int {
 	return BoxHeaderSize + 8 + 4*len(b.CompatibleBrands)
 }
 
 // Dump - print box info
-func (b *FtypBox) Dump() {
-	fmt.Printf("File Type: %s\n", b.MajorBrand)
+func (b *StypBox) Dump() {
+	fmt.Printf("Segment Type: %s\n", b.MajorBrand)
 }
 
 // Encode - write box to w
-func (b *FtypBox) Encode(w io.Writer) error {
+func (b *StypBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
 		return err

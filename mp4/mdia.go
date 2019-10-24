@@ -2,12 +2,9 @@ package mp4
 
 import "io"
 
-// Media Box (mdia - mandatory)
+// MdiaBox - Media Box (mdia)
 //
 // Contained in : Track Box (trak)
-//
-// Status: decoded
-//
 // Contains all information about the media data.
 type MdiaBox struct {
 	Mdhd *MdhdBox
@@ -15,6 +12,7 @@ type MdiaBox struct {
 	Minf *MinfBox
 }
 
+// DecodeMdia - box-specific decode
 func DecodeMdia(r io.Reader) (Box, error) {
 	l, err := DecodeContainer(r)
 	if err != nil {
@@ -36,10 +34,12 @@ func DecodeMdia(r io.Reader) (Box, error) {
 	return m, nil
 }
 
+// Type - return box type
 func (b *MdiaBox) Type() string {
 	return "mdia"
 }
 
+// Size - return calculated size
 func (b *MdiaBox) Size() int {
 	sz := b.Mdhd.Size()
 	if b.Hdlr != nil {
@@ -51,6 +51,7 @@ func (b *MdiaBox) Size() int {
 	return sz + BoxHeaderSize
 }
 
+// Dump - print data of lower levels
 func (b *MdiaBox) Dump() {
 	b.Mdhd.Dump()
 	if b.Minf != nil {
@@ -58,6 +59,7 @@ func (b *MdiaBox) Dump() {
 	}
 }
 
+// Encode - write box to w
 func (b *MdiaBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

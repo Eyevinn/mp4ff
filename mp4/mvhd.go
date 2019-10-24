@@ -26,7 +26,7 @@ type MvhdBox struct {
 	ModificationTime uint32
 	Timescale        uint32
 	Duration         uint32
-	NextTrackId      uint32
+	NextTrackID      uint32
 	Rate             Fixed32
 	Volume           Fixed16
 	notDecoded       []byte

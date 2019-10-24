@@ -39,10 +39,10 @@ func DecodeStts(r io.Reader) (Box, error) {
 	}
 	ec := binary.BigEndian.Uint32(data[4:8])
 	for i := 0; i < int(ec); i++ {
-		s_count := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
-		s_delta := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
-		b.SampleCount = append(b.SampleCount, s_count)
-		b.SampleTimeDelta = append(b.SampleTimeDelta, s_delta)
+		sCount := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
+		sDelta := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
+		b.SampleCount = append(b.SampleCount, sCount)
+		b.SampleTimeDelta = append(b.SampleTimeDelta, sDelta)
 	}
 	return b, nil
 }
@@ -52,6 +52,7 @@ func (b *SttsBox) Type() string {
 	return "stts"
 }
 
+// Size - return calculated size
 func (b *SttsBox) Size() int {
 	return BoxHeaderSize + 8 + len(b.SampleCount)*8
 }

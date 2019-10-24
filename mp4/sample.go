@@ -17,3 +17,11 @@ func NewSample(flags uint32, dur uint32, size uint32, cto int32) *Sample {
 		Cto:   cto,
 	}
 }
+
+//SampleComplete - include times and data
+type SampleComplete struct {
+	Sample
+	DecodeTime       uint64
+	PresentationTime uint64
+	Data             []byte
+}

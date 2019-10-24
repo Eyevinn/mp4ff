@@ -69,13 +69,13 @@ func (t *TfdtBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(t)
-	bw := NewBufferWrapper(buf)
+	sw := NewSliceWriter(buf)
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
-	bw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(versionAndFlags)
 	if t.Version == 0 {
-		bw.WriteUint32(uint32(t.BaseMediaDecodeTime))
+		sw.WriteUint32(uint32(t.BaseMediaDecodeTime))
 	} else {
-		bw.WriteUint64(t.BaseMediaDecodeTime)
+		sw.WriteUint64(t.BaseMediaDecodeTime)
 	}
 	_, err = w.Write(buf)
 	return err

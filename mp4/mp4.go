@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 )
 
@@ -34,45 +35,6 @@ func NewMP4() *MP4 {
 	}
 }
 
-// InitSegment - MP4/CMAF init segment
-type InitSegment struct {
-	Ftyp  *FtypBox
-	Moov  *MoovBox
-	boxes []Box
-}
-
-// NewMP4Init - Create MP4Init
-func NewMP4Init() *InitSegment {
-	return &InitSegment{
-		boxes: []Box{},
-	}
-}
-
-// MediaSegment - MP4 Media Segment
-type MediaSegment struct {
-	Styp      *UnknownBox
-	Fragments []*Fragment
-}
-
-// NewMediaSegment - Create MP4Segment
-func NewMediaSegment() *MediaSegment {
-	return &MediaSegment{
-		Fragments: []*Fragment{},
-	}
-}
-
-// Fragment - MP4 Fragment (moof + mdat)
-type Fragment struct {
-	Moof  *MoofBox
-	Mdat  *MdatBox
-	boxes []Box
-}
-
-// NewFragment - Create MP4 Fragment
-func NewFragment() *Fragment {
-	return &Fragment{}
-}
-
 // Decode - decode a media from a Reader
 func Decode(r io.ReadSeeker) (*MP4, error) {
 
@@ -93,6 +55,7 @@ LoopBoxes:
 		if err != nil {
 			return nil, err
 		}
+		log.Printf("Box %v, size %v at pos %v", h.Type, h.Size, boxStartPos)
 		box, err := DecodeBox(h, r)
 		if err != nil {
 			return nil, err
@@ -112,7 +75,7 @@ LoopBoxes:
 		case "styp":
 			stypPresent = true
 			currentSegment = NewMediaSegment()
-			currentSegment.Styp = box.(*UnknownBox)
+			currentSegment.Styp = box.(*StypBox)
 			m.Segments = append(m.Segments, currentSegment)
 		case "moof":
 			moof := box.(*MoofBox)

@@ -52,12 +52,15 @@ func init() {
 		"meta": DecodeMeta,
 		"mdat": DecodeMdat,
 		"free": DecodeFree,
+		"styp": DecodeStyp,
 		"moof": DecodeMoof,
 		"mfhd": DecodeMfhd,
 		"traf": DecodeTraf,
 		"tfhd": DecodeTfhd,
 		"tfdt": DecodeTfdt,
 		"trun": DecodeTrun,
+		"mvex": DecodeMvex,
+		"trex": DecodeTrex,
 	}
 }
 

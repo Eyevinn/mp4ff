@@ -35,12 +35,12 @@ func DecodeTraf(r io.Reader) (Box, error) {
 	return t, nil
 }
 
-// Type - returns box type
+// Type - return box type
 func (t *TrafBox) Type() string {
 	return "traf"
 }
 
-// Size - returns calculated size
+// Size - return calculated size
 func (t *TrafBox) Size() int {
 	sz := BoxHeaderSize
 	for _, b := range t.boxes {
