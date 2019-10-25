@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-// MP4 - an MPEG-4 file asset
+// File - an MPEG-4 file asset
 //
 // A MPEG-4 media contains three main boxes if progressive :
 //
@@ -17,31 +17,31 @@ import (
 //
 // If segmented, it instead contain a list of segments
 // Other boxes can also be present (pdin, moof, mfra, free, ...), but are not decoded.
-type MP4 struct {
+type File struct {
 	Ftyp         *FtypBox
 	Moov         *MoovBox
-	Mdat         *MdatBox
-	boxes        []Box
+	Mdat         *MdatBox // Only used for non-fragmented boxes
+	boxes        []Box    // All boxes in order
 	isFragmented bool
 	Init         *InitSegment
 	Segments     []*MediaSegment
 }
 
-// NewMP4 - create MP4
-func NewMP4() *MP4 {
-	return &MP4{
+// NewFile - create MP4 file
+func NewFile() *File {
+	return &File{
 		boxes:    []Box{},
 		Segments: []*MediaSegment{},
 	}
 }
 
-// Decode - decode a media from a Reader
-func Decode(r io.ReadSeeker) (*MP4, error) {
+// Decode - top-level of a file from a Reader
+func Decode(r io.ReadSeeker) (*File, error) {
 
 	var currentSegment *MediaSegment
 	var currentFragment *Fragment
 	stypPresent := false
-	m := NewMP4()
+	m := NewFile()
 	var boxStartPos uint64 = 0
 LoopBoxes:
 	for {
@@ -102,7 +102,7 @@ LoopBoxes:
 }
 
 // Dump displays some information about a media
-func (m *MP4) Dump(r io.ReadSeeker) {
+func (m *File) Dump(r io.ReadSeeker) {
 	if m.isFragmented {
 		fmt.Printf("Init segment\n")
 		m.Init.Moov.Dump()
@@ -123,12 +123,12 @@ func (m *MP4) Dump(r io.ReadSeeker) {
 }
 
 // Boxes lists the top-level boxes from a media
-func (m *MP4) Boxes() []Box {
+func (m *File) Boxes() []Box {
 	return m.boxes
 }
 
 // Encode encodes a media to a Writer
-func (m *MP4) Encode(w io.Writer) error {
+func (m *File) Encode(w io.Writer) error {
 	for _, b := range m.Boxes() {
 		err := b.Encode(w)
 		if err != nil {

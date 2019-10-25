@@ -32,9 +32,10 @@ type MediaSegment struct {
 }
 
 // NewMediaSegment - Create MP4Segment
-func NewMediaSegment() *MediaSegment {
+func NewMediaSegment(  *MediaSegment {
+	f := NewFragment()
 	return &MediaSegment{
-		Fragments: []*Fragment{},
+		Fragments: []*Fragment{f},
 	}
 }
 
