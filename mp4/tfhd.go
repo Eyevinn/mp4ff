@@ -29,7 +29,7 @@ type TfhdBox struct {
 }
 
 // DecodeTfhd - box-specific decode
-func DecodeTfhd(r io.Reader) (Box, error) {
+func DecodeTfhd(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -106,8 +106,8 @@ func (t *TfhdBox) Type() string {
 }
 
 // Size - returns calculated size
-func (t *TfhdBox) Size() int {
-	sz := BoxHeaderSize + 8
+func (t *TfhdBox) Size() uint64 {
+	sz := boxHeaderSize + 8
 	if t.HasBaseDataOffset() {
 		sz += 8
 	}
@@ -123,7 +123,7 @@ func (t *TfhdBox) Size() int {
 	if t.HasDefaultSampleFlags() {
 		sz += 4
 	}
-	return sz
+	return uint64(sz)
 }
 
 // Dump - print box specific data

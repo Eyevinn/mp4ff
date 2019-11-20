@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// Object Descriptor Container Box (iods - optional)
+// IodsBox - Object Descriptor Container Box (iods - optional)
 //
 // Contained in : Movie Box (‘moov’)
 //
@@ -14,7 +14,8 @@ type IodsBox struct {
 	notDecoded []byte
 }
 
-func DecodeIods(r io.Reader) (Box, error) {
+// DecodeIods - box-specific decode
+func DecodeIods(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -24,14 +25,17 @@ func DecodeIods(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box type
 func (b *IodsBox) Type() string {
 	return "iods"
 }
 
-func (b *IodsBox) Size() int {
-	return BoxHeaderSize + len(b.notDecoded)
+// Size - calculated size of box
+func (b *IodsBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.notDecoded))
 }
 
+// Encode - write box to w
 func (b *IodsBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

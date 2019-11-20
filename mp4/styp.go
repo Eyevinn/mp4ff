@@ -14,7 +14,7 @@ type StypBox struct {
 }
 
 // DecodeStyp - box-specific decode
-func DecodeStyp(r io.Reader) (Box, error) {
+func DecodeStyp(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -34,12 +34,12 @@ func DecodeStyp(r io.Reader) (Box, error) {
 
 // Type - return box type
 func (b *StypBox) Type() string {
-	return "Styp"
+	return "styp"
 }
 
 // Size - return calculated size
-func (b *StypBox) Size() int {
-	return BoxHeaderSize + 8 + 4*len(b.CompatibleBrands)
+func (b *StypBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + 4*len(b.CompatibleBrands))
 }
 
 // Dump - print box info

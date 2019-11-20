@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 )
 
-// Handler Reference Box (hdlr - mandatory)
+// HdlrBox - Handler Reference Box (hdlr - mandatory)
 //
 // Contained in: Media Box (mdia) or Meta Box (meta)
 //
@@ -23,7 +23,8 @@ type HdlrBox struct {
 	Name        string
 }
 
-func DecodeHdlr(r io.Reader) (Box, error) {
+// DecodeHdlr - box-specific decode
+func DecodeHdlr(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -37,14 +38,17 @@ func DecodeHdlr(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box type
 func (b *HdlrBox) Type() string {
 	return "hdlr"
 }
 
-func (b *HdlrBox) Size() int {
-	return BoxHeaderSize + 24 + len(b.Name)
+// Size - calculated size of box
+func (b *HdlrBox) Size() uint64 {
+	return uint64(boxHeaderSize + 24 + len(b.Name))
 }
 
+// Encode - write box to w
 func (b *HdlrBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

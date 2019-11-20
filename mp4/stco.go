@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 )
 
-// Chunk Offset Box (stco - mandatory)
+// StcoBox - Chunk Offset Box (stco - mandatory)
 //
 // Contained in : Sample Table box (stbl)
 //
@@ -23,7 +23,8 @@ type StcoBox struct {
 	ChunkOffset []uint32
 }
 
-func DecodeStco(r io.Reader) (Box, error) {
+// DecodeStco - box-specific decode
+func DecodeStco(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -41,14 +42,17 @@ func DecodeStco(r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// Type - box-specific type
 func (b *StcoBox) Type() string {
 	return "stco"
 }
 
-func (b *StcoBox) Size() int {
-	return BoxHeaderSize + 8 + len(b.ChunkOffset)*4
+// Size - box-specific size
+func (b *StcoBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + len(b.ChunkOffset)*4)
 }
 
+// Dump - box-specific dump
 func (b *StcoBox) Dump() {
 	fmt.Println("Chunk byte offsets:")
 	for i, o := range b.ChunkOffset {
@@ -56,6 +60,7 @@ func (b *StcoBox) Dump() {
 	}
 }
 
+// Encode - box-specific encode
 func (b *StcoBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

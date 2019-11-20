@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// Movie Box (moov - mandatory)
+// MoovBox - Movie Box (moov - mandatory)
 //
 // Status: partially decoded (anything other than mvhd, iods, trak or udta is ignored)
 //
@@ -19,8 +19,9 @@ type MoovBox struct {
 	boxes []Box
 }
 
-func DecodeMoov(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+// DecodeMoov - box-specific decode
+func DecodeMoov(size uint64, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
@@ -41,18 +42,17 @@ func DecodeMoov(r io.Reader) (Box, error) {
 	return m, err
 }
 
+// Type - box type
 func (b *MoovBox) Type() string {
 	return "moov"
 }
 
-func (b *MoovBox) Size() int {
-	sz := BoxHeaderSize
-	for _, box := range b.boxes {
-		sz += box.Size()
-	}
-	return sz
+// Size - calculated size of box
+func (b *MoovBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
+// Dump - print box info
 func (b *MoovBox) Dump() {
 	b.Mvhd.Dump()
 	for i, t := range b.Trak {
@@ -61,6 +61,7 @@ func (b *MoovBox) Dump() {
 	}
 }
 
+// Encode - write box to w
 func (b *MoovBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

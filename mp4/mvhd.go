@@ -33,7 +33,7 @@ type MvhdBox struct {
 }
 
 // DecodeMvhd - box-specific decode
-func DecodeMvhd(r io.Reader) (Box, error) {
+func DecodeMvhd(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -57,8 +57,8 @@ func (b *MvhdBox) Type() string {
 }
 
 // Size - return calculated size
-func (b *MvhdBox) Size() int {
-	return BoxHeaderSize + 26 + len(b.notDecoded)
+func (b *MvhdBox) Size() uint64 {
+	return uint64(boxHeaderSize + 26 + len(b.notDecoded))
 }
 
 // Dump - write box details

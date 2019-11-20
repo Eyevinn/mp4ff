@@ -32,15 +32,20 @@ type MediaSegment struct {
 }
 
 // NewMediaSegment - Create MP4Segment
-func NewMediaSegment(  *MediaSegment {
-	f := NewFragment()
+func NewMediaSegment() *MediaSegment {
 	return &MediaSegment{
-		Fragments: []*Fragment{f},
+		Fragments: []*Fragment{},
 	}
+}
+
+// AddFragment - Add a fragment to a MediaSegment
+func (s *MediaSegment) AddFragment(f *Fragment) {
+	s.Fragments = append(s.Fragments, f)
 }
 
 // Fragment - MP4 Fragment (moof + mdat)
 type Fragment struct {
+	Prft  *PrftBox
 	Moof  *MoofBox
 	Mdat  *MdatBox
 	boxes []Box
@@ -49,4 +54,17 @@ type Fragment struct {
 // NewFragment - Create MP4 Fragment
 func NewFragment() *Fragment {
 	return &Fragment{}
+}
+
+// AddChild - Add a child box to Fragment
+func (s *Fragment) AddChild(b Box) {
+	switch b.Type() {
+	case "prft":
+		s.Prft = b.(*PrftBox)
+	case "moof":
+		s.Moof = b.(*MoofBox)
+	case "mdat":
+		s.Mdat = b.(*MdatBox)
+	}
+	s.boxes = append(s.boxes, b)
 }

@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 )
 
-// Edit List Box (elst - optional)
+// ElstBox - Edit List Box (elst - optional)
 //
 // Contained in : Edit Box (edts)
 //
@@ -19,7 +19,8 @@ type ElstBox struct {
 	MediaRateInteger, MediaRateFraction []uint16 // should be int16
 }
 
-func DecodeElst(r io.Reader) (Box, error) {
+// DecodeElst - box-specific decode
+func DecodeElst(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -46,14 +47,17 @@ func DecodeElst(r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// Type - box type
 func (b *ElstBox) Type() string {
 	return "elst"
 }
 
-func (b *ElstBox) Size() int {
-	return BoxHeaderSize + 8 + len(b.SegmentDuration)*12
+// Size - calculated size of box
+func (b *ElstBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + len(b.SegmentDuration)*12)
 }
 
+// Dump - print box info
 func (b *ElstBox) Dump() {
 	fmt.Println("Segment Duration:")
 	for i, d := range b.SegmentDuration {
@@ -61,12 +65,13 @@ func (b *ElstBox) Dump() {
 	}
 }
 
+// Encode - write box to w
 func (b *ElstBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, b.Size()-BoxHeaderSize)
+	buf := make([]byte, b.Size()-boxHeaderSize)
 	buf[0] = b.Version
 	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
 	binary.BigEndian.PutUint32(buf[4:], uint32(len(b.SegmentDuration)))

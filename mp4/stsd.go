@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// Sample Description Box (stsd - manatory)
+// StsdBox - Sample Description Box (stsd - manatory)
 //
 // Contained in : Sample Table box (stbl)
 //
@@ -18,7 +18,8 @@ type StsdBox struct {
 	notDecoded []byte
 }
 
-func DecodeStsd(r io.Reader) (Box, error) {
+// DecodeStsd - box-specific decode
+func DecodeStsd(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -30,14 +31,17 @@ func DecodeStsd(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box-specific type
 func (b *StsdBox) Type() string {
 	return "stsd"
 }
 
-func (b *StsdBox) Size() int {
-	return BoxHeaderSize + 4 + len(b.notDecoded)
+// Size - box-specific type
+func (b *StsdBox) Size() uint64 {
+	return uint64(boxHeaderSize + 4 + len(b.notDecoded))
 }
 
+// Encode - box-specific encode
 func (b *StsdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

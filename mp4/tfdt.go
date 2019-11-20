@@ -28,7 +28,7 @@ func NewTfdtBox(baseMediaDecodeTime uint64) *TfdtBox {
 }
 
 // DecodeTfdt - box-specific decode
-func DecodeTfdt(r io.Reader) (Box, error) {
+func DecodeTfdt(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -58,8 +58,8 @@ func (t *TfdtBox) Type() string {
 }
 
 // Size - return calculated size
-func (t *TfdtBox) Size() int {
-	return BoxHeaderSize + 8 + 4*int(t.Version)
+func (t *TfdtBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + 4*int(t.Version))
 }
 
 // Encode - write box to w

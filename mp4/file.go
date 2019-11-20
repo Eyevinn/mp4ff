@@ -35,33 +35,34 @@ func NewFile() *File {
 	}
 }
 
-// Decode - top-level of a file from a Reader
-func Decode(r io.ReadSeeker) (*File, error) {
+// DecodeFile - top-level of a file from a Reader
+func DecodeFile(r io.Reader) (*File, error) {
 
 	var currentSegment *MediaSegment
 	var currentFragment *Fragment
 	stypPresent := false
 	m := NewFile()
 	var boxStartPos uint64 = 0
+	lastBoxType := ""
 LoopBoxes:
 	for {
 		//f := r.(*os.File)
 		//p, err := f.Seek(0, os.SEEK_CUR)
 		//log.Printf("Byte position is %v", p)
-		h, err := DecodeHeader(r)
-		if err == io.EOF || h.Size == 0 {
+		box, err := DecodeBox(boxStartPos, r)
+		if err == io.EOF {
 			break LoopBoxes
 		}
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("Box %v, size %v at pos %v", h.Type, h.Size, boxStartPos)
-		box, err := DecodeBox(h, r)
+		bType, bSize := box.Type(), box.Size()
+		log.Printf("Box %v, size %v at pos %v", bType, bSize, boxStartPos)
 		if err != nil {
 			return nil, err
 		}
 		m.boxes = append(m.boxes, box)
-		switch h.Type {
+		switch bType {
 		case "ftyp":
 			m.Ftyp = box.(*FtypBox)
 		case "moov":
@@ -86,23 +87,30 @@ LoopBoxes:
 				m.Segments = append(m.Segments, currentSegment)
 			}
 			currentFragment = NewFragment()
-			currentSegment.Fragments = append(currentSegment.Fragments, currentFragment)
-			currentFragment.Moof = moof
+			currentSegment.AddFragment(currentFragment)
+			currentFragment.AddChild(moof)
 		case "mdat":
 			mdat := box.(*MdatBox)
 			if !m.isFragmented {
+				if lastBoxType != "moov" {
+					log.Fatalf("Does not support %v between moov and mdat", lastBoxType)
+				}
 				m.Mdat = mdat
 			} else {
-				currentFragment.Mdat = mdat
+				if lastBoxType != "moof" {
+					log.Fatalf("Does not support %v between moof and mdat", lastBoxType)
+				}
+				currentFragment.AddChild(mdat)
 			}
 		}
-		boxStartPos += uint64(box.Size())
+		lastBoxType = bType
+		boxStartPos += bSize
 	}
 	return m, nil
 }
 
 // Dump displays some information about a media
-func (m *File) Dump(r io.ReadSeeker) {
+func (m *File) Dump(r io.Reader) {
 	if m.isFragmented {
 		fmt.Printf("Init segment\n")
 		m.Init.Moov.Dump()
@@ -139,14 +147,16 @@ func (m *File) Encode(w io.Writer) error {
 }
 
 // DumpSampleData - Get Sample data and print out
-func (f *Fragment) DumpSampleData(r io.ReadSeeker, w io.Writer) {
-
-	seqNr := f.Moof.Mfhd.SequenceNumber
+func (f *Fragment) DumpSampleData(r io.Reader, w io.Writer) {
+	moof := f.Moof
+	mdat := f.Mdat
+	seqNr := moof.Mfhd.SequenceNumber
 	fmt.Printf("Samples for Segment %d\n", seqNr)
-	tfhd := f.Moof.Traf.Tfhd
-	baseTime := f.Moof.Traf.Tfdt.BaseMediaDecodeTime
-	trun := f.Moof.Traf.Trun
-	moofStartPos := f.Moof.StartPos
+	tfhd := moof.Traf.Tfhd
+	baseTime := moof.Traf.Tfdt.BaseMediaDecodeTime
+	trun := moof.Traf.Trun
+	moofStartPos := moof.StartPos
+	mdatStartPos := mdat.StartPos
 	trun.AddSampleDefaultValues(tfhd)
 	var baseOffset uint64
 	if tfhd.HasBaseDataOffset() {
@@ -157,7 +167,12 @@ func (f *Fragment) DumpSampleData(r io.ReadSeeker, w io.Writer) {
 	if trun.HasDataOffset() {
 		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 	}
-	samples := trun.GetSampleData(r, baseOffset, baseTime)
+	mdatDataLength := uint64(len(mdat.Data)) // Todo. Make len take 64-bit number
+	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
+	if offsetInMdat > mdatDataLength {
+		log.Fatalf("Offset in mdata beyond size")
+	}
+	samples := trun.GetSampleData(uint32(offsetInMdat), baseTime, f.Mdat)
 	for i, s := range samples {
 		if i < 9 {
 			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime, s.Flags, s.Size, len(s.Data))

@@ -2,7 +2,7 @@ package mp4
 
 import "io"
 
-// Edit Box (edts - optional)
+// EdtsBox - Edit Box (edts - optional)
 //
 // Contained in: Track Box ("trak")
 //
@@ -10,15 +10,18 @@ import "io"
 //
 // The edit box maps the presentation timeline to the media-time line
 type EdtsBox struct {
-	Elst *ElstBox
+	Elst  *ElstBox
+	boxes []Box
 }
 
-func DecodeEdts(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+// DecodeEdts - box-specific decode
+func DecodeEdts(size uint64, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	e := &EdtsBox{}
+	e.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "elst":
@@ -30,18 +33,22 @@ func DecodeEdts(r io.Reader) (Box, error) {
 	return e, nil
 }
 
+// Type - box type
 func (b *EdtsBox) Type() string {
 	return "edts"
 }
 
-func (b *EdtsBox) Size() int {
-	return BoxHeaderSize + b.Elst.Size()
+// Size - calculated size of box
+func (b *EdtsBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
+// Dump - print box info
 func (b *EdtsBox) Dump() {
 	b.Elst.Dump()
 }
 
+// Encode - write box to w
 func (b *EdtsBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

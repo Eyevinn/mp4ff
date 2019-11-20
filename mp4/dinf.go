@@ -2,21 +2,24 @@ package mp4
 
 import "io"
 
-// Data Information Box (dinf - mandatory)
+// DinfBox - Data Information Box (dinf - mandatory)
 //
 // Contained in : Media Information Box (minf) or Meta Box (meta)
 //
 // Status : decoded
 type DinfBox struct {
-	Dref *DrefBox
+	Dref  *DrefBox
+	boxes []Box
 }
 
-func DecodeDinf(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+// DecodeDinf - box-specific decode
+func DecodeDinf(size uint64, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	d := &DinfBox{}
+	d.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "dref":
@@ -28,14 +31,17 @@ func DecodeDinf(r io.Reader) (Box, error) {
 	return d, nil
 }
 
+// Type - box-specific type
 func (b *DinfBox) Type() string {
 	return "dinf"
 }
 
-func (b *DinfBox) Size() int {
-	return BoxHeaderSize + b.Dref.Size()
+// Size - box-specific size
+func (b *DinfBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
+// Encode - box-specifc encode
 func (b *DinfBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

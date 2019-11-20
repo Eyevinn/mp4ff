@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// Data Reference Box (dref - mandatory)
+// DrefBox - Data Reference Box (dref - mandatory)
 //
 // Contained id: Data Information Box (dinf)
 //
@@ -19,7 +19,8 @@ type DrefBox struct {
 	notDecoded []byte
 }
 
-func DecodeDref(r io.Reader) (Box, error) {
+// DecodeDref - box-specific decode
+func DecodeDref(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -31,14 +32,17 @@ func DecodeDref(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box type
 func (b *DrefBox) Type() string {
 	return "dref"
 }
 
-func (b *DrefBox) Size() int {
-	return BoxHeaderSize + 4 + len(b.notDecoded)
+// Size - calculated size of box
+func (b *DrefBox) Size() uint64 {
+	return uint64(boxHeaderSize + 4 + len(b.notDecoded))
 }
 
+// Encode - write box to w
 func (b *DrefBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

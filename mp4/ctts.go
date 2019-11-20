@@ -18,7 +18,8 @@ type CttsBox struct {
 	SampleOffset []uint32 // int32 for version 1
 }
 
-func DecodeCtts(r io.Reader) (Box, error) {
+// DecodeCtts - box-specific decode
+func DecodeCtts(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -31,22 +32,25 @@ func DecodeCtts(r io.Reader) (Box, error) {
 	}
 	ec := binary.BigEndian.Uint32(data[4:8])
 	for i := 0; i < int(ec); i++ {
-		s_count := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
-		s_offset := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
-		b.SampleCount = append(b.SampleCount, s_count)
-		b.SampleOffset = append(b.SampleOffset, s_offset)
+		sCount := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
+		sOffset := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
+		b.SampleCount = append(b.SampleCount, sCount)
+		b.SampleOffset = append(b.SampleOffset, sOffset)
 	}
 	return b, nil
 }
 
+// Type - box type
 func (b *CttsBox) Type() string {
 	return "ctts"
 }
 
-func (b *CttsBox) Size() int {
-	return BoxHeaderSize + 8 + len(b.SampleCount)*8
+// Size - calculated size of box
+func (b *CttsBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + len(b.SampleCount)*8)
 }
 
+// Encode - write box to w
 func (b *CttsBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

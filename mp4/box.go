@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	// BoxHeaderSize - standard size + name header
-	BoxHeaderSize = 8
+	// boxHeaderSize - standard size + name header
+	boxHeaderSize = 8
+	largeSizeLen  = 8 // Length of largesize exension
 )
 
 var (
@@ -19,6 +20,16 @@ var (
 	// ErrBadFormat - box structure not parsable
 	ErrBadFormat = errors.New("bad format")
 )
+
+// headerLength - header length including potential largesize
+func headerLength(contentSize uint64) uint64 {
+	hdrlen := boxHeaderSize
+
+	if contentSize > 429496729-8 { // 2**32 - 8
+		hdrlen += largeSizeLen
+	}
+	return uint64(hdrlen)
+}
 
 var decoders map[string]BoxDecoder
 
@@ -61,34 +72,50 @@ func init() {
 		"trun": DecodeTrun,
 		"mvex": DecodeMvex,
 		"trex": DecodeTrex,
+		"prft": DecodePrft,
 	}
 }
 
-// BoxHeader - 8-byte header of a box
-type BoxHeader struct {
-	Type string
-	Size uint32
+// boxHeader - 8 or 16 bytes depending on size
+type boxHeader struct {
+	name   string
+	size   uint64
+	hdrlen int
 }
 
-// DecodeHeader decodes a box header (size + box type)
-func DecodeHeader(r io.Reader) (BoxHeader, error) {
-	buf := make([]byte, BoxHeaderSize)
+// decodeHeader decodes a box header (size + box type)
+func decodeHeader(r io.Reader) (boxHeader, error) {
+	buf := make([]byte, boxHeaderSize)
 	n, err := r.Read(buf)
-	if n == 0 {
-		return BoxHeader{}, nil
-	}
 	if err != nil {
-		return BoxHeader{}, err
+		return boxHeader{}, err
 	}
-	if n != BoxHeaderSize {
-		return BoxHeader{}, ErrTruncatedHeader
+	if n != boxHeaderSize {
+		return boxHeader{}, ErrTruncatedHeader
 	}
-	return BoxHeader{string(buf[4:8]), binary.BigEndian.Uint32(buf[0:4])}, nil
+	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
+	headerLen := boxHeaderSize
+	if size == 1 {
+		buf := make([]byte, largeSizeLen)
+		n, err := r.Read(buf)
+		if err != nil {
+			return boxHeader{}, err
+		}
+		if n != largeSizeLen {
+			return boxHeader{}, errors.New("Could not read largeSize")
+		}
+		size = binary.BigEndian.Uint64(buf)
+		headerLen += largeSizeLen
+	} else if size == 0 {
+		return boxHeader{}, errors.New("Size to end of file not supported")
+	}
+	return boxHeader{string(buf[4:8]), size, headerLen}, nil
 }
 
 // EncodeHeader encodes a box header to a writer
 func EncodeHeader(b Box, w io.Writer) error {
-	buf := make([]byte, BoxHeaderSize)
+	buf := make([]byte, boxHeaderSize)
+	// Todo. Handle largesize extension
 	binary.BigEndian.PutUint32(buf, uint32(b.Size()))
 	strtobuf(buf[4:], b.Type(), 4)
 	_, err := w.Write(buf)
@@ -98,55 +125,44 @@ func EncodeHeader(b Box, w io.Writer) error {
 // Box is the general interface
 type Box interface {
 	Type() string
-	Size() int
+	Size() uint64
 	Encode(w io.Writer) error
 }
 
 // BoxDecoder is function signature of the Box Decode method
-type BoxDecoder func(r io.Reader) (Box, error)
+type BoxDecoder func(size uint64, startPos uint64, r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
-func DecodeBox(h BoxHeader, r io.Reader) (Box, error) {
+func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 	var err error
 	var b Box
-	d, ok := decoders[h.Type]
+
+	h, err := decodeHeader(r)
+	if err != nil {
+		return nil, err
+	}
+
+	d, ok := decoders[h.name]
+
+	remainingLength := int64(h.size) - int64(h.hdrlen)
 
 	if !ok {
-		log.Printf("Found unknown box type %v, size %v", h.Type, h.Size)
-		b, err = DecodeUnknown(h.Type, io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
+		log.Printf("Found unknown box type %v, size %v", h.name, h.size)
+		b, err = DecodeUnknown(h.name, h.size, startPos, io.LimitReader(r, remainingLength))
 
 	} else {
-		log.Printf("Found supported box %v, size %v", h.Type, h.Size)
-		b, err = d(io.LimitReader(r, int64(h.Size-BoxHeaderSize)))
+		log.Printf("Found supported box %v, size %v", h.name, h.size)
+		b, err = d(h.size, startPos, io.LimitReader(r, remainingLength))
 	}
-	if h.Size != uint32(b.Size()) {
-		log.Printf("### Warning: %v size mismatch %d %d", h.Type, h.Size, b.Size())
+	if h.size != b.Size() {
+		log.Printf("### Mismatch size %d %d for %s", h.size, b.Size(), b.Type())
 	}
-	//log.Printf("Box type %v, size %d", b.Type(), b.Size())
+	//log.Printf("Box type %v, size %d %d", b.Type(), b.Size())
 	if err != nil {
-		log.Printf("Error while decoding %s : %s", h.Type, err)
+		log.Printf("Error while decoding %s : %s", h.name, err)
 		return nil, err
 	}
 	return b, nil
-}
-
-// DecodeContainer decodes a container box
-func DecodeContainer(r io.Reader) ([]Box, error) {
-	l := []Box{}
-	for {
-		h, err := DecodeHeader(r)
-		if err == io.EOF || h.Size == 0 {
-			return l, nil
-		}
-		if err != nil {
-			return l, err
-		}
-		b, err := DecodeBox(h, r)
-		if err != nil {
-			return l, err
-		}
-		l = append(l, b)
-	}
 }
 
 // Fixed16 - An 8.8 fixed point number
@@ -189,5 +205,5 @@ func strtobuf(out []byte, str string, l int) {
 }
 
 func makebuf(b Box) []byte {
-	return make([]byte, b.Size()-BoxHeaderSize)
+	return make([]byte, b.Size()-boxHeaderSize)
 }

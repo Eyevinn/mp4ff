@@ -15,13 +15,14 @@ type MoofBox struct {
 }
 
 // DecodeMoof - box-specific decode
-func DecodeMoof(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+func DecodeMoof(size uint64, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	m := &MoofBox{}
 	m.boxes = l
+	m.StartPos = startPos
 	for _, b := range l {
 		switch b.Type() {
 		case "mfhd":
@@ -40,12 +41,8 @@ func (m *MoofBox) Type() string {
 }
 
 // Size - returns calculated size
-func (m *MoofBox) Size() int {
-	sz := BoxHeaderSize
-	for _, b := range m.boxes {
-		sz += b.Size()
-	}
-	return sz
+func (m *MoofBox) Size() uint64 {
+	return containerSize(m.boxes)
 }
 
 // Encode - write box to w

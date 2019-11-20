@@ -16,7 +16,7 @@ func main() {
 		cmd.Action = func() {
 			fd, err := os.Open(*file)
 			defer fd.Close()
-			v, err := mp4.Decode(fd)
+			v, err := mp4.DecodeFile(fd)
 			if err != nil {
 				fmt.Println(err)
 			}

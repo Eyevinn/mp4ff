@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// Meta Box (meta - optional)
+// MetaBox (meta - optional)
 //
 // Status: not decoded
 type MetaBox struct {
@@ -14,7 +14,8 @@ type MetaBox struct {
 	notDecoded []byte
 }
 
-func DecodeMeta(r io.Reader) (Box, error) {
+// DecodeMeta - box-specific decode
+func DecodeMeta(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -26,14 +27,17 @@ func DecodeMeta(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box type
 func (b *MetaBox) Type() string {
 	return "meta"
 }
 
-func (b *MetaBox) Size() int {
-	return BoxHeaderSize + 4 + len(b.notDecoded)
+// Size - calculated size of box
+func (b *MetaBox) Size() uint64 {
+	return uint64(boxHeaderSize + 4 + len(b.notDecoded))
 }
 
+// Encode - box-specific decode
 func (b *MetaBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

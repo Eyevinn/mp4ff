@@ -40,7 +40,7 @@ func NewTrunBox(baseMediaDecodeTime uint64) *TrunBox {
 } */
 
 // DecodeTrun - box-specific decode
-func DecodeTrun(r io.Reader) (Box, error) {
+func DecodeTrun(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -158,8 +158,8 @@ func (t *TrunBox) Type() string {
 }
 
 // Size - return calculated size
-func (t *TrunBox) Size() int {
-	sz := BoxHeaderSize + 8
+func (t *TrunBox) Size() uint64 {
+	sz := boxHeaderSize + 8
 	if t.HasDataOffset() {
 		sz += 4
 	}
@@ -180,7 +180,7 @@ func (t *TrunBox) Size() int {
 		bytesPerSample += 4
 	}
 	sz += int(t.sampleCount) * bytesPerSample
-	return sz
+	return uint64(sz)
 }
 
 // Encode - write box to w
@@ -220,29 +220,24 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-// GetSampleData - return list of Samples
-func (t *TrunBox) GetSampleData(r io.ReadSeeker, baseOffset uint64, baseTime uint64) []*SampleComplete {
+// GetSampleData - return list of Samples. baseOffset is offset in mdat
+func (t *TrunBox) GetSampleData(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*SampleComplete {
 	samples := make([]*SampleComplete, 0, t.SampleCount())
 	var accDur uint64 = 0
-	accPos := baseOffset
-	r.Seek(int64(accPos), io.SeekStart)
+	offset := baseOffset
 	for _, s := range t.samples {
 		dTime := baseTime + accDur
 		pTime := uint64(int64(dTime) + int64(s.Cto))
-		sr := io.LimitReader(r, int64(s.Size))
-		data, err := ioutil.ReadAll(sr)
-		if err != nil {
-			panic("Strange stuff when reading sample")
-		}
 
 		newSample := &SampleComplete{
 			Sample:           *s,
 			DecodeTime:       dTime,
 			PresentationTime: pTime,
-			Data:             data,
+			Data:             mdat.Data[offset : offset+s.Size],
 		}
 		samples = append(samples, newSample)
 		accDur += uint64(s.Dur)
+		offset += s.Size
 	}
 	return samples
 }

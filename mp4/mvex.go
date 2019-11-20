@@ -14,8 +14,8 @@ type MvexBox struct {
 }
 
 // DecodeMvex - box-specific decode
-func DecodeMvex(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+func DecodeMvex(size uint64, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
@@ -36,12 +36,8 @@ func (m *MvexBox) Type() string {
 }
 
 // Size - return calculated size
-func (m *MvexBox) Size() int {
-	sz := BoxHeaderSize
-	for _, b := range m.boxes {
-		sz += b.Size()
-	}
-	return sz
+func (m *MvexBox) Size() uint64 {
+	return containerSize(m.boxes)
 }
 
 // Encode - write box to w

@@ -7,15 +7,15 @@ import "io"
 // Contained in : Movie Fragment Box (moof)
 //
 type TrafBox struct {
-	boxes []Box
 	Tfhd  *TfhdBox
 	Tfdt  *TfdtBox
 	Trun  *TrunBox
+	boxes []Box
 }
 
 // DecodeTraf - box-specific decode
-func DecodeTraf(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+func DecodeTraf(size uint64, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
@@ -41,12 +41,8 @@ func (t *TrafBox) Type() string {
 }
 
 // Size - return calculated size
-func (t *TrafBox) Size() int {
-	sz := BoxHeaderSize
-	for _, b := range t.boxes {
-		sz += b.Size()
-	}
-	return sz
+func (t *TrafBox) Size() uint64 {
+	return containerSize(t.boxes)
 }
 
 // Encode - write box to w

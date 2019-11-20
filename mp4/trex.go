@@ -19,7 +19,7 @@ type TrexBox struct {
 }
 
 // DecodeTrex - box-specific decode
-func DecodeTrex(r io.Reader) (Box, error) {
+func DecodeTrex(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -47,8 +47,8 @@ func (t *TrexBox) Type() string {
 }
 
 // Size - return calculated size
-func (t *TrexBox) Size() int {
-	return BoxHeaderSize + 4 + 20
+func (t *TrexBox) Size() uint64 {
+	return uint64(boxHeaderSize + 4 + 20)
 }
 
 // Encode - write box to w
