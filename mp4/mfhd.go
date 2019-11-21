@@ -33,6 +33,15 @@ func DecodeMfhd(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	}, nil
 }
 
+// CreateMfhd - create an MfhdBox
+func CreateMfhd(sequenceNumber uint32) *MfhdBox {
+	return &MfhdBox{
+		Version:        0,
+		Flags:          0,
+		SequenceNumber: sequenceNumber,
+	}
+}
+
 // Type - box type
 func (m *MfhdBox) Type() string {
 	return "mfhd"

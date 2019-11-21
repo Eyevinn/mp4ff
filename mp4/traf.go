@@ -15,24 +15,29 @@ type TrafBox struct {
 
 // DecodeTraf - box-specific decode
 func DecodeTraf(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainer(size, startPos, r)
+	children, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	t := &TrafBox{}
-	t.boxes = l
-	for _, b := range l {
-		switch b.Type() {
-		case "tfhd":
-			t.Tfhd = b.(*TfhdBox)
-		case "tfdt":
-			t.Tfdt = b.(*TfdtBox)
-		case "trun":
-			t.Trun = b.(*TrunBox)
-		default:
-		}
+	for _, b := range children {
+		t.AddChild(b)
 	}
 	return t, nil
+}
+
+// AddChild - add child box
+func (t *TrafBox) AddChild(b Box) {
+	switch b.Type() {
+	case "tfhd":
+		t.Tfhd = b.(*TfhdBox)
+	case "tfdt":
+		t.Tfdt = b.(*TfdtBox)
+	case "trun":
+		t.Trun = b.(*TrunBox)
+	default:
+	}
+	t.boxes = append(t.boxes, b)
 }
 
 // Type - return box type

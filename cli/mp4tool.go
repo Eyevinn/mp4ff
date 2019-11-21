@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"bitbucket.org/unitxtra/gomp4/mp4"
@@ -21,6 +22,34 @@ func main() {
 				fmt.Println(err)
 			}
 			v.Dump(fd)
+		}
+	})
+
+	cmd.Command("reseg", "Resegment file with new boundary", func(cmd *cli.Cmd) {
+		infile := cmd.StringArg("INFILE", "", "input file")
+		outfile := cmd.StringArg("OUTFILE", "", "output file")
+		boundary := cmd.IntOpt("b boundary", 0, "pts boundary (ticks)")
+		cmd.Action = func() {
+			ifd, err := os.Open(*infile)
+			defer ifd.Close()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			parsedMp4, err := mp4.DecodeFile(ifd)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			segBoundary := uint64(*boundary)
+			newMp4 := mp4.Resegment(parsedMp4, segBoundary)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			ofd, err := os.Create(*outfile)
+			defer ofd.Close()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			newMp4.Encode(ofd)
 		}
 	})
 	/*

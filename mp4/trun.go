@@ -25,20 +25,6 @@ const sampleSizePresentFlag = 0x200
 const sampleFlagsPresentFlag = 0x400
 const sampleCTOPresentFlag = 0x800
 
-/*
-// NewTrunBox - Create a new TrunBox
-func NewTrunBox(baseMediaDecodeTime uint64) *TrunBox {
-	var version byte = 0
-	if baseMediaDecodeTime >= 4294967296 {
-		version = 1
-	}
-	return &TrunBox{
-		Version:             version,
-		flags:               0,
-		BaseMediaDecodeTime: baseMediaDecodeTime,
-	}
-} */
-
 // DecodeTrun - box-specific decode
 func DecodeTrun(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
@@ -84,6 +70,19 @@ func DecodeTrun(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	return t, nil
+}
+
+// CreateTrun - create a TrunBox for filling up with samples
+func CreateTrun() *TrunBox {
+	trun := &TrunBox{
+		Version:          1,     // Signed composition_time_offset
+		flags:            0xf01, // Data offset and all sample data present
+		sampleCount:      0,
+		DataOffset:       0,
+		firstSampleFlags: 0,
+		samples:          nil,
+	}
+	return trun
 }
 
 // AddSampleDefaultValues - add values from tfhd box if needed

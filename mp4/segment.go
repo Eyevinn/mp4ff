@@ -43,6 +43,10 @@ func (s *MediaSegment) AddFragment(f *Fragment) {
 	s.Fragments = append(s.Fragments, f)
 }
 
+func (s *MediaSegment) lastFragment() *Fragment {
+	return s.Fragments[len(s.Fragments)-1]
+}
+
 // Fragment - MP4 Fragment (moof + mdat)
 type Fragment struct {
 	Prft  *PrftBox
@@ -51,9 +55,30 @@ type Fragment struct {
 	boxes []Box
 }
 
-// NewFragment - Create MP4 Fragment
+// NewFragment - New emtpy MP4 Fragment
 func NewFragment() *Fragment {
 	return &Fragment{}
+}
+
+// CreateFragment - create emtpy fragment for output
+func CreateFragment(seqNumber uint32, trackID uint32) *Fragment {
+	f := NewFragment()
+	moof := &MoofBox{}
+	f.AddChild(moof)
+	mfhd := CreateMfhd(seqNumber)
+	moof.AddChild(mfhd)
+	traf := &TrafBox{}
+	moof.AddChild(traf)
+	tfhd := CreateTfhd(trackID)
+	traf.AddChild(tfhd)
+	tfdt := &TfdtBox{} // We will get time with samples
+	traf.AddChild(tfdt)
+	trun := CreateTrun()
+	traf.AddChild(trun)
+	mdat := &MdatBox{}
+	f.AddChild(mdat)
+
+	return f
 }
 
 // AddChild - Add a child box to Fragment

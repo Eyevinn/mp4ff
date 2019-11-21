@@ -1,5 +1,7 @@
 package mp4
 
+import "encoding/binary"
+
 // Sample - sample as used in trun box
 type Sample struct {
 	Flags uint32
@@ -24,4 +26,18 @@ type SampleComplete struct {
 	DecodeTime       uint64
 	PresentationTime uint64
 	Data             []byte
+}
+
+func toAnnexB(videoSample []byte) {
+	length := uint64(len(videoSample))
+	var pos uint64 = 0
+	for pos < length-4 {
+		lenSlice := videoSample[pos : pos+4]
+		nalLen := binary.BigEndian.Uint32(lenSlice)
+		videoSample[pos] = 0
+		videoSample[pos+1] = 0
+		videoSample[pos+2] = 0
+		videoSample[pos+3] = 1
+		pos += uint64(nalLen + 4)
+	}
 }

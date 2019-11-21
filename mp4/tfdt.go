@@ -14,19 +14,6 @@ type TfdtBox struct {
 	BaseMediaDecodeTime uint64
 }
 
-// NewTfdtBox - Create a new TfdtBox
-func NewTfdtBox(baseMediaDecodeTime uint64) *TfdtBox {
-	var version byte = 0
-	if baseMediaDecodeTime >= 4294967296 {
-		version = 1
-	}
-	return &TfdtBox{
-		Version:             version,
-		Flags:               0,
-		BaseMediaDecodeTime: baseMediaDecodeTime,
-	}
-}
-
 // DecodeTfdt - box-specific decode
 func DecodeTfdt(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
@@ -50,6 +37,19 @@ func DecodeTfdt(size uint64, startPos uint64, r io.Reader) (Box, error) {
 		BaseMediaDecodeTime: baseMediaDecodeTime,
 	}
 	return b, nil
+}
+
+// CreateTfdt - Create a new TfdtBox with baseMediaDecodeTime
+func CreateTfdt(baseMediaDecodeTime uint64) *TfdtBox {
+	var version byte = 0
+	if baseMediaDecodeTime >= 4294967296 {
+		version = 1
+	}
+	return &TfdtBox{
+		Version:             version,
+		Flags:               0,
+		BaseMediaDecodeTime: baseMediaDecodeTime,
+	}
 }
 
 // Type - return box type

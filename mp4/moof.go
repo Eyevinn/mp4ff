@@ -16,23 +16,28 @@ type MoofBox struct {
 
 // DecodeMoof - box-specific decode
 func DecodeMoof(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainer(size, startPos, r)
+	children, err := DecodeContainer(size, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	m := &MoofBox{}
-	m.boxes = l
 	m.StartPos = startPos
-	for _, b := range l {
-		switch b.Type() {
-		case "mfhd":
-			m.Mfhd = b.(*MfhdBox)
-		case "traf":
-			m.Traf = b.(*TrafBox)
-		}
+	for _, box := range children {
+		m.AddChild(box)
 	}
 
 	return m, err
+}
+
+// AddChild - add child box
+func (m *MoofBox) AddChild(b Box) {
+	switch b.Type() {
+	case "mfhd":
+		m.Mfhd = b.(*MfhdBox)
+	case "traf":
+		m.Traf = b.(*TrafBox)
+	}
+	m.boxes = append(m.boxes, b)
 }
 
 // Type - returns box type
