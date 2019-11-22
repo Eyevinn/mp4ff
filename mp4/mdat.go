@@ -33,6 +33,11 @@ func (m *MdatBox) Size() uint64 {
 	return headerLength(contentSize) + contentSize
 }
 
+// AddSampleData -  a sample data to an mdat box
+func (m *MdatBox) AddSampleData(s []byte) {
+	m.Data = append(m.Data, s...)
+}
+
 // Encode - write box to w
 func (m *MdatBox) Encode(w io.Writer) error {
 	err := EncodeHeader(m, w)

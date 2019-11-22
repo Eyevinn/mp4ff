@@ -240,3 +240,15 @@ func (t *TrunBox) GetSampleData(baseOffset uint32, baseTime uint64, mdat *MdatBo
 	}
 	return samples
 }
+
+// AddCompleteSample - add sample from a complete sample
+func (t *TrunBox) AddCompleteSample(s *SampleComplete) {
+	t.samples = append(t.samples, &s.Sample)
+	t.sampleCount++
+}
+
+// AddSample - add a sample
+func (t *TrunBox) AddSample(s *Sample) {
+	t.samples = append(t.samples, s)
+	t.sampleCount++
+}

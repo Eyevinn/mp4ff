@@ -156,6 +156,7 @@ func (f *File) Boxes() []Box {
 // Encode - encode a file to a Writer
 func (f *File) Encode(w io.Writer) error {
 	for _, b := range f.Boxes() {
+		fmt.Printf("Encode %v size %d\n", b.Type(), b.Size())
 		err := b.Encode(w)
 		if err != nil {
 			return err
@@ -166,50 +167,6 @@ func (f *File) Encode(w io.Writer) error {
 
 func (f *File) lastSegment() *MediaSegment {
 	return f.Segments[len(f.Segments)-1]
-}
-
-// GetSampleData - Get all samples including data
-func (f *Fragment) GetSampleData() []*SampleComplete {
-	moof := f.Moof
-	mdat := f.Mdat
-	seqNr := moof.Mfhd.SequenceNumber
-	fmt.Printf(" Got samples for Segment %d\n", seqNr)
-	tfhd := moof.Traf.Tfhd
-	baseTime := moof.Traf.Tfdt.BaseMediaDecodeTime
-	trun := moof.Traf.Trun
-	moofStartPos := moof.StartPos
-	mdatStartPos := mdat.StartPos
-	trun.AddSampleDefaultValues(tfhd)
-	var baseOffset uint64
-	if tfhd.HasBaseDataOffset() {
-		baseOffset = tfhd.BaseDataOffset
-	} else if tfhd.DefaultBaseIfMoof() {
-		baseOffset = moofStartPos
-	}
-	if trun.HasDataOffset() {
-		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
-	}
-	mdatDataLength := uint64(len(mdat.Data)) // Todo. Make len take 64-bit number
-	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
-	if offsetInMdat > mdatDataLength {
-		log.Fatalf("Offset in mdata beyond size")
-	}
-	samples := trun.GetSampleData(uint32(offsetInMdat), baseTime, f.Mdat)
-	return samples
-}
-
-// DumpSampleData - Get Sample data and print out
-func (f *Fragment) DumpSampleData(w io.Writer) {
-	samples := f.GetSampleData()
-	for i, s := range samples {
-		if i < 9 {
-			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime, s.Flags, s.Size, len(s.Data))
-		}
-		toAnnexB(s.Data)
-		if w != nil {
-			w.Write(s.Data)
-		}
-	}
 }
 
 // Resegment file into two segments
@@ -232,13 +189,34 @@ func Resegment(in *File, boundary uint64) *File {
 
 	oFile := NewFile()
 	oFile.AddChildBox(in.Ftyp, 0)
-	oFile.AddChildBox(in.Moov, 0)
-	oFile.AddChildBox(inStyp, 0)
 
+	oFile.AddChildBox(in.Moov, 0)
+
+	// Make first segment
+	oFile.AddChildBox(inStyp, 0)
 	frag := CreateFragment(seqNr, trackID)
 	for _, box := range frag.boxes {
 		oFile.AddChildBox(box, 0)
 	}
-	fmt.Printf("The number of input samples %d", len(iSamples))
+	nrSegments := 1
+	for nr, s := range iSamples {
+		if s.PresentationTime > 90000 && s.IsSync() && nrSegments == 1 {
+			frag.Moof.Traf.Trun.DataOffset = int32(frag.Moof.Size()) + 8
+			fmt.Printf("Made second segment\n")
+			oFile.AddChildBox(inStyp, 0)
+			frag = CreateFragment(seqNr+1, trackID)
+			for _, box := range frag.boxes {
+				oFile.AddChildBox(box, 0)
+			}
+			nrSegments++
+		}
+		frag.AddSample(s)
+		if s.IsSync() {
+			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime)
+		}
+
+	}
+	frag.Moof.Traf.Trun.DataOffset = int32(frag.Moof.Size()) + 8
+
 	return oFile
 }

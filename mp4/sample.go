@@ -20,6 +20,12 @@ func NewSample(flags uint32, dur uint32, size uint32, cto int32) *Sample {
 	}
 }
 
+// IsSync - check sync by masking flags including dependsOn
+func (s *Sample) IsSync() bool {
+	decFlags := DecodeSampleFlags(s.Flags)
+	return !decFlags.SampleIsNonSync && (decFlags.SampleDependsOn == 2)
+}
+
 //SampleComplete - include times and data
 type SampleComplete struct {
 	Sample

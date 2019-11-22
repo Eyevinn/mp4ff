@@ -114,6 +114,7 @@ func decodeHeader(r io.Reader) (boxHeader, error) {
 
 // EncodeHeader encodes a box header to a writer
 func EncodeHeader(b Box, w io.Writer) error {
+	fmt.Printf("Writing %v size %d\n", b.Type(), b.Size())
 	buf := make([]byte, boxHeaderSize)
 	// Todo. Handle largesize extension
 	binary.BigEndian.PutUint32(buf, uint32(b.Size()))

@@ -29,8 +29,6 @@ func DecodeMdia(size uint64, startPos uint64, r io.Reader) (Box, error) {
 			m.Hdlr = b.(*HdlrBox)
 		case "minf":
 			m.Minf = b.(*MinfBox)
-		default:
-			return nil, ErrBadFormat
 		}
 	}
 	return m, nil

@@ -52,6 +52,16 @@ func CreateTfdt(baseMediaDecodeTime uint64) *TfdtBox {
 	}
 }
 
+// SetBaseMediaDecodeTime - Set time of TfdtBox
+func (t *TfdtBox) SetBaseMediaDecodeTime(bTime uint64) {
+	if bTime >= 4294967296 {
+		t.Version = 1
+	} else {
+		t.Version = 0
+	}
+	t.BaseMediaDecodeTime = bTime
+}
+
 // Type - return box type
 func (t *TfdtBox) Type() string {
 	return "tfdt"
