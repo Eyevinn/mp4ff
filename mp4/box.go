@@ -35,6 +35,8 @@ var decoders map[string]BoxDecoder
 
 func init() {
 	decoders = map[string]BoxDecoder{
+		"avc1": DecodeAvc1,
+		"avcC": DecodeAvcC,
 		"ftyp": DecodeFtyp,
 		"moov": DecodeMoov,
 		"mvhd": DecodeMvhd,

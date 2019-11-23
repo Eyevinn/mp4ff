@@ -50,17 +50,12 @@ func (t *TrafBox) Size() uint64 {
 	return containerSize(t.boxes)
 }
 
+// Children - list of children boxes
+func (t *TrafBox) Children() []Box {
+	return t.boxes
+}
+
 // Encode - write box to w
 func (t *TrafBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
-	if err != nil {
-		return err
-	}
-	for _, b := range t.boxes {
-		err = b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(t, w)
 }
