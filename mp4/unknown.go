@@ -13,12 +13,12 @@ type UnknownBox struct {
 }
 
 // DecodeUnknown - decode an unknown box
-func DecodeUnknown(name string, size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeUnknown(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	return &UnknownBox{name, size, data}, nil
+	return &UnknownBox{hdr.name, hdr.size, data}, nil
 }
 
 // Type - return box type
