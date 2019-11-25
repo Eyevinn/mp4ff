@@ -15,8 +15,8 @@ type EdtsBox struct {
 }
 
 // DecodeEdts - box-specific decode
-func DecodeEdts(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainer(size, startPos, r)
+func DecodeEdts(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}

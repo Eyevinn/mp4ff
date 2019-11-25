@@ -21,8 +21,8 @@ func containerSize(boxes []Box) uint64 {
 	return headerLength(contentSize) + contentSize
 }
 
-// DecodeContainer decodes a container box
-func DecodeContainer(size uint64, startPos uint64, r io.Reader) ([]Box, error) {
+// DecodeContainerChildren decodes a container box
+func DecodeContainerChildren(hdr *boxHeader, startPos uint64, r io.Reader) ([]Box, error) {
 	l := []Box{}
 	pos := startPos
 	for {
@@ -35,13 +35,14 @@ func DecodeContainer(size uint64, startPos uint64, r io.Reader) ([]Box, error) {
 		}
 		l = append(l, b)
 		pos += b.Size()
-		if pos > startPos+size {
+		if pos > startPos+hdr.size {
 			break
 		}
 	}
 	return nil, errors.New("Out of bounds in container")
 }
 
+// EncodeContainer - marshal container c to w
 func EncodeContainer(c ContainerBox, w io.Writer) error {
 	err := EncodeHeader(c, w)
 	if err != nil {

@@ -14,7 +14,7 @@ type MdatBox struct {
 }
 
 // DecodeMdat - box-specific decode
-func DecodeMdat(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

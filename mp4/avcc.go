@@ -21,7 +21,7 @@ type AvcCBox struct {
 }
 
 // DecodeAvcC - box-specific decode
-func DecodeAvcC(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeAvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func DecodeAvcC(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	var bitDepthLumaMinus8 byte
 	var bitDepthChromaMinus8 byte
 	var spsExtNals [][]byte
-	hasExt := int(size)-pos > 8 // Bytes remaining
+	hasExt := int(hdr.size)-pos > 8 // Bytes remaining
 	if hasExt && (AVCProfileIndication == 100 || AVCProfileIndication == 110 ||
 		AVCProfileIndication == 122 || AVCProfileIndication == 144) {
 		chromaFormat = data[pos] & 0x3

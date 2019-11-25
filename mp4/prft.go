@@ -16,7 +16,7 @@ type PrftBox struct {
 }
 
 // NewPrftBox - Create a new PrftBox
-func NewPrftBox(version byte, ntp, mediatime uint64) *PrftBox {
+func NewPrftBox(version byte, ntp uint64, mediatime uint64) *PrftBox {
 	return &PrftBox{
 		Version:      version,
 		Flags:        0,
@@ -26,7 +26,7 @@ func NewPrftBox(version byte, ntp, mediatime uint64) *PrftBox {
 }
 
 // DecodePrft - box-specific decode
-func DecodePrft(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodePrft(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

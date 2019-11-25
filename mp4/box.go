@@ -11,7 +11,8 @@ import (
 const (
 	// boxHeaderSize - standard size + name header
 	boxHeaderSize = 8
-	largeSizeLen  = 8 // Length of largesize exension
+	largeSizeLen  = 8          // Length of largesize exension
+	flagsMask     = 0x00ffffff // Flags for masks from full header
 )
 
 var (
@@ -35,46 +36,46 @@ var decoders map[string]BoxDecoder
 
 func init() {
 	decoders = map[string]BoxDecoder{
-		"avc1": DecodeAvc1,
+		"avc1": DecodeAvcX,
+		"avc3": DecodeAvcX,
 		"avcC": DecodeAvcC,
-		"ftyp": DecodeFtyp,
-		"moov": DecodeMoov,
-		"mvhd": DecodeMvhd,
-		"iods": DecodeIods,
-		"trak": DecodeTrak,
-		"udta": DecodeUdta,
-		"tkhd": DecodeTkhd,
-		"edts": DecodeEdts,
-		"elst": DecodeElst,
-		"mdia": DecodeMdia,
-		"minf": DecodeMinf,
-		"mdhd": DecodeMdhd,
-		"hdlr": DecodeHdlr,
-		"vmhd": DecodeVmhd,
-		"smhd": DecodeSmhd,
+		"ctts": DecodeCtts,
 		"dinf": DecodeDinf,
 		"dref": DecodeDref,
+		"edts": DecodeEdts,
+		"elst": DecodeElst,
+		"free": DecodeFree,
+		"ftyp": DecodeFtyp,
+		"hdlr": DecodeHdlr,
+		"iods": DecodeUnknown,
+		"mdat": DecodeMdat,
+		"mdhd": DecodeMdhd,
+		"mdia": DecodeMdia,
+		"meta": DecodeUnknown,
+		"mfhd": DecodeMfhd,
+		"minf": DecodeMinf,
+		"moof": DecodeMoof,
+		"moov": DecodeMoov,
+		"mvex": DecodeMvex,
+		"mvhd": DecodeMvhd,
+		"prft": DecodePrft,
+		"smhd": DecodeSmhd,
 		"stbl": DecodeStbl,
 		"stco": DecodeStco,
 		"stsc": DecodeStsc,
-		"stsz": DecodeStsz,
-		"ctts": DecodeCtts,
 		"stsd": DecodeStsd,
-		"stts": DecodeStts,
 		"stss": DecodeStss,
-		"meta": DecodeMeta,
-		"mdat": DecodeMdat,
-		"free": DecodeFree,
+		"stsz": DecodeStsz,
+		"stts": DecodeStts,
 		"styp": DecodeStyp,
-		"moof": DecodeMoof,
-		"mfhd": DecodeMfhd,
-		"traf": DecodeTraf,
-		"tfhd": DecodeTfhd,
 		"tfdt": DecodeTfdt,
-		"trun": DecodeTrun,
-		"mvex": DecodeMvex,
+		"tfhd": DecodeTfhd,
+		"tkhd": DecodeTkhd,
+		"traf": DecodeTraf,
+		"trak": DecodeTrak,
 		"trex": DecodeTrex,
-		"prft": DecodePrft,
+		"trun": DecodeTrun,
+		"vmhd": DecodeVmhd,
 	}
 }
 
@@ -133,7 +134,7 @@ type Box interface {
 }
 
 // BoxDecoder is function signature of the Box Decode method
-type BoxDecoder func(size uint64, startPos uint64, r io.Reader) (Box, error)
+type BoxDecoder func(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
 func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
@@ -155,7 +156,7 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 
 	} else {
 		log.Printf("Found supported box %v, size %v", h.name, h.size)
-		b, err = d(h.size, startPos, io.LimitReader(r, remainingLength))
+		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
 	}
 	if h.size != b.Size() {
 		log.Printf("### Mismatch size %d %d for %s", h.size, b.Size(), b.Type())

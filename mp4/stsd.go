@@ -17,7 +17,7 @@ type StsdBox struct {
 }
 
 // DecodeStsd - box-specific decode
-func DecodeStsd(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, sampleCount uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {
@@ -27,7 +27,7 @@ func DecodeStsd(size uint64, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	boxes, err := DecodeContainer(size-8, startPos+8, r)
+	boxes, err := DecodeContainerChildren(hdr, startPos+8, r) // Note, hdr size may be a bit misleading here
 	if err != nil {
 		return nil, err
 	}

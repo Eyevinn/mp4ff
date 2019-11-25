@@ -21,7 +21,7 @@ import (
 // Only version 0 is decoded.
 type MvhdBox struct {
 	Version          byte
-	Flags            [3]byte
+	Flags            uint32
 	CreationTime     uint32
 	ModificationTime uint32
 	Timescale        uint32
@@ -33,14 +33,14 @@ type MvhdBox struct {
 }
 
 // DecodeMvhd - box-specific decode
-func DecodeMvhd(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMvhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 	return &MvhdBox{
 		Version:          data[0],
-		Flags:            [3]byte{data[1], data[2], data[3]},
+		Flags:            binary.BigEndian.Uint32(data[0:48]) & flagsMask,
 		CreationTime:     binary.BigEndian.Uint32(data[4:8]),
 		ModificationTime: binary.BigEndian.Uint32(data[8:12]),
 		Timescale:        binary.BigEndian.Uint32(data[12:16]),
@@ -73,8 +73,8 @@ func (b *MvhdBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	buf[0] = b.Version
-	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
+	versionAndFlags := (uint32(b.Version) << 24) | b.Flags
+	binary.BigEndian.PutUint32(buf[0:], versionAndFlags)
 	binary.BigEndian.PutUint32(buf[4:], b.CreationTime)
 	binary.BigEndian.PutUint32(buf[8:], b.ModificationTime)
 	binary.BigEndian.PutUint32(buf[12:], b.Timescale)

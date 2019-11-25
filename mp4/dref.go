@@ -9,8 +9,6 @@ import (
 //
 // Contained id: Data Information Box (dinf)
 //
-// Status: not decoded
-//
 // Defines the location of the media data. If the data for the track is located in the same file
 // it contains nothing useful.
 type DrefBox struct {
@@ -20,7 +18,7 @@ type DrefBox struct {
 }
 
 // DecodeDref - box-specific decode
-func DecodeDref(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeDref(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

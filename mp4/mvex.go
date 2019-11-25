@@ -14,8 +14,8 @@ type MvexBox struct {
 }
 
 // DecodeMvex - box-specific decode
-func DecodeMvex(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainer(size, startPos, r)
+func DecodeMvex(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}

@@ -19,19 +19,17 @@ type TrexBox struct {
 }
 
 // DecodeTrex - box-specific decode
-func DecodeTrex(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrex(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 	s := NewSliceReader(data)
 	versionAndFlags := s.ReadUint32()
-	version := byte(versionAndFlags >> 24)
-	flags := versionAndFlags & 0xffffff
 
 	b := &TrexBox{
-		Version:                       version,
-		Flags:                         flags,
+		Version:                       byte(versionAndFlags >> 24),
+		Flags:                         versionAndFlags & 0xffffff,
 		TrackID:                       s.ReadUint32(),
 		DefaultSampleDescriptionIndex: s.ReadUint32(),
 		DefaultSampleDuration:         s.ReadUint32(),

@@ -14,8 +14,8 @@ type TrafBox struct {
 }
 
 // DecodeTraf - box-specific decode
-func DecodeTraf(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainer(size, startPos, r)
+func DecodeTraf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}

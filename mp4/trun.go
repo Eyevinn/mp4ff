@@ -26,7 +26,7 @@ const sampleFlagsPresentFlag = 0x400
 const sampleCTOPresentFlag = 0x800
 
 // DecodeTrun - box-specific decode
-func DecodeTrun(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

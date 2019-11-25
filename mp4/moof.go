@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -16,9 +15,8 @@ type MoofBox struct {
 }
 
 // DecodeMoof - box-specific decode
-func DecodeMoof(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	fmt.Printf("Moof size %d", size)
-	children, err := DecodeContainer(size, startPos, r)
+func DecodeMoof(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}

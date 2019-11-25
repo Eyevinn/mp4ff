@@ -15,8 +15,8 @@ type TrakBox struct {
 }
 
 // DecodeTrak - box-specific decode
-func DecodeTrak(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainer(size, startPos, r)
+func DecodeTrak(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}

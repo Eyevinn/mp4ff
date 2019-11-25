@@ -26,7 +26,7 @@ type StszBox struct {
 }
 
 // DecodeStsz - box-specific decode
-func DecodeStsz(size uint64, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStsz(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

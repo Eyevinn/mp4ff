@@ -12,16 +12,14 @@ import (
 // Contains all meta-data. To be able to stream a file, the moov box should be placed before the mdat box.
 type MoovBox struct {
 	Mvhd  *MvhdBox
-	Iods  *IodsBox
 	Trak  []*TrakBox
-	Udta  *UdtaBox
 	Mvex  *MvexBox
 	boxes []Box
 }
 
 // DecodeMoov - box-specific decode
-func DecodeMoov(size uint64, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainer(size, startPos, r)
+func DecodeMoov(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
@@ -31,12 +29,8 @@ func DecodeMoov(size uint64, startPos uint64, r io.Reader) (Box, error) {
 		switch b.Type() {
 		case "mvhd":
 			m.Mvhd = b.(*MvhdBox)
-		case "iods":
-			m.Iods = b.(*IodsBox)
 		case "trak":
 			m.Trak = append(m.Trak, b.(*TrakBox))
-		case "udta":
-			m.Udta = b.(*UdtaBox)
 		case "mvex":
 			m.Mvex = b.(*MvexBox)
 		}

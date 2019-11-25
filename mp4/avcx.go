@@ -6,8 +6,9 @@ import (
 	"io/ioutil"
 )
 
-// Avc1Box - AVC Sample Description Type X box (avc1/avc3)
-type Avc1Box struct {
+// AvcXBox - AVC Sample Description Type X box (avc1/avc3)
+type AvcXBox struct {
+	name               string
 	DataReferenceIndex uint16
 	Width              uint16
 	Height             uint16
@@ -19,13 +20,13 @@ type Avc1Box struct {
 	AvcC               *AvcCBox
 }
 
-// DecodeAvc1 - box-specific decode
-func DecodeAvc1(size uint64, startPos uint64, r io.Reader) (Box, error) {
+// DecodeAvcX - decode avc1/avc3 box
+func DecodeAvcX(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	a := &Avc1Box{}
+	a := &AvcXBox{}
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	// 14496-12 12.1.3.2 Visual Sample entry (70 bytes)
@@ -40,22 +41,23 @@ func DecodeAvc1(size uint64, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 
+	a.name = hdr.name
 	a.AvcC = box.(*AvcCBox)
 	return a, nil
 }
 
 // Type - return box type
-func (a *Avc1Box) Type() string {
-	return "avc1"
+func (a *AvcXBox) Type() string {
+	return a.name
 }
 
 // Size - return calculated size
-func (a *Avc1Box) Size() uint64 {
+func (a *AvcXBox) Size() uint64 {
 	return boxHeaderSize + 78 + a.AvcC.Size()
 }
 
 // Encode - write box to w
-func (a *Avc1Box) Encode(w io.Writer) error {
+func (a *AvcXBox) Encode(w io.Writer) error {
 	err := EncodeHeader(a, w)
 	if err != nil {
 		return err
