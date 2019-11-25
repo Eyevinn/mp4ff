@@ -23,7 +23,6 @@ func DecodeTfdt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	s := NewSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
-	flags := versionAndFlags & 0xffffff
 	var baseMediaDecodeTime uint64
 	if version == 0 {
 		baseMediaDecodeTime = uint64(s.ReadUint32())
@@ -33,7 +32,7 @@ func DecodeTfdt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 	b := &TfdtBox{
 		Version:             version,
-		Flags:               flags,
+		Flags:               versionAndFlags & flagsMask,
 		BaseMediaDecodeTime: baseMediaDecodeTime,
 	}
 	return b, nil

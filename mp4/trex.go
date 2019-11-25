@@ -29,7 +29,7 @@ func DecodeTrex(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 	b := &TrexBox{
 		Version:                       byte(versionAndFlags >> 24),
-		Flags:                         versionAndFlags & 0xffffff,
+		Flags:                         versionAndFlags & flagsMask,
 		TrackID:                       s.ReadUint32(),
 		DefaultSampleDescriptionIndex: s.ReadUint32(),
 		DefaultSampleDuration:         s.ReadUint32(),

@@ -36,7 +36,7 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	stsd := &StsdBox{
 		Version:     byte(versionAndFlags >> 24),
-		Flags:       versionAndFlags & 0xffffff,
+		Flags:       versionAndFlags & flagsMask,
 		SampleCount: sampleCount,
 		boxes:       boxes,
 	}

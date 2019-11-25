@@ -35,7 +35,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	versionAndFlags := s.ReadUint32()
 	t := &TrunBox{
 		Version:     byte(versionAndFlags >> 24),
-		flags:       versionAndFlags & 0xffffff,
+		flags:       versionAndFlags & flagsMask,
 		sampleCount: s.ReadUint32(),
 	}
 

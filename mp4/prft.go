@@ -34,7 +34,7 @@ func DecodePrft(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	s := NewSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
-	flags := versionAndFlags & 0xffffff
+	flags := versionAndFlags & flagsMask
 	ntp := s.ReadUint64()
 	var mediatime uint64
 	if version == 0 {
