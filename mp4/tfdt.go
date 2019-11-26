@@ -14,8 +14,32 @@ type TfdtBox struct {
 	BaseMediaDecodeTime uint64
 }
 
-// NewTfdtBox - Create a new TfdtBox
-func NewTfdtBox(baseMediaDecodeTime uint64) *TfdtBox {
+// DecodeTfdt - box-specific decode
+func DecodeTfdt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	s := NewSliceReader(data)
+	versionAndFlags := s.ReadUint32()
+	version := byte(versionAndFlags >> 24)
+	var baseMediaDecodeTime uint64
+	if version == 0 {
+		baseMediaDecodeTime = uint64(s.ReadUint32())
+	} else {
+		baseMediaDecodeTime = s.ReadUint64()
+	}
+
+	b := &TfdtBox{
+		Version:             version,
+		Flags:               versionAndFlags & flagsMask,
+		BaseMediaDecodeTime: baseMediaDecodeTime,
+	}
+	return b, nil
+}
+
+// CreateTfdt - Create a new TfdtBox with baseMediaDecodeTime
+func CreateTfdt(baseMediaDecodeTime uint64) *TfdtBox {
 	var version byte = 0
 	if baseMediaDecodeTime >= 4294967296 {
 		version = 1
@@ -27,29 +51,14 @@ func NewTfdtBox(baseMediaDecodeTime uint64) *TfdtBox {
 	}
 }
 
-// DecodeTfdt - box-specific decode
-func DecodeTfdt(r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
-	version := byte(versionAndFlags >> 24)
-	flags := versionAndFlags & 0xffffff
-	var baseMediaDecodeTime uint64
-	if version == 0 {
-		baseMediaDecodeTime = uint64(s.ReadUint32())
+// SetBaseMediaDecodeTime - Set time of TfdtBox
+func (t *TfdtBox) SetBaseMediaDecodeTime(bTime uint64) {
+	if bTime >= 4294967296 {
+		t.Version = 1
 	} else {
-		baseMediaDecodeTime = s.ReadUint64()
+		t.Version = 0
 	}
-
-	b := &TfdtBox{
-		Version:             version,
-		Flags:               flags,
-		BaseMediaDecodeTime: baseMediaDecodeTime,
-	}
-	return b, nil
+	t.BaseMediaDecodeTime = bTime
 }
 
 // Type - return box type
@@ -58,8 +67,8 @@ func (t *TfdtBox) Type() string {
 }
 
 // Size - return calculated size
-func (t *TfdtBox) Size() int {
-	return BoxHeaderSize + 8 + 4*int(t.Version)
+func (t *TfdtBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + 4*int(t.Version))
 }
 
 // Encode - write box to w

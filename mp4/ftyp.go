@@ -14,7 +14,7 @@ type FtypBox struct {
 }
 
 // DecodeFtyp - box-specific decode
-func DecodeFtyp(r io.Reader) (Box, error) {
+func DecodeFtyp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -38,8 +38,8 @@ func (b *FtypBox) Type() string {
 }
 
 // Size - return calculated size
-func (b *FtypBox) Size() int {
-	return BoxHeaderSize + 8 + 4*len(b.CompatibleBrands)
+func (b *FtypBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + 4*len(b.CompatibleBrands))
 }
 
 // Dump - print box info

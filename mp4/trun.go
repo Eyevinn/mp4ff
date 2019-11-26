@@ -25,22 +25,8 @@ const sampleSizePresentFlag = 0x200
 const sampleFlagsPresentFlag = 0x400
 const sampleCTOPresentFlag = 0x800
 
-/*
-// NewTrunBox - Create a new TrunBox
-func NewTrunBox(baseMediaDecodeTime uint64) *TrunBox {
-	var version byte = 0
-	if baseMediaDecodeTime >= 4294967296 {
-		version = 1
-	}
-	return &TrunBox{
-		Version:             version,
-		flags:               0,
-		BaseMediaDecodeTime: baseMediaDecodeTime,
-	}
-} */
-
 // DecodeTrun - box-specific decode
-func DecodeTrun(r io.Reader) (Box, error) {
+func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -49,7 +35,7 @@ func DecodeTrun(r io.Reader) (Box, error) {
 	versionAndFlags := s.ReadUint32()
 	t := &TrunBox{
 		Version:     byte(versionAndFlags >> 24),
-		flags:       versionAndFlags & 0xffffff,
+		flags:       versionAndFlags & flagsMask,
 		sampleCount: s.ReadUint32(),
 	}
 
@@ -84,6 +70,19 @@ func DecodeTrun(r io.Reader) (Box, error) {
 	}
 
 	return t, nil
+}
+
+// CreateTrun - create a TrunBox for filling up with samples
+func CreateTrun() *TrunBox {
+	trun := &TrunBox{
+		Version:          1,     // Signed composition_time_offset
+		flags:            0xf01, // Data offset and all sample data present
+		sampleCount:      0,
+		DataOffset:       0,
+		firstSampleFlags: 0,
+		samples:          nil,
+	}
+	return trun
 }
 
 // AddSampleDefaultValues - add values from tfhd box if needed
@@ -158,8 +157,8 @@ func (t *TrunBox) Type() string {
 }
 
 // Size - return calculated size
-func (t *TrunBox) Size() int {
-	sz := BoxHeaderSize + 8
+func (t *TrunBox) Size() uint64 {
+	sz := boxHeaderSize + 8
 	if t.HasDataOffset() {
 		sz += 4
 	}
@@ -180,7 +179,7 @@ func (t *TrunBox) Size() int {
 		bytesPerSample += 4
 	}
 	sz += int(t.sampleCount) * bytesPerSample
-	return sz
+	return uint64(sz)
 }
 
 // Encode - write box to w
@@ -220,29 +219,36 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-// GetSampleData - return list of Samples
-func (t *TrunBox) GetSampleData(r io.ReadSeeker, baseOffset uint64, baseTime uint64) []*SampleComplete {
+// GetSampleData - return list of Samples. baseOffset is offset in mdat
+func (t *TrunBox) GetSampleData(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*SampleComplete {
 	samples := make([]*SampleComplete, 0, t.SampleCount())
 	var accDur uint64 = 0
-	accPos := baseOffset
-	r.Seek(int64(accPos), io.SeekStart)
+	offset := baseOffset
 	for _, s := range t.samples {
 		dTime := baseTime + accDur
 		pTime := uint64(int64(dTime) + int64(s.Cto))
-		sr := io.LimitReader(r, int64(s.Size))
-		data, err := ioutil.ReadAll(sr)
-		if err != nil {
-			panic("Strange stuff when reading sample")
-		}
 
 		newSample := &SampleComplete{
 			Sample:           *s,
 			DecodeTime:       dTime,
 			PresentationTime: pTime,
-			Data:             data,
+			Data:             mdat.Data[offset : offset+s.Size],
 		}
 		samples = append(samples, newSample)
 		accDur += uint64(s.Dur)
+		offset += s.Size
 	}
 	return samples
+}
+
+// AddCompleteSample - add sample from a complete sample
+func (t *TrunBox) AddCompleteSample(s *SampleComplete) {
+	t.samples = append(t.samples, &s.Sample)
+	t.sampleCount++
+}
+
+// AddSample - add a sample
+func (t *TrunBox) AddSample(s *Sample) {
+	t.samples = append(t.samples, s)
+	t.sampleCount++
 }

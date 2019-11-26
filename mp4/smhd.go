@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 )
 
-// Sound Media Header Box (smhd - mandatory for sound tracks)
+// SmhdBox - Sound Media Header Box (smhd - mandatory for sound tracks)
 //
 // Contained in : Media Information Box (minf)
 //
@@ -17,7 +17,8 @@ type SmhdBox struct {
 	Balance uint16 // should be int16
 }
 
-func DecodeSmhd(r io.Reader) (Box, error) {
+// DecodeSmhd - box-specific decode
+func DecodeSmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -29,14 +30,17 @@ func DecodeSmhd(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box type
 func (b *SmhdBox) Type() string {
 	return "smhd"
 }
 
-func (b *SmhdBox) Size() int {
-	return BoxHeaderSize + 8
+// Size - calculated size of box
+func (b *SmhdBox) Size() uint64 {
+	return boxHeaderSize + 8
 }
 
+// Encode - write box to w
 func (b *SmhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

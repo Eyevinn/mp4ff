@@ -1,52 +1,75 @@
 package mp4
 
 import (
+	"encoding/binary"
+	"errors"
 	"io"
-	"io/ioutil"
 )
 
-// Sample Description Box (stsd - manatory)
-//
-// Contained in : Sample Table box (stbl)
-//
-// Status: not decoded
-//
-// This box contains information that describes how the data can be decoded.
+// StsdBox - Sample Description Box (stsd - manatory)
+// See ISO/IEC 14496-12 Section 8.5.2.2
+// Full Box + SampleCount
 type StsdBox struct {
-	Version    byte
-	Flags      [3]byte
-	notDecoded []byte
+	Version     byte
+	Flags       uint32
+	SampleCount uint32
+	boxes       []Box
 }
 
-func DecodeStsd(r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+// DecodeStsd - box-specific decode
+func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	var versionAndFlags, sampleCount uint32
+	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {
 		return nil, err
 	}
-	return &StsdBox{
-		Version:    data[0],
-		Flags:      [3]byte{data[1], data[2], data[3]},
-		notDecoded: data[4:],
-	}, nil
+	err = binary.Read(r, binary.BigEndian, &sampleCount)
+	if err != nil {
+		return nil, err
+	}
+	boxes, err := DecodeContainerChildren(hdr, startPos+8, r) // Note, hdr size may be a bit misleading here
+	if err != nil {
+		return nil, err
+	}
+	if len(boxes) != int(sampleCount) {
+		return nil, errors.New("Stsd: sampleCount mismatch")
+	}
+	stsd := &StsdBox{
+		Version:     byte(versionAndFlags >> 24),
+		Flags:       versionAndFlags & flagsMask,
+		SampleCount: sampleCount,
+		boxes:       boxes,
+	}
+	return stsd, nil
 }
 
-func (b *StsdBox) Type() string {
+// Type - box-specific type
+func (s *StsdBox) Type() string {
 	return "stsd"
 }
 
-func (b *StsdBox) Size() int {
-	return BoxHeaderSize + 4 + len(b.notDecoded)
+// Size - box-specific type
+func (s *StsdBox) Size() uint64 {
+	return containerSize(s.boxes) + 8
 }
 
-func (b *StsdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+// Encode - box-specific encode
+func (s *StsdBox) Encode(w io.Writer) error {
+	err := EncodeHeader(s, w)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	buf[0] = b.Version
-	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
-	copy(buf[4:], b.notDecoded)
-	_, err = w.Write(buf)
-	return err
+	versionAndFlags := (uint32(s.Version) << 24) + s.Flags
+	err = binary.Write(w, binary.BigEndian, versionAndFlags)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(w, binary.BigEndian, s.SampleCount)
+	for _, b := range s.boxes {
+		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

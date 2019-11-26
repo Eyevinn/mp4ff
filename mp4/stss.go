@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 )
 
-// Sync Sample Box (stss - optional)
+// StssBox - Sync Sample Box (stss - optional)
 //
 // Contained in : Sample Table box (stbl)
 //
@@ -20,7 +20,8 @@ type StssBox struct {
 	SampleNumber []uint32
 }
 
-func DecodeStss(r io.Reader) (Box, error) {
+// DecodeStss - box-specific decode
+func DecodeStss(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -38,14 +39,17 @@ func DecodeStss(r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// Type - box-specfic type
 func (b *StssBox) Type() string {
 	return "stss"
 }
 
-func (b *StssBox) Size() int {
-	return BoxHeaderSize + 8 + len(b.SampleNumber)*4
+// Size - box-specfic size
+func (b *StssBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + len(b.SampleNumber)*4)
 }
 
+// Dump - box-specific dump
 func (b *StssBox) Dump() {
 	fmt.Println("Key frames:")
 	for i, n := range b.SampleNumber {
@@ -53,6 +57,7 @@ func (b *StssBox) Dump() {
 	}
 }
 
+// Encode - box-specific encode
 func (b *StssBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

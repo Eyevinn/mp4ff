@@ -22,7 +22,7 @@ type TkhdBox struct {
 	Flags            [3]byte
 	CreationTime     uint32
 	ModificationTime uint32
-	TrackId          uint32
+	TrackID          uint32
 	Duration         uint32
 	Layer            uint16
 	AlternateGroup   uint16 // should be int16
@@ -31,7 +31,8 @@ type TkhdBox struct {
 	Width, Height    Fixed32
 }
 
-func DecodeTkhd(r io.Reader) (Box, error) {
+// DecodeTkhd - box-specific decode
+func DecodeTkhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -41,7 +42,7 @@ func DecodeTkhd(r io.Reader) (Box, error) {
 		Flags:            [3]byte{data[1], data[2], data[3]},
 		CreationTime:     binary.BigEndian.Uint32(data[4:8]),
 		ModificationTime: binary.BigEndian.Uint32(data[8:12]),
-		TrackId:          binary.BigEndian.Uint32(data[12:16]),
+		TrackID:          binary.BigEndian.Uint32(data[12:16]),
 		Volume:           fixed16(data[36:38]),
 		Duration:         binary.BigEndian.Uint32(data[20:24]),
 		Layer:            binary.BigEndian.Uint16(data[32:34]),
@@ -52,14 +53,17 @@ func DecodeTkhd(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box type
 func (b *TkhdBox) Type() string {
 	return "tkhd"
 }
 
-func (b *TkhdBox) Size() int {
-	return BoxHeaderSize + 84
+// Size - calculated size of box
+func (b *TkhdBox) Size() uint64 {
+	return uint64(boxHeaderSize + 84)
 }
 
+// Encode - write box to w
 func (b *TkhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
@@ -70,7 +74,7 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
 	binary.BigEndian.PutUint32(buf[4:], b.CreationTime)
 	binary.BigEndian.PutUint32(buf[8:], b.ModificationTime)
-	binary.BigEndian.PutUint32(buf[12:], b.TrackId)
+	binary.BigEndian.PutUint32(buf[12:], b.TrackID)
 	binary.BigEndian.PutUint32(buf[20:], b.Duration)
 	binary.BigEndian.PutUint16(buf[32:], b.Layer)
 	binary.BigEndian.PutUint16(buf[34:], b.AlternateGroup)
@@ -82,6 +86,7 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Dump - print box info
 func (b *TkhdBox) Dump() {
 	fmt.Println("Track Header:")
 	fmt.Printf(" Duration: %d units\n WxH: %sx%s\n", b.Duration, b.Width, b.Height)

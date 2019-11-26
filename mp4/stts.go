@@ -26,7 +26,7 @@ type SttsBox struct {
 }
 
 // DecodeStts - box-specific decode
-func DecodeStts(r io.Reader) (Box, error) {
+func DecodeStts(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -53,8 +53,8 @@ func (b *SttsBox) Type() string {
 }
 
 // Size - return calculated size
-func (b *SttsBox) Size() int {
-	return BoxHeaderSize + 8 + len(b.SampleCount)*8
+func (b *SttsBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + len(b.SampleCount)*8)
 }
 
 // GetTimeCode - return the timecode (duration since the beginning of the media)

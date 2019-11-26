@@ -35,101 +35,128 @@ func NewFile() *File {
 	}
 }
 
-// Decode - top-level of a file from a Reader
-func Decode(r io.ReadSeeker) (*File, error) {
+// AddMediaSegment - add a mediasegment to file f
+func (f *File) AddMediaSegment(m *MediaSegment) {
+	f.Segments = append(f.Segments, m)
+}
 
-	var currentSegment *MediaSegment
-	var currentFragment *Fragment
-	stypPresent := false
-	m := NewFile()
+// DecodeFile - top-level of a file from a Reader
+func DecodeFile(r io.Reader) (*File, error) {
+	f := NewFile()
 	var boxStartPos uint64 = 0
+	lastBoxType := ""
+
 LoopBoxes:
 	for {
 		//f := r.(*os.File)
 		//p, err := f.Seek(0, os.SEEK_CUR)
 		//log.Printf("Byte position is %v", p)
-		h, err := DecodeHeader(r)
-		if err == io.EOF || h.Size == 0 {
+		box, err := DecodeBox(boxStartPos, r)
+		if err == io.EOF {
 			break LoopBoxes
 		}
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("Box %v, size %v at pos %v", h.Type, h.Size, boxStartPos)
-		box, err := DecodeBox(h, r)
+		bType, bSize := box.Type(), box.Size()
+		log.Printf("Box %v, size %v at pos %v", bType, bSize, boxStartPos)
 		if err != nil {
 			return nil, err
 		}
-		m.boxes = append(m.boxes, box)
-		switch h.Type {
-		case "ftyp":
-			m.Ftyp = box.(*FtypBox)
-		case "moov":
-			m.Moov = box.(*MoovBox)
-			if len(m.Moov.Trak[0].Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
-				m.isFragmented = true
-				m.Init = NewMP4Init()
-				m.Init.Ftyp = m.Ftyp
-				m.Init.Moov = m.Moov
-			}
-		case "styp":
-			stypPresent = true
-			currentSegment = NewMediaSegment()
-			currentSegment.Styp = box.(*StypBox)
-			m.Segments = append(m.Segments, currentSegment)
-		case "moof":
-			moof := box.(*MoofBox)
-			moof.StartPos = boxStartPos
-
-			if !stypPresent {
-				currentSegment = NewMediaSegment()
-				m.Segments = append(m.Segments, currentSegment)
-			}
-			currentFragment = NewFragment()
-			currentSegment.Fragments = append(currentSegment.Fragments, currentFragment)
-			currentFragment.Moof = moof
-		case "mdat":
-			mdat := box.(*MdatBox)
-			if !m.isFragmented {
-				m.Mdat = mdat
+		if bType == "mdat" {
+			if !f.isFragmented {
+				if lastBoxType != "moov" {
+					log.Fatalf("Does not support %v between moov and mdat", lastBoxType)
+				}
 			} else {
-				currentFragment.Mdat = mdat
+				if lastBoxType != "moof" {
+					log.Fatalf("Does not support %v between moof and mdat", lastBoxType)
+				}
 			}
 		}
-		boxStartPos += uint64(box.Size())
+		f.AddChildBox(box, boxStartPos)
+		lastBoxType = bType
+		boxStartPos += bSize
 	}
-	return m, nil
+	return f, nil
 }
 
-// Dump displays some information about a media
-func (m *File) Dump(r io.ReadSeeker) {
-	if m.isFragmented {
+// AddChildBox - add child with start position
+func (f *File) AddChildBox(box Box, boxStartPos uint64) {
+	bType := box.Type()
+	switch bType {
+	case "ftyp":
+		f.Ftyp = box.(*FtypBox)
+	case "moov":
+		f.Moov = box.(*MoovBox)
+		if len(f.Moov.Trak[0].Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+			f.isFragmented = true
+			f.Init = NewMP4Init()
+			f.Init.Ftyp = f.Ftyp
+			f.Init.Moov = f.Moov
+		}
+	case "styp":
+		newSeg := NewMediaSegment()
+		newSeg.Styp = box.(*StypBox)
+		f.AddMediaSegment(newSeg)
+	case "moof":
+		moof := box.(*MoofBox)
+		moof.StartPos = boxStartPos
+
+		var currentSegment *MediaSegment
+
+		if len(f.Segments) == 0 || f.Segments[0].Styp == nil {
+			// No styp present, so one fragment per segment
+			currentSegment = NewMediaSegment()
+			f.AddMediaSegment(currentSegment)
+		} else {
+			currentSegment = f.lastSegment()
+		}
+		newFragment := NewFragment()
+		currentSegment.AddFragment(newFragment)
+		newFragment.AddChild(moof)
+	case "mdat":
+		mdat := box.(*MdatBox)
+		if !f.isFragmented {
+			f.Mdat = mdat
+		} else {
+			currentFragment := f.lastSegment().lastFragment()
+			currentFragment.AddChild(mdat)
+		}
+	}
+	f.boxes = append(f.boxes, box)
+}
+
+// Dump - print information about
+func (f *File) Dump(r io.Reader) {
+	if f.isFragmented {
 		fmt.Printf("Init segment\n")
-		m.Init.Moov.Dump()
-		for i, seg := range m.Segments {
+		f.Init.Moov.Dump()
+		for i, seg := range f.Segments {
 			fmt.Printf("  mediaSegment %d\n", i)
 			for j, f := range seg.Fragments {
 				fmt.Printf("  fragment %d\n ", j)
 				w, _ := os.Create("tmp.264")
 				defer w.Close()
-				f.DumpSampleData(r, w)
+				f.DumpSampleData(w)
 			}
 		}
 
 	} else {
-		m.Ftyp.Dump()
-		m.Moov.Dump()
+		f.Ftyp.Dump()
+		f.Moov.Dump()
 	}
 }
 
-// Boxes lists the top-level boxes from a media
-func (m *File) Boxes() []Box {
-	return m.boxes
+// Boxes - return the top-level boxes from a media
+func (f *File) Boxes() []Box {
+	return f.boxes
 }
 
-// Encode encodes a media to a Writer
-func (m *File) Encode(w io.Writer) error {
-	for _, b := range m.Boxes() {
+// Encode - encode a file to a Writer
+func (f *File) Encode(w io.Writer) error {
+	for _, b := range f.Boxes() {
+		fmt.Printf("Encode %v size %d\n", b.Type(), b.Size())
 		err := b.Encode(w)
 		if err != nil {
 			return err
@@ -138,32 +165,58 @@ func (m *File) Encode(w io.Writer) error {
 	return nil
 }
 
-// DumpSampleData - Get Sample data and print out
-func (f *Fragment) DumpSampleData(r io.ReadSeeker, w io.Writer) {
+func (f *File) lastSegment() *MediaSegment {
+	return f.Segments[len(f.Segments)-1]
+}
 
-	seqNr := f.Moof.Mfhd.SequenceNumber
-	fmt.Printf("Samples for Segment %d\n", seqNr)
-	tfhd := f.Moof.Traf.Tfhd
-	baseTime := f.Moof.Traf.Tfdt.BaseMediaDecodeTime
-	trun := f.Moof.Traf.Trun
-	moofStartPos := f.Moof.StartPos
-	trun.AddSampleDefaultValues(tfhd)
-	var baseOffset uint64
-	if tfhd.HasBaseDataOffset() {
-		baseOffset = tfhd.BaseDataOffset
-	} else if tfhd.DefaultBaseIfMoof() {
-		baseOffset = moofStartPos
+// Resegment file into two segments
+func Resegment(in *File, boundary uint64) *File {
+	if !in.isFragmented {
+		log.Fatalf("Non-segmented input file not supported")
 	}
-	if trun.HasDataOffset() {
-		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
-	}
-	samples := trun.GetSampleData(r, baseOffset, baseTime)
-	for i, s := range samples {
-		if i < 9 {
-			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime, s.Flags, s.Size, len(s.Data))
-		}
-		if w != nil {
-			w.Write(s.Data)
+	var iSamples []*SampleComplete
+
+	for _, iSeg := range in.Segments {
+		for _, iFrag := range iSeg.Fragments {
+			fSamples := iFrag.GetSampleData()
+			iSamples = append(iSamples, fSamples...)
 		}
 	}
+	inStyp := in.Segments[0].Styp
+	inMoof := in.Segments[0].Fragments[0].Moof
+	seqNr := inMoof.Mfhd.SequenceNumber
+	trackID := inMoof.Traf.Tfhd.TrackID
+
+	oFile := NewFile()
+	oFile.AddChildBox(in.Ftyp, 0)
+
+	oFile.AddChildBox(in.Moov, 0)
+
+	// Make first segment
+	oFile.AddChildBox(inStyp, 0)
+	frag := CreateFragment(seqNr, trackID)
+	for _, box := range frag.boxes {
+		oFile.AddChildBox(box, 0)
+	}
+	nrSegments := 1
+	for nr, s := range iSamples {
+		if s.PresentationTime > 90000 && s.IsSync() && nrSegments == 1 {
+			frag.Moof.Traf.Trun.DataOffset = int32(frag.Moof.Size()) + 8
+			fmt.Printf("Made second segment\n")
+			oFile.AddChildBox(inStyp, 0)
+			frag = CreateFragment(seqNr+1, trackID)
+			for _, box := range frag.boxes {
+				oFile.AddChildBox(box, 0)
+			}
+			nrSegments++
+		}
+		frag.AddSample(s)
+		if s.IsSync() {
+			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime)
+		}
+
+	}
+	frag.Moof.Traf.Trun.DataOffset = int32(frag.Moof.Size()) + 8
+
+	return oFile
 }

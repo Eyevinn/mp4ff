@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 )
 
-// Video Media Header Box (vhmd - mandatory for video tracks)
+// VmhdBox - Video Media Header Box (vhmd - mandatory for video tracks)
 //
 // Contained in : Media Information Box (minf)
 //
@@ -18,7 +18,8 @@ type VmhdBox struct {
 	OpColor      [3]uint16
 }
 
-func DecodeVmhd(r io.Reader) (Box, error) {
+// DecodeVmhd - box-specific decode
+func DecodeVmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -34,14 +35,17 @@ func DecodeVmhd(r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// Type - box-specific type
 func (b *VmhdBox) Type() string {
 	return "vmhd"
 }
 
-func (b *VmhdBox) Size() int {
-	return BoxHeaderSize + 12
+// Size - calculated size of box
+func (b *VmhdBox) Size() uint64 {
+	return boxHeaderSize + 12
 }
 
+// Encode - write box to w
 func (b *VmhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

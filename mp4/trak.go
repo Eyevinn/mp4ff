@@ -2,23 +2,26 @@ package mp4
 
 import "io"
 
-// Track Box (tkhd - mandatory)
+// TrakBox - Track Box (tkhd - mandatory)
 //
 // Contained in : Movie Box (moov)
 //
 // A media file can contain one or more tracks.
 type TrakBox struct {
-	Tkhd *TkhdBox
-	Mdia *MdiaBox
-	Edts *EdtsBox
+	Tkhd  *TkhdBox
+	Mdia  *MdiaBox
+	Edts  *EdtsBox
+	boxes []Box
 }
 
-func DecodeTrak(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+// DecodeTrak - box-specific decode
+func DecodeTrak(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	t := &TrakBox{}
+	t.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "tkhd":
@@ -34,19 +37,17 @@ func DecodeTrak(r io.Reader) (Box, error) {
 	return t, nil
 }
 
+// Type - box type
 func (b *TrakBox) Type() string {
 	return "trak"
 }
 
-func (b *TrakBox) Size() int {
-	sz := b.Tkhd.Size()
-	sz += b.Mdia.Size()
-	if b.Edts != nil {
-		sz += b.Edts.Size()
-	}
-	return sz + BoxHeaderSize
+// Size - calculated size of box
+func (b *TrakBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
+// Dump - print box info
 func (b *TrakBox) Dump() {
 	b.Tkhd.Dump()
 	if b.Edts != nil {
@@ -55,6 +56,7 @@ func (b *TrakBox) Dump() {
 	b.Mdia.Dump()
 }
 
+// Encode - write box to w
 func (b *TrakBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

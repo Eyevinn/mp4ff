@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 )
 
-// Sample To Chunk Box (stsc - mandatory)
+// StscBox - Sample To Chunk Box (stsc - mandatory)
 //
 // Contained in : Sample Table box (stbl)
 //
@@ -27,7 +27,8 @@ type StscBox struct {
 	SampleDescriptionID []uint32
 }
 
-func DecodeStsc(r io.Reader) (Box, error) {
+// DecodeStsc - box-specific decode
+func DecodeStsc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -52,14 +53,17 @@ func DecodeStsc(r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// Type box-specific type
 func (b *StscBox) Type() string {
 	return "stsc"
 }
 
-func (b *StscBox) Size() int {
-	return BoxHeaderSize + 8 + len(b.FirstChunk)*12
+// Size - box-specfic size
+func (b *StscBox) Size() uint64 {
+	return uint64(boxHeaderSize + 8 + len(b.FirstChunk)*12)
 }
 
+// Dump - box-specific dump
 func (b *StscBox) Dump() {
 	fmt.Println("Sample to Chunk:")
 	for i := range b.SamplesPerChunk {
@@ -67,6 +71,7 @@ func (b *StscBox) Dump() {
 	}
 }
 
+// Encode - box-specific encode
 func (b *StscBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

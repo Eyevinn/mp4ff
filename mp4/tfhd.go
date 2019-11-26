@@ -29,7 +29,7 @@ type TfhdBox struct {
 }
 
 // DecodeTfhd - box-specific decode
-func DecodeTfhd(r io.Reader) (Box, error) {
+func DecodeTfhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func DecodeTfhd(r io.Reader) (Box, error) {
 	s := NewSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
-	flags := versionAndFlags & 0xffffff
+	flags := versionAndFlags & flagsMask
 
 	t := &TfhdBox{
 		Version: version,
@@ -63,6 +63,22 @@ func DecodeTfhd(r io.Reader) (Box, error) {
 	}
 
 	return t, nil
+}
+
+// CreateTfhd - Create a new TfdtBox with baseMediaDecodeTime
+func CreateTfhd(trackID uint32) *TfhdBox {
+	// We only set defaultBaseIsMoof flag
+	tfhd := &TfhdBox{
+		Version:                0,
+		Flags:                  0x020000,
+		TrackID:                trackID,
+		BaseDataOffset:         0,
+		SampleDescriptionIndex: 0,
+		DefaultSampleDuration:  0,
+		DefaultSampleSize:      0,
+		DefaultSampleFlags:     0,
+	}
+	return tfhd
 }
 
 // HasBaseDataOffset - interpreted flags value
@@ -106,8 +122,8 @@ func (t *TfhdBox) Type() string {
 }
 
 // Size - returns calculated size
-func (t *TfhdBox) Size() int {
-	sz := BoxHeaderSize + 8
+func (t *TfhdBox) Size() uint64 {
+	sz := boxHeaderSize + 8
 	if t.HasBaseDataOffset() {
 		sz += 8
 	}
@@ -123,7 +139,7 @@ func (t *TfhdBox) Size() int {
 	if t.HasDefaultSampleFlags() {
 		sz += 4
 	}
-	return sz
+	return uint64(sz)
 }
 
 // Dump - print box specific data

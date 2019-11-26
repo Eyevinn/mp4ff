@@ -2,25 +2,28 @@ package mp4
 
 import "io"
 
-// Media Information Box (minf - mandatory)
+// MinfBox -  Media Information Box (minf - mandatory)
 //
 // Contained in : Media Box (mdia)
 //
 // Status: partially decoded (hmhd - hint tracks - and nmhd - null media - are ignored)
 type MinfBox struct {
-	Vmhd *VmhdBox
-	Smhd *SmhdBox
-	Stbl *StblBox
-	Dinf *DinfBox
-	Hdlr *HdlrBox
+	Vmhd  *VmhdBox
+	Smhd  *SmhdBox
+	Stbl  *StblBox
+	Dinf  *DinfBox
+	Hdlr  *HdlrBox
+	boxes []Box
 }
 
-func DecodeMinf(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+// DecodeMinf - box-specific decode
+func DecodeMinf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	m := &MinfBox{}
+	m.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "vmhd":
@@ -38,32 +41,22 @@ func DecodeMinf(r io.Reader) (Box, error) {
 	return m, nil
 }
 
+// Type - box type
 func (b *MinfBox) Type() string {
 	return "minf"
 }
 
-func (b *MinfBox) Size() int {
-	sz := 0
-	if b.Vmhd != nil {
-		sz += b.Vmhd.Size()
-	}
-	if b.Smhd != nil {
-		sz += b.Smhd.Size()
-	}
-	sz += b.Stbl.Size()
-	if b.Dinf != nil {
-		sz += b.Dinf.Size()
-	}
-	if b.Hdlr != nil {
-		sz += b.Hdlr.Size()
-	}
-	return sz + BoxHeaderSize
+// Size - calculated size of box
+func (b *MinfBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
+// Dump - print box info
 func (b *MinfBox) Dump() {
 	b.Stbl.Dump()
 }
 
+// Encode - write box to w
 func (b *MinfBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

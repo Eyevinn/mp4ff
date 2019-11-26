@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"time"
 )
 
-// Media Header Box (mdhd - mandatory)
+// MdhdBox - Media Header Box (mdhd - mandatory)
 //
 // Contained in : Media Box (mdia)
 //
@@ -26,13 +27,18 @@ type MdhdBox struct {
 	Language         uint16
 }
 
-func DecodeMdhd(r io.Reader) (Box, error) {
+// DecodeMdhd - Decode box
+func DecodeMdhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
+	version := data[0]
+	if version != 0 {
+		log.Fatalf("Only version 0 of mdhd supported")
+	}
 	return &MdhdBox{
-		Version:          data[0],
+		Version:          version,
 		Flags:            [3]byte{data[1], data[2], data[3]},
 		CreationTime:     binary.BigEndian.Uint32(data[4:8]),
 		ModificationTime: binary.BigEndian.Uint32(data[8:12]),
@@ -42,19 +48,23 @@ func DecodeMdhd(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// Type - box type
 func (b *MdhdBox) Type() string {
 	return "mdhd"
 }
 
-func (b *MdhdBox) Size() int {
-	return BoxHeaderSize + 24
+// Size - calculated size of box
+func (b *MdhdBox) Size() uint64 {
+	return 32 // For version 0
 }
 
+// Dump - print box info
 func (b *MdhdBox) Dump() {
 	fmt.Printf("Media Header:\n Timescale: %d units/sec\n Duration: %d units (%s)\n", b.Timescale, b.Duration, time.Duration(b.Duration/b.Timescale)*time.Second)
 
 }
 
+// Encode - write box to w
 func (b *MdhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

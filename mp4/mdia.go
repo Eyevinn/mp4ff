@@ -7,18 +7,20 @@ import "io"
 // Contained in : Track Box (trak)
 // Contains all information about the media data.
 type MdiaBox struct {
-	Mdhd *MdhdBox
-	Hdlr *HdlrBox
-	Minf *MinfBox
+	Mdhd  *MdhdBox
+	Hdlr  *HdlrBox
+	Minf  *MinfBox
+	boxes []Box
 }
 
 // DecodeMdia - box-specific decode
-func DecodeMdia(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+func DecodeMdia(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	m := &MdiaBox{}
+	m.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "mdhd":
@@ -27,8 +29,6 @@ func DecodeMdia(r io.Reader) (Box, error) {
 			m.Hdlr = b.(*HdlrBox)
 		case "minf":
 			m.Minf = b.(*MinfBox)
-		default:
-			return nil, ErrBadFormat
 		}
 	}
 	return m, nil
@@ -40,15 +40,8 @@ func (b *MdiaBox) Type() string {
 }
 
 // Size - return calculated size
-func (b *MdiaBox) Size() int {
-	sz := b.Mdhd.Size()
-	if b.Hdlr != nil {
-		sz += b.Hdlr.Size()
-	}
-	if b.Minf != nil {
-		sz += b.Minf.Size()
-	}
-	return sz + BoxHeaderSize
+func (b *MdiaBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
 // Dump - print data of lower levels

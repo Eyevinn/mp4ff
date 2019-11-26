@@ -5,22 +5,21 @@ import (
 	"io"
 )
 
-// Movie Box (moov - mandatory)
+// MoovBox - Movie Box (moov - mandatory)
 //
 // Status: partially decoded (anything other than mvhd, iods, trak or udta is ignored)
 //
 // Contains all meta-data. To be able to stream a file, the moov box should be placed before the mdat box.
 type MoovBox struct {
-	Mvhd *MvhdBox
-	Iods *IodsBox
-	Trak []*TrakBox
-	Udta *UdtaBox
-	//Mvex *MvexBox
+	Mvhd  *MvhdBox
+	Trak  []*TrakBox
+	Mvex  *MvexBox
 	boxes []Box
 }
 
-func DecodeMoov(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+// DecodeMoov - box-specific decode
+func DecodeMoov(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
@@ -30,29 +29,26 @@ func DecodeMoov(r io.Reader) (Box, error) {
 		switch b.Type() {
 		case "mvhd":
 			m.Mvhd = b.(*MvhdBox)
-		case "iods":
-			m.Iods = b.(*IodsBox)
 		case "trak":
 			m.Trak = append(m.Trak, b.(*TrakBox))
-		case "udta":
-			m.Udta = b.(*UdtaBox)
+		case "mvex":
+			m.Mvex = b.(*MvexBox)
 		}
 	}
 	return m, err
 }
 
+// Type - box type
 func (b *MoovBox) Type() string {
 	return "moov"
 }
 
-func (b *MoovBox) Size() int {
-	sz := BoxHeaderSize
-	for _, box := range b.boxes {
-		sz += box.Size()
-	}
-	return sz
+// Size - calculated size of box
+func (b *MoovBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
+// Dump - print box info
 func (b *MoovBox) Dump() {
 	b.Mvhd.Dump()
 	for i, t := range b.Trak {
@@ -61,29 +57,17 @@ func (b *MoovBox) Dump() {
 	}
 }
 
+// Encode - write box to w
 func (b *MoovBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	err = b.Mvhd.Encode(w)
-	if err != nil {
-		return err
-	}
-	if b.Iods != nil {
-		err = b.Iods.Encode(w)
+	for _, b := range b.boxes {
+		err = b.Encode(w)
 		if err != nil {
 			return err
 		}
-	}
-	for _, t := range b.Trak {
-		err = t.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	if b.Udta != nil {
-		return b.Udta.Encode(w)
 	}
 	return nil
 }

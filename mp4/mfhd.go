@@ -6,17 +6,17 @@ import (
 	"io/ioutil"
 )
 
-// Media Fragment Header Box (mfhd)
+// MfhdBox - Media Fragment Header Box (mfhd)
 //
 // Contained in : Movie Fragment box (moof))
-
 type MfhdBox struct {
 	Version        byte
 	Flags          uint32
 	SequenceNumber uint32
 }
 
-func DecodeMfhd(r io.Reader) (Box, error) {
+// DecodeMfhd - box-specific decode
+func DecodeMfhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func DecodeMfhd(r io.Reader) (Box, error) {
 	s := NewSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
-	flags := versionAndFlags & 0xffffff
+	flags := versionAndFlags & flagsMask
 	sequenceNumber := s.ReadUint32()
 	return &MfhdBox{
 		Version:        version,
@@ -33,18 +33,31 @@ func DecodeMfhd(r io.Reader) (Box, error) {
 	}, nil
 }
 
+// CreateMfhd - create an MfhdBox
+func CreateMfhd(sequenceNumber uint32) *MfhdBox {
+	return &MfhdBox{
+		Version:        0,
+		Flags:          0,
+		SequenceNumber: sequenceNumber,
+	}
+}
+
+// Type - box type
 func (m *MfhdBox) Type() string {
 	return "mfhd"
 }
 
-func (m *MfhdBox) Size() int {
-	return BoxHeaderSize + 8
+// Size - calculated size of box
+func (m *MfhdBox) Size() uint64 {
+	return boxHeaderSize + 8
 }
 
+// Dump - print box info
 func (m *MfhdBox) Dump() {
 	fmt.Printf("Media Fragment Header:\n Sequence Number: %d\n", m.SequenceNumber)
 }
 
+// Encode - write box to w
 func (m *MfhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(m, w)
 	if err != nil {

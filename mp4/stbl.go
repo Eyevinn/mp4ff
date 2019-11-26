@@ -2,7 +2,7 @@ package mp4
 
 import "io"
 
-// Sample Table Box (stbl - mandatory)
+// StblBox - Sample Table Box (stbl - mandatory)
 //
 // Contained in : Media Information Box (minf)
 //
@@ -10,21 +10,24 @@ import "io"
 //
 // The table contains all information relevant to data samples (times, chunks, sizes, ...)
 type StblBox struct {
-	Stsd *StsdBox
-	Stts *SttsBox
-	Stss *StssBox
-	Stsc *StscBox
-	Stsz *StszBox
-	Stco *StcoBox
-	Ctts *CttsBox
+	Stsd  *StsdBox
+	Stts  *SttsBox
+	Stss  *StssBox
+	Stsc  *StscBox
+	Stsz  *StszBox
+	Stco  *StcoBox
+	Ctts  *CttsBox
+	boxes []Box
 }
 
-func DecodeStbl(r io.Reader) (Box, error) {
-	l, err := DecodeContainer(r)
+// DecodeStbl - box-specific decode
+func DecodeStbl(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
 	s := &StblBox{}
+	s.boxes = l
 	for _, b := range l {
 		switch b.Type() {
 		case "stsd":
@@ -46,33 +49,17 @@ func DecodeStbl(r io.Reader) (Box, error) {
 	return s, nil
 }
 
+// Type - box-specific type
 func (b *StblBox) Type() string {
 	return "stbl"
 }
 
-func (b *StblBox) Size() int {
-	sz := b.Stsd.Size()
-	if b.Stts != nil {
-		sz += b.Stts.Size()
-	}
-	if b.Stss != nil {
-		sz += b.Stss.Size()
-	}
-	if b.Stsc != nil {
-		sz += b.Stsc.Size()
-	}
-	if b.Stsz != nil {
-		sz += b.Stsz.Size()
-	}
-	if b.Stco != nil {
-		sz += b.Stco.Size()
-	}
-	if b.Ctts != nil {
-		sz += b.Ctts.Size()
-	}
-	return sz + BoxHeaderSize
+// Size - box-specific size
+func (b *StblBox) Size() uint64 {
+	return containerSize(b.boxes)
 }
 
+// Dump - box-specific dump
 func (b *StblBox) Dump() {
 	if b.Stsc != nil {
 		b.Stsc.Dump()
@@ -91,6 +78,7 @@ func (b *StblBox) Dump() {
 	}
 }
 
+// Encode - box-specific encode
 func (b *StblBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {

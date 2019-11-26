@@ -9,17 +9,17 @@ import (
 // The mdat box contains media chunks/samples.
 //
 type MdatBox struct {
-	Data []byte
+	StartPos uint64
+	Data     []byte
 }
 
 // DecodeMdat - box-specific decode
-func DecodeMdat(r io.Reader) (Box, error) {
-
+func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	return &MdatBox{data}, nil
+	return &MdatBox{startPos, data}, nil
 }
 
 // Type - return box type
@@ -28,8 +28,14 @@ func (m *MdatBox) Type() string {
 }
 
 // Size - return calculated size
-func (m *MdatBox) Size() int {
-	return BoxHeaderSize + len(m.Data)
+func (m *MdatBox) Size() uint64 {
+	contentSize := uint64(len(m.Data)) // How can we handle more than 2**32 here?
+	return headerLength(contentSize) + contentSize
+}
+
+// AddSampleData -  a sample data to an mdat box
+func (m *MdatBox) AddSampleData(s []byte) {
+	m.Data = append(m.Data, s...)
 }
 
 // Encode - write box to w
