@@ -200,9 +200,9 @@ func Resegment(in *File, boundary uint64) *File {
 	}
 	nrSegments := 1
 	for nr, s := range iSamples {
-		if s.PresentationTime > 90000 && s.IsSync() && nrSegments == 1 {
+		if s.PresentationTime >= boundary && s.IsSync() && nrSegments == 1 {
 			frag.Moof.Traf.Trun.DataOffset = int32(frag.Moof.Size()) + 8
-			fmt.Printf("Made second segment\n")
+			fmt.Printf("Started second segment at %d\n", s.PresentationTime)
 			oFile.AddChildBox(inStyp, 0)
 			frag = CreateFragment(seqNr+1, trackID)
 			for _, box := range frag.boxes {
