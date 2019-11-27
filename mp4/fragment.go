@@ -108,3 +108,8 @@ func (f *Fragment) DumpSampleData(w io.Writer) {
 		}
 	}
 }
+
+// Boxes - return children boxes
+func (f *Fragment) Boxes() []Box {
+	return f.boxes
+}

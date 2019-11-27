@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"bitbucket.org/unitxtra/gomp4/mp4"
+	"bitbucket.org/unitxtra/gomp4/tools"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,7 @@ var resegCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalln(err)
 		}
-		newMp4 := mp4.Resegment(parsedMp4, boundary)
+		newMp4 := tools.Resegment(parsedMp4, boundary)
 		if err != nil {
 			log.Fatalln(err)
 		}
