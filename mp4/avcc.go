@@ -36,14 +36,14 @@ func DecodeAvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	numSPS := data[5] & 0x1f
 	pos := 6
-	SPSnals := make([][]byte, 1)
+	SPSnals := make([][]byte, 0, 1)
 	for i := 0; i < int(numSPS); i++ {
 		nalLength := int(binary.BigEndian.Uint16(data[pos : pos+2]))
 		pos += 2
 		SPSnals = append(SPSnals, data[pos:pos+nalLength])
 		pos += nalLength
 	}
-	PPSnals := make([][]byte, 1)
+	PPSnals := make([][]byte, 0, 1)
 	numPPS := data[pos]
 	pos++
 	for i := 0; i < int(numPPS); i++ {
