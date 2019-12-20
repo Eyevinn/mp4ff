@@ -43,6 +43,7 @@ func init() {
 		"ctts": DecodeCtts,
 		"dinf": DecodeDinf,
 		"dref": DecodeDref,
+		"elng": DecodeElng,
 		"edts": DecodeEdts,
 		"elst": DecodeElst,
 		"free": DecodeFree,
