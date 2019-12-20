@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -117,7 +118,7 @@ func decodeHeader(r io.Reader) (*boxHeader, error) {
 
 // EncodeHeader encodes a box header to a writer
 func EncodeHeader(b Box, w io.Writer) error {
-	log.Printf("Writing %v size %d\n", b.Type(), b.Size())
+	log.Debugf("Writing %v size %d\n", b.Type(), b.Size())
 	buf := make([]byte, boxHeaderSize)
 	// Todo. Handle largesize extension
 	binary.BigEndian.PutUint32(buf, uint32(b.Size()))
@@ -151,19 +152,18 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 	remainingLength := int64(h.size) - int64(h.hdrlen)
 
 	if !ok {
-		log.Printf("Found unknown box type %v, size %v", h.name, h.size)
+		log.Debugf("Found unknown box type %v, size %v", h.name, h.size)
 		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
 
 	} else {
-		log.Printf("Found supported box %v, size %v", h.name, h.size)
+		log.Debugf("Found supported box %v, size %v", h.name, h.size)
 		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
 	}
 	if h.size != b.Size() {
-		log.Printf("### Mismatch size %d %d for %s", h.size, b.Size(), b.Type())
+		log.Errorf("### Mismatch size %d %d for %s", h.size, b.Size(), b.Type())
 	}
-	//log.Printf("Box type %v, size %d %d", b.Type(), b.Size())
 	if err != nil {
-		log.Printf("Error while decoding %s : %s", h.name, err)
+		log.Errorf("Error while decoding %s : %s", h.name, err)
 		return nil, err
 	}
 	return b, nil
