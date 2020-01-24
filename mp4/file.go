@@ -96,10 +96,12 @@ func (f *File) AddChildBox(box Box, boxStartPos uint64) {
 			f.Init.Moov = f.Moov
 		}
 	case "styp":
+		f.isFragmented = true
 		newSeg := NewMediaSegment()
 		newSeg.Styp = box.(*StypBox)
 		f.AddMediaSegment(newSeg)
 	case "moof":
+		f.isFragmented = true
 		moof := box.(*MoofBox)
 		moof.StartPos = boxStartPos
 
