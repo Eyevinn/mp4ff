@@ -1,5 +1,7 @@
 package mp4
 
+import "io"
+
 // InitSegment - MP4/CMAF init segment
 type InitSegment struct {
 	Ftyp  *FtypBox
@@ -25,6 +27,17 @@ func (s *InitSegment) AddChild(b Box) {
 	s.boxes = append(s.boxes)
 }
 
+// Encode - write InitSegment via writer
+func (s *InitSegment) Encode(w io.Writer) error {
+	for _, b := range s.boxes {
+		err := b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // MediaSegment - MP4 Media Segment
 type MediaSegment struct {
 	Styp      *StypBox
@@ -45,4 +58,21 @@ func (s *MediaSegment) AddFragment(f *Fragment) {
 
 func (s *MediaSegment) lastFragment() *Fragment {
 	return s.Fragments[len(s.Fragments)-1]
+}
+
+// Encode - write MediaSegment via writer
+func (s *MediaSegment) Encode(w io.Writer) error {
+	if s.Styp != nil {
+		err := s.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	for _, f := range s.Fragments {
+		err := f.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
