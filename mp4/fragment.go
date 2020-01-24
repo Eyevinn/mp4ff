@@ -109,6 +109,17 @@ func (f *Fragment) DumpSampleData(w io.Writer) {
 	}
 }
 
+// Encode - write fragment via writer
+func (f *Fragment) Encode(w io.Writer) error {
+	for _, b := range f.boxes {
+		err := b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Boxes - return children boxes
 func (f *Fragment) Boxes() []Box {
 	return f.boxes
