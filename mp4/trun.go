@@ -252,3 +252,15 @@ func (t *TrunBox) AddSample(s *Sample) {
 	t.samples = append(t.samples, s)
 	t.sampleCount++
 }
+
+// Duration - calculated duration given defaultSampleDuration
+func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
+	if !t.HasSampleDuration() {
+		return uint64(defaultSampleDuration) * uint64(t.SampleCount())
+	}
+	var total uint64 = 0
+	for _, s := range t.samples {
+		total += uint64(s.Dur)
+	}
+	return total
+}
