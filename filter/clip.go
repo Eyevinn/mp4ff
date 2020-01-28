@@ -2,8 +2,8 @@ package filter
 
 import (
 	"errors"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"sort"
 	"time"
 
@@ -185,7 +185,7 @@ func (f *clipFilter) updateSamples(tnum int, t *mp4.TrakBox) {
 	firstSample := f.chunks.firstSample(tnum, f.begin)
 	lastSample := f.chunks.lastSample(tnum, f.end)
 
-	log.Printf("first sample %d, last %d", firstSample, lastSample)
+	log.Debugf("first sample %d, last %d", firstSample, lastSample)
 	sample := uint32(1)
 	for i := 0; i < len(oldCount) && sample < lastSample; i++ {
 		if sample+oldCount[i] >= firstSample {
@@ -227,7 +227,7 @@ func (f *clipFilter) updateSamples(tnum int, t *mp4.TrakBox) {
 			stsz.SampleSize = append(stsz.SampleSize, sz)
 		}
 	}
-	log.Printf("stsz => %d", len(stsz.SampleSize))
+	log.Debugf("stsz => %d", len(stsz.SampleSize))
 
 	// ctts - time offsets
 	ctts := t.Mdia.Minf.Stbl.Ctts

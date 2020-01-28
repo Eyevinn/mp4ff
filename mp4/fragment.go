@@ -2,8 +2,8 @@ package mp4
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 )
 
 // Fragment - MP4 Fragment (moof + mdat)

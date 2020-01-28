@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 
@@ -25,7 +25,7 @@ var resegCmd = &cobra.Command{
 
 		}
 		if infile == "" || outfile == "" {
-			fmt.Println("Must specify infine and outfile")
+			fmt.Println("Must specify infile and outfile")
 			os.Exit(1)
 		}
 		fmt.Println(infile, outfile, boundary)

@@ -3,9 +3,9 @@ package mp4
 import (
 	"encoding/binary"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
-	"log"
 	"time"
 )
 

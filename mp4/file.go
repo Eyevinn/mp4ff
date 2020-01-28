@@ -3,8 +3,9 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // File - an MPEG-4 file asset
@@ -59,7 +60,7 @@ LoopBoxes:
 			return nil, err
 		}
 		bType, bSize := box.Type(), box.Size()
-		log.Printf("Box %v, size %v at pos %v", bType, bSize, boxStartPos)
+		log.Debugf("Box %v, size %v at pos %v", bType, bSize, boxStartPos)
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +159,6 @@ func (f *File) Boxes() []Box {
 // Encode - encode a file to a Writer
 func (f *File) Encode(w io.Writer) error {
 	for _, b := range f.Boxes() {
-		fmt.Printf("Encode %v size %d\n", b.Type(), b.Size())
 		err := b.Encode(w)
 		if err != nil {
 			return err
