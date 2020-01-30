@@ -61,6 +61,7 @@ func init() {
 		"mvex": DecodeMvex,
 		"mvhd": DecodeMvhd,
 		"prft": DecodePrft,
+		"senc": DecodeSenc,
 		"smhd": DecodeSmhd,
 		"stbl": DecodeStbl,
 		"stco": DecodeStco,
