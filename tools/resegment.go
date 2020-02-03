@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"bitbucket.org/unitxtra/gomp4/mp4"
+	"github.com/edgeware/gomp4/mp4"
 )
 
 // Resegment file into two segments

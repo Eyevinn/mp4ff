@@ -3,7 +3,7 @@ package filter
 import (
 	"io"
 
-	"bitbucket.org/unitxtra/gomp4/mp4"
+	"github.com/edgeware/gomp4/mp4"
 )
 
 type Filter interface {

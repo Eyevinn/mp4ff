@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"os"
 
-	"bitbucket.org/unitxtra/gomp4/mp4"
+	"github.com/edgeware/gomp4/mp4"
+	"github.com/edgeware/gomp4/tools"
 	cli "github.com/jawher/mow.cli"
 )
 
@@ -40,7 +41,7 @@ func main() {
 				log.Fatalln(err)
 			}
 			segBoundary := uint64(*boundary)
-			newMp4 := mp4.Resegment(parsedMp4, segBoundary)
+			newMp4 := tools.Resegment(parsedMp4, segBoundary)
 			if err != nil {
 				log.Fatalln(err)
 			}

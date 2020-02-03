@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"bitbucket.org/unitxtra/gomp4/mp4"
+	"github.com/edgeware/gomp4/mp4"
 	"github.com/spf13/cobra"
 )
 

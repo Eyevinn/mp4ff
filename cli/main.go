@@ -4,7 +4,7 @@ Copyright © 2019 Edgeware AB <torbjorn.einarsson@edgeware.tv>
 */
 package main
 
-import "bitbucket.org/unitxtra/gomp4/cmd"
+import "github.com/edgeware/gomp4/cmd"
 
 func main() {
 	cmd.Execute()

@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 
-	"bitbucket.org/unitxtra/gomp4/mp4"
-	"bitbucket.org/unitxtra/gomp4/tools"
+	"github.com/edgeware/gomp4/mp4"
+	"github.com/edgeware/gomp4/tools"
 	"github.com/spf13/cobra"
 )
 

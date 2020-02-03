@@ -1,4 +1,4 @@
-module bitbucket.org/unitxtra/gomp4
+module github.com/edgeware/gomp4
 
 go 1.13
 
