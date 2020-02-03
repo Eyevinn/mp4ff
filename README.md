@@ -1,41 +1,33 @@
-# mp4
+# gomp4
 
+MP4 media file parser and writer. Focused on fragmented files.
 
-[![wercker status](https://app.wercker.com/status/880648789317885e754d7054fa026b56/s/master "wercker status")](https://app.wercker.com/project/bykey/880648789317885e754d7054fa026b56)
+## Library
+The library has functions for parsing (called Decode) and writing (Encocde).
+mp4.File is a representation of a "File" which can be more or less complete
 
-A encoder/decoder class, io.Reader and io.Writer compatible, usable for HTTP pseudo streaming
+It can include
 
-For the complete MP4 specifications, see http://standards.iso.org/ittf/PubliclyAvailableStandards/c061988_ISO_IEC_14496-12_2012.zip and http://standards.iso.org/ittf/PubliclyAvailableStandards/c061989_ISO_IEC_15444-12_2012.zip
+* InitSegment (ftyp + moov boxes)
 
-## Doc
+* Segments (Optional styp box followed by fragments)
 
-See http://godoc.org/github.com/jfbus/mp4 and http://godoc.org/github.com/jfbus/mp4/filter
+* Fragments must always consist of a moof box followed by an mdat box.
 
-## Warning
+The typical child boxes are exported so that one can write paths such as
 
-Some boxes can have multiple formats (ctts, elst, tkhd, ...). Only the version 0 of those boxes is currently decoded (see https://github.com/jfbus/mp4/issues/7).
-Version 1 will be supported, and this will break a few things (e.g. some uint32 attributes will switch to uint64).
+    fragment.Moof.Traf.Trun
 
-## CLI
+to access the (only) trun box in a fragment.
 
-A CLI can be found in cli/mp4tool.go
+## CLI Tools
 
-It can :
+There is a main tool mp4tool, that can be build in the cli directory.
 
-* Display info about a media
-```
-mp4tool info file.mp4
-```
-* Copy a video (decode it and reencode it to another file, useful for debugging)
-```
-mp4tool copy in.mp4 out.mp4
-```
-* Generate a clip
-```
-mp4tool clip --start 10 --duration 30 in.mp4 out.mp4
-```
+    go build mp4tool
 
-(if you really want to generate a clip, you should use ffmpeg, you will ge better results)
+It's current functionality is to resegment a segmented file.
+It can also show info about a file.
 
 ## LICENSE
 
