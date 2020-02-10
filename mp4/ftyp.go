@@ -13,6 +13,15 @@ type FtypBox struct {
 	CompatibleBrands []string
 }
 
+// CreateFtyp - Create an Ftyp box suitaable for DASH/CMAF
+func CreateFtyp() *FtypBox {
+	return &FtypBox{
+		MajorBrand:       "iso5",
+		MinorVersion:     []byte{0, 0, 0, 0},
+		CompatibleBrands: []string{"isom", "dash", "mp42"},
+	}
+}
+
 // DecodeFtyp - box-specific decode
 func DecodeFtyp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
