@@ -19,7 +19,7 @@ import (
 // Video pixels are not necessarily square.
 type TkhdBox struct {
 	Version          byte
-	Flags            [3]byte
+	Flags            uint32
 	CreationTime     uint32
 	ModificationTime uint32
 	TrackID          uint32
@@ -37,9 +37,11 @@ func DecodeTkhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	version := byte(versionAndFlags >> 24)
 	return &TkhdBox{
-		Version:          data[0],
-		Flags:            [3]byte{data[1], data[2], data[3]},
+		Version:          version,
+		Flags:            versionAndFlags & flagsMask,
 		CreationTime:     binary.BigEndian.Uint32(data[4:8]),
 		ModificationTime: binary.BigEndian.Uint32(data[8:12]),
 		TrackID:          binary.BigEndian.Uint32(data[12:16]),
@@ -70,8 +72,8 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	buf[0] = b.Version
-	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	binary.BigEndian.PutUint32(buf[0:], versionAndFlags)
 	binary.BigEndian.PutUint32(buf[4:], b.CreationTime)
 	binary.BigEndian.PutUint32(buf[8:], b.ModificationTime)
 	binary.BigEndian.PutUint32(buf[12:], b.TrackID)

@@ -3,11 +3,14 @@ package mp4
 import (
 	"encoding/binary"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
+
+const aASCIIPos = 97
 
 // MdhdBox - Media Header Box (mdhd - mandatory)
 //
@@ -19,7 +22,7 @@ import (
 // Language is a ISO-639-2/T language code stored as 1bit padding + [3]int5
 type MdhdBox struct {
 	Version          byte
-	Flags            [3]byte
+	Flags            uint32
 	CreationTime     uint32
 	ModificationTime uint32
 	Timescale        uint32
@@ -33,13 +36,14 @@ func DecodeMdhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	version := data[0]
+	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	version := byte(versionAndFlags >> 24)
 	if version != 0 {
 		log.Fatalf("Only version 0 of mdhd supported")
 	}
 	return &MdhdBox{
 		Version:          version,
-		Flags:            [3]byte{data[1], data[2], data[3]},
+		Flags:            versionAndFlags & flagsMask,
 		CreationTime:     binary.BigEndian.Uint32(data[4:8]),
 		ModificationTime: binary.BigEndian.Uint32(data[8:12]),
 		Timescale:        binary.BigEndian.Uint32(data[12:16]),
@@ -48,36 +52,53 @@ func DecodeMdhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}, nil
 }
 
+// GetLanguage - Get thee-byte language string
+func (m *MdhdBox) GetLanguage() string {
+	a := (m.Language >> 10) & 0x1f
+	b := (m.Language >> 5) & 0x1f
+	c := m.Language & 0x1f
+	return fmt.Sprintf("%c%c%c", a+aASCIIPos, b+aASCIIPos, c+aASCIIPos)
+}
+
+// SetLanguage - Set three-byte language string
+func (m *MdhdBox) SetLanguage(lang string) {
+	var l uint16 = 0
+	for i, c := range lang {
+		l += uint16(((c - aASCIIPos) & 0x1f) << (5 * i))
+	}
+	m.Language = l
+}
+
 // Type - box type
-func (b *MdhdBox) Type() string {
+func (m *MdhdBox) Type() string {
 	return "mdhd"
 }
 
 // Size - calculated size of box
-func (b *MdhdBox) Size() uint64 {
+func (m *MdhdBox) Size() uint64 {
 	return 32 // For version 0
 }
 
 // Dump - print box info
-func (b *MdhdBox) Dump() {
-	fmt.Printf("Media Header:\n Timescale: %d units/sec\n Duration: %d units (%s)\n", b.Timescale, b.Duration, time.Duration(b.Duration/b.Timescale)*time.Second)
-
+func (m *MdhdBox) Dump() {
+	fmt.Printf("Media Header:\n Timescale: %d units/sec\n Duration: %d units (%s)\n",
+		m.Timescale, m.Duration, time.Duration(m.Duration/m.Timescale)*time.Second)
 }
 
 // Encode - write box to w
-func (b *MdhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (m *MdhdBox) Encode(w io.Writer) error {
+	err := EncodeHeader(m, w)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	buf[0] = b.Version
-	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
-	binary.BigEndian.PutUint32(buf[4:], b.CreationTime)
-	binary.BigEndian.PutUint32(buf[8:], b.ModificationTime)
-	binary.BigEndian.PutUint32(buf[12:], b.Timescale)
-	binary.BigEndian.PutUint32(buf[16:], b.Duration)
-	binary.BigEndian.PutUint16(buf[20:], b.Language)
+	buf := makebuf(m)
+	versionAndFlags := (uint32(m.Version) << 24) + m.Flags
+	binary.BigEndian.PutUint32(buf[0:], versionAndFlags)
+	binary.BigEndian.PutUint32(buf[4:], m.CreationTime)
+	binary.BigEndian.PutUint32(buf[8:], m.ModificationTime)
+	binary.BigEndian.PutUint32(buf[12:], m.Timescale)
+	binary.BigEndian.PutUint32(buf[16:], m.Duration)
+	binary.BigEndian.PutUint16(buf[20:], m.Language)
 	_, err = w.Write(buf)
 	return err
 }
