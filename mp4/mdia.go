@@ -13,23 +13,34 @@ type MdiaBox struct {
 	boxes []Box
 }
 
+// NewMdiaBox - Generate a new empty mdia box
+func NewMdiaBox() *MdiaBox {
+	return &MdiaBox{}
+}
+
+// AddChild - Add a child box
+func (m *MdiaBox) AddChild(box Box) {
+
+	switch box.Type() {
+	case "mdhd":
+		m.Mdhd = box.(*MdhdBox)
+	case "hdlr":
+		m.Hdlr = box.(*HdlrBox)
+	case "minf":
+		m.Minf = box.(*MinfBox)
+	}
+	m.boxes = append(m.boxes, box)
+}
+
 // DecodeMdia - box-specific decode
 func DecodeMdia(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
-	m := &MdiaBox{}
-	m.boxes = l
+	m := NewMdiaBox()
 	for _, b := range l {
-		switch b.Type() {
-		case "mdhd":
-			m.Mdhd = b.(*MdhdBox)
-		case "hdlr":
-			m.Hdlr = b.(*HdlrBox)
-		case "minf":
-			m.Minf = b.(*MinfBox)
-		}
+		m.AddChild(b)
 	}
 	return m, nil
 }

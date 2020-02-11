@@ -14,63 +14,71 @@ type TrakBox struct {
 	boxes []Box
 }
 
+// NewTrakBox - Make a new empty TrakBox
+func NewTrakBox() *TrakBox {
+	return &TrakBox{}
+}
+
+// AddChild - Add a child box
+func (t *TrakBox) AddChild(box Box) {
+	switch box.Type() {
+	case "tkhd":
+		t.Tkhd = box.(*TkhdBox)
+	case "mdia":
+		t.Mdia = box.(*MdiaBox)
+	case "edts":
+		t.Edts = box.(*EdtsBox)
+	}
+	t.boxes = append(t.boxes, box)
+}
+
 // DecodeTrak - box-specific decode
 func DecodeTrak(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
-	t := &TrakBox{}
-	t.boxes = l
+	t := NewTrakBox()
 	for _, b := range l {
-		switch b.Type() {
-		case "tkhd":
-			t.Tkhd = b.(*TkhdBox)
-		case "mdia":
-			t.Mdia = b.(*MdiaBox)
-		case "edts":
-			t.Edts = b.(*EdtsBox)
-		default:
-			return nil, ErrBadFormat
-		}
+		t.AddChild(b)
 	}
 	return t, nil
 }
 
 // Type - box type
-func (b *TrakBox) Type() string {
+func (t *TrakBox) Type() string {
 	return "trak"
 }
 
 // Size - calculated size of box
-func (b *TrakBox) Size() uint64 {
-	return containerSize(b.boxes)
+func (t *TrakBox) Size() uint64 {
+	return containerSize(t.boxes)
 }
 
 // Dump - print box info
-func (b *TrakBox) Dump() {
-	b.Tkhd.Dump()
-	if b.Edts != nil {
-		b.Edts.Dump()
+func (t *TrakBox) Dump() {
+	t.Tkhd.Dump()
+	if t.Edts != nil {
+		t.Edts.Dump()
 	}
-	b.Mdia.Dump()
+	t.Mdia.Dump()
 }
 
 // Encode - write box to w
-func (b *TrakBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (t *TrakBox) Encode(w io.Writer) error {
+	err := EncodeHeader(t, w)
 	if err != nil {
 		return err
 	}
-	err = b.Tkhd.Encode(w)
+	err = t.Tkhd.Encode(w)
 	if err != nil {
 		return err
 	}
-	if b.Edts != nil {
-		err = b.Edts.Encode(w)
+	if t.Edts != nil {
+		err = t.Edts.Encode(w)
 		if err != nil {
 			return err
 		}
 	}
-	return b.Mdia.Encode(w)
+	return t.Mdia.Encode(w)
 }

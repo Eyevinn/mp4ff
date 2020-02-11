@@ -16,74 +16,85 @@ type MinfBox struct {
 	boxes []Box
 }
 
+// NewMinfBox - Generate a new empty minf box
+func NewMinfBox() *MinfBox {
+	return &MinfBox{}
+}
+
+// AddChild - Add a child box
+func (m *MinfBox) AddChild(box Box) {
+
+	switch box.Type() {
+	case "vmhd":
+		m.Vmhd = box.(*VmhdBox)
+	case "smhd":
+		m.Smhd = box.(*SmhdBox)
+	case "stbl":
+		m.Stbl = box.(*StblBox)
+	case "dinf":
+		m.Dinf = box.(*DinfBox)
+	case "hdlr":
+		m.Hdlr = box.(*HdlrBox)
+	}
+	m.boxes = append(m.boxes, box)
+}
+
 // DecodeMinf - box-specific decode
 func DecodeMinf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
-	m := &MinfBox{}
-	m.boxes = l
+	m := NewMinfBox()
 	for _, b := range l {
-		switch b.Type() {
-		case "vmhd":
-			m.Vmhd = b.(*VmhdBox)
-		case "smhd":
-			m.Smhd = b.(*SmhdBox)
-		case "stbl":
-			m.Stbl = b.(*StblBox)
-		case "dinf":
-			m.Dinf = b.(*DinfBox)
-		case "hdlr":
-			m.Hdlr = b.(*HdlrBox)
-		}
+		m.AddChild(b)
 	}
 	return m, nil
 }
 
 // Type - box type
-func (b *MinfBox) Type() string {
+func (m *MinfBox) Type() string {
 	return "minf"
 }
 
 // Size - calculated size of box
-func (b *MinfBox) Size() uint64 {
-	return containerSize(b.boxes)
+func (m *MinfBox) Size() uint64 {
+	return containerSize(m.boxes)
 }
 
 // Dump - print box info
-func (b *MinfBox) Dump() {
-	b.Stbl.Dump()
+func (m *MinfBox) Dump() {
+	m.Stbl.Dump()
 }
 
 // Encode - write box to w
-func (b *MinfBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (m *MinfBox) Encode(w io.Writer) error {
+	err := EncodeHeader(m, w)
 	if err != nil {
 		return err
 	}
-	if b.Vmhd != nil {
-		err = b.Vmhd.Encode(w)
+	if m.Vmhd != nil {
+		err = m.Vmhd.Encode(w)
 		if err != nil {
 			return err
 		}
 	}
-	if b.Smhd != nil {
-		err = b.Smhd.Encode(w)
+	if m.Smhd != nil {
+		err = m.Smhd.Encode(w)
 		if err != nil {
 			return err
 		}
 	}
-	err = b.Dinf.Encode(w)
+	err = m.Dinf.Encode(w)
 	if err != nil {
 		return err
 	}
-	err = b.Stbl.Encode(w)
+	err = m.Stbl.Encode(w)
 	if err != nil {
 		return err
 	}
-	if b.Hdlr != nil {
-		return b.Hdlr.Encode(w)
+	if m.Hdlr != nil {
+		return m.Hdlr.Encode(w)
 	}
 	return nil
 }
