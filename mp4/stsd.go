@@ -16,6 +16,17 @@ type StsdBox struct {
 	boxes       []Box
 }
 
+// NewStsdBox - Generate a new empty stsd box
+func NewStsdBox() *StsdBox {
+	return &StsdBox{}
+}
+
+// AddChild - Add a child box and update SampleCount
+func (s *StsdBox) AddChild(box Box) {
+	s.boxes = append(s.boxes, box)
+	s.SampleCount++
+}
+
 // DecodeStsd - box-specific decode
 func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, sampleCount uint32

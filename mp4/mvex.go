@@ -13,19 +13,30 @@ type MvexBox struct {
 	boxes []Box
 }
 
+// NewMvexBox - Generate a new empty mvex box
+func NewMvexBox() *MvexBox {
+	return &MvexBox{}
+}
+
+// AddChild - Add a child box
+func (m *MvexBox) AddChild(box Box) {
+
+	switch box.Type() {
+	case "trex":
+		m.Trex = box.(*TrexBox)
+	}
+	m.boxes = append(m.boxes, box)
+}
+
 // DecodeMvex - box-specific decode
 func DecodeMvex(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
-	m := &MvexBox{}
-	m.boxes = l
+	m := NewMvexBox()
 	for _, b := range l {
-		switch b.Type() {
-		case "trex":
-			m.Trex = b.(*TrexBox)
-		}
+		m.AddChild(b)
 	}
 	return m, nil
 }

@@ -20,98 +20,109 @@ type StblBox struct {
 	boxes []Box
 }
 
+// NewStblBox - Generate a new empty stbl box
+func NewStblBox() *StblBox {
+	return &StblBox{}
+}
+
+// AddChild - Add a child box
+func (s *StblBox) AddChild(box Box) {
+
+	switch box.Type() {
+	case "stsd":
+		s.Stsd = box.(*StsdBox)
+	case "stts":
+		s.Stts = box.(*SttsBox)
+	case "stsc":
+		s.Stsc = box.(*StscBox)
+	case "stss":
+		s.Stss = box.(*StssBox)
+	case "stsz":
+		s.Stsz = box.(*StszBox)
+	case "stco":
+		s.Stco = box.(*StcoBox)
+	case "ctts":
+		s.Ctts = box.(*CttsBox)
+	}
+	s.boxes = append(s.boxes, box)
+}
+
 // DecodeStbl - box-specific decode
 func DecodeStbl(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos, r)
 	if err != nil {
 		return nil, err
 	}
-	s := &StblBox{}
-	s.boxes = l
+	s := NewStblBox()
 	for _, b := range l {
-		switch b.Type() {
-		case "stsd":
-			s.Stsd = b.(*StsdBox)
-		case "stts":
-			s.Stts = b.(*SttsBox)
-		case "stsc":
-			s.Stsc = b.(*StscBox)
-		case "stss":
-			s.Stss = b.(*StssBox)
-		case "stsz":
-			s.Stsz = b.(*StszBox)
-		case "stco":
-			s.Stco = b.(*StcoBox)
-		case "ctts":
-			s.Ctts = b.(*CttsBox)
-		}
+		s.AddChild(b)
 	}
 	return s, nil
 }
 
 // Type - box-specific type
-func (b *StblBox) Type() string {
+func (s *StblBox) Type() string {
 	return "stbl"
 }
 
 // Size - box-specific size
-func (b *StblBox) Size() uint64 {
-	return containerSize(b.boxes)
+func (s *StblBox) Size() uint64 {
+	return containerSize(s.boxes)
 }
 
 // Dump - box-specific dump
-func (b *StblBox) Dump() {
-	if b.Stsc != nil {
-		b.Stsc.Dump()
+func (s *StblBox) Dump() {
+	if s.Stsc != nil {
+		s.Stsc.Dump()
 	}
-	if b.Stts != nil {
-		b.Stts.Dump()
+	if s.Stts != nil {
+		s.Stts.Dump()
 	}
-	if b.Stsz != nil {
-		b.Stsz.Dump()
+	if s.Stsz != nil {
+		s.Stsz.Dump()
 	}
-	if b.Stss != nil {
-		b.Stss.Dump()
+	if s.Stss != nil {
+		s.Stss.Dump()
 	}
-	if b.Stco != nil {
-		b.Stco.Dump()
+	if s.Stco != nil {
+		s.Stco.Dump()
 	}
 }
 
 // Encode - box-specific encode
-func (b *StblBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (s *StblBox) Encode(w io.Writer) error {
+	err := EncodeHeader(s, w)
 	if err != nil {
 		return err
 	}
-	err = b.Stsd.Encode(w)
+	err = s.Stsd.Encode(w)
 	if err != nil {
 		return err
 	}
-	err = b.Stts.Encode(w)
+	err = s.Stts.Encode(w)
 	if err != nil {
 		return err
 	}
-	if b.Stss != nil {
-		err = b.Stss.Encode(w)
+	if s.Stss != nil {
+		err = s.Stss.Encode(w)
 		if err != nil {
 			return err
 		}
 	}
-	err = b.Stsc.Encode(w)
+	err = s.Stsc.Encode(w)
 	if err != nil {
 		return err
 	}
-	err = b.Stsz.Encode(w)
+	err = s.Stsz.Encode(w)
 	if err != nil {
 		return err
 	}
-	err = b.Stco.Encode(w)
+	err = s.Stco.Encode(w)
 	if err != nil {
 		return err
 	}
-	if b.Ctts != nil {
-		return b.Ctts.Encode(w)
+	if s.Ctts != nil {
+		return s.Ctts.Encode(w)
 	}
 	return nil
 }
