@@ -20,6 +20,13 @@ type AvcXBox struct {
 	AvcC               *AvcCBox
 }
 
+// NewAvcXBox - Create new embpty avc1 or avc3 box
+func NewAvcXBox(name string) *AvcXBox {
+	b := &AvcXBox{}
+	b.name = name
+	return b
+}
+
 // DecodeAvcX - decode avc1/avc3 box
 func DecodeAvcX(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
