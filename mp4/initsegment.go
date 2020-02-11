@@ -55,16 +55,25 @@ func CreateMP4Init(timeScale uint32) *InitSegment {
 	initSeg.AddChild(moov)
 	mvhd := &MvhdBox{}
 	mvhd.Timescale = 90000
+	mvhd.NextTrackID = 2
 	moov.AddChild(mvhd)
 	trak := &TrakBox{}
 	moov.AddChild(trak)
 	tkhd := &TkhdBox{}
+	tkhd.Flags = 0x000007
+	tkhd.TrackID = 1
+	tkhd.Width = 0
+	tkhd.Height = 0
 	trak.AddChild(tkhd)
 	mdia := &MdiaBox{}
 	trak.AddChild(mdia)
 	mdhd := &MdhdBox{}
+	mdhd.SetLanguage("und")
+	mdhd.Timescale = 90000
 	mdia.AddChild(mdhd)
 	hdlr := &HdlrBox{}
+	hdlr.HandlerType = "vide"
+	hdlr.Name = "Edgeware Video Handler"
 	mdia.AddChild(hdlr)
 	minf := NewMinfBox()
 	mdia.AddChild(minf)
@@ -75,6 +84,9 @@ func CreateMP4Init(timeScale uint32) *InitSegment {
 	stsd := NewStsdBox()
 	stbl.AddChild(stsd)
 	// TODO. Add avc1 etc sample description
+	avc1 := NewAvcXBox("avc1")
+	stsd.AddChild(avc1)
+
 	stbl.AddChild(&SttsBox{})
 	stbl.AddChild(&StscBox{})
 	stbl.AddChild(&StszBox{})
