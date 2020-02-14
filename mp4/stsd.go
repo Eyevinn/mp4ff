@@ -27,6 +27,14 @@ func (s *StsdBox) AddChild(box Box) {
 	s.SampleCount++
 }
 
+// GetSampleDescription - get one of multiple descriptions
+func (s *StsdBox) GetSampleDescription(index int) (Box, error) {
+	if index >= len(s.boxes) {
+		return nil, errors.New("Beyond limit of sample descriptors")
+	}
+	return s.boxes[index], nil
+}
+
 // DecodeStsd - box-specific decode
 func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, sampleCount uint32
