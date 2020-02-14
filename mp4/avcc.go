@@ -34,7 +34,7 @@ func DecodeAvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if LengthSizeMinus1 != 0x3 {
 		panic("Can only handle 4byte NAL length size")
 	}
-	numSPS := data[5] & 0x1f
+	numSPS := data[5] & 0x1f // 5 bits following 3 reserved bits
 	pos := 6
 	SPSnals := make([][]byte, 0, 1)
 	for i := 0; i < int(numSPS); i++ {
@@ -118,7 +118,7 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 	binary.Write(w, binary.BigEndian, a.ProfileCompatibility)
 	binary.Write(w, binary.BigEndian, a.AVCLevelIndication)
 	binary.Write(w, binary.BigEndian, ffByte)
-	var nrSPS byte = byte(len(a.SPS))
+	var nrSPS byte = byte(len(a.SPS)) | 0xe0 // Added reserved 3 bits
 	binary.Write(w, binary.BigEndian, nrSPS)
 	for _, sps := range a.SPS {
 		var len uint16 = uint16(len(sps))
