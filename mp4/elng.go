@@ -11,6 +11,11 @@ type ElngBox struct {
 	Language string
 }
 
+// CreateElng - Create an Extended Language Box
+func CreateElng(language string) *ElngBox {
+	return &ElngBox{Language: language}
+}
+
 // DecodeElng - box-specific decode
 func DecodeElng(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)

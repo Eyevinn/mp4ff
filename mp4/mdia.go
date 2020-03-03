@@ -46,38 +46,38 @@ func DecodeMdia(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Type - return box type
-func (b *MdiaBox) Type() string {
+func (m *MdiaBox) Type() string {
 	return "mdia"
 }
 
 // Size - return calculated size
-func (b *MdiaBox) Size() uint64 {
-	return containerSize(b.boxes)
+func (m *MdiaBox) Size() uint64 {
+	return containerSize(m.boxes)
 }
 
 // Dump - print data of lower levels
-func (b *MdiaBox) Dump() {
-	b.Mdhd.Dump()
-	if b.Minf != nil {
-		b.Minf.Dump()
+func (m *MdiaBox) Dump() {
+	m.Mdhd.Dump()
+	if m.Minf != nil {
+		m.Minf.Dump()
 	}
 }
 
 // Encode - write box to w
-func (b *MdiaBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (m *MdiaBox) Encode(w io.Writer) error {
+	err := EncodeHeader(m, w)
 	if err != nil {
 		return err
 	}
-	err = b.Mdhd.Encode(w)
+	err = m.Mdhd.Encode(w)
 	if err != nil {
 		return err
 	}
-	if b.Hdlr != nil {
-		err = b.Hdlr.Encode(w)
+	if m.Hdlr != nil {
+		err = m.Hdlr.Encode(w)
 		if err != nil {
 			return err
 		}
 	}
-	return b.Minf.Encode(w)
+	return m.Minf.Encode(w)
 }

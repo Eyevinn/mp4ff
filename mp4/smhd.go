@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
 	"io/ioutil"
 )
@@ -13,8 +12,13 @@ import (
 // Status: decoded
 type SmhdBox struct {
 	Version byte
-	Flags   [3]byte
+	Flags   uint32
 	Balance uint16 // should be int16
+}
+
+// CreateSmhd - Create Sound Media Header Box (all is zero)
+func CreateSmhd() *SmhdBox {
+	return &SmhdBox{}
 }
 
 // DecodeSmhd - box-specific decode
@@ -23,10 +27,12 @@ func DecodeSmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	s := NewSliceReader(data)
+	versionAndFlags := s.ReadUint32()
 	return &SmhdBox{
-		Version: data[0],
-		Flags:   [3]byte{data[1], data[2], data[3]},
-		Balance: binary.BigEndian.Uint16(data[4:6]),
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
+		Balance: s.ReadUint16(),
 	}, nil
 }
 
@@ -47,9 +53,10 @@ func (b *SmhdBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	buf[0] = b.Version
-	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
-	binary.BigEndian.PutUint16(buf[4:], b.Balance)
+	sw := NewSliceWriter(buf)
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint16(b.Balance)
 	_, err = w.Write(buf)
 	return err
 }
