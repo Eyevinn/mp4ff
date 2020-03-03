@@ -10,11 +10,16 @@ import (
 )
 
 const (
-	AvcNalSEI    = 6
-	AvcNalSPS    = 7
-	AvcNalPPS    = 8
-	AvcNalAUD    = 9
-	EXTENDED_SAR = 255
+	// AvcNalSEI - Supplementary Enhancement Information NAL Unit
+	AvcNalSEI = 6
+	// AvcNalSPS - SequenceParameterSet NAL Unit
+	AvcNalSPS = 7
+	// AvcNalPPS - PictureParameterSet NAL Unit
+	AvcNalPPS = 8
+	// AvcNalAUD - AccessUnitDelimiter NAL Unit
+	AvcNalAUD = 9
+	// ExtendedSAR - Extended Sample Aspect Ratio Code
+	ExtendedSAR = 255
 )
 
 // AvcNalType -
@@ -65,7 +70,7 @@ func HasAvcParameterSets(b []byte) bool {
 // AvcSPS - AVC SPS paramaeters
 type AvcSPS struct {
 	Profile                         uint
-	ConstraintFlags                 uint
+	ProfileCompatibility            uint
 	Level                           uint
 	ParameterID                     uint
 	ChromaFormatIDC                 uint
@@ -76,7 +81,7 @@ type AvcSPS struct {
 	SeqScalingMatrixPresentFlag     uint
 	Log2MaxFrameNumMinus4           uint
 	PicOrderCntType                 uint
-	Log2MaxPicOrderCntLsbMinut4     uint
+	Log2MaxPicOrderCntLsbMinus4     uint
 	DeltaPicOrderAlwaysZeroFlag     uint
 	OffsetForNonRefPic              uint
 	OffsetForTopToBottomField       uint
@@ -106,8 +111,7 @@ func ParseSPS(data []byte) (*AvcSPS, error) {
 	reader := bits.NewEBSPReader(rd)
 
 	sps.Profile = reader.MustRead(8)
-	sps.ConstraintFlags = reader.MustRead(4)
-	_ = reader.MustRead(4) // Reserved bits
+	sps.ProfileCompatibility = reader.MustRead(8)
 	sps.Level = reader.MustRead(8)
 
 	sps.ParameterID = ue(reader)
@@ -139,7 +143,7 @@ func ParseSPS(data []byte) (*AvcSPS, error) {
 	sps.Log2MaxFrameNumMinus4 = ue(reader)
 	sps.PicOrderCntType = ue(reader)
 	if sps.PicOrderCntType == 0 {
-		sps.Log2MaxPicOrderCntLsbMinut4 = ue(reader)
+		sps.Log2MaxPicOrderCntLsbMinus4 = ue(reader)
 	} else if sps.PicOrderCntType == 1 {
 		sps.DeltaPicOrderAlwaysZeroFlag = reader.MustRead(1)
 		sps.OffsetForNonRefPic = ue(reader)
@@ -199,7 +203,7 @@ func ParseSPS(data []byte) (*AvcSPS, error) {
 		aspectRatioPresentFlag := reader.MustRead(1)
 		if aspectRatioPresentFlag == 1 {
 			aspectRatioIDC := reader.MustRead(8)
-			if aspectRatioIDC == EXTENDED_SAR {
+			if aspectRatioIDC == ExtendedSAR {
 				sps.SampleAspectRatioWidth = reader.MustRead(16)
 				sps.SampleAspectRatioHeight = reader.MustRead(16)
 			} else {
@@ -209,6 +213,11 @@ func ParseSPS(data []byte) (*AvcSPS, error) {
 	}
 
 	return sps, nil
+}
+
+// ConstraintFlags - return the four ConstraintFlag bits
+func (a *AvcSPS) ConstraintFlags() byte {
+	return byte(a.ProfileCompatibility >> 4)
 }
 
 // ue - Read one unsigned exponential golomb code using a bitreader
