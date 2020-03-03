@@ -1,5 +1,7 @@
 package mp4
 
+import "fmt"
+
 // InitSegment - MP4/CMAF init segment
 type InitSegment struct {
 	Ftyp  *FtypBox
@@ -25,8 +27,8 @@ func (s *InitSegment) AddChild(b Box) {
 	s.boxes = append(s.boxes)
 }
 
-// CreateMP4Init - Create a full one-track MP4 init segment
-func CreateMP4Init(timeScale uint32) *InitSegment {
+// CreateEmptyMP4Init - Create a one-track MP4 init segment with empty stsd box
+func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegment {
 	/* Build tree like
 	   moov
 	   - mvhd  (Nothing interesting)
@@ -34,14 +36,14 @@ func CreateMP4Init(timeScale uint32) *InitSegment {
 	     + tkhd (trakID, flags, width, height)
 	     + mdia
 	       - mdhd (track Timescale, language (3letters))
-	       - hdlr (hdlr string)
+		   - hdlr (hdlr showing mediaType)
+		   - elng (only if language is not 3 letters)
 	       - minf
-	         + vmhd (video media header box etc)
+	         + vmhd/smhd etc (media header box)
 	         + dinf (can drop)
 	         + stbl
 	           - stsd
-	             + avc1
-	               - avcC
+	             + empty on purpose
 	           - stts
 	           - stsc
 	           - stsz
@@ -68,24 +70,41 @@ func CreateMP4Init(timeScale uint32) *InitSegment {
 	mdia := &MdiaBox{}
 	trak.AddChild(mdia)
 	mdhd := &MdhdBox{}
-	mdhd.SetLanguage("und")
-	mdhd.Timescale = 90000
+	mdhd.Timescale = timeScale
 	mdia.AddChild(mdhd)
 	hdlr := &HdlrBox{}
-	hdlr.HandlerType = "vide"
-	hdlr.Name = "Edgeware Video Handler"
+	switch mediaType {
+	case "video":
+		hdlr.HandlerType = "vide"
+		hdlr.Name = "Edgeware Video Handler"
+	case "audio":
+		hdlr.HandlerType = "soun"
+		hdlr.Name = "Edgeware Audio Handler"
+	default:
+		panic(fmt.Sprintf("mediaType %s not supported", mediaType))
+	}
 	mdia.AddChild(hdlr)
+	if len(language) == 3 {
+		mdhd.SetLanguage(language)
+	} else {
+		mdhd.SetLanguage("und")
+		elng := CreateElng(language)
+		mdia.AddChild(elng)
+	}
 	minf := NewMinfBox()
 	mdia.AddChild(minf)
-	vmhd := &VmhdBox{}
-	minf.AddChild(vmhd)
+	switch mediaType {
+	case "video":
+		minf.AddChild(CreateVmhd())
+	case "audio":
+		minf.AddChild(CreateSmhd())
+	default:
+		panic(fmt.Sprintf("mediaType %s not supported", mediaType))
+	}
 	stbl := NewStblBox()
 	minf.AddChild(stbl)
 	stsd := NewStsdBox()
 	stbl.AddChild(stsd)
-	// TODO. Add avc1 etc sample description
-	avc1 := NewAvcXBox("avc1")
-	stsd.AddChild(avc1)
 
 	stbl.AddChild(&SttsBox{})
 	stbl.AddChild(&StscBox{})
@@ -97,4 +116,22 @@ func CreateMP4Init(timeScale uint32) *InitSegment {
 	mvex.AddChild(trex)
 
 	return initSeg
+}
+
+// SetAVCDescriptor - Modify a TrakBox by adding AVC SampleDescriptor from one SPS and multiple PPS
+func (t *TrakBox) SetAVCDescriptor(sampledDescriptorType string, spsBytes []byte, ppsBytes [][]byte) {
+	avcSPS, err := ParseSPS(spsBytes)
+	if err != nil {
+		panic("Cannot handle SPS parsing errors")
+	}
+	t.Tkhd.Width = Fixed32(avcSPS.Width << 16)   // This is display width
+	t.Tkhd.Height = Fixed32(avcSPS.Height << 16) // This is display height
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	if sampledDescriptorType != "avc1" && sampledDescriptorType != "avc3" {
+		panic(fmt.Sprintf("sampleDescriptorType %s not allowed", sampledDescriptorType))
+	}
+	avcC := CreateAvcC(spsBytes, ppsBytes)
+	width, height := uint16(avcSPS.Width), uint16(avcSPS.Height)
+	avcx := CreateVisualSampleEntryBox(sampledDescriptorType, width, height, avcC)
+	stsd.AddChild(avcx)
 }
