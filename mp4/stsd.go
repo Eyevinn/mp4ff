@@ -13,6 +13,7 @@ type StsdBox struct {
 	Version     byte
 	Flags       uint32
 	SampleCount uint32
+	AvcX        *VisualSampleEntryBox
 	boxes       []Box
 }
 
@@ -23,6 +24,11 @@ func NewStsdBox() *StsdBox {
 
 // AddChild - Add a child box and update SampleCount
 func (s *StsdBox) AddChild(box Box) {
+	switch box.Type() {
+	case "avc1":
+	case "avc3":
+		s.AvcX = box.(*VisualSampleEntryBox)
+	}
 	s.boxes = append(s.boxes, box)
 	s.SampleCount++
 }
@@ -46,7 +52,7 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	boxes, err := DecodeContainerChildren(hdr, startPos+8, r) // Note, hdr size may be a bit misleading here
+	boxes, err := DecodeContainerChildren(hdr, startPos+16, r) //Note higher startPos since not simple container
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +63,9 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Version:     byte(versionAndFlags >> 24),
 		Flags:       versionAndFlags & flagsMask,
 		SampleCount: sampleCount,
-		boxes:       boxes,
+	}
+	for _, box := range boxes {
+		stsd.AddChild(box)
 	}
 	return stsd, nil
 }
