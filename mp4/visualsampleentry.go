@@ -52,7 +52,7 @@ func (a *VisualSampleEntryBox) AddChild(b Box) {
 	case "avcC":
 		a.AvcC = b.(*AvcCBox)
 	}
-	a.boxes = append(a.boxes)
+	a.boxes = append(a.boxes, b)
 }
 
 // DecodeVisualSampleEntry - decode avc1/avc3/... box
@@ -86,6 +86,7 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 		panic("Too long compressor naml length")
 	}
 	a.CompressorName = s.ReadFixedLengthString(int(compressorNameLength))
+	s.SkipBytes(int(31 - compressorNameLength))
 	s.ReadUint16() // depth == 0x0018
 	s.ReadUint16() // pre_defined == -1
 
@@ -94,9 +95,9 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 	remaining := s.RemainingBytes()
 	restReader := bytes.NewReader(remaining)
 
+	pos := startPos + 86 // Size of all previous data
 	for {
-		pos, _ := restReader.Seek(0, 0)
-		box, err := DecodeBox(uint64(pos), restReader)
+		box, err := DecodeBox(pos, restReader)
 		if err == io.EOF {
 			break
 		} else if err != nil {
@@ -104,6 +105,12 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 		}
 		if box != nil {
 			a.AddChild(box)
+			pos += box.Size()
+		}
+		if pos == startPos+hdr.size {
+			break
+		} else if pos > startPos+hdr.size {
+			panic("Non-matching box sizes")
 		}
 	}
 	return a, nil
