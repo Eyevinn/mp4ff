@@ -16,6 +16,20 @@ func NewSliceReader(data []byte) *SliceReader {
 	}
 }
 
+// ReadUint8 - read uint8 from slice
+func (s *SliceReader) ReadByte() byte {
+	res := s.slice[s.pos]
+	s.pos += 1
+	return res
+}
+
+// ReadUint16 - read uint16 from slice
+func (s *SliceReader) ReadUint16() uint16 {
+	res := binary.BigEndian.Uint16(s.slice[s.pos : s.pos+2])
+	s.pos += 2
+	return res
+}
+
 // ReadUint32 - read uint32 from slice
 func (s *SliceReader) ReadUint32() uint32 {
 	res := binary.BigEndian.Uint32(s.slice[s.pos : s.pos+4])
@@ -42,6 +56,27 @@ func (s *SliceReader) ReadInt64() int64 {
 	res := binary.BigEndian.Uint64(s.slice[s.pos : s.pos+8])
 	s.pos += 8
 	return int64(res)
+}
+
+// ReadFixedLengthString - read string of specified length
+func (s *SliceReader) ReadFixedLengthString(length int) string {
+	res := string(s.slice[s.pos : s.pos+length])
+	s.pos += length
+	return res
+}
+
+// RemainingBytes - return remaining bytes of this slice
+func (s *SliceReader) RemainingBytes() []byte {
+	res := s.slice[s.pos:]
+	s.pos = s.Length()
+	return res
+}
+
+func (s *SliceReader) SkipBytes(n int) {
+	if s.pos+n > s.Length() {
+		panic("Skipping past end of box")
+	}
+	s.pos += n
 }
 
 // SetPos - set read position is slice
@@ -73,6 +108,18 @@ func NewSliceWriter(data []byte) *SliceWriter {
 	}
 }
 
+// WriteByte - write byte to slice
+func (b *SliceWriter) WriteByte(n byte) {
+	b.buf[b.pos] = n
+	b.pos += 1
+}
+
+// WriteUint16 - write uint16 to slice
+func (b *SliceWriter) WriteUint16(n uint16) {
+	binary.BigEndian.PutUint16(b.buf[b.pos:], n)
+	b.pos += 2
+}
+
 // WriteUint32 - write uint32 to slice
 func (b *SliceWriter) WriteUint32(n uint32) {
 	binary.BigEndian.PutUint32(b.buf[b.pos:], n)
@@ -89,4 +136,24 @@ func (b *SliceWriter) WriteInt32(n int32) {
 func (b *SliceWriter) WriteUint64(n uint64) {
 	binary.BigEndian.PutUint64(b.buf[b.pos:], n)
 	b.pos += 8
+}
+
+// WriteString - write string to slice with or without zero end
+func (b *SliceWriter) WriteString(s string, addZeroEnd bool) {
+	for _, c := range s {
+		b.buf[b.pos] = byte(c)
+		b.pos++
+	}
+	if addZeroEnd {
+		b.buf[b.pos] = 0
+		b.pos++
+	}
+}
+
+// WriteZeroBytes - write n byte of zeroes
+func (b *SliceWriter) WriteZeroBytes(n int) {
+	for i := 0; i < n; i++ {
+		b.buf[b.pos] = 0
+		b.pos++
+	}
 }
