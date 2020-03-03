@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
 	"io/ioutil"
 )
@@ -13,9 +12,14 @@ import (
 // Status: decoded
 type VmhdBox struct {
 	Version      byte
-	Flags        [3]byte
+	Flags        uint32
 	GraphicsMode uint16
 	OpColor      [3]uint16
+}
+
+// CreateVmhd - Create Video Media Header Box
+func CreateVmhd() *VmhdBox {
+	return &VmhdBox{Flags: 0x00000001}
 }
 
 // DecodeVmhd - box-specific decode
@@ -24,13 +28,15 @@ func DecodeVmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	s := NewSliceReader(data)
+	versionAndFlags := s.ReadUint32()
 	b := &VmhdBox{
-		Version:      data[0],
-		Flags:        [3]byte{data[1], data[2], data[3]},
-		GraphicsMode: binary.BigEndian.Uint16(data[4:6]),
+		Version:      byte(versionAndFlags >> 24),
+		Flags:        versionAndFlags & flagsMask,
+		GraphicsMode: s.ReadUint16(),
 	}
 	for i := 0; i < 3; i++ {
-		b.OpColor[i] = binary.BigEndian.Uint16(data[(6 + 2*i):(8 + 2*i)])
+		b.OpColor[i] = s.ReadUint16()
 	}
 	return b, nil
 }
@@ -52,11 +58,12 @@ func (b *VmhdBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	buf[0] = b.Version
-	buf[1], buf[2], buf[3] = b.Flags[0], b.Flags[1], b.Flags[2]
-	binary.BigEndian.PutUint16(buf[4:], b.GraphicsMode)
+	sw := NewSliceWriter(buf)
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint16(b.GraphicsMode)
 	for i := 0; i < 3; i++ {
-		binary.BigEndian.PutUint16(buf[6+2*i:], b.OpColor[i])
+		sw.WriteUint16(b.OpColor[i])
 	}
 	_, err = w.Write(buf)
 	return err
