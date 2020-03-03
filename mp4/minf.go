@@ -41,7 +41,7 @@ func (m *MinfBox) AddChild(box Box) {
 
 // DecodeMinf - box-specific decode
 func DecodeMinf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos, r)
+	l, err := DecodeContainerChildren(hdr, startPos+8, r)
 	if err != nil {
 		return nil, err
 	}

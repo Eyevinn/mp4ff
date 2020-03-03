@@ -34,7 +34,7 @@ func (t *TrakBox) AddChild(box Box) {
 
 // DecodeTrak - box-specific decode
 func DecodeTrak(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos, r)
+	l, err := DecodeContainerChildren(hdr, startPos+8, r)
 	if err != nil {
 		return nil, err
 	}

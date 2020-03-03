@@ -35,8 +35,10 @@ func DecodeContainerChildren(hdr *boxHeader, startPos uint64, r io.Reader) ([]Bo
 		}
 		l = append(l, b)
 		pos += b.Size()
-		if pos > startPos+hdr.size {
+		if pos == startPos+hdr.size {
 			break
+		} else if pos > startPos+hdr.size {
+			panic("Non-matching box sizes in container")
 		}
 	}
 	return nil, errors.New("Out of bounds in container")
