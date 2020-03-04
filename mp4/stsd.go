@@ -62,10 +62,13 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	stsd := &StsdBox{
 		Version:     byte(versionAndFlags >> 24),
 		Flags:       versionAndFlags & flagsMask,
-		SampleCount: sampleCount,
+		SampleCount: 0,
 	}
 	for _, box := range boxes {
 		stsd.AddChild(box)
+	}
+	if stsd.SampleCount != sampleCount {
+		panic("Stsd sample count mismatch")
 	}
 	return stsd, nil
 }
@@ -92,6 +95,9 @@ func (s *StsdBox) Encode(w io.Writer) error {
 		return err
 	}
 	err = binary.Write(w, binary.BigEndian, s.SampleCount)
+	if err != nil {
+		return err
+	}
 	for _, b := range s.boxes {
 		err = b.Encode(w)
 		if err != nil {

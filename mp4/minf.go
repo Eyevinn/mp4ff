@@ -29,12 +29,10 @@ func (m *MinfBox) AddChild(box Box) {
 		m.Vmhd = box.(*VmhdBox)
 	case "smhd":
 		m.Smhd = box.(*SmhdBox)
-	case "stbl":
-		m.Stbl = box.(*StblBox)
 	case "dinf":
 		m.Dinf = box.(*DinfBox)
-	case "hdlr":
-		m.Hdlr = box.(*HdlrBox)
+	case "stbl":
+		m.Stbl = box.(*StblBox)
 	}
 	m.boxes = append(m.boxes, box)
 }
@@ -73,28 +71,11 @@ func (m *MinfBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if m.Vmhd != nil {
-		err = m.Vmhd.Encode(w)
+	for _, b := range m.boxes {
+		err = b.Encode(w)
 		if err != nil {
 			return err
 		}
-	}
-	if m.Smhd != nil {
-		err = m.Smhd.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	err = m.Dinf.Encode(w)
-	if err != nil {
-		return err
-	}
-	err = m.Stbl.Encode(w)
-	if err != nil {
-		return err
-	}
-	if m.Hdlr != nil {
-		return m.Hdlr.Encode(w)
 	}
 	return nil
 }

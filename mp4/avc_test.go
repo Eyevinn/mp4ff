@@ -9,14 +9,14 @@ import (
 )
 
 // From ~tobbe/content/encmompass/dazn_ad/video_4400kbps/init.cmfv (dropped 67)
-const sps1 = "640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
+const sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
 
 // From test in repackaging-poc
 
-const sps2 = "64000dacd941419f9e10000003001000000303c0f1429960"
+const sps2nalu = "6764000dacd941419f9e10000003001000000303c0f1429960"
 
 func TestSPSParser1(t *testing.T) {
-	byteData, _ := hex.DecodeString(sps1)
+	byteData, _ := hex.DecodeString(sps1nalu)
 
 	wanted := AvcSPS{
 		Profile:                         100,
@@ -50,7 +50,7 @@ func TestSPSParser1(t *testing.T) {
 		SampleAspectRatioWidth:          1,
 		SampleAspectRatioHeight:         1,
 	}
-	got, err := ParseSPS(byteData)
+	got, err := ParseSPSNALUnit(byteData)
 	fmt.Println(got)
 	if err != nil {
 		t.Errorf("Error parsing SPS")
@@ -62,7 +62,7 @@ func TestSPSParser1(t *testing.T) {
 }
 
 func TestSPSParser2(t *testing.T) {
-	byteData, _ := hex.DecodeString(sps2)
+	byteData, _ := hex.DecodeString(sps2nalu)
 
 	wanted := AvcSPS{
 		Profile:                         100,
@@ -96,7 +96,7 @@ func TestSPSParser2(t *testing.T) {
 		SampleAspectRatioWidth:          0,
 		SampleAspectRatioHeight:         0,
 	}
-	got, err := ParseSPS(byteData)
+	got, err := ParseSPSNALUnit(byteData)
 	fmt.Println(got)
 	if err != nil {
 		t.Errorf("Error parsing SPS")

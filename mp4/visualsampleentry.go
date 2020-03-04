@@ -142,19 +142,24 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 	sw.WriteUint16(a.DataReferenceIndex)
 	sw.WriteZeroBytes(16) // pre_defined and reserved
 	sw.WriteUint16(a.Width)
-	sw.WriteUint16(a.Height)
+	sw.WriteUint16(a.Height) //36 bytes
 
 	sw.WriteUint32(a.Horizresolution)
 	sw.WriteUint32(a.Vertresolution)
 	sw.WriteZeroBytes(4)
-	sw.WriteUint16(a.FrameCount)
+	sw.WriteUint16(a.FrameCount) //50 bytes
 
 	compressorNameLength := byte(len(a.CompressorName))
 	sw.WriteByte(compressorNameLength)
-	sw.WriteZeroBytes(int(31 - compressorNameLength))
 	sw.WriteString(a.CompressorName, false)
+	sw.WriteZeroBytes(int(31 - compressorNameLength))
 	sw.WriteUint16(0x0018) // depth == 0x0018
-	sw.WriteUint16(0xffff) // pre_defined == -1
+	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
+
+	_, err = w.Write(buf[:sw.pos]) // Only write  written bytes
+	if err != nil {
+		return err
+	}
 
 	// Next output child boxes in order
 	for _, child := range a.boxes {

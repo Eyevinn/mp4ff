@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const aASCIIPos = 97
+const charOffset = 0x60 // According to Setion 8.4.2.3 of 14496-12
 
 // MdhdBox - Media Header Box (mdhd - mandatory)
 //
@@ -57,14 +57,14 @@ func (m *MdhdBox) GetLanguage() string {
 	a := (m.Language >> 10) & 0x1f
 	b := (m.Language >> 5) & 0x1f
 	c := m.Language & 0x1f
-	return fmt.Sprintf("%c%c%c", a+aASCIIPos, b+aASCIIPos, c+aASCIIPos)
+	return fmt.Sprintf("%c%c%c", a+charOffset, b+charOffset, c+charOffset)
 }
 
 // SetLanguage - Set three-byte language string
 func (m *MdhdBox) SetLanguage(lang string) {
-	var l uint16 = 0
+	var l uint16 = 0 //TODO. Fix this
 	for i, c := range lang {
-		l += uint16(((c - aASCIIPos) & 0x1f) << (5 * i))
+		l += uint16(((c - charOffset) & 0x1f) << (5 * (2 - i)))
 	}
 	m.Language = l
 }
@@ -99,6 +99,7 @@ func (m *MdhdBox) Encode(w io.Writer) error {
 	binary.BigEndian.PutUint32(buf[12:], m.Timescale)
 	binary.BigEndian.PutUint32(buf[16:], m.Duration)
 	binary.BigEndian.PutUint16(buf[20:], m.Language)
+	binary.BigEndian.PutUint16(buf[22:], 0)
 	_, err = w.Write(buf)
 	return err
 }

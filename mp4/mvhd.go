@@ -1,11 +1,9 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"time"
 )
 
 // MvhdBox - Movie Header Box (mvhd - mandatory)
@@ -22,14 +20,23 @@ import (
 type MvhdBox struct {
 	Version          byte
 	Flags            uint32
-	CreationTime     uint32
-	ModificationTime uint32
+	CreationTime     uint64
+	ModificationTime uint64
 	Timescale        uint32
-	Duration         uint32
-	NextTrackID      uint32
+	Duration         uint64
+	NextTrackID      int32
 	Rate             Fixed32
 	Volume           Fixed16
-	notDecoded       []byte
+}
+
+// CreateMvhd - create mvhd box with reasonable values
+func CreateMvhd() *MvhdBox {
+	return &MvhdBox{
+		Timescale:   90000,
+		NextTrackID: 2,
+		Rate:        0x00010000, // This is 1.0
+		Volume:      0x0100,     // Full volume
+	}
 }
 
 // DecodeMvhd - box-specific decode
@@ -38,17 +45,33 @@ func DecodeMvhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &MvhdBox{
-		Version:          data[0],
-		Flags:            binary.BigEndian.Uint32(data[0:48]) & flagsMask,
-		CreationTime:     binary.BigEndian.Uint32(data[4:8]),
-		ModificationTime: binary.BigEndian.Uint32(data[8:12]),
-		Timescale:        binary.BigEndian.Uint32(data[12:16]),
-		Duration:         binary.BigEndian.Uint32(data[16:20]),
-		Rate:             fixed32(data[20:24]),
-		Volume:           fixed16(data[24:26]),
-		notDecoded:       data[26:],
-	}, nil
+	s := NewSliceReader(data)
+	versionAndFlags := s.ReadUint32()
+	version := byte(versionAndFlags >> 24)
+
+	m := &MvhdBox{
+		Version: version,
+		Flags:   versionAndFlags & flagsMask,
+	}
+
+	if version == 1 {
+		m.CreationTime = s.ReadUint64()
+		m.ModificationTime = s.ReadUint64()
+		m.Timescale = s.ReadUint32()
+		m.Duration = s.ReadUint64()
+	} else {
+		m.CreationTime = uint64(s.ReadUint32())
+		m.ModificationTime = uint64(s.ReadUint32())
+		m.Timescale = s.ReadUint32()
+		m.Duration = uint64(s.ReadUint32())
+	}
+	m.Rate = Fixed32(s.ReadUint32())
+	m.Volume = Fixed16(s.ReadUint16())
+	s.SkipBytes(10) // Reserved bytes
+	s.SkipBytes(36) // Matrix patterndata
+	s.SkipBytes(24) // Predefined 0
+	m.NextTrackID = s.ReadInt32()
+	return m, nil
 }
 
 // Type - return box type
@@ -58,12 +81,15 @@ func (b *MvhdBox) Type() string {
 
 // Size - return calculated size
 func (b *MvhdBox) Size() uint64 {
-	return uint64(boxHeaderSize + 26 + len(b.notDecoded))
+	if b.Version == 1 {
+		return 12 + 80 + 28 // Full header + variable part + fixed part
+	}
+	return 12 + 80 + 16 // Full header + variable part + fixed part
 }
 
 // Dump - write box details
 func (b *MvhdBox) Dump() {
-	fmt.Printf("Movie Header:\n Timescale: %d units/sec\n Duration: %d units (%s)\n Rate: %s\n Volume: %s\n", b.Timescale, b.Duration, time.Duration(b.Duration/b.Timescale)*time.Second, b.Rate, b.Volume)
+	fmt.Printf("Movie Header:\n Timescale: %d units/sec", b.Timescale)
 }
 
 // Encode - write box to w
@@ -73,15 +99,28 @@ func (b *MvhdBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	versionAndFlags := (uint32(b.Version) << 24) | b.Flags
-	binary.BigEndian.PutUint32(buf[0:], versionAndFlags)
-	binary.BigEndian.PutUint32(buf[4:], b.CreationTime)
-	binary.BigEndian.PutUint32(buf[8:], b.ModificationTime)
-	binary.BigEndian.PutUint32(buf[12:], b.Timescale)
-	binary.BigEndian.PutUint32(buf[16:], b.Duration)
-	binary.BigEndian.PutUint32(buf[20:], uint32(b.Rate))
-	binary.BigEndian.PutUint16(buf[24:], uint16(b.Volume))
-	copy(buf[26:], b.notDecoded)
+	sw := NewSliceWriter(buf)
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	if b.Version == 0 {
+		sw.WriteUint32(uint32(b.CreationTime))
+		sw.WriteUint32(uint32(b.ModificationTime))
+		sw.WriteUint32(b.Timescale)
+		sw.WriteUint32(uint32(b.Duration))
+	} else {
+		sw.WriteUint64(b.CreationTime)
+		sw.WriteUint64(b.ModificationTime)
+		sw.WriteUint32(b.Timescale)
+		sw.WriteUint64(b.Duration)
+	}
+
+	sw.WriteUint32(uint32(b.Rate))
+	sw.WriteUint16(uint16(b.Volume))
+	sw.WriteZeroBytes(10) // Reserved bytes
+	sw.WriteZeroBytes(36) // Matrix patterndata
+	sw.WriteZeroBytes(24) // Predefined 0
+	sw.WriteInt32(b.NextTrackID)
+
 	_, err = w.Write(buf)
 	return err
 }

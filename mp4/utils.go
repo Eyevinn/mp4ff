@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"errors"
+)
 
 // SliceReader - read integers from a slice
 type SliceReader struct {
@@ -16,10 +19,10 @@ func NewSliceReader(data []byte) *SliceReader {
 	}
 }
 
-// ReadUint8 - read uint8 from slice
+// ReadByte - read uint8 from slice
 func (s *SliceReader) ReadByte() byte {
 	res := s.slice[s.pos]
-	s.pos += 1
+	s.pos++
 	return res
 }
 
@@ -28,6 +31,13 @@ func (s *SliceReader) ReadUint16() uint16 {
 	res := binary.BigEndian.Uint16(s.slice[s.pos : s.pos+2])
 	s.pos += 2
 	return res
+}
+
+// ReadInt16 - read int16 from slice
+func (s *SliceReader) ReadInt16() int16 {
+	res := binary.BigEndian.Uint16(s.slice[s.pos : s.pos+2])
+	s.pos += 2
+	return int16(res)
 }
 
 // ReadUint32 - read uint32 from slice
@@ -65,6 +75,23 @@ func (s *SliceReader) ReadFixedLengthString(length int) string {
 	return res
 }
 
+// ReadZeroTerminatedString - read string until zero
+func (s *SliceReader) ReadZeroTerminatedString() (string, error) {
+	startPos := s.pos
+	for {
+		c := s.slice[s.pos]
+		if c == 0 {
+			str := string(s.slice[startPos:s.pos])
+			s.pos++ // Next position to read
+			return str, nil
+		}
+		s.pos++
+		if s.pos >= len(s.slice) {
+			return "", errors.New("Did not find terminating zero")
+		}
+	}
+}
+
 // RemainingBytes - return remaining bytes of this slice
 func (s *SliceReader) RemainingBytes() []byte {
 	res := s.slice[s.pos:]
@@ -72,6 +99,7 @@ func (s *SliceReader) RemainingBytes() []byte {
 	return res
 }
 
+// SkipBytes - skip passed n bytes
 func (s *SliceReader) SkipBytes(n int) {
 	if s.pos+n > s.Length() {
 		panic("Skipping past end of box")
@@ -111,12 +139,18 @@ func NewSliceWriter(data []byte) *SliceWriter {
 // WriteByte - write byte to slice
 func (b *SliceWriter) WriteByte(n byte) {
 	b.buf[b.pos] = n
-	b.pos += 1
+	b.pos++
 }
 
 // WriteUint16 - write uint16 to slice
 func (b *SliceWriter) WriteUint16(n uint16) {
 	binary.BigEndian.PutUint16(b.buf[b.pos:], n)
+	b.pos += 2
+}
+
+// WriteInt16 - write int16 to slice
+func (b *SliceWriter) WriteInt16(n int16) {
+	binary.BigEndian.PutUint16(b.buf[b.pos:], uint16(n))
 	b.pos += 2
 }
 

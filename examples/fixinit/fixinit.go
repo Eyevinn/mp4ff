@@ -43,7 +43,7 @@ func main() {
 
 	sd, _ := stsd.GetSampleDescription(0)
 
-	avcx := sd.(*mp4.AvcXBox)
+	avcx := sd.(*mp4.VisualSampleEntryBox)
 
 	avcC := avcx.AvcC
 

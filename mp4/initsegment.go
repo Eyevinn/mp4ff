@@ -1,6 +1,9 @@
 package mp4
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+)
 
 // InitSegment - MP4/CMAF init segment
 type InitSegment struct {
@@ -24,7 +27,18 @@ func (s *InitSegment) AddChild(b Box) {
 	case "moov":
 		s.Moov = b.(*MoovBox)
 	}
-	s.boxes = append(s.boxes)
+	s.boxes = append(s.boxes, b)
+}
+
+// Encode - encode an initsegment to a Writer
+func (s *InitSegment) Encode(w io.Writer) error {
+	for _, b := range s.boxes {
+		err := b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // CreateEmptyMP4Init - Create a one-track MP4 init segment with empty stsd box
@@ -40,7 +54,9 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 		   - elng (only if language is not 3 letters)
 	       - minf
 	         + vmhd/smhd etc (media header box)
-	         + dinf (can drop)
+			 + dinf
+			   - dref
+			     + url
 	         + stbl
 	           - stsd
 	             + empty on purpose
@@ -55,17 +71,11 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 	initSeg.AddChild(CreateFtyp())
 	moov := NewMoovBox()
 	initSeg.AddChild(moov)
-	mvhd := &MvhdBox{}
-	mvhd.Timescale = 90000
-	mvhd.NextTrackID = 2
+	mvhd := CreateMvhd()
 	moov.AddChild(mvhd)
 	trak := &TrakBox{}
 	moov.AddChild(trak)
-	tkhd := &TkhdBox{}
-	tkhd.Flags = 0x000007
-	tkhd.TrackID = 1
-	tkhd.Width = 0
-	tkhd.Height = 0
+	tkhd := CreateTkhd()
 	trak.AddChild(tkhd)
 	mdia := &MdiaBox{}
 	trak.AddChild(mdia)
@@ -101,11 +111,13 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 	default:
 		panic(fmt.Sprintf("mediaType %s not supported", mediaType))
 	}
+	dinf := &DinfBox{}
+	dinf.AddChild(CreateDref())
+	minf.AddChild(dinf)
 	stbl := NewStblBox()
 	minf.AddChild(stbl)
 	stsd := NewStsdBox()
 	stbl.AddChild(stsd)
-
 	stbl.AddChild(&SttsBox{})
 	stbl.AddChild(&StscBox{})
 	stbl.AddChild(&StszBox{})
@@ -119,8 +131,8 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 }
 
 // SetAVCDescriptor - Modify a TrakBox by adding AVC SampleDescriptor from one SPS and multiple PPS
-func (t *TrakBox) SetAVCDescriptor(sampledDescriptorType string, spsBytes []byte, ppsBytes [][]byte) {
-	avcSPS, err := ParseSPS(spsBytes)
+func (t *TrakBox) SetAVCDescriptor(sampledDescriptorType string, spsNALU []byte, ppsNALUs [][]byte) {
+	avcSPS, err := ParseSPSNALUnit(spsNALU)
 	if err != nil {
 		panic("Cannot handle SPS parsing errors")
 	}
@@ -130,7 +142,7 @@ func (t *TrakBox) SetAVCDescriptor(sampledDescriptorType string, spsBytes []byte
 	if sampledDescriptorType != "avc1" && sampledDescriptorType != "avc3" {
 		panic(fmt.Sprintf("sampleDescriptorType %s not allowed", sampledDescriptorType))
 	}
-	avcC := CreateAvcC(spsBytes, ppsBytes)
+	avcC := CreateAvcC(spsNALU, ppsNALUs)
 	width, height := uint16(avcSPS.Width), uint16(avcSPS.Height)
 	avcx := CreateVisualSampleEntryBox(sampledDescriptorType, width, height, avcC)
 	stsd.AddChild(avcx)

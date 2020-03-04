@@ -1,6 +1,8 @@
 package mp4
 
-import "io"
+import (
+	"io"
+)
 
 // StblBox - Sample Table Box (stbl - mandatory)
 //
@@ -95,34 +97,11 @@ func (s *StblBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	err = s.Stsd.Encode(w)
-	if err != nil {
-		return err
-	}
-	err = s.Stts.Encode(w)
-	if err != nil {
-		return err
-	}
-	if s.Stss != nil {
-		err = s.Stss.Encode(w)
+	for _, b := range s.boxes {
+		err = b.Encode(w)
 		if err != nil {
 			return err
 		}
-	}
-	err = s.Stsc.Encode(w)
-	if err != nil {
-		return err
-	}
-	err = s.Stsz.Encode(w)
-	if err != nil {
-		return err
-	}
-	err = s.Stco.Encode(w)
-	if err != nil {
-		return err
-	}
-	if s.Ctts != nil {
-		return s.Ctts.Encode(w)
 	}
 	return nil
 }

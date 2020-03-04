@@ -78,6 +78,7 @@ func init() {
 		"trak": DecodeTrak,
 		"trex": DecodeTrex,
 		"trun": DecodeTrun,
+		"url ": DecodeURLBox,
 		"vmhd": DecodeVmhd,
 	}
 }

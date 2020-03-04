@@ -102,13 +102,20 @@ type AvcSPS struct {
 	SampleAspectRatioHeight         uint
 }
 
-// ParseSPS - Parse AVC SPS NAL unit
-func ParseSPS(data []byte) (*AvcSPS, error) {
+// ParseSPSNALUnit - Parse AVC SPS NAL unit
+func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 
 	sps := &AvcSPS{}
 
 	rd := bytes.NewReader(data)
 	reader := bits.NewEBSPReader(rd)
+	// Note! First byte is NAL Header
+
+	nalHdr := reader.MustRead(8)
+	nalType := nalHdr & 0x1f
+	if nalType != 7 {
+		return nil, errors.New("Not an SPS NAL unit")
+	}
 
 	sps.Profile = reader.MustRead(8)
 	sps.ProfileCompatibility = reader.MustRead(8)

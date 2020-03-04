@@ -1,15 +1,25 @@
 package mp4
 
-import "io"
+import (
+	"io"
+)
 
 // DinfBox - Data Information Box (dinf - mandatory)
 //
 // Contained in : Media Information Box (minf) or Meta Box (meta)
-//
-// Status : decoded
 type DinfBox struct {
 	Dref  *DrefBox
 	boxes []Box
+}
+
+// AddChild - Add a child box
+func (d *DinfBox) AddChild(box Box) {
+
+	switch box.Type() {
+	case "dref":
+		d.Dref = box.(*DrefBox)
+	}
+	d.boxes = append(d.boxes, box)
 }
 
 // DecodeDinf - box-specific decode
@@ -19,33 +29,33 @@ func DecodeDinf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	d := &DinfBox{}
-	d.boxes = l
 	for _, b := range l {
-		switch b.Type() {
-		case "dref":
-			d.Dref = b.(*DrefBox)
-		default:
-			return nil, ErrBadFormat
-		}
+		d.AddChild(b)
 	}
 	return d, nil
 }
 
 // Type - box-specific type
-func (b *DinfBox) Type() string {
+func (d *DinfBox) Type() string {
 	return "dinf"
 }
 
 // Size - box-specific size
-func (b *DinfBox) Size() uint64 {
-	return containerSize(b.boxes)
+func (d *DinfBox) Size() uint64 {
+	return containerSize(d.boxes)
 }
 
 // Encode - box-specifc encode
-func (b *DinfBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (d *DinfBox) Encode(w io.Writer) error {
+	err := EncodeHeader(d, w)
 	if err != nil {
 		return err
 	}
-	return b.Dref.Encode(w)
+	for _, b := range d.boxes {
+		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
