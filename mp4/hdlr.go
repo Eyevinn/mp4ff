@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -19,6 +20,22 @@ type HdlrBox struct {
 	PreDefined  uint32
 	HandlerType string
 	Name        string
+}
+
+// CreateHdlr - create mediaType-specific hdlr box
+func CreateHdlr(mediaType string) (*HdlrBox, error) {
+	hdlr := &HdlrBox{}
+	switch mediaType {
+	case "video":
+		hdlr.HandlerType = "vide"
+		hdlr.Name = "Edgeware Video Handler"
+	case "audio":
+		hdlr.HandlerType = "soun"
+		hdlr.Name = "Edgeware Audio Handler"
+	default:
+		return nil, fmt.Errorf("Unkown mediTyps %s", mediaType)
+	}
+	return hdlr, nil
 }
 
 // DecodeHdlr - box-specific decode

@@ -82,15 +82,8 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 	mdhd := &MdhdBox{}
 	mdhd.Timescale = timeScale
 	mdia.AddChild(mdhd)
-	hdlr := &HdlrBox{}
-	switch mediaType {
-	case "video":
-		hdlr.HandlerType = "vide"
-		hdlr.Name = "Edgeware Video Handler"
-	case "audio":
-		hdlr.HandlerType = "soun"
-		hdlr.Name = "Edgeware Audio Handler"
-	default:
+	hdlr, err := CreateHdlr(mediaType)
+	if err != nil {
 		panic(fmt.Sprintf("mediaType %s not supported", mediaType))
 	}
 	mdia.AddChild(hdlr)
