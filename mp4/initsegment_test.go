@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"bytes"
 	"encoding/hex"
 	"io"
 	"os"
@@ -59,6 +60,20 @@ func TestGenerateInitSegment(t *testing.T) {
 	if width != 1280 || height != 720 {
 		t.Errorf("Did not get righ width and height")
 	}
+	// Write to a buffer so that we can read and check
+	var buf bytes.Buffer
+	init.Encode(&buf)
+
+	initRead, err := DecodeFile(&buf)
+	if err != io.EOF && err != nil {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	if initRead.Moov.Size() != init.Moov.Size() {
+		t.Errorf("Mismatch generated vs read moov size: %d != %d", init.Moov.Size(), initRead.Moov.Size())
+	}
+
 	// Next write to a file
 	ofd, err := os.Create("test_data/out_init.cmfv")
 	defer ofd.Close()
