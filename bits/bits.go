@@ -13,14 +13,14 @@ type Writer struct {
 	wr io.Writer
 }
 
-// NewWriter returns a new Writer.
+// NewWriter - returns a new Writer
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
 		wr: w,
 	}
 }
 
-// Write writes bits with give size n.
+// Write - write n bits from bits
 func (w *Writer) Write(bits uint, n int) error {
 	w.v <<= uint(n)
 	w.v |= bits & mask(n)
@@ -37,7 +37,7 @@ func (w *Writer) Write(bits uint, n int) error {
 	return nil
 }
 
-// Flush writes any remaining bits to the underlying io.Writer.
+// Flush - write remaining bits to the underlying io.Writer.
 // bits will be left-shifted.
 func (w *Writer) Flush() error {
 	if w.n != 0 {
@@ -49,7 +49,7 @@ func (w *Writer) Flush() error {
 	return nil
 }
 
-// Reader reads bits from the given io.Reader.
+// Reader - read bits from the given io.Reader
 type Reader struct {
 	n int  // current number of bits
 	v uint // current accumulated value
@@ -57,7 +57,7 @@ type Reader struct {
 	rd io.Reader
 }
 
-// NewReader returns new a new Reader.
+// NewReader - return a new Reader
 func NewReader(rd io.Reader) *Reader {
 	return &Reader{
 		rd: rd,

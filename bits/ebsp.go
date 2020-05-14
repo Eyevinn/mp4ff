@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// NewEBSPReader returns new a new Reader.
+// NewEBSPReader - return a new Reader.
 func NewEBSPReader(rd io.Reader) *EBSPReader {
 	return &EBSPReader{
 		rd:  rd,
@@ -23,7 +23,7 @@ type EBSPReader struct {
 	zeroCount int // Count number of zero bytes read
 }
 
-// MustRead - Read bits and panic if not possible
+// MustRead - read n bits and panic if not possible
 func (r *EBSPReader) MustRead(n int) uint {
 	var err error
 
@@ -61,12 +61,12 @@ func (r *EBSPReader) MustRead(n int) uint {
 	return v
 }
 
-// MustReadFlag - read 1 bit into flag
+// MustReadFlag - read 1 bit into flag. Panic if not possible
 func (r *EBSPReader) MustReadFlag() bool {
 	return r.MustRead(1) == 1
 }
 
-// MustReadExpGolomb - Read one unsigned exponential golomb code using a bitreader
+// MustReadExpGolomb - Read one unsigned exponential golomb code
 func (r *EBSPReader) MustReadExpGolomb() uint {
 	leadingZeroBits := 0
 
@@ -89,7 +89,7 @@ func (r *EBSPReader) NrBytesRead() int {
 	return r.pos
 }
 
-// EBSP2rbsp Convert from EBSP to RBSP by removing escape 0x03 after two 0x00
+// EBSP2rbsp - convert from EBSP to RBSP by removing escape 0x03 after two 0x00
 func EBSP2rbsp(ebsp []byte) []byte {
 	zeroCount := 0
 	output := make([]byte, 0, len(ebsp))
