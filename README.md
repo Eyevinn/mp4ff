@@ -1,10 +1,11 @@
-
 ![Logo](images/logo.png)
 
+![Test](https://github.com/edgeware/gomp4/workflows/Test/badge.svg)
 
 MP4 media file parser and writer. Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 
 ## Library
+
 The library has functions for parsing (called Decode) and writing (Encocde).
 mp4.File is a representation of a "File" which can be more or less complete, but should have some top layer boxes.
 
