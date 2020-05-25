@@ -1,4 +1,4 @@
-module github.com/edgeware/gomp4
+module github.com/edgeware/mp4ff
 
 go 1.14
 

@@ -1,8 +1,8 @@
-// gomp4-resegmenter resegments mp4 files into concatenated segments with new duration
+// mp4ff-resegmenter resegments mp4 files into concatenated segments with new duration
 //
 //   Usage:
 //
-//    gomp4-resegmenter -f <input.mp4> -o <output.mp4> -b <chunk_dur>
+//    mp4ff-resegmenter -f <input.mp4> -o <output.mp4> -b <chunk_dur>
 //    -b int
 //         Required: chunk duration (ticks)
 //    -f string
@@ -16,7 +16,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/edgeware/gomp4/mp4"
+	"github.com/edgeware/mp4ff/mp4"
 )
 
 func main() {

@@ -1,10 +1,10 @@
-// gomp4-pslister lists parameter sets for H.264/AVC video.
+// mp4ff-pslister lists parameter sets for H.264/AVC video.
 //
 // It prints them as hex and with verbose mode it also  interprets them.
 //
 //   Usage:
 //
-//    gomp4-pslister -f <mp4string> [-v]
+//    mp4ff-pslister -f <mp4string> [-v]
 //      -f: Required: Path to mp4 file to read
 //      -v:	Verbose output
 //
@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/edgeware/gomp4/mp4"
+	"github.com/edgeware/mp4ff/mp4"
 	log "github.com/sirupsen/logrus"
 )
 

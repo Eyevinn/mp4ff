@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/edgeware/gomp4/bits"
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const (
