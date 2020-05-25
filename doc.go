@@ -1,5 +1,5 @@
 /*
-Package gomp4 implements MP4 media file parser and writer.
+Package mp4ff implements MP4 media file parser and writer.
 
 MP4 library
 
@@ -27,4 +27,4 @@ Example code
 
 Example code is available in the examples directory.
 */
-package gomp4
+package mp4ff

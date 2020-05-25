@@ -1,6 +1,6 @@
 ![Logo](images/logo.png)
 
-![Test](https://github.com/edgeware/gomp4/workflows/Test/badge.svg)
+![Test](https://github.com/edgeware/mp4ff/workflows/Test/badge.svg)
 
 MP4 media file parser and writer. Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 

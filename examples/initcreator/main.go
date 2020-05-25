@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"os"
 
-	"github.com/edgeware/gomp4/mp4"
+	"github.com/edgeware/mp4ff/mp4"
 	log "github.com/sirupsen/logrus"
 )
 

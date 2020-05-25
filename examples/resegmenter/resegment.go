@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/edgeware/gomp4/mp4"
+	"github.com/edgeware/mp4ff/mp4"
 )
 
 // Resegment file into two segments
