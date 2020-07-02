@@ -56,6 +56,11 @@ func (m *MoofBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
+	trun := m.Traf.Trun
+	// We need to set dataOffset in trun
+	// to point relative to start of moof
+	// Should start after mdat header
+	trun.DataOffset = int32(m.Size()) + 8
 	for _, b := range m.boxes {
 		err = b.Encode(w)
 		if err != nil {

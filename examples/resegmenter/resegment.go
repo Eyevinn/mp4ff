@@ -39,10 +39,6 @@ func Resegment(in *mp4.File, boundary uint64) *mp4.File {
 	nrSegments := 1
 	for nr, s := range iSamples {
 		if s.PresentationTime >= boundary && s.IsSync() && nrSegments == 1 {
-			// Set the data offset for the first segment.
-			// The value is the start of the data in the mdat box relative
-			// to the start of the moof box.
-			frag.Moof.Traf.Trun.DataOffset = int32(frag.Moof.Size()) + 8
 			fmt.Printf("Started second segment at %d\n", s.PresentationTime)
 			oFile.AddChildBox(inStyp, 0)
 			frag = mp4.CreateFragment(seqNr+1, trackID)
@@ -57,9 +53,6 @@ func Resegment(in *mp4.File, boundary uint64) *mp4.File {
 		}
 
 	}
-
-	// Set the data offset for the second segment.
-	frag.Moof.Traf.Trun.DataOffset = int32(frag.Moof.Size()) + 8
 
 	return oFile
 }
