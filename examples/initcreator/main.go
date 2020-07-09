@@ -13,18 +13,18 @@ const pps1nalu = "68b5df20"
 
 func main() {
 
-	writeVideoInitSegment()
-	writeAudioInitSegment()
+	writeVideoAVCInitSegment()
+	writeAudioAACInitSegment()
 }
 
-func writeVideoInitSegment() {
+func writeVideoAVCInitSegment() {
 	spsNALU, _ := hex.DecodeString(sps1nalu)
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsNALUs := [][]byte{pps}
 
 	init := mp4.CreateEmptyMP4Init(180000, "video", "und")
 	trak := init.Moov.Trak[0]
-	trak.SetAVCDescriptor("avc3", spsNALU, ppsNALUs)
+	trak.SetAVCDescriptor("avc1", spsNALU, ppsNALUs)
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
 	if width != 1280 || height != 720 {
@@ -33,10 +33,10 @@ func writeVideoInitSegment() {
 	writeToFile(init, "video_init.cmfv")
 }
 
-func writeAudioInitSegment() {
+func writeAudioAACInitSegment() {
 	init := mp4.CreateEmptyMP4Init(48000, "audio", "en")
 	trak := init.Moov.Trak[0]
-	trak.SetAACDescriptor()
+	trak.SetAACDescriptor(mp4.AAClc, 48000)
 	writeToFile(init, "audio_init.cmfv")
 }
 

@@ -147,20 +147,35 @@ func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALU []byte, 
 }
 
 // SetAACDescriptor - Modify a TrakBox by adding AAC SampleDescriptor
-func (t *TrakBox) SetAACDescriptor() {
+// objType is one of AAClc, HEAACv1, HEAACv2
+// For HEAAC, the samplingFrequency is the base frequency (normally 24000)
+func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) {
 	stsd := t.Mdia.Minf.Stbl.Stsd
-	decConfig := &AudioSpecificConfig{
-		ObjectType:           2,
+	asc := &AudioSpecificConfig{
+		ObjectType:           objType,
 		ChannelConfiguration: 2,
-		SamplingFrequency:    48000,
+		SamplingFrequency:    samplingFrequency,
 		ExtensionFrequency:   0,
 		SBRPresentFlag:       false,
 		PSPresentFlag:        false,
 	}
+	switch objType {
+	case HEAACv1:
+		asc.ExtensionFrequency = 2 * samplingFrequency
+		asc.SBRPresentFlag = true
+	case HEAACv2:
+		asc.ExtensionFrequency = 2 * samplingFrequency
+		asc.SBRPresentFlag = true
+		asc.ChannelConfiguration = 1
+		asc.PSPresentFlag = true
+	}
+
 	buf := &bytes.Buffer{}
-	decConfig.Encode(buf)
-	decConfigBytes := buf.Bytes()
-	esds := CreateEsdsBox(decConfigBytes)
-	mp4a := CreateAudioSampleEntryBox("mp4a", 2, 16, 48000, esds)
+	asc.Encode(buf)
+	ascBytes := buf.Bytes()
+	esds := CreateEsdsBox(ascBytes)
+	mp4a := CreateAudioSampleEntryBox("mp4a",
+		uint16(asc.ChannelConfiguration),
+		16, uint16(samplingFrequency), esds)
 	stsd.AddChild(mp4a)
 }
