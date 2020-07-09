@@ -67,13 +67,13 @@ func DecodeTfhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // CreateTfhd - Create a new TfdtBox with baseMediaDecodeTime
 func CreateTfhd(trackID uint32) *TfhdBox {
-	// We only set defaultBaseIsMoof flag
+	// The only flag set is defaultBaseIsMoof
 	tfhd := &TfhdBox{
 		Version:                0,
 		Flags:                  defaultBaseIsMoof,
 		TrackID:                trackID,
 		BaseDataOffset:         0,
-		SampleDescriptionIndex: 0,
+		SampleDescriptionIndex: 1,
 		DefaultSampleDuration:  0,
 		DefaultSampleSize:      0,
 		DefaultSampleFlags:     0,
