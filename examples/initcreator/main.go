@@ -12,6 +12,12 @@ const sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c
 const pps1nalu = "68b5df20"
 
 func main() {
+
+	writeVideoInitSegment()
+	writeAudioInitSegment()
+}
+
+func writeVideoInitSegment() {
 	spsNALU, _ := hex.DecodeString(sps1nalu)
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsNALUs := [][]byte{pps}
@@ -24,8 +30,19 @@ func main() {
 	if width != 1280 || height != 720 {
 		log.Fatalf("Did not get right width and height")
 	}
+	writeToFile(init, "video_init.cmfv")
+}
+
+func writeAudioInitSegment() {
+	init := mp4.CreateEmptyMP4Init(48000, "audio", "und")
+	trak := init.Moov.Trak[0]
+	trak.SetAACDescriptor()
+	writeToFile(init, "audio_init.cmfv")
+}
+
+func writeToFile(init *mp4.InitSegment, filePath string) {
 	// Next write to a file
-	ofd, err := os.Create("out_init.cmfv")
+	ofd, err := os.Create(filePath)
 	defer ofd.Close()
 	if err != nil {
 		log.Fatalf("Error creating file")

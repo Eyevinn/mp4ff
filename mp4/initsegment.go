@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 )
@@ -76,7 +77,11 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 	trak := &TrakBox{}
 	moov.AddChild(trak)
 	tkhd := CreateTkhd()
+	if mediaType == "audio" {
+		tkhd.Volume = 0x0100 // Fixed 16 value 1.0
+	}
 	trak.AddChild(tkhd)
+
 	mdia := &MdiaBox{}
 	trak.AddChild(mdia)
 	mdhd := &MdhdBox{}
@@ -124,7 +129,7 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 }
 
 // SetAVCDescriptor - Modify a TrakBox by adding AVC SampleDescriptor from one SPS and multiple PPS
-func (t *TrakBox) SetAVCDescriptor(sampledDescriptorType string, spsNALU []byte, ppsNALUs [][]byte) {
+func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALU []byte, ppsNALUs [][]byte) {
 	avcSPS, err := ParseSPSNALUnit(spsNALU)
 	if err != nil {
 		panic("Cannot handle SPS parsing errors")
@@ -132,11 +137,30 @@ func (t *TrakBox) SetAVCDescriptor(sampledDescriptorType string, spsNALU []byte,
 	t.Tkhd.Width = Fixed32(avcSPS.Width << 16)   // This is display width
 	t.Tkhd.Height = Fixed32(avcSPS.Height << 16) // This is display height
 	stsd := t.Mdia.Minf.Stbl.Stsd
-	if sampledDescriptorType != "avc1" && sampledDescriptorType != "avc3" {
-		panic(fmt.Sprintf("sampleDescriptorType %s not allowed", sampledDescriptorType))
+	if sampleDescriptorType != "avc1" && sampleDescriptorType != "avc3" {
+		panic(fmt.Sprintf("sampleDescriptorType %s not allowed", sampleDescriptorType))
 	}
 	avcC := CreateAvcC(spsNALU, ppsNALUs)
 	width, height := uint16(avcSPS.Width), uint16(avcSPS.Height)
-	avcx := CreateVisualSampleEntryBox(sampledDescriptorType, width, height, avcC)
+	avcx := CreateVisualSampleEntryBox(sampleDescriptorType, width, height, avcC)
 	stsd.AddChild(avcx)
+}
+
+// SetAACDescriptor - Modify a TrakBox by adding AAC SampleDescriptor
+func (t *TrakBox) SetAACDescriptor() {
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	decConfig := &AudioSpecificConfig{
+		ObjectType:           2,
+		ChannelConfiguration: 2,
+		SamplingFrequency:    48000,
+		ExtensionFrequency:   0,
+		SBRPresentFlag:       false,
+		PSPresentFlag:        false,
+	}
+	buf := &bytes.Buffer{}
+	decConfig.Encode(buf)
+	decConfigBytes := buf.Bytes()
+	esds := CreateEsdsBox(decConfigBytes)
+	mp4a := CreateAudioSampleEntryBox("mp4a", 2, 16, 48000, esds)
+	stsd.AddChild(mp4a)
 }
