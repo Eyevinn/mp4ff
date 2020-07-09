@@ -18,6 +18,14 @@ type TrexBox struct {
 	DefaultSampleFlags            uint32
 }
 
+// CreateTrex - create trex box with good default parameters
+func CreateTrex() *TrexBox {
+	return &TrexBox{
+		TrackID:                       1,
+		DefaultSampleDescriptionIndex: 1,
+	}
+}
+
 // DecodeTrex - box-specific decode
 func DecodeTrex(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)

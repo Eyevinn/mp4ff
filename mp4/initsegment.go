@@ -117,7 +117,7 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 	stbl.AddChild(&StcoBox{})
 	mvex := NewMvexBox()
 	moov.AddChild(mvex)
-	trex := &TrexBox{}
+	trex := CreateTrex()
 	mvex.AddChild(trex)
 
 	return initSeg
