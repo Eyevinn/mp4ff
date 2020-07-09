@@ -49,5 +49,6 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
+	a.AVCDecConfRec.Encode(w)
 	return nil
 }
