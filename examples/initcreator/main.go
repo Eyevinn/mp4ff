@@ -34,7 +34,7 @@ func writeVideoInitSegment() {
 }
 
 func writeAudioInitSegment() {
-	init := mp4.CreateEmptyMP4Init(48000, "audio", "und")
+	init := mp4.CreateEmptyMP4Init(48000, "audio", "en")
 	trak := init.Moov.Trak[0]
 	trak.SetAACDescriptor()
 	writeToFile(init, "audio_init.cmfv")

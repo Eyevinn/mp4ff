@@ -10,6 +10,7 @@ type MdiaBox struct {
 	Mdhd  *MdhdBox
 	Hdlr  *HdlrBox
 	Minf  *MinfBox
+	Elst  *ElstBox
 	boxes []Box
 }
 
@@ -28,6 +29,8 @@ func (m *MdiaBox) AddChild(box Box) {
 		m.Hdlr = box.(*HdlrBox)
 	case "minf":
 		m.Minf = box.(*MinfBox)
+	case "elst":
+		m.Elst = box.(*ElstBox)
 	}
 	m.boxes = append(m.boxes, box)
 }
@@ -69,15 +72,12 @@ func (m *MdiaBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	err = m.Mdhd.Encode(w)
-	if err != nil {
-		return err
-	}
-	if m.Hdlr != nil {
-		err = m.Hdlr.Encode(w)
+
+	for _, box := range m.boxes {
+		err = box.Encode(w)
 		if err != nil {
 			return err
 		}
 	}
-	return m.Minf.Encode(w)
+	return nil
 }
