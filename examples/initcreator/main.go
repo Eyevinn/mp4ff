@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
 	"os"
 
 	"github.com/edgeware/mp4ff/mp4"
@@ -13,11 +14,17 @@ const pps1nalu = "68b5df20"
 
 func main() {
 
-	writeVideoAVCInitSegment()
-	writeAudioAACInitSegment()
+	err := writeVideoAVCInitSegment()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = writeAudioAACInitSegment()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func writeVideoAVCInitSegment() {
+func writeVideoAVCInitSegment() error {
 	spsNALU, _ := hex.DecodeString(sps1nalu)
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsNALUs := [][]byte{pps}
@@ -28,24 +35,30 @@ func writeVideoAVCInitSegment() {
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
 	if width != 1280 || height != 720 {
-		log.Fatalf("Did not get right width and height")
+		return errors.New("Did not get right width and height")
 	}
 	writeToFile(init, "video_init.cmfv")
+	return nil
 }
 
-func writeAudioAACInitSegment() {
+func writeAudioAACInitSegment() error {
 	init := mp4.CreateEmptyMP4Init(48000, "audio", "en")
 	trak := init.Moov.Trak[0]
-	trak.SetAACDescriptor(mp4.AAClc, 48000)
+	err := trak.SetAACDescriptor(mp4.AAClc, 48000)
+	if err != nil {
+		return err
+	}
 	writeToFile(init, "audio_init.cmfv")
+	return nil
 }
 
-func writeToFile(init *mp4.InitSegment, filePath string) {
+func writeToFile(init *mp4.InitSegment, filePath string) error {
 	// Next write to a file
 	ofd, err := os.Create(filePath)
 	defer ofd.Close()
 	if err != nil {
-		log.Fatalf("Error creating file")
+		return err
 	}
-	init.Encode(ofd)
+	err = init.Encode(ofd)
+	return err
 }
