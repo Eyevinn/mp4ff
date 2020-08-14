@@ -83,7 +83,6 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 const pps1nalu = "68b5df20"
 
 func TestGenerateInitSegment(t *testing.T) {
-
 	spsData, _ := hex.DecodeString(sps1nalu)
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsData := [][]byte{pps}
@@ -98,7 +97,10 @@ func TestGenerateInitSegment(t *testing.T) {
 	}
 	// Write to a buffer so that we can read and check
 	var buf bytes.Buffer
-	init.Encode(&buf)
+	err := init.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
 
 	initRead, err := DecodeFile(&buf)
 	if err != io.EOF && err != nil {
@@ -112,9 +114,12 @@ func TestGenerateInitSegment(t *testing.T) {
 
 	// Next write to a file
 	ofd, err := os.Create("test_data/out_init.cmfv")
-	defer ofd.Close()
 	if err != nil {
 		t.Error(err)
 	}
-	init.Encode(ofd)
+	defer ofd.Close()
+	err = init.Encode(ofd)
+	if err != nil {
+		t.Error(err)
+	}
 }

@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 )
@@ -96,7 +97,7 @@ func DecodeEsds(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		EsDescrTag: s.ReadUint8(),
 	}
 
-	size, nrBytesRead := readSizeOfInstance(s)
+	_, nrBytesRead := readSizeOfInstance(s)
 	e.nrExtraSizeBytes += nrBytesRead - 1
 
 	e.EsID = s.ReadUint16()
@@ -104,7 +105,7 @@ func DecodeEsds(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	e.FlagsAndPriority = s.ReadUint8()
 	e.DecoderConfigDescrTag = s.ReadUint8()
 
-	size, nrBytesRead = readSizeOfInstance(s)
+	_, nrBytesRead = readSizeOfInstance(s)
 	e.nrExtraSizeBytes += nrBytesRead - 1
 	e.ObjectType = s.ReadUint8()
 
@@ -114,14 +115,14 @@ func DecodeEsds(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	e.MaxBitrate = s.ReadUint32()
 	e.AvgBitrate = s.ReadUint32()
 	e.DecSpecificInfoTag = s.ReadUint8()
-	size, nrBytesRead = readSizeOfInstance(s)
+	size, nrBytesRead := readSizeOfInstance(s)
 	e.nrExtraSizeBytes += nrBytesRead - 1
 	e.DecConfig = s.ReadBytes(size)
 	e.SLConfigDescrTag = s.ReadUint8()
 	size, nrBytesRead = readSizeOfInstance(s)
 	e.nrExtraSizeBytes += nrBytesRead - 1
 	if size != 1 {
-		panic("Cannot handle SLConfigDescr not equal to 1 byte")
+		return e, errors.New("Cannot handle SLConfigDescr not equal to 1 byte")
 	}
 	e.SLConfigValue = s.ReadUint8()
 	return e, nil

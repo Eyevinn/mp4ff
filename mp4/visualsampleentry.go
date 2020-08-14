@@ -167,7 +167,10 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 
 	// Next output child boxes in order
 	for _, child := range a.boxes {
-		child.Encode(w)
+		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
 	}
 	return err
 }

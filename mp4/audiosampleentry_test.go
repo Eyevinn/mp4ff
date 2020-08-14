@@ -6,12 +6,14 @@ import (
 )
 
 func TestWriteReadOfAudioSampleEntry(t *testing.T) {
-
 	ase := CreateAudioSampleEntryBox("mp4a", 2, 16, 48000, nil)
 
 	// Write to a buffer so that we can read and check
 	var buf bytes.Buffer
-	ase.Encode(&buf)
+	err := ase.Encode(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Read back from buffer
 	decodedBox, err := DecodeBox(0, &buf)

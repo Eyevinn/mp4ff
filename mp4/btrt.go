@@ -40,13 +40,23 @@ func (b *BtrtBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *BtrtBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	var err error
+
+	err = EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
 
-	binary.Write(w, binary.BigEndian, b.BufferSizeDB)
-	binary.Write(w, binary.BigEndian, b.MaxBitrate)
-	binary.Write(w, binary.BigEndian, b.AvgBitrate)
-	return nil
+	write := func(b uint32) {
+		if err != nil {
+			return
+		}
+		err = binary.Write(w, binary.BigEndian, b)
+	}
+
+	write(b.BufferSizeDB)
+	write(b.MaxBitrate)
+	write(b.AvgBitrate)
+
+	return err
 }

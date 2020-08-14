@@ -46,9 +46,15 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 
 	// Write to a buffer so that we can read and check
 	var buf bytes.Buffer
-	f.Segments[0].Styp.Encode(&buf)
+	err = f.Segments[0].Styp.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
 	for _, frag := range fragments {
-		frag.Encode(&buf)
+		err = frag.Encode(&buf)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	inFileContent, err := ioutil.ReadFile("test_data/1_frag.m4s")
@@ -56,7 +62,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		t.Errorf("Could not read test content")
 	}
 	outFileContent := buf.Bytes()
-	if bytes.Compare(outFileContent, inFileContent) != 0 {
+	if !bytes.Equal(outFileContent, inFileContent) {
 		t.Errorf("Wanted outfile len %d but got len %d", len(inFileContent), len(outFileContent))
 	}
 }

@@ -10,7 +10,10 @@ func TestMvhd(t *testing.T) {
 	var buf bytes.Buffer
 
 	mvhdCreated := CreateMvhd()
-	mvhdCreated.Encode(&buf)
+	err := mvhdCreated.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if uint64(buf.Len()) != mvhdCreated.Size() {
 		t.Errorf("Mismatch bytes written %d not equal to size %d", buf.Len(), mvhdCreated.Size())

@@ -38,7 +38,7 @@ func TestEncodeElng(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not encode ElngBox")
 	}
-	if string(buf.Bytes()) != elngString {
+	if buf.String() != elngString {
 		t.Error("elng output box is not correct.")
 	}
 }

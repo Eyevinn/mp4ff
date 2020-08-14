@@ -188,27 +188,11 @@ func (f Fixed16) String() string {
 	return fmt.Sprintf("%d.%d", uint16(f)>>8, uint16(f)&7)
 }
 
-func fixed16(bytes []byte) Fixed16 {
-	return Fixed16(binary.BigEndian.Uint16(bytes))
-}
-
-func putFixed16(bytes []byte, i Fixed16) {
-	binary.BigEndian.PutUint16(bytes, uint16(i))
-}
-
 // Fixed32 -  A 16.16 fixed point number
 type Fixed32 uint32
 
 func (f Fixed32) String() string {
 	return fmt.Sprintf("%d.%d", uint32(f)>>16, uint32(f)&15)
-}
-
-func fixed32(bytes []byte) Fixed32 {
-	return Fixed32(binary.BigEndian.Uint32(bytes))
-}
-
-func putFixed32(bytes []byte, i Fixed32) {
-	binary.BigEndian.PutUint32(bytes, uint32(i))
 }
 
 func strtobuf(out []byte, str string, l int) {

@@ -18,7 +18,7 @@ type TrunBox struct {
 	samples          []*Sample
 }
 
-const dataOffsetPresentFlag = 0x01
+// const dataOffsetPresentFlag = 0x01
 const firstSamplePresentFlag = 0x02
 const sampleDurationPresentFlag = 0x100
 const sampleSizePresentFlag = 0x200

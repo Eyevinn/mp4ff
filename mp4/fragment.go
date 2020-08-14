@@ -98,7 +98,7 @@ func (f *Fragment) AddSample(s *SampleComplete) {
 }
 
 // DumpSampleData - Get Sample data and print out
-func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) {
+func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
 	samples := f.GetSampleData(trex)
 	for i, s := range samples {
 		if i < 9 {
@@ -106,9 +106,13 @@ func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) {
 		}
 		toAnnexB(s.Data)
 		if w != nil {
-			w.Write(s.Data)
+			_, err := w.Write(s.Data)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // Encode - write fragment via writer
