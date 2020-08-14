@@ -36,7 +36,7 @@ func DecodeURLBox(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Flags:    flags,
 		Location: location,
 	}
-	return u, nil
+	return u, err
 }
 
 // CreateURLBox - Create a self-referencing URL box

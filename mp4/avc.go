@@ -25,11 +25,6 @@ const (
 // AvcNalType -
 type AvcNalType uint16
 
-func isVideoNalu(b []byte) bool {
-	typ := b[0] & 0x1f
-	return 1 <= typ && typ <= 5
-}
-
 // FindAvcNalTypes - find list of nal types
 func FindAvcNalTypes(b []byte) []AvcNalType {
 	var pos uint32 = 0
@@ -191,8 +186,7 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 		sps.OffsetForNonRefPic = reader.MustReadExpGolomb()
 		sps.OffsetForTopToBottomField = reader.MustReadExpGolomb()
 		numRefFramesInPicOrderCntCycle := reader.MustReadExpGolomb()
-		sps.RefFramesInPicOrderCntCycle = make([]uint, numRefFramesInPicOrderCntCycle,
-			numRefFramesInPicOrderCntCycle)
+		sps.RefFramesInPicOrderCntCycle = make([]uint, numRefFramesInPicOrderCntCycle)
 		for i := 0; i < int(numRefFramesInPicOrderCntCycle); i++ {
 			sps.RefFramesInPicOrderCntCycle[i] = reader.MustReadExpGolomb()
 		}
@@ -247,7 +241,10 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 	vuiParametersPresentFlag := reader.MustReadFlag()
 	sps.NrBytesBeforeVUI = reader.NrBytesRead()
 	if vuiParametersPresentFlag {
-		parseVUI(reader, &sps.VUI, true)
+		err := parseVUI(reader, &sps.VUI, true)
+		if err != nil {
+			return nil, err
+		}
 
 	}
 	sps.NrBytesRead = reader.NrBytesRead()

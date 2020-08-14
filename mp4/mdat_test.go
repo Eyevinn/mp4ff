@@ -46,15 +46,20 @@ func TestEncodeAndDecodeMdat(t *testing.T) {
 
 // TestDecodeLargeSize - decode an mdat box where size is encoded as 64-bit largeSize
 func TestDecodeLargeSize(t *testing.T) {
-
 	// Build mdat box which uses largesize
 	var buf bytes.Buffer
 	var specialSize uint32 = 1 // This signals that largeSize is used
-	binary.Write(&buf, binary.BigEndian, specialSize)
+	err := binary.Write(&buf, binary.BigEndian, specialSize)
+	if err != nil {
+		t.Error(err)
+	}
 	buf.Write([]byte("mdat"))
 	sample := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
 	var largeSize uint64 = uint64(8 + 8 + len(sample))
-	binary.Write(&buf, binary.BigEndian, largeSize)
+	err = binary.Write(&buf, binary.BigEndian, largeSize)
+	if err != nil {
+		t.Error(err)
+	}
 	buf.Write(sample)
 
 	box, err := DecodeBox(0, &buf)

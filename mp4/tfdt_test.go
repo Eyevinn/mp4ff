@@ -55,18 +55,23 @@ func TestTfdtWriteV1(t *testing.T) {
 		size:   uint64(len(byteData)/2 + 8),
 		hdrlen: 8,
 	}
-	box, _ := DecodeTfdt(bHdr, 0, r)
+	box, err := DecodeTfdt(bHdr, 0, r)
+	if err != nil {
+		t.Error(err)
+	}
 	tfdt := box.(*TfdtBox)
 
 	outBuf := make([]byte, 0, tfdt.Size())
 
 	w := bytes.NewBuffer(outBuf)
-	tfdt.Encode(w)
+	err = tfdt.Encode(w)
+	if err != nil {
+		t.Error(err)
+	}
 
 	writtenBytes := w.Bytes()
 
-	if bytes.Compare(byteData, writtenBytes) != 0 {
+	if !bytes.Equal(byteData, writtenBytes) {
 		t.Errorf("Encoded tfdt body not same as decoded")
 	}
-
 }

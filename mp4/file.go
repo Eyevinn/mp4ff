@@ -127,7 +127,7 @@ func (f *File) AddChildBox(box Box, boxStartPos uint64) {
 }
 
 // Dump - print information about file and its children boxes
-func (f *File) Dump(w io.Writer) {
+func (f *File) Dump(w io.Writer) error {
 	if f.isFragmented {
 		fmt.Printf("Init segment\n")
 		f.Init.Moov.Dump()
@@ -135,9 +135,16 @@ func (f *File) Dump(w io.Writer) {
 			fmt.Printf("  mediaSegment %d\n", i)
 			for j, frag := range seg.Fragments {
 				fmt.Printf("  fragment %d\n ", j)
-				w, _ := os.Create("tmp.264")
-				defer w.Close()
-				frag.DumpSampleData(w, f.Init.Moov.Mvex.Trex)
+				w, err := os.OpenFile("tmp.264", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err != nil {
+					return err
+				}
+				err = frag.DumpSampleData(w, f.Init.Moov.Mvex.Trex)
+				if err != nil {
+					w.Close()
+					return err
+				}
+				w.Close()
 			}
 		}
 
@@ -145,6 +152,8 @@ func (f *File) Dump(w io.Writer) {
 		f.Ftyp.Dump()
 		f.Moov.Dump()
 	}
+
+	return nil
 }
 
 // Boxes - return the top-level boxes from a media

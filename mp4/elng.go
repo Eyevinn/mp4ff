@@ -49,7 +49,10 @@ func (b *ElngBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	w.Write([]byte(b.Language))
-	w.Write([]byte{0})
+	_, err = w.Write([]byte(b.Language))
+	if err != nil {
+		return err
+	}
+	_, err = w.Write([]byte{0})
 	return err
 }

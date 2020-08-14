@@ -75,26 +75,58 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 }
 
 // Encode - write an AVCDecConfRec to w
-func (a *AVCDecConfRec) Encode(w io.Writer) {
+func (a *AVCDecConfRec) Encode(w io.Writer) error {
+	var err error
+	write := func(b byte) {
+		if err != nil {
+			return
+		}
+		err = binary.Write(w, binary.BigEndian, b)
+	}
+
 	var configurationVersion byte = 1
 	var ffByte byte = 0xff
-	binary.Write(w, binary.BigEndian, configurationVersion)
-	binary.Write(w, binary.BigEndian, a.AVCProfileIndication)
-	binary.Write(w, binary.BigEndian, a.ProfileCompatibility)
-	binary.Write(w, binary.BigEndian, a.AVCLevelIndication)
-	binary.Write(w, binary.BigEndian, ffByte)     // Set length to 4
+	write(configurationVersion)
+	write(a.AVCProfileIndication)
+	write(a.ProfileCompatibility)
+	write(a.AVCLevelIndication)
+	write(ffByte) // Set length to 4
+	if err != nil {
+		return err
+	}
+
 	var nrSPS byte = byte(len(a.SPSnalus)) | 0xe0 // Added reserved 3 bits
-	binary.Write(w, binary.BigEndian, nrSPS)
+	err = binary.Write(w, binary.BigEndian, nrSPS)
+	if err != nil {
+		return err
+	}
 	for _, sps := range a.SPSnalus {
-		var len uint16 = uint16(len(sps))
-		binary.Write(w, binary.BigEndian, len)
-		w.Write(sps)
+		var length uint16 = uint16(len(sps))
+		err = binary.Write(w, binary.BigEndian, length)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(sps)
+		if err != nil {
+			return err
+		}
 	}
 	var nrPPS byte = byte(len(a.PPSnalus))
-	binary.Write(w, binary.BigEndian, nrPPS)
-	for _, pps := range a.PPSnalus {
-		var len uint16 = uint16(len(pps))
-		binary.Write(w, binary.BigEndian, len)
-		w.Write(pps)
+	err = binary.Write(w, binary.BigEndian, nrPPS)
+	if err != nil {
+		return err
 	}
+	for _, pps := range a.PPSnalus {
+		var length uint16 = uint16(len(pps))
+		err = binary.Write(w, binary.BigEndian, length)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(pps)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

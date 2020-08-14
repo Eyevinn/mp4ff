@@ -25,7 +25,10 @@ func TestTfhd(t *testing.T) {
 
 	outbuf := &bytes.Buffer{}
 
-	tfhdRead.Encode(outbuf)
+	err = tfhdRead.Encode(outbuf)
+	if err != nil {
+		t.Error(err)
+	}
 
 	outRawBox := outbuf.Bytes()
 

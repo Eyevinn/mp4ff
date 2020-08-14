@@ -32,10 +32,10 @@ func main() {
 	}
 
 	ifd, err := os.Open(*fileName)
-	defer ifd.Close()
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer ifd.Close()
 	parsedMp4, err := mp4.DecodeFile(ifd)
 	if err != nil {
 		log.Fatalln(err)
