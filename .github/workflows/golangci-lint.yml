@@ -16,5 +16,4 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.30
           only-new-issues: true
