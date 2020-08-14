@@ -1,4 +1,4 @@
-name: Test
+name: Go
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  test:
+  build:
     strategy:
       matrix:
         platform: [macos-latest, ubuntu-latest, windows-latest]
