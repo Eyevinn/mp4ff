@@ -5,10 +5,11 @@ import (
 	"io"
 )
 
-// Writer writes bits into underlying io.Writer
+// Writer writes bits into underlying io.Writer. Stops at first error
 type Writer struct {
-	n int  // current number of bits
-	v uint // current accumulated value
+	n   int   // current number of bits
+	v   uint  // current accumulated value
+	err error // Has a write caused an error
 
 	wr io.Writer
 }
@@ -20,33 +21,43 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Write - write n bits from bits
-func (w *Writer) Write(bits uint, n int) error {
+// Write - write n bits from bits and save error state
+func (w *Writer) Write(bits uint, n int) {
+	if w.err != nil {
+		return
+	}
 	w.v <<= uint(n)
 	w.v |= bits & mask(n)
 	w.n += n
 	for w.n >= 8 {
 		b := (w.v >> (uint(w.n) - 8)) & mask(8)
 		if err := binary.Write(w.wr, binary.BigEndian, uint8(b)); err != nil {
-			return err
+			w.err = err
+			return
 		}
 		w.n -= 8
 	}
 	w.v &= mask(8)
-
-	return nil
 }
 
 // Flush - write remaining bits to the underlying io.Writer.
 // bits will be left-shifted.
-func (w *Writer) Flush() error {
+func (w *Writer) Flush() {
+	if w.err != nil {
+		return
+	}
 	if w.n != 0 {
 		b := (w.v << (8 - uint(w.n))) & mask(8)
 		if err := binary.Write(w.wr, binary.BigEndian, uint8(b)); err != nil {
-			return err
+			w.err = err
+			return
 		}
 	}
-	return nil
+}
+
+// Error - error that has occured and stopped writing
+func (w *Writer) Error() error {
+	return w.err
 }
 
 // Reader - read bits from the given io.Reader

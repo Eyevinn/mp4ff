@@ -109,7 +109,7 @@ func (f *File) AddChildBox(box Box, boxStartPos uint64) {
 			currentSegment = NewMediaSegment()
 			f.AddMediaSegment(currentSegment)
 		} else {
-			currentSegment = f.lastSegment()
+			currentSegment = f.LastSegment()
 		}
 		newFragment := NewFragment()
 		currentSegment.AddFragment(newFragment)
@@ -119,7 +119,7 @@ func (f *File) AddChildBox(box Box, boxStartPos uint64) {
 		if !f.isFragmented {
 			f.Mdat = mdat
 		} else {
-			currentFragment := f.lastSegment().lastFragment()
+			currentFragment := f.LastSegment().LastFragment()
 			currentFragment.AddChild(mdat)
 		}
 	}
@@ -172,7 +172,8 @@ func (f *File) Encode(w io.Writer) error {
 	return nil
 }
 
-func (f *File) lastSegment() *MediaSegment {
+// LastSegment - Currently last segment
+func (f *File) LastSegment() *MediaSegment {
 	return f.Segments[len(f.Segments)-1]
 }
 

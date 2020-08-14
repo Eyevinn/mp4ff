@@ -23,11 +23,12 @@ func (s *MediaSegment) AddFragment(f *Fragment) {
 	s.Fragments = append(s.Fragments, f)
 }
 
-func (s *MediaSegment) lastFragment() *Fragment {
+// LastFragment - Currently last fragment
+func (s *MediaSegment) LastFragment() *Fragment {
 	return s.Fragments[len(s.Fragments)-1]
 }
 
-// Encode - write MediaSegment via writer
+// Encode - Write MediaSegment via writer
 func (s *MediaSegment) Encode(w io.Writer) error {
 	if s.Styp != nil {
 		err := s.Encode(w)

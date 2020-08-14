@@ -67,6 +67,7 @@ type EsdsBox struct {
 func CreateEsdsBox(decConfig []byte) *EsdsBox {
 	e := &EsdsBox{
 		EsDescrTag:            0x03, // 14496-1 table 1
+		EsID:                  0x01,
 		DecoderConfigDescrTag: 0x04,
 		ObjectType:            0x40, // Audio ISO/IEC 14496-3
 		StreamType:            0x15, // 0x5 << 2 + 0x01 (audioType + upstreamFlag + reserved)

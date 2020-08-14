@@ -56,12 +56,16 @@ func TestWriter(t *testing.T) {
 		writer := NewWriter(&buf)
 
 		for _, input := range tc.inputs {
-			if err := writer.Write(input, tc.size); err != nil {
-				t.Fatalf("Write should not fail: %s", err)
-			}
+			writer.Write(input, tc.size)
+		}
+		err := writer.Error()
+		if err != nil {
+			t.Fatalf("Write should not fail: %s", err)
 		}
 
-		if err := writer.Flush(); err != nil {
+		writer.Flush()
+		err = writer.Error()
+		if err != nil {
 			t.Fatalf("Flush should not fail: %s", err)
 		}
 

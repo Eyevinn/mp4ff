@@ -56,6 +56,7 @@ func (b *SmhdBox) Encode(w io.Writer) error {
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint16(b.Balance)
+	sw.WriteUint16(0) // Reserved
 	_, err = w.Write(buf)
 	return err
 }
