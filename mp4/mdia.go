@@ -9,6 +9,7 @@ import "io"
 type MdiaBox struct {
 	Mdhd  *MdhdBox
 	Hdlr  *HdlrBox
+	Elng  *ElngBox
 	Minf  *MinfBox
 	Elst  *ElstBox
 	boxes []Box
@@ -27,6 +28,8 @@ func (m *MdiaBox) AddChild(box Box) {
 		m.Mdhd = box.(*MdhdBox)
 	case "hdlr":
 		m.Hdlr = box.(*HdlrBox)
+	case "elng":
+		m.Elng = box.(*ElngBox)
 	case "minf":
 		m.Minf = box.(*MinfBox)
 	case "elst":
