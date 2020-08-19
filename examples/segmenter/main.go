@@ -1,0 +1,104 @@
+// mp4ff-segmenter segments a progressive mp4 file into audio and video segments
+
+// The mp4 files must look like a CMAF track with init segment and media segments.
+//
+//   Usage:
+//
+//    mp4ff-segmenter -f <input.mp4> -o <output.mp4> -d <chunk_dur>
+//    -d int
+//         Required: chunk duration (ticks)
+//    -f string
+//         Required: Path to input file
+//    -o string
+//         Required: Output file path (no extension)
+package main
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/edgeware/mp4ff/mp4"
+)
+
+func main() {
+
+	inFilePath := flag.String("i", "", "Required: Path to input mp4 file")
+	outFilePath := flag.String("o", "", "Required: Output filepath (without extension)")
+	segDur := flag.Int("d", 0, "Required: chunk duration (milliseconds)")
+
+	flag.Parse()
+
+	if *inFilePath == "" || *outFilePath == "" || *segDur == 0 {
+		flag.Usage()
+		return
+	}
+
+	fileNameMap := map[string]string{"video": "_v", "audio": "_a"}
+	ifd, err := os.Open(*inFilePath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer ifd.Close()
+	parsedMp4, err := mp4.DecodeFile(ifd)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	segmenter, err := NewSegmenter(parsedMp4)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	inits, err := segmenter.GetInitSegments()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for _, init := range inits {
+		outPath := fmt.Sprintf("%s%s.mp4", *outFilePath, fileNameMap[init.GetMediaType()])
+		ofd, err := os.Create(outPath)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer ofd.Close()
+		err = init.Encode(ofd)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		fmt.Printf("Generated %s\n", outPath)
+	}
+
+	segDurMs := *segDur
+	segNr := 1
+	for {
+		newSegment := false
+		for _, tr := range segmenter.tracks {
+			mediaType := tr.trackType
+			samples := segmenter.GetSamplesUntilTime(tr, ifd, tr.nextSampleNr, segDurMs*segNr)
+			if len(samples) == 0 {
+				continue
+			}
+			newSegment = true
+			seg := mp4.NewMediaSegment()
+			frag := mp4.CreateFragment(uint32(segNr), 1)
+			seg.AddFragment(frag)
+			for _, sample := range samples {
+				frag.AddSample(sample)
+			}
+			outPath := fmt.Sprintf("%s%s_%d.m4s", *outFilePath, fileNameMap[mediaType], segNr)
+			ofd, err := os.Create(outPath)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			defer ofd.Close()
+			err = seg.Encode(ofd)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Printf("Generated %s\n", outPath)
+		}
+		if !newSegment {
+			break
+		}
+		segNr++
+	}
+}
