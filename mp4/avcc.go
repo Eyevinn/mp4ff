@@ -33,14 +33,18 @@ func (a *AvcCBox) Type() string {
 
 // Size - return calculated size
 func (a *AvcCBox) Size() uint64 {
-	totalNalLen := 0
+	totalNalLen := 7
 	for _, nal := range a.SPSnalus {
 		totalNalLen += 2 + len(nal)
 	}
 	for _, nal := range a.PPSnalus {
 		totalNalLen += 2 + len(nal)
 	}
-	return uint64(boxHeaderSize + 7 + totalNalLen)
+	switch a.AVCProfileIndication {
+	case 100, 110, 122, 144:
+		totalNalLen += 4
+	}
+	return uint64(boxHeaderSize + totalNalLen)
 }
 
 // Encode - write box to w

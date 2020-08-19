@@ -13,6 +13,10 @@ type AVCDecConfRec struct {
 	AVCLevelIndication   byte
 	SPSnalus             [][]byte
 	PPSnalus             [][]byte
+	ChromaFormat         byte
+	BitDepthLumaMinus1   byte
+	BitDepthChromaMinus1 byte
+	NumSPSExt            byte
 }
 
 // CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
@@ -28,6 +32,10 @@ func CreateAVCDecConfRec(spsNALU []byte, ppsNALUs [][]byte) AVCDecConfRec {
 		AVCLevelIndication:   byte(sps.Level),
 		SPSnalus:             [][]byte{spsNALU},
 		PPSnalus:             ppsNALUs,
+		ChromaFormat:         1,
+		BitDepthLumaMinus1:   0,
+		BitDepthChromaMinus1: 0,
+		NumSPSExt:            0,
 	}
 }
 
@@ -64,14 +72,27 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		ppsNALUs = append(ppsNALUs, data[pos:pos+nalLength])
 		pos += nalLength
 	}
-
-	return AVCDecConfRec{
+	adcr := AVCDecConfRec{
 		AVCProfileIndication: AVCProfileIndication,
 		ProfileCompatibility: ProfileCompatibility,
 		AVCLevelIndication:   AVCLevelIndication,
 		SPSnalus:             spsNALUs,
 		PPSnalus:             ppsNALUs,
-	}, nil
+	}
+	switch AVCProfileIndication {
+	case 100, 110, 122, 144:
+		adcr.ChromaFormat = data[pos] & 0x03
+		adcr.BitDepthLumaMinus1 = data[pos+1] & 0x07
+		adcr.BitDepthChromaMinus1 = data[pos+2] & 0x07
+		adcr.NumSPSExt = data[pos+3]
+		if adcr.NumSPSExt != 0 {
+			panic("Cannot handle SPS extensions")
+		}
+	default:
+		// No extra bytes
+	}
+
+	return adcr, nil
 }
 
 // Encode - write an AVCDecConfRec to w
@@ -126,6 +147,15 @@ func (a *AVCDecConfRec) Encode(w io.Writer) error {
 		if err != nil {
 			return err
 		}
+	}
+	switch a.AVCProfileIndication {
+	case 100, 110, 122, 144:
+		binary.Write(w, binary.BigEndian, 0xfc|a.ChromaFormat)
+		binary.Write(w, binary.BigEndian, 0xf8|a.BitDepthLumaMinus1)
+		binary.Write(w, binary.BigEndian, 0xf8|a.BitDepthChromaMinus1)
+		binary.Write(w, binary.BigEndian, a.NumSPSExt)
+	default:
+		// No extra bytes
 	}
 
 	return nil
