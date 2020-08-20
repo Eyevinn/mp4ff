@@ -97,12 +97,12 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 
 // Encode - write an AVCDecConfRec to w
 func (a *AVCDecConfRec) Encode(w io.Writer) error {
-	var err error
+	var errWrite error
 	write := func(b byte) {
-		if err != nil {
+		if errWrite != nil {
 			return
 		}
-		err = binary.Write(w, binary.BigEndian, b)
+		errWrite = binary.Write(w, binary.BigEndian, b)
 	}
 
 	var configurationVersion byte = 1
@@ -112,18 +112,12 @@ func (a *AVCDecConfRec) Encode(w io.Writer) error {
 	write(a.ProfileCompatibility)
 	write(a.AVCLevelIndication)
 	write(ffByte) // Set length to 4
-	if err != nil {
-		return err
-	}
 
 	var nrSPS byte = byte(len(a.SPSnalus)) | 0xe0 // Added reserved 3 bits
-	err = binary.Write(w, binary.BigEndian, nrSPS)
-	if err != nil {
-		return err
-	}
+	write(nrSPS)
 	for _, sps := range a.SPSnalus {
 		var length uint16 = uint16(len(sps))
-		err = binary.Write(w, binary.BigEndian, length)
+		err := binary.Write(w, binary.BigEndian, length)
 		if err != nil {
 			return err
 		}
@@ -133,13 +127,10 @@ func (a *AVCDecConfRec) Encode(w io.Writer) error {
 		}
 	}
 	var nrPPS byte = byte(len(a.PPSnalus))
-	err = binary.Write(w, binary.BigEndian, nrPPS)
-	if err != nil {
-		return err
-	}
+	write(nrPPS)
 	for _, pps := range a.PPSnalus {
 		var length uint16 = uint16(len(pps))
-		err = binary.Write(w, binary.BigEndian, length)
+		err := binary.Write(w, binary.BigEndian, length)
 		if err != nil {
 			return err
 		}
@@ -150,13 +141,13 @@ func (a *AVCDecConfRec) Encode(w io.Writer) error {
 	}
 	switch a.AVCProfileIndication {
 	case 100, 110, 122, 144:
-		binary.Write(w, binary.BigEndian, 0xfc|a.ChromaFormat)
-		binary.Write(w, binary.BigEndian, 0xf8|a.BitDepthLumaMinus1)
-		binary.Write(w, binary.BigEndian, 0xf8|a.BitDepthChromaMinus1)
-		binary.Write(w, binary.BigEndian, a.NumSPSExt)
+		write(0xfc | a.ChromaFormat)
+		write(0xf8 | a.BitDepthLumaMinus1)
+		write(0xf8 | a.BitDepthChromaMinus1)
+		write(a.NumSPSExt)
 	default:
 		// No extra bytes
 	}
 
-	return nil
+	return errWrite
 }
