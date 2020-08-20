@@ -26,7 +26,7 @@ func (s *Sample) IsSync() bool {
 	return !decFlags.SampleIsNonSync && (decFlags.SampleDependsOn == 2)
 }
 
-//SampleComplete - include times and data
+//SampleComplete - include times and data. Times in track timescale
 type SampleComplete struct {
 	Sample
 	DecodeTime       uint64

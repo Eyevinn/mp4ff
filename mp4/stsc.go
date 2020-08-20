@@ -87,3 +87,34 @@ func (b *StscBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
+
+// ChunkNrFromSampleNr - get chunk number from sampleNr (1-based)
+func (b *StscBox) ChunkNrFromSampleNr(sampleNr int) (chunkNr, firstSampleInChunk int, err error) {
+	nrEntries := len(b.FirstChunk) // Nr entries in stsc box
+	firstSampleInChunk = 1
+	err = nil
+	if sampleNr <= 0 {
+		err = fmt.Errorf("Bad sampleNr %d", sampleNr)
+		return
+	}
+	for i := 0; i < nrEntries; i++ {
+		chunkNr = int(b.FirstChunk[i])
+		chunkLen := int(b.SamplesPerChunk[i])
+		nextEntryStart := 0 // Used to change group of chunks
+		if i < nrEntries-1 {
+			nextEntryStart = int(b.FirstChunk[i+1])
+		}
+		for {
+			nextChunkStart := firstSampleInChunk + chunkLen
+			if sampleNr < nextChunkStart {
+				return
+			}
+			chunkNr++
+			firstSampleInChunk = nextChunkStart
+			if chunkNr == nextEntryStart {
+				break
+			}
+		}
+	}
+	return
+}

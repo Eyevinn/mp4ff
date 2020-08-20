@@ -68,3 +68,18 @@ func (b *CttsBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
+
+// GetCompositionTimeOffset - composition time offset for sampleNr in track timescale
+func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
+	sampleNr-- // 1-based
+	i := 0
+	for sampleNr >= 0 && i < len(b.SampleCount) {
+		if sampleNr >= b.SampleCount[i] {
+			sampleNr -= b.SampleCount[i]
+		} else {
+			return b.SampleOffset[i]
+		}
+		i++
+	}
+	return 0 // Should never get here
+}
