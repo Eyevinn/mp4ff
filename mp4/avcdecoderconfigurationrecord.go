@@ -98,53 +98,52 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 // Encode - write an AVCDecConfRec to w
 func (a *AVCDecConfRec) Encode(w io.Writer) error {
 	var errWrite error
-	write := func(b byte) {
+	writeByte := func(b byte) {
 		if errWrite != nil {
 			return
 		}
 		errWrite = binary.Write(w, binary.BigEndian, b)
 	}
+	writeSlice := func(s []byte) {
+		if errWrite != nil {
+			return
+		}
+		_, errWrite = w.Write(s)
+	}
+	writeUint16 := func(u uint16) {
+		if errWrite != nil {
+			return
+		}
+		errWrite = binary.Write(w, binary.BigEndian, u)
+	}
 
 	var configurationVersion byte = 1
-	var ffByte byte = 0xff
-	write(configurationVersion)
-	write(a.AVCProfileIndication)
-	write(a.ProfileCompatibility)
-	write(a.AVCLevelIndication)
-	write(ffByte) // Set length to 4
+	writeByte(configurationVersion)
+	writeByte(a.AVCProfileIndication)
+	writeByte(a.ProfileCompatibility)
+	writeByte(a.AVCLevelIndication)
+	writeByte(0xff) // Set length to 4
 
 	var nrSPS byte = byte(len(a.SPSnalus)) | 0xe0 // Added reserved 3 bits
-	write(nrSPS)
+	writeByte(nrSPS)
 	for _, sps := range a.SPSnalus {
 		var length uint16 = uint16(len(sps))
-		err := binary.Write(w, binary.BigEndian, length)
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(sps)
-		if err != nil {
-			return err
-		}
+		writeUint16(length)
+		writeSlice(sps)
 	}
 	var nrPPS byte = byte(len(a.PPSnalus))
-	write(nrPPS)
+	writeByte(nrPPS)
 	for _, pps := range a.PPSnalus {
 		var length uint16 = uint16(len(pps))
-		err := binary.Write(w, binary.BigEndian, length)
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(pps)
-		if err != nil {
-			return err
-		}
+		writeUint16(length)
+		writeSlice(pps)
 	}
 	switch a.AVCProfileIndication {
 	case 100, 110, 122, 144:
-		write(0xfc | a.ChromaFormat)
-		write(0xf8 | a.BitDepthLumaMinus1)
-		write(0xf8 | a.BitDepthChromaMinus1)
-		write(a.NumSPSExt)
+		writeByte(0xfc | a.ChromaFormat)
+		writeByte(0xf8 | a.BitDepthLumaMinus1)
+		writeByte(0xf8 | a.BitDepthChromaMinus1)
+		writeByte(a.NumSPSExt)
 	default:
 		// No extra bytes
 	}
