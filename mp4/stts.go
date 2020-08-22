@@ -73,6 +73,26 @@ func (b *SttsBox) GetTimeCode(sample, timescale uint32) time.Duration {
 	return time.Second * time.Duration(units) / time.Duration(timescale)
 }
 
+// GetDecodeTime - decode time and duration for sampleNr in track timescale
+func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
+	sampleNr-- // 1-based
+	decTime = 0
+	i := 0
+	for sampleNr > 0 && i < len(b.SampleCount) {
+		dur = b.SampleTimeDelta[i]
+
+		if sampleNr >= b.SampleCount[i] {
+			decTime += uint64(b.SampleCount[i] * dur)
+			sampleNr -= b.SampleCount[i]
+		} else {
+			decTime += uint64(sampleNr * dur)
+			sampleNr = 0
+		}
+		i++
+	}
+	return
+}
+
 // Dump - write box-specific details
 func (b *SttsBox) Dump() {
 	fmt.Println("Time to sample:")

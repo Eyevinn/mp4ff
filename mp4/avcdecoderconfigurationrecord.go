@@ -13,6 +13,10 @@ type AVCDecConfRec struct {
 	AVCLevelIndication   byte
 	SPSnalus             [][]byte
 	PPSnalus             [][]byte
+	ChromaFormat         byte
+	BitDepthLumaMinus1   byte
+	BitDepthChromaMinus1 byte
+	NumSPSExt            byte
 }
 
 // CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
@@ -28,6 +32,10 @@ func CreateAVCDecConfRec(spsNALU []byte, ppsNALUs [][]byte) AVCDecConfRec {
 		AVCLevelIndication:   byte(sps.Level),
 		SPSnalus:             [][]byte{spsNALU},
 		PPSnalus:             ppsNALUs,
+		ChromaFormat:         1,
+		BitDepthLumaMinus1:   0,
+		BitDepthChromaMinus1: 0,
+		NumSPSExt:            0,
 	}
 }
 
@@ -64,69 +72,81 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		ppsNALUs = append(ppsNALUs, data[pos:pos+nalLength])
 		pos += nalLength
 	}
-
-	return AVCDecConfRec{
+	adcr := AVCDecConfRec{
 		AVCProfileIndication: AVCProfileIndication,
 		ProfileCompatibility: ProfileCompatibility,
 		AVCLevelIndication:   AVCLevelIndication,
 		SPSnalus:             spsNALUs,
 		PPSnalus:             ppsNALUs,
-	}, nil
+	}
+	switch AVCProfileIndication {
+	case 100, 110, 122, 144:
+		adcr.ChromaFormat = data[pos] & 0x03
+		adcr.BitDepthLumaMinus1 = data[pos+1] & 0x07
+		adcr.BitDepthChromaMinus1 = data[pos+2] & 0x07
+		adcr.NumSPSExt = data[pos+3]
+		if adcr.NumSPSExt != 0 {
+			panic("Cannot handle SPS extensions")
+		}
+	default:
+		// No extra bytes
+	}
+
+	return adcr, nil
 }
 
 // Encode - write an AVCDecConfRec to w
 func (a *AVCDecConfRec) Encode(w io.Writer) error {
-	var err error
-	write := func(b byte) {
-		if err != nil {
+	var errWrite error
+	writeByte := func(b byte) {
+		if errWrite != nil {
 			return
 		}
-		err = binary.Write(w, binary.BigEndian, b)
+		errWrite = binary.Write(w, binary.BigEndian, b)
+	}
+	writeSlice := func(s []byte) {
+		if errWrite != nil {
+			return
+		}
+		_, errWrite = w.Write(s)
+	}
+	writeUint16 := func(u uint16) {
+		if errWrite != nil {
+			return
+		}
+		errWrite = binary.Write(w, binary.BigEndian, u)
 	}
 
 	var configurationVersion byte = 1
-	var ffByte byte = 0xff
-	write(configurationVersion)
-	write(a.AVCProfileIndication)
-	write(a.ProfileCompatibility)
-	write(a.AVCLevelIndication)
-	write(ffByte) // Set length to 4
-	if err != nil {
-		return err
-	}
+	writeByte(configurationVersion)
+	writeByte(a.AVCProfileIndication)
+	writeByte(a.ProfileCompatibility)
+	writeByte(a.AVCLevelIndication)
+	writeByte(0xff) // Set length to 4
 
 	var nrSPS byte = byte(len(a.SPSnalus)) | 0xe0 // Added reserved 3 bits
-	err = binary.Write(w, binary.BigEndian, nrSPS)
-	if err != nil {
-		return err
-	}
+	writeByte(nrSPS)
 	for _, sps := range a.SPSnalus {
 		var length uint16 = uint16(len(sps))
-		err = binary.Write(w, binary.BigEndian, length)
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(sps)
-		if err != nil {
-			return err
-		}
+		writeUint16(length)
+		writeSlice(sps)
 	}
 	var nrPPS byte = byte(len(a.PPSnalus))
-	err = binary.Write(w, binary.BigEndian, nrPPS)
-	if err != nil {
-		return err
-	}
+	writeByte(nrPPS)
 	for _, pps := range a.PPSnalus {
 		var length uint16 = uint16(len(pps))
-		err = binary.Write(w, binary.BigEndian, length)
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(pps)
-		if err != nil {
-			return err
-		}
+		writeUint16(length)
+		writeSlice(pps)
+	}
+	switch a.AVCProfileIndication {
+	case 100, 110, 122, 144:
+		writeByte(0xfc | a.ChromaFormat)
+		writeByte(0xf8 | a.BitDepthLumaMinus1)
+		writeByte(0xf8 | a.BitDepthChromaMinus1)
+		writeByte(a.NumSPSExt)
+	default:
+		// No extra bytes
 	}
 
-	return nil
+	return errWrite
 }

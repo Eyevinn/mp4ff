@@ -8,9 +8,10 @@ import (
 
 // InitSegment - MP4/CMAF init segment
 type InitSegment struct {
-	Ftyp  *FtypBox
-	Moov  *MoovBox
-	boxes []Box
+	MediaType string
+	Ftyp      *FtypBox
+	Moov      *MoovBox
+	boxes     []Box
 }
 
 // NewMP4Init - Create MP4Init
@@ -144,6 +145,18 @@ func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALU []byte, 
 	width, height := uint16(avcSPS.Width), uint16(avcSPS.Height)
 	avcx := CreateVisualSampleEntryBox(sampleDescriptorType, width, height, avcC)
 	stsd.AddChild(avcx)
+}
+
+// GetMediaType - should return video or audio (at present)
+func (s *InitSegment) GetMediaType() string {
+	switch s.Moov.Trak[0].Mdia.Hdlr.HandlerType {
+	case "soun":
+		return "audio"
+	case "vide":
+		return "video"
+	default:
+		return "unknown"
+	}
 }
 
 // SetAACDescriptor - Modify a TrakBox by adding AAC SampleDescriptor

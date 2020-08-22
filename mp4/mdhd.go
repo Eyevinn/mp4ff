@@ -60,7 +60,7 @@ func DecodeMdhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 }
 
-// GetLanguage - Get thee-byte language string
+// GetLanguage - Get three-byte language string
 func (m *MdhdBox) GetLanguage() string {
 	a := (m.Language >> 10) & 0x1f
 	b := (m.Language >> 5) & 0x1f
