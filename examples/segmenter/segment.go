@@ -9,11 +9,13 @@ import (
 	"github.com/edgeware/mp4ff/mp4"
 )
 
+// Segmenter - segment the progressive inFIle
 type Segmenter struct {
 	inFile *mp4.File
 	tracks []*Track
 }
 
+// Track - media track defined by inTrak
 type Track struct {
 	trackType    string
 	inTrak       *mp4.TrakBox
@@ -21,6 +23,7 @@ type Track struct {
 	nextSampleNr int
 }
 
+// NewSegmenter - create a Segmenter from inFile
 func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
 	if inFile.IsFragmented() {
 		return nil, errors.New("Segmented input file not supported")

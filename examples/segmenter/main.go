@@ -1,16 +1,19 @@
-// mp4ff-segmenter segments a progressive mp4 file into audio and video segments
-
-// The mp4 files must look like a CMAF track with init segment and media segments.
+// segmenter segments a progressive mp4 file into audio and video segments
+//
+// There should be at most one audio and one video track in the file.
+// The output files will be named as
+//   init segments: <output>_a.mp4 and <output>_v.mp4
+//   media segments: <output>_a_<n>.m4s and <output>_v_<n>.m4s where n >= 1
 //
 //   Usage:
 //
-//    mp4ff-segmenter -f <input.mp4> -o <output.mp4> -d <chunk_dur>
-//    -d int
-//         Required: chunk duration (ticks)
-//    -f string
-//         Required: Path to input file
+//    segmenter -i <input.mp4> -o <output> -d <chunk_dur>
+//    -i string
+//         Required: Path to input mp4 file
 //    -o string
-//         Required: Output file path (no extension)
+//         Required: Output filepath (without extension)
+//    -d int
+//         Required: chunk duration (milliseconds)
 package main
 
 import (
