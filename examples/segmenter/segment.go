@@ -111,7 +111,7 @@ func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleN
 		if n != int(size) {
 			fmt.Printf("Read %d bytes instead of %d", n, size)
 		}
-		presTime := uint64(int64(decTime) + int64(cto))
+		//presTime := uint64(int64(decTime) + int64(cto))
 		//One can either segment on presentationTime or DecodeTime
 		//presTimeMs := presTime * 1000 / uint64(tr.timeScale)
 		decTimeMs := decTime * 1000 / uint64(tr.timeScale)
@@ -129,9 +129,8 @@ func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleN
 				Dur:   dur,
 				Cto:   cto,
 			},
-			DecodeTime:       decTime,
-			PresentationTime: presTime,
-			Data:             buf,
+			DecodeTime: decTime,
+			Data:       buf,
 		}
 
 		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)

@@ -8,7 +8,7 @@ import (
 )
 
 // Resegment file into two segments
-func Resegment(in *mp4.File, boundary uint64) *mp4.File {
+func Resegment(in *mp4.File, chunkDur uint64) *mp4.File {
 	if !in.IsFragmented() {
 		log.Fatalf("Non-segmented input file not supported")
 	}
@@ -38,8 +38,8 @@ func Resegment(in *mp4.File, boundary uint64) *mp4.File {
 	}
 	nrSegments := 1
 	for nr, s := range iSamples {
-		if s.PresentationTime >= boundary && s.IsSync() && nrSegments == 1 {
-			fmt.Printf("Started second segment at %d\n", s.PresentationTime)
+		if s.PresentationTime() >= chunkDur && s.IsSync() && nrSegments == 1 {
+			fmt.Printf("Started second segment at %d\n", s.PresentationTime())
 			oFile.AddChildBox(inStyp, 0)
 			frag = mp4.CreateFragment(seqNr+1, trackID)
 			for _, box := range frag.Boxes() {
@@ -49,7 +49,7 @@ func Resegment(in *mp4.File, boundary uint64) *mp4.File {
 		}
 		frag.AddSample(s)
 		if s.IsSync() {
-			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime)
+			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
 		}
 
 	}

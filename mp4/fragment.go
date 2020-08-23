@@ -102,7 +102,8 @@ func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
 	samples := f.GetSampleData(trex)
 	for i, s := range samples {
 		if i < 9 {
-			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime, s.Flags, s.Size, len(s.Data))
+			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime(),
+				s.Flags, s.Size, len(s.Data))
 		}
 		toAnnexB(s.Data)
 		if w != nil {
@@ -119,7 +120,6 @@ func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
 func (f *Fragment) Encode(w io.Writer) error {
 	trun := f.Moof.Traf.Trun
 	if trun.HasDataOffset() {
-		// TODO. This only works for one trun (one track)
 		// Make documentation or other stuff clear about that
 		trun.DataOffset = int32(f.Moof.Size() + 8)
 	}

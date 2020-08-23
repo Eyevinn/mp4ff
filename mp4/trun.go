@@ -235,13 +235,11 @@ func (t *TrunBox) GetSampleData(baseOffset uint32, baseTime uint64, mdat *MdatBo
 	offset := baseOffset
 	for _, s := range t.samples {
 		dTime := baseTime + accDur
-		pTime := uint64(int64(dTime) + int64(s.Cto))
 
 		newSample := &SampleComplete{
-			Sample:           *s,
-			DecodeTime:       dTime,
-			PresentationTime: pTime,
-			Data:             mdat.Data[offset : offset+s.Size],
+			Sample:     *s,
+			DecodeTime: dTime,
+			Data:       mdat.Data[offset : offset+s.Size],
 		}
 		samples = append(samples, newSample)
 		accDur += uint64(s.Dur)

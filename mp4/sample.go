@@ -26,12 +26,20 @@ func (s *Sample) IsSync() bool {
 	return !decFlags.SampleIsNonSync && (decFlags.SampleDependsOn == 2)
 }
 
-//SampleComplete - include accumulated time and data. Times mdhd timescale
+// SampleComplete - include accumulated time and data. Times in mdhd timescale
 type SampleComplete struct {
 	Sample
-	DecodeTime       uint64 // Accumulated decode time in mdhd timescale. Used in tfdt encode
-	PresentationTime uint64 // DecodeTime + compositionTimeOffset in mdhd timescale
-	Data             []byte // Sample data
+	DecodeTime uint64 // Absolute decode time (offset + accumulated sample Dur)
+	Data       []byte // Sample data
+}
+
+// PresentationTime - DecodeTime displaced by composition time offset (possibly negative)
+func (s *SampleComplete) PresentationTime() uint64 {
+	p := int64(s.DecodeTime) + int64(s.Cto)
+	if p < 0 {
+		p = 0 // Extraordinary case. Clip it to 0.
+	}
+	return uint64(p)
 }
 
 func toAnnexB(videoSample []byte) {
