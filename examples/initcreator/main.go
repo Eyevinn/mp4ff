@@ -29,7 +29,8 @@ func writeVideoAVCInitSegment() error {
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsNALUs := [][]byte{pps}
 
-	init := mp4.CreateEmptyMP4Init(180000, "video", "und")
+	videoTimescale := uint32(180000)
+	init := mp4.CreateEmptyMP4Init(videoTimescale, "video", "und")
 	trak := init.Moov.Trak[0]
 	trak.SetAVCDescriptor("avc1", spsNALU, ppsNALUs)
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
@@ -37,28 +38,29 @@ func writeVideoAVCInitSegment() error {
 	if width != 1280 || height != 720 {
 		return errors.New("Did not get right width and height")
 	}
-	writeToFile(init, "video_init.cmfv")
-	return nil
+	err := writeToFile(init, "video_init.cmfv")
+	return err
 }
 
 func writeAudioAACInitSegment() error {
-	init := mp4.CreateEmptyMP4Init(48000, "audio", "en")
+	audioTimeScale := 48000
+	init := mp4.CreateEmptyMP4Init(uint32(audioTimeScale), "audio", "en")
 	trak := init.Moov.Trak[0]
-	err := trak.SetAACDescriptor(mp4.AAClc, 48000)
+	err := trak.SetAACDescriptor(mp4.AAClc, audioTimeScale)
 	if err != nil {
 		return err
 	}
-	writeToFile(init, "audio_init.cmfv")
-	return nil
+	err = writeToFile(init, "audio_init.cmfv")
+	return err
 }
 
 func writeToFile(init *mp4.InitSegment, filePath string) error {
 	// Next write to a file
 	ofd, err := os.Create(filePath)
-	defer ofd.Close()
 	if err != nil {
 		return err
 	}
+	defer ofd.Close()
 	err = init.Encode(ofd)
 	return err
 }

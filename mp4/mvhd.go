@@ -29,8 +29,8 @@ type MvhdBox struct {
 // CreateMvhd - create mvhd box with reasonable values
 func CreateMvhd() *MvhdBox {
 	return &MvhdBox{
-		Timescale:   90000,
-		NextTrackID: 2,
+		Timescale:   90000,      // Irrelevant since mdhd timescale is used
+		NextTrackID: 2,          // There will typically only be one track
 		Rate:        0x00010000, // This is 1.0
 		Volume:      0x0100,     // Full volume
 	}

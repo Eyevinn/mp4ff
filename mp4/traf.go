@@ -34,6 +34,9 @@ func (t *TrafBox) AddChild(b Box) {
 	case "tfdt":
 		t.Tfdt = b.(*TfdtBox)
 	case "trun":
+		if t.Trun != nil {
+			panic("There is already one trun box. Multiple trun boxes not supported")
+		}
 		t.Trun = b.(*TrunBox)
 	default:
 	}

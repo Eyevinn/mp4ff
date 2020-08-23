@@ -74,6 +74,7 @@ func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
 }
 
 // GetSamplesUntilTime - get list of SampleComplete from statSampleNr to endTimeMs
+// The end point is currently not aligned with sync points as defined by the stss box
 // nextSampleNr is stored in track
 func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleNr, endTimeMs int) []*mp4.SampleComplete {
 	stbl := tr.inTrak.Mdia.Minf.Stbl

@@ -119,6 +119,8 @@ func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
 func (f *Fragment) Encode(w io.Writer) error {
 	trun := f.Moof.Traf.Trun
 	if trun.HasDataOffset() {
+		// TODO. This only works for one trun (one track)
+		// Make documentation or other stuff clear about that
 		trun.DataOffset = int32(f.Moof.Size() + 8)
 	}
 	for _, b := range f.boxes {

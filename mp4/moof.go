@@ -10,7 +10,7 @@ import (
 type MoofBox struct {
 	boxes    []Box
 	Mfhd     *MfhdBox
-	Traf     *TrafBox
+	Traf     *TrafBox // A single traf child box
 	StartPos uint64
 }
 
@@ -35,6 +35,10 @@ func (m *MoofBox) AddChild(b Box) {
 	case "mfhd":
 		m.Mfhd = b.(*MfhdBox)
 	case "traf":
+		if m.Traf != nil {
+			// There is already one track
+			panic("Multiple tracks not supported for segmented files")
+		}
 		m.Traf = b.(*TrafBox)
 	}
 	m.boxes = append(m.boxes, b)
