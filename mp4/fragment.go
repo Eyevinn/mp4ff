@@ -117,6 +117,11 @@ func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
 
 // Encode - write fragment via writer
 func (f *Fragment) Encode(w io.Writer) error {
+	traf := f.Moof.Traf
+	err := traf.OptimizeTfhdTrun()
+	if err != nil {
+		return err
+	}
 	trun := f.Moof.Traf.Trun
 	if trun.HasDataOffset() {
 		// media data start with respect to start of moof

@@ -69,3 +69,64 @@ func (t *TrafBox) Children() []Box {
 func (t *TrafBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
 }
+
+// OptimizeTfhdTrun - optimize trun by default values in tfhd box
+func (t *TrafBox) OptimizeTfhdTrun() error {
+	tfhd := t.Tfhd
+	trun := t.Trun
+	if len(trun.samples) == 0 {
+		return errors.New("No samples in trun")
+	}
+	if len(trun.samples) == 1 {
+		return nil // No need to optimize
+	}
+	allZeroCTO := true
+	hasCommonDur := true
+	commonDur := trun.samples[0].Dur
+	firstSampleFlags := trun.samples[0].Flags
+	hasCommonFlags := true
+	commonSampleFlags := trun.samples[1].Flags
+	hasCommonSize := true
+	commonSize := trun.samples[0].Size
+	for i, s := range trun.samples {
+		if s.Cto != 0 {
+			allZeroCTO = false
+		}
+		if s.Dur != commonDur {
+			hasCommonDur = false
+		}
+		if i >= 1 {
+			if s.Flags != commonSampleFlags {
+				hasCommonFlags = false
+			}
+		}
+		if s.Size != commonSize {
+			hasCommonSize = false
+		}
+	}
+	if allZeroCTO {
+		trun.flags = trun.flags & ^sampleCTOPresentFlag
+	}
+	if hasCommonDur {
+		// Set defaultSampleDuration in tfhd and remove from trun
+		tfhd.Flags = tfhd.Flags | defaultSampleDurationPresent
+		tfhd.DefaultSampleDuration = commonDur
+		trun.flags = trun.flags & ^sampleDurationPresentFlag
+	}
+	if hasCommonFlags {
+		if firstSampleFlags != commonSampleFlags {
+			trun.firstSampleFlags = firstSampleFlags
+			trun.flags |= firstSamplePresentFlag
+		}
+		tfhd.Flags = tfhd.Flags | defaultSampleFlagsPresent
+		tfhd.DefaultSampleFlags = commonSampleFlags
+		trun.flags = trun.flags & ^sampleFlagsPresentFlag
+	}
+	if hasCommonSize {
+		// Set defaultSampleSize in tfhd and remove from trun
+		tfhd.Flags = tfhd.Flags | defaultSampleSizePresent
+		tfhd.DefaultSampleSize = commonSize
+		trun.flags = trun.flags & ^sampleSizePresentFlag
+	}
+	return nil
+}

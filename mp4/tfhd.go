@@ -6,13 +6,13 @@ import (
 	"io/ioutil"
 )
 
-const baseDataOffsetPresent = 0x000001
-const sampleDescriptionIndexPresent = 0x000002
-const defaultSampleDurationPresent = 0x000008
-const defaultSampleSizePresent = 0x000010
-const defaultSampleFlagsPresent = 0x000020
-const durationIsEmpty = 0x010000
-const defaultBaseIsMoof = 0x020000
+const baseDataOffsetPresent uint32 = 0x000001
+const sampleDescriptionIndexPresent uint32 = 0x000002
+const defaultSampleDurationPresent uint32 = 0x000008
+const defaultSampleSizePresent uint32 = 0x000010
+const defaultSampleFlagsPresent uint32 = 0x000020
+const durationIsEmpty uint32 = 0x010000
+const defaultBaseIsMoof uint32 = 0x020000
 
 // TfhdBox - Track Fragment Header Box (tfhd)
 //

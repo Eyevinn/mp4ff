@@ -19,11 +19,11 @@ type TrunBox struct {
 }
 
 // const dataOffsetPresentFlag = 0x01
-const firstSamplePresentFlag = 0x02
-const sampleDurationPresentFlag = 0x100
-const sampleSizePresentFlag = 0x200
-const sampleFlagsPresentFlag = 0x400
-const sampleCTOPresentFlag = 0x800
+const firstSamplePresentFlag uint32 = 0x02
+const sampleDurationPresentFlag uint32 = 0x100
+const sampleSizePresentFlag uint32 = 0x200
+const sampleFlagsPresentFlag uint32 = 0x400
+const sampleCTOPresentFlag uint32 = 0x800
 
 // DecodeTrun - box-specific decode
 func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
@@ -87,7 +87,6 @@ func CreateTrun() *TrunBox {
 
 // AddSampleDefaultValues - add values from tfhd and trex boxes if needed
 func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) {
-	// Here we will decode samles including default values
 
 	var defaultSampleDuration uint32
 	var defaultSampleSize uint32
@@ -117,7 +116,9 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) {
 			t.samples[i].Size = defaultSampleSize
 		}
 		if !t.HasSampleFlags() {
-			t.samples[i].Flags = defaultSampleFlags
+			if i > 0 || !t.HasFirstSampleFlags() {
+				t.samples[i].Flags = defaultSampleFlags
+			}
 		}
 	}
 }
