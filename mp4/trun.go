@@ -228,19 +228,18 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-// GetCompleteSamples - get all sample data including accumulated time and binary media
-
+// GetFullSamples - get all sample data including accumulated time and binary media
 // baseOffset is offset in mdat (normally 8)
 // baseTime is offset in track timescale (from mfhd)
 // To fill missing individual values from thd and trex defaults, call AddSampleDefaultValues() before this call
-func (t *TrunBox) GetCompleteSamples(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*SampleComplete {
-	samples := make([]*SampleComplete, 0, t.SampleCount())
+func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*FullSample {
+	samples := make([]*FullSample, 0, t.SampleCount())
 	var accDur uint64 = 0
 	offset := baseOffset
 	for _, s := range t.samples {
 		dTime := baseTime + accDur
 
-		newSample := &SampleComplete{
+		newSample := &FullSample{
 			Sample:     *s,
 			DecodeTime: dTime,
 			Data:       mdat.Data[offset : offset+s.Size],
@@ -258,13 +257,13 @@ func (t *TrunBox) GetSamples() []*Sample {
 	return t.samples
 }
 
-// AddCompleteSample - add sample from a complete sample
-func (t *TrunBox) AddCompleteSample(s *SampleComplete) {
+// AddFullSample - add Sample part of FullSample
+func (t *TrunBox) AddFullSample(s *FullSample) {
 	t.samples = append(t.samples, &s.Sample)
 	t.sampleCount++
 }
 
-// AddSample - add a sample
+// AddSample - add a Sample
 func (t *TrunBox) AddSample(s *Sample) {
 	t.samples = append(t.samples, s)
 	t.sampleCount++

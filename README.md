@@ -49,10 +49,10 @@ A media segment contains one or more fragments, where each fragment has a moof a
 If all samples are available before the segment is to be used, one can use use a single
 fragment in each segment. Example code for this can be found in `examples/segmenter`.
 
-The high-level code to do that is to first create a slice of `SampleComplete` with the data needed.
+The high-level code to do that is to first create a slice of `FullSample` with the data needed.
 All times are in the track timescale set when creating the init segment and coded in the `mdhd` box.
 
-	mp4.SampleComplete{
+	mp4.FullSample{
 		Sample: mp4.Sample{
 	        Flags uint32 // Flag sync sample etc
 	        Dur   uint32 // Sample duration in mdhd timescale

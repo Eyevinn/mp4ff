@@ -73,13 +73,13 @@ func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
 	return inits, nil
 }
 
-// GetSamplesUntilTime - get list of SampleComplete from statSampleNr to endTimeMs
+// GetSamplesUntilTime - get slice of FullSample from statSampleNr to endTimeMs
 // The end point is currently not aligned with sync points as defined by the stss box
 // nextSampleNr is stored in track tr
-func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleNr, endTimeMs int) []*mp4.SampleComplete {
+func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleNr, endTimeMs int) []*mp4.FullSample {
 	stbl := tr.inTrak.Mdia.Minf.Stbl
 	nrSamples := stbl.Stsz.SampleNumber
-	var samples []*mp4.SampleComplete
+	var samples []*mp4.FullSample
 	for sampleNr := startSampleNr; sampleNr <= int(nrSamples); sampleNr++ {
 		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(sampleNr)
 		if err != nil {
@@ -122,7 +122,7 @@ func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleN
 		if isSync {
 			flags = mp4.SyncSampleFlags
 		}
-		sc := &mp4.SampleComplete{
+		sc := &mp4.FullSample{
 			Sample: mp4.Sample{
 				Flags: flags,
 				Size:  size,

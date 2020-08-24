@@ -2,11 +2,12 @@
 Package mp4 - library for parsing and writing MP4/ISOBMFF files with a focus on fragmented files.
 
 Most boxes have their own file named after the box four-letter name in the ISO/IEC 14996-12 standard,
-but in some cases, there may be multiple boxes that have the same content, and the code is then having a generic name like visualsampleentry.go.
+but in some cases, there may be multiple boxes that have the same content, and the code is then having a
+generic name like visualsampleentry.go.
 
 
-The Box interface is specified in box.go. It decodes box size and type in the box header and dispactches decode for each
-individual box depending on its type.
+The Box interface is specified in box.go. It decodes box size and type in the box header and
+dispatched decode for each individual box depending on its type.
 
 Implement a new box
 
@@ -20,7 +21,8 @@ FoooBox should then implement the Box{} interface methods:
      Size()
      Encode()
 
-but also its own decode method `DecodeFooo`, and register that method in the `decoders` map in `box.go`. For a simple example, look at the `prft` box in `prft.go`.
+but also its own decode method `DecodeFooo`, and register that method in the `decoders` map in `box.go`.
+For a simple example, look at the `prft` box in `prft.go`.
 
 Container Boxes
 
@@ -38,7 +40,7 @@ To handle media sample data there are two structures:
 
 1. `Sample` stores the sample information used in trun
 
-2. `SampleComplete` also carries a slice with the samples binary data, as well as decode and presentaiton time
+2. `FullSample` also carries a slice with the samples binary data as well as decode time
 
 Fragmenting segments
 

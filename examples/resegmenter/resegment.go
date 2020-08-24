@@ -12,11 +12,11 @@ func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 	if !in.IsFragmented() {
 		log.Fatalf("Non-segmented input file not supported")
 	}
-	var iSamples []*mp4.SampleComplete
+	var iSamples []*mp4.FullSample
 
 	for _, iSeg := range in.Segments {
 		for _, iFrag := range iSeg.Fragments {
-			fSamples := iFrag.GetCompleteSamples(in.Init.Moov.Mvex.Trex)
+			fSamples := iFrag.GetFullSamples(in.Init.Moov.Mvex.Trex)
 			iSamples = append(iSamples, fSamples...)
 		}
 	}

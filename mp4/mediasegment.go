@@ -55,7 +55,7 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 
 	for _, inFrag := range inFragments {
 
-		samples := inFrag.GetCompleteSamples(trex)
+		samples := inFrag.GetFullSamples(trex)
 		for _, s := range samples {
 			if cumDur == 0 {
 				var err error

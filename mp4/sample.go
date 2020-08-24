@@ -26,15 +26,15 @@ func (s *Sample) IsSync() bool {
 	return !decFlags.SampleIsNonSync && (decFlags.SampleDependsOn == 2)
 }
 
-// SampleComplete - include accumulated time and data. Times in mdhd timescale
-type SampleComplete struct {
+// FullSample - include accumulated time and data. Times in mdhd timescale
+type FullSample struct {
 	Sample
 	DecodeTime uint64 // Absolute decode time (offset + accumulated sample Dur)
 	Data       []byte // Sample data
 }
 
 // PresentationTime - DecodeTime displaced by composition time offset (possibly negative)
-func (s *SampleComplete) PresentationTime() uint64 {
+func (s *FullSample) PresentationTime() uint64 {
 	p := int64(s.DecodeTime) + int64(s.Cto)
 	if p < 0 {
 		p = 0 // Extraordinary case. Clip it to 0.
