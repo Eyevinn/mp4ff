@@ -58,7 +58,11 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 		samples := inFrag.GetSampleData(trex)
 		for _, s := range samples {
 			if cumDur == 0 {
-				of = CreateFragment(inFrag.Moof.Mfhd.SequenceNumber, inFrag.Moof.Traf.Tfhd.TrackID)
+				var err error
+				of, err = CreateFragment(inFrag.Moof.Mfhd.SequenceNumber, inFrag.Moof.Traf.Tfhd.TrackID)
+				if err != nil {
+					return nil, err
+				}
 				outFragments = append(outFragments, of)
 			}
 			of.AddSample(s)

@@ -82,7 +82,10 @@ func main() {
 			}
 			newSegment = true
 			seg := mp4.NewMediaSegment()
-			frag := mp4.CreateFragment(uint32(segNr), mp4.DefaultTrakID)
+			frag, err := mp4.CreateFragment(uint32(segNr), mp4.DefaultTrakID)
+			if err != nil {
+				log.Fatalln(err)
+			}
 			seg.AddFragment(frag)
 			for _, sample := range samples {
 				frag.AddSample(sample)

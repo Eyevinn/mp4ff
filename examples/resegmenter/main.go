@@ -46,7 +46,7 @@ func main() {
 	if *chunkDur <= 0 {
 		log.Fatalln("Chunk duration must be positive.")
 	}
-	newMp4 := Resegment(parsedMp4, uint64(*chunkDur))
+	newMp4, err := Resegment(parsedMp4, uint64(*chunkDur))
 	if err != nil {
 		log.Fatalln(err)
 	}

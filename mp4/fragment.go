@@ -22,24 +22,27 @@ func NewFragment() *Fragment {
 }
 
 // CreateFragment - create emtpy fragment for output
-func CreateFragment(seqNumber uint32, trackID uint32) *Fragment {
+func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	f := NewFragment()
 	moof := &MoofBox{}
 	f.AddChild(moof)
 	mfhd := CreateMfhd(seqNumber)
 	moof.AddChild(mfhd)
 	traf := &TrafBox{}
-	moof.AddChild(traf)
+	err := moof.AddChild(traf)
+	if err != nil {
+		return nil, err
+	}
 	tfhd := CreateTfhd(trackID)
 	traf.AddChild(tfhd)
-	tfdt := &TfdtBox{} // We will get time with samples
+	tfdt := &TfdtBox{} // Data will be provided by first sample
 	traf.AddChild(tfdt)
 	trun := CreateTrun()
 	traf.AddChild(trun)
 	mdat := &MdatBox{}
 	f.AddChild(mdat)
 
-	return f
+	return f, nil
 }
 
 // AddChild - Add a child box to Fragment
@@ -76,7 +79,7 @@ func (f *Fragment) GetSampleData(trex *TrexBox) []*SampleComplete {
 	if trun.HasDataOffset() {
 		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 	}
-	mdatDataLength := uint64(len(mdat.Data)) // Todo. Make len take 64-bit number
+	mdatDataLength := uint64(len(mdat.Data)) // TODO Make len take 64-bit number
 	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
 	if offsetInMdat > mdatDataLength {
 		log.Fatalf("Offset in mdata beyond size")

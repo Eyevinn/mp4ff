@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"errors"
 	"io"
 )
 
@@ -23,25 +24,29 @@ func DecodeMoof(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	m := &MoofBox{}
 	m.StartPos = startPos
 	for _, box := range children {
-		m.AddChild(box)
+		err := m.AddChild(box)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return m, err
+	return m, nil
 }
 
 // AddChild - add child box
-func (m *MoofBox) AddChild(b Box) {
+func (m *MoofBox) AddChild(b Box) error {
 	switch b.Type() {
 	case "mfhd":
 		m.Mfhd = b.(*MfhdBox)
 	case "traf":
 		if m.Traf != nil {
 			// There is already one track
-			panic("Multiple tracks not supported for segmented files")
+			return errors.New("Multiple tracks not supported for segmented files")
 		}
 		m.Traf = b.(*TrafBox)
 	}
 	m.boxes = append(m.boxes, b)
+	return nil
 }
 
 // Type - returns box type

@@ -20,8 +20,8 @@ const charOffset = 0x60 // According to Section 8.4.2.3 of 14496-12
 type MdhdBox struct {
 	Version          byte // Only version 0
 	Flags            uint32
-	CreationTime     uint64 // typically not set
-	ModificationTime uint64 // typically not set
+	CreationTime     uint64 // Typically not set
+	ModificationTime uint64 // Typically not set
 	Timescale        uint32 // Media timescale for this track
 	Duration         uint64 // Trak duration, 0 for fragmented files
 	Language         uint16 // Three-letter ISO-639-2/T language code
