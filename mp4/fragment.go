@@ -58,8 +58,8 @@ func (f *Fragment) AddChild(b Box) {
 	f.boxes = append(f.boxes, b)
 }
 
-// GetSampleData - Get all samples including data
-func (f *Fragment) GetSampleData(trex *TrexBox) []*SampleComplete {
+// GetCompleteSamples - Get complete samples including data and accumulated time
+func (f *Fragment) GetCompleteSamples(trex *TrexBox) []*SampleComplete {
 	moof := f.Moof
 	mdat := f.Mdat
 	seqNr := moof.Mfhd.SequenceNumber
@@ -84,7 +84,7 @@ func (f *Fragment) GetSampleData(trex *TrexBox) []*SampleComplete {
 	if offsetInMdat > mdatDataLength {
 		log.Fatalf("Offset in mdata beyond size")
 	}
-	samples := trun.GetSampleData(uint32(offsetInMdat), baseTime, f.Mdat)
+	samples := trun.GetCompleteSamples(uint32(offsetInMdat), baseTime, f.Mdat)
 	return samples
 }
 
@@ -102,7 +102,7 @@ func (f *Fragment) AddSample(s *SampleComplete) {
 
 // DumpSampleData - Get Sample data and print out
 func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
-	samples := f.GetSampleData(trex)
+	samples := f.GetCompleteSamples(trex)
 	for i, s := range samples {
 		if i < 9 {
 			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime(),

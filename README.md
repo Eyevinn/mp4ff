@@ -2,7 +2,7 @@
 
 ![Test](https://github.com/edgeware/mp4ff/workflows/Test/badge.svg)
 
-MP4 media file parser and writer. Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
+MP4/ISOBMFF media file parser and writer. Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 
 ## Library
 
@@ -94,6 +94,8 @@ These are
     segment durations.
 3. `segmenter` which takes a progressive mp4 file and creates init and media segments from it.
 
+## Stability
+The APIs should be fairly stable, but minor non-backwards-compatible tweaks may happen until version 1.
 
 ## LICENSE
 

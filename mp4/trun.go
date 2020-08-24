@@ -127,7 +127,7 @@ func (t *TrunBox) SampleCount() uint32 {
 	return t.sampleCount
 }
 
-// HasDataOffset - interpted dataOffsetPresent flag
+// HasDataOffset - interpreted dataOffsetPresent flag
 func (t *TrunBox) HasDataOffset() bool {
 	return t.flags&0x01 != 0
 }
@@ -228,8 +228,12 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-// GetSampleData - return list of Samples. baseOffset is offset in mdat
-func (t *TrunBox) GetSampleData(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*SampleComplete {
+// GetCompleteSamples - get all sample data including accumulated time and binary media
+
+// baseOffset is offset in mdat (normally 8)
+// baseTime is offset in track timescale (from mfhd)
+// To fill missing individual values from thd and trex defaults, call AddSampleDefaultValues() before this call
+func (t *TrunBox) GetCompleteSamples(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*SampleComplete {
 	samples := make([]*SampleComplete, 0, t.SampleCount())
 	var accDur uint64 = 0
 	offset := baseOffset
@@ -246,6 +250,12 @@ func (t *TrunBox) GetSampleData(baseOffset uint32, baseTime uint64, mdat *MdatBo
 		offset += s.Size
 	}
 	return samples
+}
+
+// GetSamples - get all trun sample data
+// To fill missing individual values from thd and trex defaults, call AddSampleDefaultValues() before this call
+func (t *TrunBox) GetSamples() []*Sample {
+	return t.samples
 }
 
 // AddCompleteSample - add sample from a complete sample
