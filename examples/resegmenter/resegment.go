@@ -8,15 +8,15 @@ import (
 )
 
 // Resegment file into two segments
-func Resegment(in *mp4.File, boundary uint64) *mp4.File {
+func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 	if !in.IsFragmented() {
 		log.Fatalf("Non-segmented input file not supported")
 	}
-	var iSamples []*mp4.SampleComplete
+	var iSamples []*mp4.FullSample
 
 	for _, iSeg := range in.Segments {
 		for _, iFrag := range iSeg.Fragments {
-			fSamples := iFrag.GetSampleData(in.Init.Moov.Mvex.Trex)
+			fSamples := iFrag.GetFullSamples(in.Init.Moov.Mvex.Trex)
 			iSamples = append(iSamples, fSamples...)
 		}
 	}
@@ -32,16 +32,22 @@ func Resegment(in *mp4.File, boundary uint64) *mp4.File {
 
 	// Make first segment
 	oFile.AddChildBox(inStyp, 0)
-	frag := mp4.CreateFragment(seqNr, trackID)
+	frag, err := mp4.CreateFragment(seqNr, trackID)
+	if err != nil {
+		return nil, err
+	}
 	for _, box := range frag.Boxes() {
 		oFile.AddChildBox(box, 0)
 	}
 	nrSegments := 1
 	for nr, s := range iSamples {
-		if s.PresentationTime >= boundary && s.IsSync() && nrSegments == 1 {
-			fmt.Printf("Started second segment at %d\n", s.PresentationTime)
+		if s.PresentationTime() >= chunkDur && s.IsSync() && nrSegments == 1 {
+			fmt.Printf("Started second segment at %d\n", s.PresentationTime())
 			oFile.AddChildBox(inStyp, 0)
-			frag = mp4.CreateFragment(seqNr+1, trackID)
+			frag, err = mp4.CreateFragment(seqNr+1, trackID)
+			if err != nil {
+				return nil, err
+			}
 			for _, box := range frag.Boxes() {
 				oFile.AddChildBox(box, 0)
 			}
@@ -49,10 +55,9 @@ func Resegment(in *mp4.File, boundary uint64) *mp4.File {
 		}
 		frag.AddSample(s)
 		if s.IsSync() {
-			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime)
+			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
 		}
-
 	}
 
-	return oFile
+	return oFile, nil
 }

@@ -16,15 +16,16 @@ import (
 //   moov : the movie box (meta-data)
 //   mdat : the media data (chunks and samples)
 //
-// If fragmented, the media data and its metadata is contained
+// If fragmented, the data is instead in Init and/or Segments.
+//
 // segments.
 type File struct {
-	Ftyp         *FtypBox
-	Moov         *MoovBox
-	Mdat         *MdatBox // Only used for non-fragmented boxes
-	boxes        []Box    // All top-level boxes in order
-	Init         *InitSegment
-	Segments     []*MediaSegment
+	Ftyp         *FtypBox        // Only used for non-fragmented files
+	Moov         *MoovBox        // Only used for non-fragmented files
+	Mdat         *MdatBox        // Only used for non-fragmented files
+	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
+	Segments     []*MediaSegment // Media segment
+	boxes        []Box           // All top-level boxes in order
 	isFragmented bool
 }
 

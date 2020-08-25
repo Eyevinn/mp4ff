@@ -44,6 +44,7 @@ func (s *InitSegment) Encode(w io.Writer) error {
 }
 
 // CreateEmptyMP4Init - Create a one-track MP4 init segment with empty stsd box
+// The trak has trackID = 1. The irrelevant mdhd timescale is set to 90000 and duration = 0
 func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegment {
 	/* Build tree like
 	   moov
@@ -130,6 +131,7 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 }
 
 // SetAVCDescriptor - Modify a TrakBox by adding AVC SampleDescriptor from one SPS and multiple PPS
+// Get width and height from SPS and fill into tkhd box.
 func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALU []byte, ppsNALUs [][]byte) {
 	avcSPS, err := ParseSPSNALUnit(spsNALU)
 	if err != nil {

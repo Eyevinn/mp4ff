@@ -7,39 +7,38 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Fragment - MP4 Fragment (moof + mdat)
+// Fragment - MP4 Fragment ([prft] + moof + mdat)
 type Fragment struct {
-	Prft        *PrftBox
-	Moof        *MoofBox
-	Mdat        *MdatBox
-	Independent bool
-	boxes       []Box
+	Prft  *PrftBox
+	Moof  *MoofBox
+	Mdat  *MdatBox
+	boxes []Box
 }
 
-// NewFragment - New emtpy MP4 Fragment
+// NewFragment - New emtpy one-track MP4 Fragment
 func NewFragment() *Fragment {
 	return &Fragment{}
 }
 
-// CreateFragment - create emtpy fragment for output
-func CreateFragment(seqNumber uint32, trackID uint32) *Fragment {
+// CreateFragment - create emtpy fragment with one single track for output
+func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	f := NewFragment()
 	moof := &MoofBox{}
 	f.AddChild(moof)
 	mfhd := CreateMfhd(seqNumber)
-	moof.AddChild(mfhd)
+	_ = moof.AddChild(mfhd)
 	traf := &TrafBox{}
-	moof.AddChild(traf)
+	_ = moof.AddChild(traf) // Can only have error when adding second track
 	tfhd := CreateTfhd(trackID)
-	traf.AddChild(tfhd)
-	tfdt := &TfdtBox{} // We will get time with samples
-	traf.AddChild(tfdt)
+	_ = traf.AddChild(tfhd)
+	tfdt := &TfdtBox{} // Data will be provided by first sample
+	_ = traf.AddChild(tfdt)
 	trun := CreateTrun()
-	traf.AddChild(trun)
+	_ = traf.AddChild(trun)
 	mdat := &MdatBox{}
 	f.AddChild(mdat)
 
-	return f
+	return f, nil
 }
 
 // AddChild - Add a child box to Fragment
@@ -55,8 +54,8 @@ func (f *Fragment) AddChild(b Box) {
 	f.boxes = append(f.boxes, b)
 }
 
-// GetSampleData - Get all samples including data
-func (f *Fragment) GetSampleData(trex *TrexBox) []*SampleComplete {
+// GetFullSamples - Get full samples including media and accumulated time
+func (f *Fragment) GetFullSamples(trex *TrexBox) []*FullSample {
 	moof := f.Moof
 	mdat := f.Mdat
 	seqNr := moof.Mfhd.SequenceNumber
@@ -76,17 +75,17 @@ func (f *Fragment) GetSampleData(trex *TrexBox) []*SampleComplete {
 	if trun.HasDataOffset() {
 		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 	}
-	mdatDataLength := uint64(len(mdat.Data)) // Todo. Make len take 64-bit number
+	mdatDataLength := uint64(len(mdat.Data)) // TODO Make len take 64-bit number
 	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
 	if offsetInMdat > mdatDataLength {
 		log.Fatalf("Offset in mdata beyond size")
 	}
-	samples := trun.GetSampleData(uint32(offsetInMdat), baseTime, f.Mdat)
+	samples := trun.GetFullSamples(uint32(offsetInMdat), baseTime, f.Mdat)
 	return samples
 }
 
 // AddSample - add a complete sample to a fragment
-func (f *Fragment) AddSample(s *SampleComplete) {
+func (f *Fragment) AddSample(s *FullSample) {
 	trun := f.Moof.Traf.Trun
 	if trun.SampleCount() == 0 {
 		tfdt := f.Moof.Traf.Tfdt
@@ -99,10 +98,11 @@ func (f *Fragment) AddSample(s *SampleComplete) {
 
 // DumpSampleData - Get Sample data and print out
 func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
-	samples := f.GetSampleData(trex)
+	samples := f.GetFullSamples(trex)
 	for i, s := range samples {
 		if i < 9 {
-			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime, s.Flags, s.Size, len(s.Data))
+			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime(),
+				s.Flags, s.Size, len(s.Data))
 		}
 		toAnnexB(s.Data)
 		if w != nil {
@@ -119,6 +119,8 @@ func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
 func (f *Fragment) Encode(w io.Writer) error {
 	trun := f.Moof.Traf.Trun
 	if trun.HasDataOffset() {
+		// media data start with respect to start of moof
+		// Valid when writing single track with single trun
 		trun.DataOffset = int32(f.Moof.Size() + 8)
 	}
 	for _, b := range f.boxes {

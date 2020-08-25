@@ -15,16 +15,16 @@ const charOffset = 0x60 // According to Section 8.4.2.3 of 14496-12
 //
 // Contained in : Media Box (mdia)
 //
-// Timescale defines the timescale used for tracks.
+// Timescale defines the timescale used for this track.
 // Language is a ISO-639-2/T language code stored as 1bit padding + [3]int5
 type MdhdBox struct {
-	Version          byte
+	Version          byte // Only version 0
 	Flags            uint32
-	CreationTime     uint64
-	ModificationTime uint64
-	Timescale        uint32
-	Duration         uint64
-	Language         uint16
+	CreationTime     uint64 // Typically not set
+	ModificationTime uint64 // Typically not set
+	Timescale        uint32 // Media timescale for this track
+	Duration         uint64 // Trak duration, 0 for fragmented files
+	Language         uint16 // Three-letter ISO-639-2/T language code
 }
 
 // DecodeMdhd - Decode box

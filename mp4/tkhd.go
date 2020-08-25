@@ -9,7 +9,7 @@ import (
 // TkhdBox - Track Header Box (tkhd - mandatory)
 //
 // This box describes the track. Duration is measured in time units (according to the time scale
-// defined in the movie header box).
+// defined in the movie header box). Duration is 0 for fragmented files.
 //
 // Volume (relevant for audio tracks) is a fixed point number (8 bits + 8 bits). Full volume is 1.0.
 // Width and Height (relevant for video tracks) are fixed point numbers (16 bits + 16 bits).
@@ -31,8 +31,8 @@ type TkhdBox struct {
 func CreateTkhd() *TkhdBox {
 	return &TkhdBox{
 		Version: 0,
-		Flags:   0x000007, // Enabled, inMovie, inPreview set
-		TrackID: 1,
+		Flags:   0x000007,      // Enabled, inMovie, inPreview set
+		TrackID: DefaultTrakID, // Typically just have one track
 	}
 }
 

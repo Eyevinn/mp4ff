@@ -1,6 +1,9 @@
 package mp4
 
-import "io"
+import (
+	"errors"
+	"io"
+)
 
 // TrafBox - Track Fragment Box (traf)
 //
@@ -21,23 +24,30 @@ func DecodeTraf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	t := &TrafBox{}
 	for _, b := range children {
-		t.AddChild(b)
+		err := t.AddChild(b)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return t, nil
 }
 
 // AddChild - add child box
-func (t *TrafBox) AddChild(b Box) {
+func (t *TrafBox) AddChild(b Box) error {
 	switch b.Type() {
 	case "tfhd":
 		t.Tfhd = b.(*TfhdBox)
 	case "tfdt":
 		t.Tfdt = b.(*TfdtBox)
 	case "trun":
+		if t.Trun != nil {
+			return errors.New("There is already one trun box. Multiple trun boxes not supported")
+		}
 		t.Trun = b.(*TrunBox)
 	default:
 	}
 	t.boxes = append(t.boxes, b)
+	return nil
 }
 
 // Type - return box type

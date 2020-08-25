@@ -2,15 +2,15 @@ package mp4
 
 import "encoding/binary"
 
-// Sample - sample as used in trun box
+// Sample - sample as used in trun box (mdhd timescale)
 type Sample struct {
-	Flags uint32
-	Dur   uint32
-	Size  uint32
-	Cto   int32
+	Flags uint32 // Flag sync sample etc
+	Dur   uint32 // Sample duration in mdhd timescale
+	Size  uint32 // Size of sample data
+	Cto   int32  // Signed composition time offset
 }
 
-// NewSample - create Sample
+// NewSample - create Sample with trun data
 func NewSample(flags uint32, dur uint32, size uint32, cto int32) *Sample {
 	return &Sample{
 		Flags: flags,
@@ -26,12 +26,20 @@ func (s *Sample) IsSync() bool {
 	return !decFlags.SampleIsNonSync && (decFlags.SampleDependsOn == 2)
 }
 
-//SampleComplete - include times and data. Times in track timescale
-type SampleComplete struct {
+// FullSample - include accumulated time and data. Times in mdhd timescale
+type FullSample struct {
 	Sample
-	DecodeTime       uint64
-	PresentationTime uint64
-	Data             []byte
+	DecodeTime uint64 // Absolute decode time (offset + accumulated sample Dur)
+	Data       []byte // Sample data
+}
+
+// PresentationTime - DecodeTime displaced by composition time offset (possibly negative)
+func (s *FullSample) PresentationTime() uint64 {
+	p := int64(s.DecodeTime) + int64(s.Cto)
+	if p < 0 {
+		p = 0 // Extraordinary case. Clip it to 0.
+	}
+	return uint64(p)
 }
 
 func toAnnexB(videoSample []byte) {

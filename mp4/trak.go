@@ -2,6 +2,9 @@ package mp4
 
 import "io"
 
+// DefaultTrakID - trakID used when generating new fragmented content
+const DefaultTrakID = 1
+
 // TrakBox - Track Box (tkhd - mandatory)
 //
 // Contained in : Movie Box (moov)

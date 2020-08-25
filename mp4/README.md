@@ -29,7 +29,7 @@ Container boxes like `moof`, have a list of all their children called `boxes`, b
 To handle media sample data there are two structures:
 
 1. `Sample` stores the sample information used in trun
-2. `SampleComplete` also carries a slice with the samples binary data, as well as decode and presentaiton time
+2. `FullSample` extends this with the sample binary data and absolute decode time
 
 A MediaSegment can be fragmented into multiple fragments by the method
 
