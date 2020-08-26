@@ -65,7 +65,7 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 				}
 				outFragments = append(outFragments, of)
 			}
-			of.AddSample(s)
+			of.AddFullSample(s)
 			cumDur += s.Dur
 			if cumDur >= duration {
 				fmt.Printf("Wrote fragment with duration %d\n", cumDur)

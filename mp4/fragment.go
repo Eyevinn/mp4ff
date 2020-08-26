@@ -84,8 +84,8 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) []*FullSample {
 	return samples
 }
 
-// AddSample - add a complete sample to a fragment
-func (f *Fragment) AddSample(s *FullSample) {
+// AddFullSample - add a full sample to a fragment
+func (f *Fragment) AddFullSample(s *FullSample) {
 	trun := f.Moof.Traf.Trun
 	if trun.SampleCount() == 0 {
 		tfdt := f.Moof.Traf.Tfdt

@@ -53,7 +53,7 @@ func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 			}
 			nrSegments++
 		}
-		frag.AddSample(s)
+		frag.AddFullSample(s)
 		if s.IsSync() {
 			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
 		}
