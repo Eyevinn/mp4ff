@@ -88,7 +88,7 @@ func main() {
 			}
 			seg.AddFragment(frag)
 			for _, sample := range samples {
-				frag.AddSample(sample)
+				frag.AddFullSample(sample)
 			}
 			outPath := fmt.Sprintf("%s%s_%d.m4s", *outFilePath, fileNameMap[mediaType], segNr)
 			ofd, err := os.Create(outPath)
