@@ -50,6 +50,11 @@ func (t *TrafBox) AddChild(b Box) error {
 	return nil
 }
 
+// GetChildren - get a slice of all child boxes
+func (t *TrafBox) GetChildren() []Box {
+	return t.boxes
+}
+
 // Type - return box type
 func (t *TrafBox) Type() string {
 	return "traf"
