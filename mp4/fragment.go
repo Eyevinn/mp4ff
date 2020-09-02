@@ -9,10 +9,10 @@ import (
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
 type Fragment struct {
-	Prft  *PrftBox
-	Moof  *MoofBox
-	Mdat  *MdatBox
-	boxes []Box
+	Prft     *PrftBox
+	Moof     *MoofBox
+	Mdat     *MdatBox
+	Children []Box
 }
 
 // NewFragment - New emtpy one-track MP4 Fragment
@@ -51,7 +51,7 @@ func (f *Fragment) AddChild(b Box) {
 	case "mdat":
 		f.Mdat = b.(*MdatBox)
 	}
-	f.boxes = append(f.boxes, b)
+	f.Children = append(f.Children, b)
 }
 
 // GetFullSamples - Get full samples including media and accumulated time
@@ -128,7 +128,7 @@ func (f *Fragment) Encode(w io.Writer) error {
 		// Valid when writing single track with single trun
 		trun.DataOffset = int32(f.Moof.Size() + 8)
 	}
-	for _, b := range f.boxes {
+	for _, b := range f.Children {
 		err := b.Encode(w)
 		if err != nil {
 			return err
@@ -137,7 +137,7 @@ func (f *Fragment) Encode(w io.Writer) error {
 	return nil
 }
 
-// Boxes - return children boxes
-func (f *Fragment) Boxes() []Box {
-	return f.boxes
+// GetChildren - return children boxes
+func (f *Fragment) GetChildren() []Box {
+	return f.Children
 }

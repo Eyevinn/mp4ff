@@ -15,7 +15,7 @@ type DrefBox struct {
 	Version    byte
 	Flags      uint32
 	EntryCount int
-	Boxes      []Box
+	Children   []Box
 }
 
 // CreateDref - Create an DataReferenceBox for selfcontained content
@@ -28,7 +28,7 @@ func CreateDref() *DrefBox {
 
 // AddChild - Add a child box and update EntryCount
 func (d *DrefBox) AddChild(box Box) {
-	d.Boxes = append(d.Boxes, box)
+	d.Children = append(d.Children, box)
 	d.EntryCount++
 }
 
@@ -71,10 +71,10 @@ func (d *DrefBox) Type() string {
 
 // Size - calculated size of box
 func (d *DrefBox) Size() uint64 {
-	return containerSize(d.Boxes) + 8
+	return containerSize(d.Children) + 8
 }
 
-// Encode - write box to w
+// Encode - write dref box to w including children
 func (d *DrefBox) Encode(w io.Writer) error {
 	err := EncodeHeader(d, w)
 	if err != nil {
@@ -89,7 +89,7 @@ func (d *DrefBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, b := range d.Boxes {
+	for _, b := range d.Children {
 		err = b.Encode(w)
 		if err != nil {
 			return err

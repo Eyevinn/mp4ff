@@ -8,8 +8,8 @@ import "io"
 //
 // The edit box maps the presentation timeline to the media-time line
 type EdtsBox struct {
-	Elst  *ElstBox
-	boxes []Box
+	Elst     []*ElstBox
+	Children []Box
 }
 
 // DecodeEdts - box-specific decode
@@ -19,11 +19,11 @@ func DecodeEdts(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	e := &EdtsBox{}
-	e.boxes = l
+	e.Children = l
 	for _, b := range l {
 		switch b.Type() {
 		case "elst":
-			e.Elst = b.(*ElstBox)
+			e.Elst = append(e.Elst, b.(*ElstBox))
 		default:
 			return nil, ErrBadFormat
 		}
@@ -38,19 +38,22 @@ func (b *EdtsBox) Type() string {
 
 // Size - calculated size of box
 func (b *EdtsBox) Size() uint64 {
-	return containerSize(b.boxes)
+	return containerSize(b.Children)
 }
 
 // Dump - print box info
 func (b *EdtsBox) Dump() {
-	b.Elst.Dump()
+	for _, elst := range b.Elst {
+		elst.Dump()
+	}
 }
 
-// Encode - write box to w
+// GetChildren - list of child boxes
+func (b *EdtsBox) GetChildren() []Box {
+	return b.Children
+}
+
+// Encode - write edts container to w
 func (b *EdtsBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
-	if err != nil {
-		return err
-	}
-	return b.Elst.Encode(w)
+	return EncodeContainer(b, w)
 }

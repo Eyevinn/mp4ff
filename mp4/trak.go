@@ -11,10 +11,10 @@ const DefaultTrakID = 1
 //
 // A media file can contain one or more tracks.
 type TrakBox struct {
-	Tkhd  *TkhdBox
-	Mdia  *MdiaBox
-	Edts  *EdtsBox
-	boxes []Box
+	Tkhd     *TkhdBox
+	Mdia     *MdiaBox
+	Edts     *EdtsBox
+	Children []Box
 }
 
 // NewTrakBox - Make a new empty TrakBox
@@ -32,7 +32,7 @@ func (t *TrakBox) AddChild(box Box) {
 	case "edts":
 		t.Edts = box.(*EdtsBox)
 	}
-	t.boxes = append(t.boxes, box)
+	t.Children = append(t.Children, box)
 }
 
 // DecodeTrak - box-specific decode
@@ -55,7 +55,7 @@ func (t *TrakBox) Type() string {
 
 // Size - calculated size of box
 func (t *TrakBox) Size() uint64 {
-	return containerSize(t.boxes)
+	return containerSize(t.Children)
 }
 
 // Dump - print box info
@@ -67,21 +67,12 @@ func (t *TrakBox) Dump() {
 	t.Mdia.Dump()
 }
 
-// Encode - write box to w
+// GetChildren - list of child boxes
+func (t *TrakBox) GetChildren() []Box {
+	return t.Children
+}
+
+// Encode - write trak container to w
 func (t *TrakBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
-	if err != nil {
-		return err
-	}
-	err = t.Tkhd.Encode(w)
-	if err != nil {
-		return err
-	}
-	if t.Edts != nil {
-		err = t.Edts.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return t.Mdia.Encode(w)
+	return EncodeContainer(t, w)
 }

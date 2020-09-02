@@ -11,13 +11,13 @@ type InitSegment struct {
 	MediaType string
 	Ftyp      *FtypBox
 	Moov      *MoovBox
-	boxes     []Box
+	Children  []Box
 }
 
 // NewMP4Init - Create MP4Init
 func NewMP4Init() *InitSegment {
 	return &InitSegment{
-		boxes: []Box{},
+		Children: []Box{},
 	}
 }
 
@@ -29,12 +29,12 @@ func (s *InitSegment) AddChild(b Box) {
 	case "moov":
 		s.Moov = b.(*MoovBox)
 	}
-	s.boxes = append(s.boxes, b)
+	s.Children = append(s.Children, b)
 }
 
 // Encode - encode an initsegment to a Writer
 func (s *InitSegment) Encode(w io.Writer) error {
-	for _, b := range s.boxes {
+	for _, b := range s.Children {
 		err := b.Encode(w)
 		if err != nil {
 			return err

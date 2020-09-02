@@ -36,7 +36,7 @@ func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, box := range frag.Boxes() {
+	for _, box := range frag.GetChildren() {
 		oFile.AddChildBox(box, 0)
 	}
 	nrSegments := 1
@@ -48,7 +48,7 @@ func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 			if err != nil {
 				return nil, err
 			}
-			for _, box := range frag.Boxes() {
+			for _, box := range frag.GetChildren() {
 				oFile.AddChildBox(box, 0)
 			}
 			nrSegments++

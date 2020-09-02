@@ -14,7 +14,7 @@ type AudioSampleEntryBox struct {
 	SampleSize         uint16
 	SampleRate         uint16 // Integer part
 	Esds               *EsdsBox
-	boxes              []Box
+	Children           []Box
 }
 
 // NewAudioSampleEntryBox - Create new empty mp4a box
@@ -40,7 +40,7 @@ func CreateAudioSampleEntryBox(name string, nrChannels, sampleSize, sampleRate u
 		ChannelCount:       nrChannels,
 		SampleSize:         sampleSize,
 		SampleRate:         sampleRate,
-		boxes:              []Box{},
+		Children:           []Box{},
 	}
 	if child != nil {
 		a.AddChild(child)
@@ -55,7 +55,7 @@ func (a *AudioSampleEntryBox) AddChild(b Box) {
 		a.Esds = b.(*EsdsBox)
 	}
 
-	a.boxes = append(a.boxes, b)
+	a.Children = append(a.Children, b)
 }
 
 // DecodeAudioSampleEntry - decode mp4a... box
@@ -112,7 +112,7 @@ func (a *AudioSampleEntryBox) Type() string {
 // Size - return calculated size
 func (a *AudioSampleEntryBox) Size() uint64 {
 	totalSize := uint64(36)
-	for _, child := range a.boxes {
+	for _, child := range a.Children {
 		totalSize += child.Size()
 	}
 	return totalSize
@@ -140,7 +140,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	}
 
 	// Next output child boxes in order
-	for _, child := range a.boxes {
+	for _, child := range a.Children {
 		err = child.Encode(w)
 		if err != nil {
 			return err

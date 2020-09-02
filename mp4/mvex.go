@@ -9,8 +9,8 @@ import "io"
 // Its presence signals a fragmented asset
 type MvexBox struct {
 	//Mehd *TkhdBox
-	Trex  *TrexBox
-	boxes []Box
+	Trex     *TrexBox
+	Children []Box
 }
 
 // NewMvexBox - Generate a new empty mvex box
@@ -25,7 +25,7 @@ func (m *MvexBox) AddChild(box Box) {
 	case "trex":
 		m.Trex = box.(*TrexBox)
 	}
-	m.boxes = append(m.boxes, box)
+	m.Children = append(m.Children, box)
 }
 
 // DecodeMvex - box-specific decode
@@ -48,20 +48,15 @@ func (m *MvexBox) Type() string {
 
 // Size - return calculated size
 func (m *MvexBox) Size() uint64 {
-	return containerSize(m.boxes)
+	return containerSize(m.Children)
 }
 
-// Encode - write box to w
+// GetChildren - list of child boxes
+func (t *MvexBox) GetChildren() []Box {
+	return t.Children
+}
+
+// Encode - write mvex container to w
 func (m *MvexBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
-	if err != nil {
-		return err
-	}
-	for _, b := range m.boxes {
-		err = b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(m, w)
 }

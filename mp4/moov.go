@@ -9,10 +9,10 @@ import (
 //
 // Contains all meta-data. To be able to stream a file, the moov box should be placed before the mdat box.
 type MoovBox struct {
-	Mvhd  *MvhdBox
-	Trak  []*TrakBox
-	Mvex  *MvexBox
-	boxes []Box
+	Mvhd     *MvhdBox
+	Trak     []*TrakBox
+	Mvex     *MvexBox
+	Children []Box
 }
 
 // NewMoovBox - Generate a new empty moov box
@@ -31,7 +31,7 @@ func (m *MoovBox) AddChild(box Box) {
 	case "mvex":
 		m.Mvex = box.(*MvexBox)
 	}
-	m.boxes = append(m.boxes, box)
+	m.Children = append(m.Children, box)
 }
 
 // DecodeMoov - box-specific decode
@@ -54,7 +54,7 @@ func (m *MoovBox) Type() string {
 
 // Size - calculated size of box
 func (m *MoovBox) Size() uint64 {
-	return containerSize(m.boxes)
+	return containerSize(m.Children)
 }
 
 // Dump - print box info
@@ -66,17 +66,12 @@ func (m *MoovBox) Dump() {
 	}
 }
 
-// Encode - write box to w
+// GetChildren - list of child boxes
+func (m *MoovBox) GetChildren() []Box {
+	return m.Children
+}
+
+// Encode - write moov container to w
 func (m *MoovBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
-	if err != nil {
-		return err
-	}
-	for _, b := range m.boxes {
-		err = b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(m, w)
 }

@@ -10,10 +10,10 @@ import (
 // Contained in : Movie Fragment Box (moof)
 //
 type TrafBox struct {
-	Tfhd  *TfhdBox
-	Tfdt  *TfdtBox
-	Trun  *TrunBox
-	boxes []Box
+	Tfhd     *TfhdBox
+	Tfdt     *TfdtBox
+	Trun     *TrunBox
+	Children []Box
 }
 
 // DecodeTraf - box-specific decode
@@ -46,13 +46,8 @@ func (t *TrafBox) AddChild(b Box) error {
 		t.Trun = b.(*TrunBox)
 	default:
 	}
-	t.boxes = append(t.boxes, b)
+	t.Children = append(t.Children, b)
 	return nil
-}
-
-// GetChildren - get a slice of all child boxes
-func (t *TrafBox) GetChildren() []Box {
-	return t.boxes
 }
 
 // Type - return box type
@@ -62,12 +57,12 @@ func (t *TrafBox) Type() string {
 
 // Size - return calculated size
 func (t *TrafBox) Size() uint64 {
-	return containerSize(t.boxes)
+	return containerSize(t.Children)
 }
 
-// Children - list of children boxes
-func (t *TrafBox) Children() []Box {
-	return t.boxes
+// GetChildren - list of child boxes
+func (t *TrafBox) GetChildren() []Box {
+	return t.Children
 }
 
 // Encode - write box to w

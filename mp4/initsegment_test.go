@@ -40,7 +40,7 @@ func TestInitSegmentParsing(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	url := f.Init.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Boxes[0]
+	url := f.Init.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Children[0]
 	if url.Type() != "url " {
 		t.Errorf("Could not find url box")
 	}
@@ -58,7 +58,7 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	url := f.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Boxes[0]
+	url := f.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Children[0]
 	if url.Type() != "url " {
 		t.Errorf("Could not find url box")
 	}
