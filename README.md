@@ -15,13 +15,16 @@ The focus is, however, on non-multiplexed single-track fragmented mp4 files as u
 The top level structure for both non-fragmented and fragmented mp4 files is `mp4.File`.
 
 In the non-fragmented files, the members Ftyp, Moov, and Mdat are used.
-A fragmented `mp4.File` file can be a single init segment, one or more media segments, or a a combination of both like a CMAF track which renders into a playable one-track asset.
+A fragmented `mp4.File` file can be a single init segment, one or more media segments, or a a
+combination of both like a CMAF track which renders into a playable one-track asset.
 
 The following high-level structures are used:
 
-* `InitSegment` contains an `ftyp` and `moov` box and provides the metadata for a fragmented files. It corresponds to a CMAF header
+* `InitSegment` contains an `ftyp` and `moov` box and provides the metadata for a fragmented files.
+   It corresponds to a CMAF header
 * `MediaSegment` starts with an optional `styp` box and contains on or more `Fragment`s
-* `Fragment` is an mp4 fragment with exactly one `moof` box followed by a `mdat` box where the latter contains the media data. It is limited to have exactly one `trun` box.
+* `Fragment` is an mp4 fragment with exactly one `moof` box followed by a `mdat` box where the latter
+   contains the media data. It is limited to have exactly one `trun` box.
 
 The typical child boxes are exported so that one can write paths such as
 
@@ -79,6 +82,29 @@ This segment can finally be output to a `w io.Writer` as
 
     err := seg.Encode(w)
 
+## Direct changes of attributes
+
+Many attributes are public and can therefore be changed in an uncontrolled way.
+The advantage of this is that it is possible to write code that can manipulate boxes
+in many different ways. However, some attributes and linkd can become broken.
+
+As an example, container boxes such as `TrafBox` have a method `AddChild` which
+adds a box to its slice of children boxes `Children`, but also sets a specific
+member reference such as `Tfdt`  to point to that box. If `Children` is manipulated
+directly, that link will not be valid.
+
+## Automatic settings of values on Fragment.Encode
+It is possible to optimize the `TrunBox` size by writing default values in `TfhdBox`.
+To do this, one must analyze if, for example, the duration of all samples is the same.
+This is done by the method `TrafBox.OptimizeTfhdTrun` which changes its children `Tfhd`and `Trun`.
+Since this will change the size of boxes, it is important that this function is called
+before `Encode` on any parent box of `Traf`. In particular, this method is called automatically
+when running `Fragment.Encode`.
+
+Another value which is automatically set by `Moof.Encode` is `MoofBox.Traf.Trun.DataOffset`. 
+This value is the address of the first media sample relative to the start of the `MoofBox` start.
+It therefore depends on the size of `MoofBox` and is unknown until all values are in place so that
+it can be calculated. It is set to `MoofBox.Size()+8`.
 
 ## Command Line Tools
 

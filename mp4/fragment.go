@@ -122,12 +122,6 @@ func (f *Fragment) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	trun := f.Moof.Traf.Trun
-	if trun.HasDataOffset() {
-		// media data start with respect to start of moof
-		// Valid when writing single track with single trun
-		trun.DataOffset = int32(f.Moof.Size() + 8)
-	}
 	for _, b := range f.Children {
 		err := b.Encode(w)
 		if err != nil {
