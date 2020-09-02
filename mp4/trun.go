@@ -15,7 +15,7 @@ type TrunBox struct {
 	sampleCount      uint32
 	DataOffset       int32
 	firstSampleFlags uint32
-	samples          []*Sample
+	Samples          []*Sample
 }
 
 // const dataOffsetPresentFlag = 0x01
@@ -66,7 +66,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 			cto = s.ReadInt32()
 		}
 		sample := NewSample(flags, dur, size, cto)
-		t.samples = append(t.samples, sample)
+		t.Samples = append(t.Samples, sample)
 	}
 
 	return t, nil
@@ -80,7 +80,7 @@ func CreateTrun() *TrunBox {
 		sampleCount:      0,
 		DataOffset:       0,
 		firstSampleFlags: 0,
-		samples:          nil,
+		Samples:          nil,
 	}
 	return trun
 }
@@ -110,14 +110,14 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) {
 	var i uint32
 	for i = 0; i < t.sampleCount; i++ {
 		if !t.HasSampleDuration() {
-			t.samples[i].Dur = defaultSampleDuration
+			t.Samples[i].Dur = defaultSampleDuration
 		}
 		if !t.HasSampleSize() {
-			t.samples[i].Size = defaultSampleSize
+			t.Samples[i].Size = defaultSampleSize
 		}
 		if !t.HasSampleFlags() {
 			if i > 0 || !t.HasFirstSampleFlags() {
-				t.samples[i].Flags = defaultSampleFlags
+				t.Samples[i].Flags = defaultSampleFlags
 			}
 		}
 	}
@@ -212,16 +212,16 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	var i uint32
 	for i = 0; i < t.sampleCount; i++ {
 		if t.HasSampleDuration() {
-			sw.WriteUint32(t.samples[i].Dur)
+			sw.WriteUint32(t.Samples[i].Dur)
 		}
 		if t.HasSampleSize() {
-			sw.WriteUint32(t.samples[i].Size)
+			sw.WriteUint32(t.Samples[i].Size)
 		}
 		if t.HasSampleFlags() {
-			sw.WriteUint32(t.samples[i].Flags)
+			sw.WriteUint32(t.Samples[i].Flags)
 		}
 		if t.HasSampleCTO() {
-			sw.WriteInt32(t.samples[i].Cto)
+			sw.WriteInt32(t.Samples[i].Cto)
 		}
 
 	}
@@ -237,7 +237,7 @@ func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatB
 	samples := make([]*FullSample, 0, t.SampleCount())
 	var accDur uint64 = 0
 	offset := baseOffset
-	for _, s := range t.samples {
+	for _, s := range t.Samples {
 		dTime := baseTime + accDur
 
 		newSample := &FullSample{
@@ -255,18 +255,18 @@ func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatB
 // GetSamples - get all trun sample data
 // To fill missing individual values from thd and trex defaults, call AddSampleDefaultValues() before this call
 func (t *TrunBox) GetSamples() []*Sample {
-	return t.samples
+	return t.Samples
 }
 
 // AddFullSample - add Sample part of FullSample
 func (t *TrunBox) AddFullSample(s *FullSample) {
-	t.samples = append(t.samples, &s.Sample)
+	t.Samples = append(t.Samples, &s.Sample)
 	t.sampleCount++
 }
 
 // AddSample - add a Sample
 func (t *TrunBox) AddSample(s *Sample) {
-	t.samples = append(t.samples, s)
+	t.Samples = append(t.Samples, s)
 	t.sampleCount++
 }
 
@@ -276,7 +276,7 @@ func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 		return uint64(defaultSampleDuration) * uint64(t.SampleCount())
 	}
 	var total uint64 = 0
-	for _, s := range t.samples {
+	for _, s := range t.Samples {
 		total += uint64(s.Dur)
 	}
 	return total

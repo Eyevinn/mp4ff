@@ -74,21 +74,21 @@ func (t *TrafBox) Encode(w io.Writer) error {
 func (t *TrafBox) OptimizeTfhdTrun() error {
 	tfhd := t.Tfhd
 	trun := t.Trun
-	if len(trun.samples) == 0 {
+	if len(trun.Samples) == 0 {
 		return errors.New("No samples in trun")
 	}
-	if len(trun.samples) == 1 {
+	if len(trun.Samples) == 1 {
 		return nil // No need to optimize
 	}
 	allZeroCTO := true
 	hasCommonDur := true
-	commonDur := trun.samples[0].Dur
-	firstSampleFlags := trun.samples[0].Flags
+	commonDur := trun.Samples[0].Dur
+	firstSampleFlags := trun.Samples[0].Flags
 	hasCommonFlags := true
-	commonSampleFlags := trun.samples[1].Flags
+	commonSampleFlags := trun.Samples[1].Flags
 	hasCommonSize := true
-	commonSize := trun.samples[0].Size
-	for i, s := range trun.samples {
+	commonSize := trun.Samples[0].Size
+	for i, s := range trun.Samples {
 		if s.Cto != 0 {
 			allZeroCTO = false
 		}
