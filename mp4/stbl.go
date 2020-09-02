@@ -70,25 +70,6 @@ func (s *StblBox) Size() uint64 {
 	return containerSize(s.Children)
 }
 
-// Dump - box-specific dump
-func (s *StblBox) Dump() {
-	if s.Stsc != nil {
-		s.Stsc.Dump()
-	}
-	if s.Stts != nil {
-		s.Stts.Dump()
-	}
-	if s.Stsz != nil {
-		s.Stsz.Dump()
-	}
-	if s.Stss != nil {
-		s.Stss.Dump()
-	}
-	if s.Stco != nil {
-		s.Stco.Dump()
-	}
-}
-
 // GetChildren - list of child boxes
 func (s *StblBox) GetChildren() []Box {
 	return s.Children
@@ -97,4 +78,8 @@ func (s *StblBox) GetChildren() []Box {
 // Encode - write stbl container to w
 func (s *StblBox) Encode(w io.Writer) error {
 	return EncodeContainer(s, w)
+}
+
+func (s *StblBox) Dump(w io.Writer, indent, indentStep string) error {
+	return DumpContainer(s, w, indent, indentStep)
 }

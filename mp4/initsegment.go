@@ -43,6 +43,17 @@ func (s *InitSegment) Encode(w io.Writer) error {
 	return nil
 }
 
+// Dump - write box tree with indent for each level
+func (i *InitSegment) Dump(w io.Writer, indent string) error {
+	for _, box := range i.Children {
+		err := box.Dump(w, "", indent)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CreateEmptyMP4Init - Create a one-track MP4 init segment with empty stsd box
 // The trak has trackID = 1. The irrelevant mdhd timescale is set to 90000 and duration = 0
 func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegment {

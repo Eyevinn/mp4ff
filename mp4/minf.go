@@ -59,11 +59,6 @@ func (m *MinfBox) Size() uint64 {
 	return containerSize(m.Children)
 }
 
-// Dump - print box info
-func (m *MinfBox) Dump() {
-	m.Stbl.Dump()
-}
-
 // GetChildren - list of child boxes
 func (m *MinfBox) GetChildren() []Box {
 	return m.Children
@@ -72,4 +67,8 @@ func (m *MinfBox) GetChildren() []Box {
 // Encode - write minf container to w
 func (m *MinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+func (m *MinfBox) Dump(w io.Writer, indent, indentStep string) error {
+	return DumpContainer(m, w, indent, indentStep)
 }

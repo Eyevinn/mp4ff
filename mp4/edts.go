@@ -1,6 +1,8 @@
 package mp4
 
-import "io"
+import (
+	"io"
+)
 
 // EdtsBox - Edit Box (edts - optional)
 //
@@ -41,13 +43,6 @@ func (b *EdtsBox) Size() uint64 {
 	return containerSize(b.Children)
 }
 
-// Dump - print box info
-func (b *EdtsBox) Dump() {
-	for _, elst := range b.Elst {
-		elst.Dump()
-	}
-}
-
 // GetChildren - list of child boxes
 func (b *EdtsBox) GetChildren() []Box {
 	return b.Children
@@ -56,4 +51,8 @@ func (b *EdtsBox) GetChildren() []Box {
 // Encode - write edts container to w
 func (b *EdtsBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
+}
+
+func (b *EdtsBox) Dump(w io.Writer, indent, indentStep string) error {
+	return DumpContainer(b, w, indent, indentStep)
 }

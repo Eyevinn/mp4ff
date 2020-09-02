@@ -58,15 +58,6 @@ func (t *TrakBox) Size() uint64 {
 	return containerSize(t.Children)
 }
 
-// Dump - print box info
-func (t *TrakBox) Dump() {
-	t.Tkhd.Dump()
-	if t.Edts != nil {
-		t.Edts.Dump()
-	}
-	t.Mdia.Dump()
-}
-
 // GetChildren - list of child boxes
 func (t *TrakBox) GetChildren() []Box {
 	return t.Children
@@ -75,4 +66,8 @@ func (t *TrakBox) GetChildren() []Box {
 // Encode - write trak container to w
 func (t *TrakBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
+}
+
+func (t *TrakBox) Dump(w io.Writer, indent, indentStep string) error {
+	return DumpContainer(t, w, indent, indentStep)
 }

@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -87,5 +88,10 @@ func (t *TfdtBox) Encode(w io.Writer) error {
 		sw.WriteUint64(t.BaseMediaDecodeTime)
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (t *TfdtBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
 	return err
 }

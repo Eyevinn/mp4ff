@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -73,5 +74,10 @@ func (t *TrexBox) Encode(w io.Writer) error {
 	sw.WriteUint32(t.DefaultSampleSize)
 	sw.WriteUint32(t.DefaultSampleFlags)
 	_, err = w.Write(buf)
+	return err
+}
+
+func (t *TrexBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
 	return err
 }

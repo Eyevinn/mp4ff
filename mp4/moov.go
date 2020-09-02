@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -57,15 +56,6 @@ func (m *MoovBox) Size() uint64 {
 	return containerSize(m.Children)
 }
 
-// Dump - print box info
-func (m *MoovBox) Dump() {
-	m.Mvhd.Dump()
-	for i, t := range m.Trak {
-		fmt.Println("Track", i)
-		t.Dump()
-	}
-}
-
 // GetChildren - list of child boxes
 func (m *MoovBox) GetChildren() []Box {
 	return m.Children
@@ -74,4 +64,8 @@ func (m *MoovBox) GetChildren() []Box {
 // Encode - write moov container to w
 func (m *MoovBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+func (m *MoovBox) Dump(w io.Writer, indent, indentStep string) error {
+	return DumpContainer(m, w, indent, indentStep)
 }

@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -195,5 +196,10 @@ func (e *EsdsBox) Encode(w io.Writer) error {
 	sw.WriteUint8(e.SLConfigValue) // Constant
 
 	_, err = w.Write(buf)
+	return err
+}
+
+func (e *EsdsBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, e.Type(), e.Size())
 	return err
 }

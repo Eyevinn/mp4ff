@@ -131,6 +131,17 @@ func (f *Fragment) Encode(w io.Writer) error {
 	return nil
 }
 
+// Dump - write box tree with indent for each level
+func (f *Fragment) Dump(w io.Writer, indent string) error {
+	for _, box := range f.Children {
+		err := box.Dump(w, "", indent)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetChildren - return children boxes
 func (f *Fragment) GetChildren() []Box {
 	return f.Children

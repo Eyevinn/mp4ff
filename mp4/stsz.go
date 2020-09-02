@@ -57,15 +57,6 @@ func (b *StszBox) Size() uint64 {
 	return uint64(boxHeaderSize + 12 + len(b.SampleSize)*4)
 }
 
-// Dump - print box info
-func (b *StszBox) Dump() {
-	if len(b.SampleSize) == 0 {
-		fmt.Printf("Samples : %d total samples\n", b.SampleNumber)
-	} else {
-		fmt.Printf("Samples : %d total samples\n", len(b.SampleSize))
-	}
-}
-
 // GetSampleSize returns the size (in bytes) of a sample
 func (b *StszBox) GetSampleSize(i int) uint32 {
 	if i > len(b.SampleSize) {
@@ -94,5 +85,10 @@ func (b *StszBox) Encode(w io.Writer) error {
 		}
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (s *StszBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
 	return err
 }

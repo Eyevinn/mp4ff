@@ -127,11 +127,14 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 	f.Children = append(f.Children, box)
 }
 
-// Dump - print information about file and its children boxes
-func (f *File) Dump(w io.Writer) error {
+// DumpWithSampleData - print information about file and its children boxes
+func (f *File) DumpWithSampleData(w io.Writer) error {
 	if f.isFragmented {
 		fmt.Printf("Init segment\n")
-		f.Init.Moov.Dump()
+		err := f.Init.Dump(w, "  ")
+		if err != nil {
+			return err
+		}
 		for i, seg := range f.Segments {
 			fmt.Printf("  mediaSegment %d\n", i)
 			for j, frag := range seg.Fragments {
@@ -150,8 +153,14 @@ func (f *File) Dump(w io.Writer) error {
 		}
 
 	} else {
-		f.Ftyp.Dump()
-		f.Moov.Dump()
+		err := f.Ftyp.Dump(w, "", "  ")
+		if err != nil {
+			return err
+		}
+		err = f.Moov.Dump(w, "", "  ")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -161,6 +170,17 @@ func (f *File) Dump(w io.Writer) error {
 func (f *File) Encode(w io.Writer) error {
 	for _, b := range f.Children {
 		err := b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Dump - write box tree with indent for each level
+func (f *File) Dump(w io.Writer, indent string) error {
+	for _, box := range f.Children {
+		err := box.Dump(w, "", indent)
 		if err != nil {
 			return err
 		}

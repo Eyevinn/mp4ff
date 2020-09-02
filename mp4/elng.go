@@ -38,11 +38,6 @@ func (b *ElngBox) Size() uint64 {
 	return uint64(boxHeaderSize + len(b.Language) + 1)
 }
 
-// Dump - print box info
-func (b *ElngBox) Dump() {
-	fmt.Println("Language: ", b.Language)
-}
-
 // Encode - write box to w
 func (b *ElngBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -54,5 +49,11 @@ func (b *ElngBox) Encode(w io.Writer) error {
 		return err
 	}
 	_, err = w.Write([]byte{0})
+	return err
+}
+
+func (b *ElngBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Language: %s\n", indent,
+		b.Type(), b.Size(), indent, b.Language)
 	return err
 }

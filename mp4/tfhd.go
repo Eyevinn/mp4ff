@@ -142,11 +142,6 @@ func (t *TfhdBox) Size() uint64 {
 	return uint64(sz)
 }
 
-// Dump - print box specific data
-func (t *TfhdBox) Dump() {
-	fmt.Printf("Track Fragment Header:\n Track ID: %d\n", t.TrackID)
-}
-
 // Encode - write box to w
 func (t *TfhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(t, w)
@@ -175,5 +170,10 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 	}
 
 	_, err = w.Write(buf)
+	return err
+}
+
+func (t *TfhdBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
 	return err
 }

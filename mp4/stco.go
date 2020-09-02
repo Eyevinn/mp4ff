@@ -51,14 +51,6 @@ func (b *StcoBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.ChunkOffset)*4)
 }
 
-// Dump - box-specific dump
-func (b *StcoBox) Dump() {
-	fmt.Println("Chunk byte offsets:")
-	for i, o := range b.ChunkOffset {
-		fmt.Printf(" #%d : starts at %d\n", i, o)
-	}
-}
-
 // Encode - box-specific encode
 func (b *StcoBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -74,5 +66,10 @@ func (b *StcoBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.ChunkOffset[i])
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (s *StcoBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
 	return err
 }

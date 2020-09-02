@@ -190,3 +190,8 @@ func (t *TfrfData) encode(w io.Writer) error {
 	_, err := w.Write(buf)
 	return err
 }
+
+func (u *UUIDBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, u.Type(), u.Size())
+	return err
+}
