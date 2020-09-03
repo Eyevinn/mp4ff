@@ -15,7 +15,7 @@ type StsdBox struct {
 	SampleCount uint32
 	AvcX        *VisualSampleEntryBox
 	Mp4a        *AudioSampleEntryBox
-	boxes       []Box
+	Children    []Box
 }
 
 // NewStsdBox - Generate a new empty stsd box
@@ -31,7 +31,7 @@ func (s *StsdBox) AddChild(box Box) {
 	case "mp4a":
 		s.Mp4a = box.(*AudioSampleEntryBox)
 	}
-	s.boxes = append(s.boxes, box)
+	s.Children = append(s.Children, box)
 	s.SampleCount++
 }
 
@@ -39,18 +39,18 @@ func (s *StsdBox) AddChild(box Box) {
 func (s *StsdBox) ReplaceChild(box Box) {
 	switch box.(type) {
 	case *VisualSampleEntryBox:
-		for i, b := range s.boxes {
+		for i, b := range s.Children {
 			switch b.(type) {
 			case *VisualSampleEntryBox:
-				s.boxes[i] = box.(*VisualSampleEntryBox)
+				s.Children[i] = box.(*VisualSampleEntryBox)
 				s.AvcX = box.(*VisualSampleEntryBox)
 			}
 		}
 	case *AudioSampleEntryBox:
-		for i, b := range s.boxes {
+		for i, b := range s.Children {
 			switch b.(type) {
 			case *AudioSampleEntryBox:
-				s.boxes[i] = box.(*AudioSampleEntryBox)
+				s.Children[i] = box.(*AudioSampleEntryBox)
 				s.Mp4a = box.(*AudioSampleEntryBox)
 			}
 		}
@@ -61,10 +61,10 @@ func (s *StsdBox) ReplaceChild(box Box) {
 
 // GetSampleDescription - get one of multiple descriptions
 func (s *StsdBox) GetSampleDescription(index int) (Box, error) {
-	if index >= len(s.boxes) {
+	if index >= len(s.Children) {
 		return nil, errors.New("Beyond limit of sample descriptors")
 	}
-	return s.boxes[index], nil
+	return s.Children[index], nil
 }
 
 // DecodeStsd - box-specific decode
@@ -79,11 +79,11 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	//Note higher startPos below since not simple container
-	boxes, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	if len(boxes) != int(sampleCount) {
+	if len(children) != int(sampleCount) {
 		return nil, errors.New("Stsd: sampleCount mismatch")
 	}
 	stsd := &StsdBox{
@@ -91,7 +91,7 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Flags:       versionAndFlags & flagsMask,
 		SampleCount: 0,
 	}
-	for _, box := range boxes {
+	for _, box := range children {
 		stsd.AddChild(box)
 	}
 	if stsd.SampleCount != sampleCount {
@@ -107,10 +107,10 @@ func (s *StsdBox) Type() string {
 
 // Size - box-specific type
 func (s *StsdBox) Size() uint64 {
-	return containerSize(s.boxes) + 8
+	return containerSize(s.Children) + 8
 }
 
-// Encode - box-specific encode
+// Encode - box-specific encode of stsd - not a usual container
 func (s *StsdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(s, w)
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *StsdBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, b := range s.boxes {
+	for _, b := range s.Children {
 		err = b.Encode(w)
 		if err != nil {
 			return err

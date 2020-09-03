@@ -9,10 +9,10 @@ import (
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
 type Fragment struct {
-	Prft  *PrftBox
-	Moof  *MoofBox
-	Mdat  *MdatBox
-	boxes []Box
+	Prft     *PrftBox
+	Moof     *MoofBox
+	Mdat     *MdatBox
+	Children []Box // All top-level boxes in order
 }
 
 // NewFragment - New emtpy one-track MP4 Fragment
@@ -41,7 +41,7 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	return f, nil
 }
 
-// AddChild - Add a child box to Fragment
+// AddChild - Add a top-level box to Fragment
 func (f *Fragment) AddChild(b Box) {
 	switch b.Type() {
 	case "prft":
@@ -51,7 +51,7 @@ func (f *Fragment) AddChild(b Box) {
 	case "mdat":
 		f.Mdat = b.(*MdatBox)
 	}
-	f.boxes = append(f.boxes, b)
+	f.Children = append(f.Children, b)
 }
 
 // GetFullSamples - Get full samples including media and accumulated time
@@ -122,13 +122,7 @@ func (f *Fragment) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	trun := f.Moof.Traf.Trun
-	if trun.HasDataOffset() {
-		// media data start with respect to start of moof
-		// Valid when writing single track with single trun
-		trun.DataOffset = int32(f.Moof.Size() + 8)
-	}
-	for _, b := range f.boxes {
+	for _, b := range f.Children {
 		err := b.Encode(w)
 		if err != nil {
 			return err
@@ -137,7 +131,7 @@ func (f *Fragment) Encode(w io.Writer) error {
 	return nil
 }
 
-// Boxes - return children boxes
-func (f *Fragment) Boxes() []Box {
-	return f.boxes
+// GetChildren - return children boxes
+func (f *Fragment) GetChildren() []Box {
+	return f.Children
 }

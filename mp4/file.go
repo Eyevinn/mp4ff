@@ -25,14 +25,14 @@ type File struct {
 	Mdat         *MdatBox        // Only used for non-fragmented files
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Segments     []*MediaSegment // Media segment
-	boxes        []Box           // All top-level boxes in order
+	Children     []Box           // All top-level boxes in order
 	isFragmented bool
 }
 
 // NewFile - create MP4 file
 func NewFile() *File {
 	return &File{
-		boxes:    []Box{},
+		Children: []Box{},
 		Segments: []*MediaSegment{},
 	}
 }
@@ -72,15 +72,15 @@ LoopBoxes:
 				}
 			}
 		}
-		f.AddChildBox(box, boxStartPos)
+		f.AddChild(box, boxStartPos)
 		lastBoxType = bType
 		boxStartPos += bSize
 	}
 	return f, nil
 }
 
-// AddChildBox - add child with start position
-func (f *File) AddChildBox(box Box, boxStartPos uint64) {
+// AddChild - add child with start position
+func (f *File) AddChild(box Box, boxStartPos uint64) {
 	bType := box.Type()
 	switch bType {
 	case "ftyp":
@@ -124,7 +124,7 @@ func (f *File) AddChildBox(box Box, boxStartPos uint64) {
 			currentFragment.AddChild(mdat)
 		}
 	}
-	f.boxes = append(f.boxes, box)
+	f.Children = append(f.Children, box)
 }
 
 // Dump - print information about file and its children boxes
@@ -157,14 +157,9 @@ func (f *File) Dump(w io.Writer) error {
 	return nil
 }
 
-// Boxes - return the top-level boxes from a media
-func (f *File) Boxes() []Box {
-	return f.boxes
-}
-
 // Encode - encode a file to a Writer
 func (f *File) Encode(w io.Writer) error {
-	for _, b := range f.Boxes() {
+	for _, b := range f.Children {
 		err := b.Encode(w)
 		if err != nil {
 			return err

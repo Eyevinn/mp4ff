@@ -7,12 +7,12 @@ import "io"
 // Contained in : Track Box (trak)
 // Contains all information about the media data.
 type MdiaBox struct {
-	Mdhd  *MdhdBox
-	Hdlr  *HdlrBox
-	Elng  *ElngBox
-	Minf  *MinfBox
-	Elst  *ElstBox
-	boxes []Box
+	Mdhd     *MdhdBox
+	Hdlr     *HdlrBox
+	Elng     *ElngBox
+	Minf     *MinfBox
+	Elst     *ElstBox
+	Children []Box
 }
 
 // NewMdiaBox - Generate a new empty mdia box
@@ -35,7 +35,7 @@ func (m *MdiaBox) AddChild(box Box) {
 	case "elst":
 		m.Elst = box.(*ElstBox)
 	}
-	m.boxes = append(m.boxes, box)
+	m.Children = append(m.Children, box)
 }
 
 // DecodeMdia - box-specific decode
@@ -58,7 +58,7 @@ func (m *MdiaBox) Type() string {
 
 // Size - return calculated size
 func (m *MdiaBox) Size() uint64 {
-	return containerSize(m.boxes)
+	return containerSize(m.Children)
 }
 
 // Dump - print data of lower levels
@@ -69,18 +69,12 @@ func (m *MdiaBox) Dump() {
 	}
 }
 
-// Encode - write box to w
-func (m *MdiaBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
-	if err != nil {
-		return err
-	}
+// GetChildren - list of child boxes
+func (m *MdiaBox) GetChildren() []Box {
+	return m.Children
+}
 
-	for _, box := range m.boxes {
-		err = box.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+// Encode - write mdia container to w
+func (m *MdiaBox) Encode(w io.Writer) error {
+	return EncodeContainer(m, w)
 }

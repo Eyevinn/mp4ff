@@ -9,7 +9,7 @@ type ContainerBox interface {
 	Type() string
 	Size() uint64
 	Encode(w io.Writer) error
-	Children() []Box
+	GetChildren() []Box
 }
 
 func containerSize(boxes []Box) uint64 {
@@ -48,7 +48,7 @@ func EncodeContainer(c ContainerBox, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, b := range c.Children() {
+	for _, b := range c.GetChildren() {
 		err = b.Encode(w)
 		if err != nil {
 			return err

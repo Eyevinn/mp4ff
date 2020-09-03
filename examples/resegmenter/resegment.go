@@ -26,30 +26,30 @@ func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 	trackID := inMoof.Traf.Tfhd.TrackID
 
 	oFile := mp4.NewFile()
-	oFile.AddChildBox(in.Ftyp, 0)
+	oFile.AddChild(in.Ftyp, 0)
 
-	oFile.AddChildBox(in.Moov, 0)
+	oFile.AddChild(in.Moov, 0)
 
 	// Make first segment
-	oFile.AddChildBox(inStyp, 0)
+	oFile.AddChild(inStyp, 0)
 	frag, err := mp4.CreateFragment(seqNr, trackID)
 	if err != nil {
 		return nil, err
 	}
-	for _, box := range frag.Boxes() {
-		oFile.AddChildBox(box, 0)
+	for _, box := range frag.GetChildren() {
+		oFile.AddChild(box, 0)
 	}
 	nrSegments := 1
 	for nr, s := range iSamples {
 		if s.PresentationTime() >= chunkDur && s.IsSync() && nrSegments == 1 {
 			fmt.Printf("Started second segment at %d\n", s.PresentationTime())
-			oFile.AddChildBox(inStyp, 0)
+			oFile.AddChild(inStyp, 0)
 			frag, err = mp4.CreateFragment(seqNr+1, trackID)
 			if err != nil {
 				return nil, err
 			}
-			for _, box := range frag.Boxes() {
-				oFile.AddChildBox(box, 0)
+			for _, box := range frag.GetChildren() {
+				oFile.AddChild(box, 0)
 			}
 			nrSegments++
 		}

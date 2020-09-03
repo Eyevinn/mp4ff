@@ -9,9 +9,9 @@ import (
 //
 // Contains all meta-data. To be able to stream a file, the moov box should be placed before the mdat box.
 type MoofBox struct {
-	boxes    []Box
 	Mfhd     *MfhdBox
 	Traf     *TrafBox // A single traf child box
+	Children []Box
 	StartPos uint64
 }
 
@@ -45,7 +45,7 @@ func (m *MoofBox) AddChild(b Box) error {
 		}
 		m.Traf = b.(*TrafBox)
 	}
-	m.boxes = append(m.boxes, b)
+	m.Children = append(m.Children, b)
 	return nil
 }
 
@@ -56,25 +56,35 @@ func (m *MoofBox) Type() string {
 
 // Size - returns calculated size
 func (m *MoofBox) Size() uint64 {
-	return containerSize(m.boxes)
+	return containerSize(m.Children)
 }
 
-// Encode - write box to w
+// Encode - write moof after updating trun dataoffset
 func (m *MoofBox) Encode(w io.Writer) error {
 	err := EncodeHeader(m, w)
 	if err != nil {
 		return err
 	}
 	trun := m.Traf.Trun
-	// We need to set dataOffset in trun
-	// to point relative to start of moof
-	// Should start after mdat header
-	trun.DataOffset = int32(m.Size()) + 8
-	for _, b := range m.boxes {
+	if trun.HasDataOffset() {
+		// Need to set dataOffset in trun
+		// This is the media data start with respect to start of moof.
+		// We store the media at the beginning
+		// of a single mdat box placed directly after moof.
+		// With any reasonable mdat size, the header is 8 bytes.
+		trun.DataOffset = int32(m.Size() + 8)
+		// TODO Optimize so that m.Size() is not called in both EncodeHeader and here
+	}
+	for _, b := range m.Children {
 		err = b.Encode(w)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// GetChildren - list of child boxes
+func (m *MoofBox) GetChildren() []Box {
+	return m.Children
 }

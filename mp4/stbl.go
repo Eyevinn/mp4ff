@@ -10,14 +10,14 @@ import (
 //
 // The table contains all information relevant to data samples (times, chunks, sizes, ...)
 type StblBox struct {
-	Stsd  *StsdBox
-	Stts  *SttsBox
-	Stss  *StssBox
-	Stsc  *StscBox
-	Stsz  *StszBox
-	Stco  *StcoBox
-	Ctts  *CttsBox
-	boxes []Box
+	Stsd     *StsdBox
+	Stts     *SttsBox
+	Stss     *StssBox
+	Stsc     *StscBox
+	Stsz     *StszBox
+	Stco     *StcoBox
+	Ctts     *CttsBox
+	Children []Box
 }
 
 // NewStblBox - Generate a new empty stbl box
@@ -44,7 +44,7 @@ func (s *StblBox) AddChild(box Box) {
 	case "ctts":
 		s.Ctts = box.(*CttsBox)
 	}
-	s.boxes = append(s.boxes, box)
+	s.Children = append(s.Children, box)
 }
 
 // DecodeStbl - box-specific decode
@@ -67,7 +67,7 @@ func (s *StblBox) Type() string {
 
 // Size - box-specific size
 func (s *StblBox) Size() uint64 {
-	return containerSize(s.boxes)
+	return containerSize(s.Children)
 }
 
 // Dump - box-specific dump
@@ -89,17 +89,12 @@ func (s *StblBox) Dump() {
 	}
 }
 
-// Encode - box-specific encode
+// GetChildren - list of child boxes
+func (s *StblBox) GetChildren() []Box {
+	return s.Children
+}
+
+// Encode - write stbl container to w
 func (s *StblBox) Encode(w io.Writer) error {
-	err := EncodeHeader(s, w)
-	if err != nil {
-		return err
-	}
-	for _, b := range s.boxes {
-		err = b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(s, w)
 }

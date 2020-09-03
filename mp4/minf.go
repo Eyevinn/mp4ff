@@ -7,12 +7,12 @@ import "io"
 // Contained in : Media Box (mdia)
 //
 type MinfBox struct {
-	Vmhd  *VmhdBox
-	Smhd  *SmhdBox
-	Stbl  *StblBox
-	Dinf  *DinfBox
-	Hdlr  *HdlrBox
-	boxes []Box
+	Vmhd     *VmhdBox
+	Smhd     *SmhdBox
+	Stbl     *StblBox
+	Dinf     *DinfBox
+	Hdlr     *HdlrBox
+	Children []Box
 }
 
 // NewMinfBox - Generate a new empty minf box
@@ -33,7 +33,7 @@ func (m *MinfBox) AddChild(box Box) {
 	case "stbl":
 		m.Stbl = box.(*StblBox)
 	}
-	m.boxes = append(m.boxes, box)
+	m.Children = append(m.Children, box)
 }
 
 // DecodeMinf - box-specific decode
@@ -56,7 +56,7 @@ func (m *MinfBox) Type() string {
 
 // Size - calculated size of box
 func (m *MinfBox) Size() uint64 {
-	return containerSize(m.boxes)
+	return containerSize(m.Children)
 }
 
 // Dump - print box info
@@ -64,17 +64,12 @@ func (m *MinfBox) Dump() {
 	m.Stbl.Dump()
 }
 
-// Encode - write box to w
+// GetChildren - list of child boxes
+func (m *MinfBox) GetChildren() []Box {
+	return m.Children
+}
+
+// Encode - write minf container to w
 func (m *MinfBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
-	if err != nil {
-		return err
-	}
-	for _, b := range m.boxes {
-		err = b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(m, w)
 }

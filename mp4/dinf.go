@@ -8,8 +8,8 @@ import (
 //
 // Contained in : Media Information Box (minf) or Meta Box (meta)
 type DinfBox struct {
-	Dref  *DrefBox
-	boxes []Box
+	Dref     *DrefBox
+	Children []Box
 }
 
 // AddChild - Add a child box
@@ -19,7 +19,7 @@ func (d *DinfBox) AddChild(box Box) {
 	case "dref":
 		d.Dref = box.(*DrefBox)
 	}
-	d.boxes = append(d.boxes, box)
+	d.Children = append(d.Children, box)
 }
 
 // DecodeDinf - box-specific decode
@@ -42,20 +42,15 @@ func (d *DinfBox) Type() string {
 
 // Size - box-specific size
 func (d *DinfBox) Size() uint64 {
-	return containerSize(d.boxes)
+	return containerSize(d.Children)
 }
 
-// Encode - box-specifc encode
+// GetChildren - list of child boxes
+func (d *DinfBox) GetChildren() []Box {
+	return d.Children
+}
+
+// Encode - write dinf container to w
 func (d *DinfBox) Encode(w io.Writer) error {
-	err := EncodeHeader(d, w)
-	if err != nil {
-		return err
-	}
-	for _, b := range d.boxes {
-		err = b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(d, w)
 }

@@ -99,7 +99,7 @@ func run_encode_decode(t *testing.T, test testSamples, with_optimization bool) {
 	outTrun := outTraf.Trun
 	trex := &TrexBox{}
 	outTrun.AddSampleDefaultValues(outTraf.Tfhd, trex)
-	outSamples := outTrun.samples
+	outSamples := outTrun.Samples
 	if !reflect.DeepEqual(outSamples, test.samples) {
 		t.Errorf("Case %s optimization=%v failed. Got %v instead of %v",
 			test.name, with_optimization, outSamples, test.samples)

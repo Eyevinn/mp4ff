@@ -82,6 +82,7 @@ func init() {
 		"trex": DecodeTrex,
 		"trun": DecodeTrun,
 		"url ": DecodeURLBox,
+		"uuid": DecodeUUID,
 		"vmhd": DecodeVmhd,
 	}
 }

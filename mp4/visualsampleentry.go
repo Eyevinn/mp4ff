@@ -18,7 +18,7 @@ type VisualSampleEntryBox struct {
 	CompressorName     string
 	AvcC               *AvcCBox
 	Btrt               *BtrtBox
-	boxes              []Box
+	Children           []Box
 }
 
 // NewVisualSampleEntryBox - Create new empty avc1 or avc3 box
@@ -39,7 +39,7 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, avcC *AvcCBox
 		Vertresolution:     0x00480000, // 72dpi
 		FrameCount:         1,
 		CompressorName:     "Edgeware Video Packager",
-		boxes:              []Box{},
+		Children:           []Box{},
 	}
 	if avcC != nil {
 		a.AddChild(avcC)
@@ -56,7 +56,7 @@ func (a *VisualSampleEntryBox) AddChild(b Box) {
 		a.Btrt = b.(*BtrtBox)
 	}
 
-	a.boxes = append(a.boxes, b)
+	a.Children = append(a.Children, b)
 }
 
 // DecodeVisualSampleEntry - decode avc1/avc3/... box
@@ -128,7 +128,7 @@ func (a *VisualSampleEntryBox) Type() string {
 // Size - return calculated size
 func (a *VisualSampleEntryBox) Size() uint64 {
 	totalSize := uint64(boxHeaderSize + 78)
-	for _, child := range a.boxes {
+	for _, child := range a.Children {
 		totalSize += child.Size()
 	}
 	return totalSize
@@ -166,7 +166,7 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 	}
 
 	// Next output child boxes in order
-	for _, child := range a.boxes {
+	for _, child := range a.Children {
 		err = child.Encode(w)
 		if err != nil {
 			return err
