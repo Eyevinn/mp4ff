@@ -84,11 +84,6 @@ func (b *MvhdBox) Size() uint64 {
 	return 12 + 80 + 16 // Full header + variable part + fixed part
 }
 
-// Dump - write box details
-func (b *MvhdBox) Dump() {
-	fmt.Printf("Movie Header:\n Timescale: %d units/sec", b.Timescale)
-}
-
 // Encode - write box to w
 func (b *MvhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -119,5 +114,10 @@ func (b *MvhdBox) Encode(w io.Writer) error {
 	sw.WriteInt32(b.NextTrackID)
 
 	_, err = w.Write(buf)
+	return err
+}
+
+func (b *MvhdBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
 	return err
 }

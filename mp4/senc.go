@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -40,12 +41,12 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	stsd := &SencBox{
+	senc := &SencBox{
 		Version:     byte(versionAndFlags >> 24),
 		Flags:       versionAndFlags & flagsMask,
 		SampleCount: sampleCount,
 	}
-	return stsd, nil
+	return senc, nil
 }
 
 // Type - box-specific type
@@ -74,4 +75,9 @@ func (s *SencBox) Encode(w io.Writer) error {
 		return err
 	}
 	return nil
+}
+
+func (s *SencBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
+	return err
 }

@@ -45,6 +45,23 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 	return nil
 }
 
+// Dump - write box tree with indent for each level
+func (m *MediaSegment) Dump(w io.Writer, indent string) error {
+	if m.Styp != nil {
+		err := m.Styp.Dump(w, "", indent)
+		if err != nil {
+			return err
+		}
+	}
+	for _, f := range m.Fragments {
+		err := f.Dump(w, indent)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Fragmentify - Split into multiple fragments. Assume single mdat and trun for now
 func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uint32) ([]*Fragment, error) {
 	inFragments := s.Fragments

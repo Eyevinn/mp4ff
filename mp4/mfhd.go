@@ -52,11 +52,6 @@ func (m *MfhdBox) Size() uint64 {
 	return boxHeaderSize + 8
 }
 
-// Dump - print box info
-func (m *MfhdBox) Dump() {
-	fmt.Printf("Media Fragment Header:\n Sequence Number: %d\n", m.SequenceNumber)
-}
-
 // Encode - write box to w
 func (m *MfhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(m, w)
@@ -69,5 +64,11 @@ func (m *MfhdBox) Encode(w io.Writer) error {
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(m.SequenceNumber)
 	_, err = w.Write(buf)
+	return err
+}
+
+func (m *MfhdBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Sequence number: %d\n",
+		indent, m.Type(), m.Size(), indent, m.SequenceNumber)
 	return err
 }

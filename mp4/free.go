@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -36,5 +37,10 @@ func (b *FreeBox) Encode(w io.Writer) error {
 		return err
 	}
 	_, err = w.Write(b.notDecoded)
+	return err
+}
+
+func (b *FreeBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
 	return err
 }

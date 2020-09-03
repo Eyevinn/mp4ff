@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -226,6 +227,11 @@ func (t *TrunBox) Encode(w io.Writer) error {
 
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (t *TrunBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
 	return err
 }
 

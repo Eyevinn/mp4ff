@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -10,6 +11,7 @@ type ContainerBox interface {
 	Size() uint64
 	Encode(w io.Writer) error
 	GetChildren() []Box
+	Dump(w io.Writer, indent, indentStep string) error
 }
 
 func containerSize(boxes []Box) uint64 {
@@ -55,4 +57,18 @@ func EncodeContainer(c ContainerBox, w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+func DumpContainer(c ContainerBox, w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, c.Type(), c.Size())
+	if err != nil {
+		return err
+	}
+	for _, child := range c.GetChildren() {
+		err := child.Dump(w, indent+indentStep, indentStep)
+		if err != nil {
+			return err
+		}
+	}
+	return err
 }

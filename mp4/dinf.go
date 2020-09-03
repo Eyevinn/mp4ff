@@ -54,3 +54,7 @@ func (d *DinfBox) GetChildren() []Box {
 func (d *DinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(d, w)
 }
+
+func (d *DinfBox) Dump(w io.Writer, indent, indentStep string) error {
+	return DumpContainer(d, w, indent, indentStep)
+}

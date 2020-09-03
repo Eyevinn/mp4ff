@@ -19,10 +19,11 @@ Fooo should then implement the Box interface methods:
      Type()
      Size()
      Encode()
+     Dump()
 
 but also its own decode method `DecodeFooo`, and register that method in the `decoders` map in `box.go`. For a simple example, look at the `prft` box in `prft.go`.
 
-Container boxes like `moof`, have a list of all their children called `boxes`, but also direct pointers to the children with appropriate names, like `Mfhd` and `Traf`. This makes it easy to chain box paths to reach an element like a TfhdBox like
+Container boxes like `moof`, have a list of all their children called `boxes`, but also direct pointers to the children with appropriate names, like `Mfhd` and `Traf`. This makes it easy to chain box paths to reach an element like a TfhdBox as
 
     file.Moof.Traf.Tfhd
 

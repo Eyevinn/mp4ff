@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -58,4 +59,9 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 		return err
 	}
 	return a.AVCDecConfRec.Encode(w)
+}
+
+func (a *AvcCBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
+	return err
 }

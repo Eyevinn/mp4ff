@@ -33,7 +33,7 @@ func CreateHdlr(mediaType string) (*HdlrBox, error) {
 		hdlr.HandlerType = "soun"
 		hdlr.Name = "Edgeware Audio Handler"
 	default:
-		return nil, fmt.Errorf("Unkown mediTyps %s", mediaType)
+		return nil, fmt.Errorf("Unkown mediaType %s", mediaType)
 	}
 	return hdlr, nil
 }
@@ -78,5 +78,11 @@ func (b *HdlrBox) Encode(w io.Writer) error {
 	strtobuf(buf[8:], b.HandlerType, 4)
 	strtobuf(buf[24:], b.Name, len(b.Name))
 	_, err = w.Write(buf)
+	return err
+}
+
+func (b *HdlrBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Handler type: %s\n%s - Handler name: %s\n",
+		indent, b.Type(), b.Size(), indent, b.HandlerType, indent, b.Name)
 	return err
 }

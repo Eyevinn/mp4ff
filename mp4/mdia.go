@@ -61,14 +61,6 @@ func (m *MdiaBox) Size() uint64 {
 	return containerSize(m.Children)
 }
 
-// Dump - print data of lower levels
-func (m *MdiaBox) Dump() {
-	m.Mdhd.Dump()
-	if m.Minf != nil {
-		m.Minf.Dump()
-	}
-}
-
 // GetChildren - list of child boxes
 func (m *MdiaBox) GetChildren() []Box {
 	return m.Children
@@ -77,4 +69,8 @@ func (m *MdiaBox) GetChildren() []Box {
 // Encode - write mdia container to w
 func (m *MdiaBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+func (m *MdiaBox) Dump(w io.Writer, indent, indentStep string) error {
+	return DumpContainer(m, w, indent, indentStep)
 }

@@ -127,8 +127,7 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - print box info
-func (b *TkhdBox) Dump() {
-	fmt.Println("Track Header:")
-	fmt.Printf(" Duration: %d units\n WxH: %sx%s\n", b.Duration, b.Width, b.Height)
+func (b *TkhdBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
+	return err
 }

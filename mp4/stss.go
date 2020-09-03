@@ -61,14 +61,6 @@ func (b *StssBox) IsSyncSample(sampleNr uint32) (isSync bool) {
 	return
 }
 
-// Dump - box-specific dump
-func (b *StssBox) Dump() {
-	fmt.Println("Key frames:")
-	for i, n := range b.SampleNumber {
-		fmt.Printf(" #%d : sample #%d\n", i, n)
-	}
-}
-
 // Encode - box-specific encode
 func (b *StssBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -84,5 +76,10 @@ func (b *StssBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.SampleNumber[i])
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (s *StssBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
 	return err
 }

@@ -93,14 +93,6 @@ func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
 	return
 }
 
-// Dump - write box-specific details
-func (b *SttsBox) Dump() {
-	fmt.Println("Time to sample:")
-	for i := range b.SampleCount {
-		fmt.Printf(" #%d : %d samples with duration %d units\n", i, b.SampleCount[i], b.SampleTimeDelta[i])
-	}
-}
-
 // Encode - write box to w
 func (b *SttsBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -117,5 +109,9 @@ func (b *SttsBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.SampleTimeDelta[i])
 	}
 	_, err = w.Write(buf)
+	return err
+}
+func (s *SttsBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
 	return err
 }

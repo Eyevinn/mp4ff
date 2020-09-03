@@ -42,11 +42,6 @@ func (b *StypBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + 4*len(b.CompatibleBrands))
 }
 
-// Dump - print box info
-func (b *StypBox) Dump() {
-	fmt.Printf("Segment Type: %s\n", b.MajorBrand)
-}
-
 // Encode - write box to w
 func (b *StypBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -60,5 +55,11 @@ func (b *StypBox) Encode(w io.Writer) error {
 		strtobuf(buf[8+i*4:], c, 4)
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (b *StypBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Major Brand: %s\n",
+		indent, b.Type(), b.Size(), indent, b.MajorBrand)
 	return err
 }

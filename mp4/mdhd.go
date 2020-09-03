@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"time"
 )
 
 const charOffset = 0x60 // According to Section 8.4.2.3 of 14496-12
@@ -90,12 +89,6 @@ func (m *MdhdBox) Size() uint64 {
 	return 32 // m.Version = 0
 }
 
-// Dump - print box info
-func (m *MdhdBox) Dump() {
-	fmt.Printf("Media Header:\n Timescale: %d units/sec\n Duration: %d units (%s)\n",
-		m.Timescale, m.Duration, time.Duration(m.Duration/uint64(m.Timescale))*time.Second)
-}
-
 // Encode - write box to w
 func (m *MdhdBox) Encode(w io.Writer) error {
 	err := EncodeHeader(m, w)
@@ -121,5 +114,11 @@ func (m *MdhdBox) Encode(w io.Writer) error {
 	sw.WriteUint16(m.Language)
 	sw.WriteUint16(0)
 	_, err = w.Write(buf)
+	return err
+}
+
+func (m *MdhdBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Timescale: %d\n%s - Language: %s\n",
+		indent, m.Type(), m.Size(), indent, m.Timescale, indent, m.GetLanguage())
 	return err
 }

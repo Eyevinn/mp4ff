@@ -51,11 +51,6 @@ func (b *FtypBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + 4*len(b.CompatibleBrands))
 }
 
-// Dump - print box info
-func (b *FtypBox) Dump() {
-	fmt.Printf("File Type: %s\n", b.MajorBrand)
-}
-
 // Encode - write box to w
 func (b *FtypBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -69,5 +64,11 @@ func (b *FtypBox) Encode(w io.Writer) error {
 		strtobuf(buf[8+i*4:], c, 4)
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (b *FtypBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Major Brand: %s\n",
+		indent, b.Type(), b.Size(), indent, b.MajorBrand)
 	return err
 }

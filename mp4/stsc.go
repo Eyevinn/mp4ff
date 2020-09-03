@@ -60,14 +60,6 @@ func (b *StscBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.FirstChunk)*12)
 }
 
-// Dump - box-specific dump
-func (b *StscBox) Dump() {
-	fmt.Println("Sample to Chunk:")
-	for i := range b.SamplesPerChunk {
-		fmt.Printf(" #%d : %d samples per chunk starting @chunk #%d \n", i, b.SamplesPerChunk[i], b.FirstChunk[i])
-	}
-}
-
 // Encode - box-specific encode
 func (b *StscBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -85,6 +77,11 @@ func (b *StscBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.SampleDescriptionID[i])
 	}
 	_, err = w.Write(buf)
+	return err
+}
+
+func (s *StscBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
 	return err
 }
 

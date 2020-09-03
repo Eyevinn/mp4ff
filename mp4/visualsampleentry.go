@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -172,5 +173,10 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 			return err
 		}
 	}
+	return err
+}
+
+func (a *VisualSampleEntryBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
 	return err
 }

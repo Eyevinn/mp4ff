@@ -71,14 +71,6 @@ func (b *ElstBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.SegmentDuration)*12) // m.Version == 0
 }
 
-// Dump - print box info
-func (b *ElstBox) Dump() {
-	fmt.Println("Segment Duration:")
-	for i, d := range b.SegmentDuration {
-		fmt.Printf(" #%d: %d units\n", i, d)
-	}
-}
-
 // Encode - write box to w
 func (b *ElstBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -108,4 +100,19 @@ func (b *ElstBox) Encode(w io.Writer) error {
 
 	_, err = w.Write(buf)
 	return err
+}
+
+func (b *ElstBox) Dump(w io.Writer, indent, indentStep string) error {
+	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Segment durations:\n",
+		indent, b.Type(), b.Size(), indent)
+	if err != nil {
+		return err
+	}
+	for i, d := range b.SegmentDuration {
+		_, err := fmt.Fprintf(w, "%s - #%d: %d units\n", indent, i, d)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
