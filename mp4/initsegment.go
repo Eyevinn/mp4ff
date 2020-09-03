@@ -11,7 +11,7 @@ type InitSegment struct {
 	MediaType string
 	Ftyp      *FtypBox
 	Moov      *MoovBox
-	Children  []Box
+	Children  []Box // All top-level boxes in order
 }
 
 // NewMP4Init - Create MP4Init
@@ -21,7 +21,7 @@ func NewMP4Init() *InitSegment {
 	}
 }
 
-// AddChild - Add a child box to InitSegment
+// AddChild - Add a top-level box to InitSegment
 func (s *InitSegment) AddChild(b Box) {
 	switch b.Type() {
 	case "ftyp":

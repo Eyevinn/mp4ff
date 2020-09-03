@@ -12,7 +12,7 @@ type Fragment struct {
 	Prft     *PrftBox
 	Moof     *MoofBox
 	Mdat     *MdatBox
-	Children []Box
+	Children []Box // All top-level boxes in order
 }
 
 // NewFragment - New emtpy one-track MP4 Fragment
@@ -41,7 +41,7 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	return f, nil
 }
 
-// AddChild - Add a child box to Fragment
+// AddChild - Add a top-level box to Fragment
 func (f *Fragment) AddChild(b Box) {
 	switch b.Type() {
 	case "prft":
