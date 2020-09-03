@@ -41,8 +41,12 @@ func (a *AvcCBox) Size() uint64 {
 		totalNalLen += 2 + len(nal)
 	}
 	switch a.AVCProfileIndication {
-	case 100, 110, 122, 144:
-		totalNalLen += 4
+	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
+		// No extra bytes
+	default:
+		if !a.NoTrailingInfo {
+			totalNalLen += 4
+		}
 	}
 	return uint64(boxHeaderSize + totalNalLen)
 }

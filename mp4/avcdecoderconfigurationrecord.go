@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //AVCDecConfRec - AVCDecoderConfigurationRecord
@@ -17,6 +19,7 @@ type AVCDecConfRec struct {
 	BitDepthLumaMinus1   byte
 	BitDepthChromaMinus1 byte
 	NumSPSExt            byte
+	NoTrailingInfo       bool // To handle strange cases where trailing info is missing
 }
 
 // CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
@@ -36,6 +39,7 @@ func CreateAVCDecConfRec(spsNALU []byte, ppsNALUs [][]byte) AVCDecConfRec {
 		BitDepthLumaMinus1:   0,
 		BitDepthChromaMinus1: 0,
 		NumSPSExt:            0,
+		NoTrailingInfo:       false,
 	}
 }
 
@@ -80,7 +84,14 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		PPSnalus:             ppsNALUs,
 	}
 	switch AVCProfileIndication {
-	case 100, 110, 122, 144:
+	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
+		// No more bytes
+	default:
+		if pos == len(data) { // Not according to standard, but have been seen
+			log.Warningf("No ChromaFormat info for AVCProfileIndication=%d", AVCProfileIndication)
+			adcr.NoTrailingInfo = true
+			return adcr, nil
+		}
 		adcr.ChromaFormat = data[pos] & 0x03
 		adcr.BitDepthLumaMinus1 = data[pos+1] & 0x07
 		adcr.BitDepthChromaMinus1 = data[pos+2] & 0x07
@@ -88,8 +99,6 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		if adcr.NumSPSExt != 0 {
 			panic("Cannot handle SPS extensions")
 		}
-	default:
-		// No extra bytes
 	}
 
 	return adcr, nil
@@ -139,13 +148,16 @@ func (a *AVCDecConfRec) Encode(w io.Writer) error {
 		writeSlice(pps)
 	}
 	switch a.AVCProfileIndication {
-	case 100, 110, 122, 144:
+	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
+		// No extra data according to standard
+	default:
+		if a.NoTrailingInfo { // Strange content, but consistent with Size()
+			return errWrite
+		}
 		writeByte(0xfc | a.ChromaFormat)
 		writeByte(0xf8 | a.BitDepthLumaMinus1)
 		writeByte(0xf8 | a.BitDepthChromaMinus1)
 		writeByte(a.NumSPSExt)
-	default:
-		// No extra bytes
 	}
 
 	return errWrite
