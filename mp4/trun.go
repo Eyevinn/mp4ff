@@ -19,8 +19,8 @@ type TrunBox struct {
 	Samples          []*Sample
 }
 
-// const dataOffsetPresentFlag = 0x01
-const firstSamplePresentFlag uint32 = 0x02
+const dataOffsetPresentFlag uint32 = 0x01
+const firstSampleFlagsPresentFlag uint32 = 0x04
 const sampleDurationPresentFlag uint32 = 0x100
 const sampleSizePresentFlag uint32 = 0x200
 const sampleFlagsPresentFlag uint32 = 0x400
@@ -131,12 +131,12 @@ func (t *TrunBox) SampleCount() uint32 {
 
 // HasDataOffset - interpreted dataOffsetPresent flag
 func (t *TrunBox) HasDataOffset() bool {
-	return t.flags&0x01 != 0
+	return t.flags&dataOffsetPresentFlag != 0
 }
 
 // HasFirstSampleFlags - interpreted firstSampleFlagsPresent flag
 func (t *TrunBox) HasFirstSampleFlags() bool {
-	return t.flags&firstSamplePresentFlag != 0
+	return t.flags&firstSampleFlagsPresentFlag != 0
 }
 
 // HasSampleDuration - interpreted sampleDurationPresent flag
@@ -166,7 +166,7 @@ func (t *TrunBox) Type() string {
 
 // Size - return calculated size
 func (t *TrunBox) Size() uint64 {
-	sz := boxHeaderSize + 8
+	sz := boxHeaderSize + 8 // flags + entrycCount
 	if t.HasDataOffset() {
 		sz += 4
 	}
