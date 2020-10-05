@@ -109,7 +109,7 @@ func (b *MvhdBox) Encode(w io.Writer) error {
 	sw.WriteUint32(uint32(b.Rate))
 	sw.WriteUint16(uint16(b.Volume))
 	sw.WriteZeroBytes(10) // Reserved bytes
-	sw.WriteZeroBytes(36) // Matrix patterndata
+	sw.WriteUnityMatrix() // unity matrix according to 8.2.2.2
 	sw.WriteZeroBytes(24) // Predefined 0
 	sw.WriteInt32(b.NextTrackID)
 
