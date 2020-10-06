@@ -118,7 +118,7 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 	sw.WriteInt16(b.AlternateGroup)
 	sw.WriteUint16(uint16(b.Volume))
 	sw.WriteZeroBytes(2)  // Reserved
-	sw.WriteZeroBytes(36) // Matrix patterndata
+	sw.WriteUnityMatrix() // unity matrix according to 8.3.2.2
 	sw.WriteUint32(uint32(b.Width))
 	sw.WriteUint32(uint32(b.Height))
 

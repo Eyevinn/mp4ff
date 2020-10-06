@@ -87,3 +87,16 @@ func (b *SliceWriter) WriteBytes(byteSlice []byte) {
 		b.pos++
 	}
 }
+
+// WriteUnityMatrix - write a unity matrix for mvhd or tkhd
+func (b *SliceWriter) WriteUnityMatrix() {
+	b.WriteUint32(0x00010000) // = 1 fixed 16.16
+	b.WriteUint32(0)
+	b.WriteUint32(0)
+	b.WriteUint32(0)
+	b.WriteUint32(0x00010000) // = 1 fixed 16.16
+	b.WriteUint32(0)
+	b.WriteUint32(0)
+	b.WriteUint32(0)
+	b.WriteUint32(0x40000000) // = 1 fixed 2.30
+}
