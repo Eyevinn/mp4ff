@@ -66,6 +66,7 @@ func init() {
 		"sthd": DecodeSthd,
 		"stbl": DecodeStbl,
 		"stco": DecodeStco,
+		"stpp": DecodeStpp,
 		"stsc": DecodeStsc,
 		"stsd": DecodeStsd,
 		"stss": DecodeStss,
