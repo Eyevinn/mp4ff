@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -27,7 +28,7 @@ func DecodeEdts(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		case "elst":
 			e.Elst = append(e.Elst, b.(*ElstBox))
 		default:
-			return nil, ErrBadFormat
+			return nil, fmt.Errorf("Box of type %s in edts", b.Type())
 		}
 	}
 	return e, nil
