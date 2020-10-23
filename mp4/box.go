@@ -2,10 +2,9 @@ package mp4
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
-
-	"github.com/pkg/errors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -184,7 +183,7 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("couldn't decode %s", h.name))
+		return nil, fmt.Errorf("decode %s: %w", h.name, err)
 	}
 
 	return b, nil
