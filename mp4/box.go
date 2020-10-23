@@ -74,6 +74,7 @@ func init() {
 		"sttg": DecodeSttg,
 		"stts": DecodeStts,
 		"styp": DecodeStyp,
+		"subs": DecodeSubs,
 		"tfdt": DecodeTfdt,
 		"tfhd": DecodeTfhd,
 		"tkhd": DecodeTkhd,
