@@ -20,9 +20,7 @@ type AudioSampleEntryBox struct {
 
 // NewAudioSampleEntryBox - Create new empty mp4a box
 func NewAudioSampleEntryBox(name string) *AudioSampleEntryBox {
-	a := &AudioSampleEntryBox{}
-	a.name = name
-	return a
+	return &AudioSampleEntryBox{name: name, DataReferenceIndex: 1}
 }
 
 func makeFixed32Uint(nr uint16) uint32 {
@@ -59,6 +57,8 @@ func (a *AudioSampleEntryBox) AddChild(b Box) {
 	a.Children = append(a.Children, b)
 }
 
+const nrAudioSampleBytesBeforeChildren = 36
+
 // DecodeAudioSampleEntry - decode mp4a... box
 func DecodeAudioSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
@@ -84,13 +84,13 @@ func DecodeAudioSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box, 
 	remaining := s.RemainingBytes()
 	restReader := bytes.NewReader(remaining)
 
-	pos := startPos + 36 // Size of all previous data
+	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
 	for {
 		box, err := DecodeBox(pos, restReader)
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			panic("Error in child box of AudioSampleEntry")
+			return nil, err
 		}
 		if box != nil {
 			a.AddChild(box)
@@ -99,7 +99,7 @@ func DecodeAudioSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box, 
 		if pos == startPos+hdr.size {
 			break
 		} else if pos > startPos+hdr.size {
-			panic("Non-matching box sizes")
+			return nil, fmt.Errorf("Bad size when decoding %s", hdr.name)
 		}
 	}
 	return a, nil
@@ -112,7 +112,7 @@ func (a *AudioSampleEntryBox) Type() string {
 
 // Size - return calculated size
 func (a *AudioSampleEntryBox) Size() uint64 {
-	totalSize := uint64(36)
+	totalSize := uint64(nrAudioSampleBytesBeforeChildren)
 	for _, child := range a.Children {
 		totalSize += child.Size()
 	}
@@ -133,9 +133,9 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	sw.WriteUint16(a.ChannelCount)
 	sw.WriteUint16(a.SampleSize)
 	sw.WriteZeroBytes(4)                          // Pre-defined and reserved
-	sw.WriteUint32(makeFixed32Uint(a.SampleRate)) // 36 bytes this far
+	sw.WriteUint32(makeFixed32Uint(a.SampleRate)) // nrAudioSampleBytesBeforeChildren bytes this far
 
-	_, err = w.Write(buf[:sw.pos]) // Only write  written bytes
+	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
 	if err != nil {
 		return err
 	}
@@ -152,5 +152,14 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 
 func (a *AudioSampleEntryBox) Dump(w io.Writer, indent, indentStep string) error {
 	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
-	return err
+	if err != nil {
+		return err
+	}
+	for _, child := range a.Children {
+		err = child.Dump(w, indent+indentStep, indent)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

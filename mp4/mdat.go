@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,6 +27,11 @@ func (m *MdatBox) Type() string {
 	return "mdat"
 }
 
+// HeaderLength - length of box header including possible largeSize
+func (m *MdatBox) HeaderLength() uint64 {
+	return headerLength(uint64(len(m.Data)))
+}
+
 // Size - return calculated size. If bigger 32-bit max, it should be escaped.
 func (m *MdatBox) Size() uint64 {
 	contentSize := uint64(len(m.Data))
@@ -44,12 +48,6 @@ func (m *MdatBox) Encode(w io.Writer) error {
 	err := EncodeHeader(m, w)
 	if err != nil {
 		return err
-	}
-	if m.Size() >= (1 << 32) { // Need to write
-		err = binary.Write(w, binary.BigEndian, m.Data)
-		if err != nil {
-			return err
-		}
 	}
 	_, err = w.Write(m.Data)
 	return err

@@ -2,9 +2,10 @@ package mp4
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
+
+	"github.com/pkg/errors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -14,13 +15,6 @@ const (
 	boxHeaderSize = 8
 	largeSizeLen  = 8          // Length of largesize exension
 	flagsMask     = 0x00ffffff // Flags for masks from full header
-)
-
-var (
-	// ErrTruncatedHeader - could not read full header
-	ErrTruncatedHeader = errors.New("truncated header")
-	// ErrBadFormat - box structure not parsable
-	ErrBadFormat = errors.New("bad format")
 )
 
 // headerLength - header length including potential largesize
@@ -94,7 +88,7 @@ type boxHeader struct {
 	hdrlen int
 }
 
-// decodeHeader decodes a box header (size + box type)
+// decodeHeader decodes a box header (size + box type + possiible largeSize)
 func decodeHeader(r io.Reader) (*boxHeader, error) {
 	buf := make([]byte, boxHeaderSize)
 	n, err := r.Read(buf)
@@ -102,7 +96,7 @@ func decodeHeader(r io.Reader) (*boxHeader, error) {
 		return nil, err
 	}
 	if n != boxHeaderSize {
-		return nil, ErrTruncatedHeader
+		return nil, errors.New("Could not read full 8B header")
 	}
 	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
 	headerLen := boxHeaderSize
@@ -118,7 +112,7 @@ func decodeHeader(r io.Reader) (*boxHeader, error) {
 		size = binary.BigEndian.Uint64(buf)
 		headerLen += largeSizeLen
 	} else if size == 0 {
-		return nil, errors.New("Size to end of file not supported")
+		return nil, errors.New("Size 0, meaning to end of file, not supported")
 	}
 	return &boxHeader{string(buf[4:8]), size, headerLen}, nil
 }
@@ -128,14 +122,17 @@ func EncodeHeader(b Box, w io.Writer) error {
 	boxType, boxSize := b.Type(), b.Size()
 	log.Debugf("Writing %v size %d\n", boxType, boxSize)
 	buf := make([]byte, boxHeaderSize)
+	largeSize := false
 	if boxSize < 1<<32 {
 		binary.BigEndian.PutUint32(buf, uint32(boxSize))
 	} else {
-		// largesize will be sent as uint64 after header
+		largeSize = true
 		binary.BigEndian.PutUint32(buf, 1)
 	}
-
 	strtobuf(buf[4:], b.Type(), 4)
+	if largeSize {
+		binary.BigEndian.PutUint64(buf, boxSize)
+	}
 	_, err := w.Write(buf)
 	return err
 }
@@ -173,13 +170,10 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 		log.Debugf("Found supported box %v, size %v", h.name, h.size)
 		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
 	}
-	if h.size != b.Size() {
-		log.Errorf("### Mismatch size %d %d for %s", h.size, b.Size(), b.Type())
-	}
 	if err != nil {
-		log.Errorf("Error while decoding %s : %s", h.name, err)
-		return nil, err
+		return nil, errors.Wrap(err, fmt.Sprintf("couldn't decode %s", h.name))
 	}
+
 	return b, nil
 }
 
