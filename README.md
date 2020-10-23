@@ -4,7 +4,7 @@
 ![golangci-lint](https://github.com/edgeware/mp4ff/workflows/golangci-lint/badge.svg?branch=master)
 [![GoDoc](https://godoc.org/github.com/edgeware/mp4ff?status.svg)](http://godoc.org/github.com/edgeware/mp4ff)
 [![Go Report Card](https://goreportcard.com/badge/github.com/edgeware/mp4ff)](https://goreportcard.com/report/github.com/edgeware/mp4ff)
-[![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.md)
+[![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.txt)
 
 MP4/ISOBMFF media file parser and writer. Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 
@@ -127,6 +127,10 @@ These are
 ## Stability
 The APIs should be fairly stable, but minor non-backwards-compatible tweaks may happen until version 1.
 
+## COPYRIGHT
+
+See [COPYRIGHT.md](COPYRIGHT.md).
+
 ## LICENSE
 
-See [LICENSE.md](LICENSE.md).
+MIT, see [LICENSE.txt](LICENSE.txt).
