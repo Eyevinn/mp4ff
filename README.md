@@ -4,7 +4,7 @@
 ![golangci-lint](https://github.com/edgeware/mp4ff/workflows/golangci-lint/badge.svg?branch=master)
 [![GoDoc](https://godoc.org/github.com/edgeware/mp4ff?status.svg)](http://godoc.org/github.com/edgeware/mp4ff)
 [![Go Report Card](https://goreportcard.com/badge/github.com/edgeware/mp4ff)](https://goreportcard.com/report/github.com/edgeware/mp4ff)
-[![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.txt)
+[![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.md)
 
 MP4/ISOBMFF media file parser and writer. Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 
@@ -127,10 +127,12 @@ These are
 ## Stability
 The APIs should be fairly stable, but minor non-backwards-compatible tweaks may happen until version 1.
 
-## COPYRIGHT
-
-See [COPYRIGHT.md](COPYRIGHT.md).
-
 ## LICENSE
 
-MIT, see [LICENSE.txt](LICENSE.txt).
+MIT, see [LICENSE.md](LICENSE.md).
+
+Some code in pkg/mp4, es from or is based on https://github.com/jfbus/mp4 which has
+`Copyright (c) 2015 Jean-François Bustarret`.
+
+Some code in pkg/bits comes from or is based on https://github.com/tcnksm/go-casper/tree/master/internal/bits
+`Copyright (c) 2017 Taichi Nakashima`.
