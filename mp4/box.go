@@ -62,6 +62,7 @@ func init() {
 		"payl": DecodePayl,
 		"prft": DecodePrft,
 		"senc": DecodeSenc,
+		"sidx": DecodeSidx,
 		"smhd": DecodeSmhd,
 		"sthd": DecodeSthd,
 		"stbl": DecodeStbl,
