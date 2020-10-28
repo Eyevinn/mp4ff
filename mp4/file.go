@@ -24,6 +24,7 @@ type File struct {
 	Moov         *MoovBox        // Only used for non-fragmented files
 	Mdat         *MdatBox        // Only used for non-fragmented files
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
+	Sidx         *SidxBox        // SidxBox for a DASH OnDemand file
 	Segments     []*MediaSegment // Media segment
 	Children     []Box           // All top-level boxes in order
 	isFragmented bool
@@ -81,8 +82,7 @@ LoopBoxes:
 
 // AddChild - add child with start position
 func (f *File) AddChild(box Box, boxStartPos uint64) {
-	bType := box.Type()
-	switch bType {
+	switch box.Type() {
 	case "ftyp":
 		f.Ftyp = box.(*FtypBox)
 	case "moov":
@@ -92,6 +92,13 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 			f.Init = NewMP4Init()
 			f.Init.Ftyp = f.Ftyp
 			f.Init.Moov = f.Moov
+		}
+	case "sidx":
+		if len(f.Segments) == 0 { // sidx before first styp
+			f.Sidx = box.(*SidxBox)
+		} else {
+			currSeg := f.Segments[len(f.Segments)-1]
+			currSeg.Sidx = box.(*SidxBox)
 		}
 	case "styp":
 		f.isFragmented = true

@@ -8,6 +8,7 @@ import (
 // MediaSegment - MP4 Media Segment
 type MediaSegment struct {
 	Styp      *StypBox
+	Sidx      *SidxBox // Sidx for a segment
 	Fragments []*Fragment
 }
 
@@ -31,7 +32,13 @@ func (s *MediaSegment) LastFragment() *Fragment {
 // Encode - Write MediaSegment via writer
 func (s *MediaSegment) Encode(w io.Writer) error {
 	if s.Styp != nil {
-		err := s.Encode(w)
+		err := s.Styp.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	if s.Sidx != nil {
+		err := s.Sidx.Encode(w)
 		if err != nil {
 			return err
 		}
