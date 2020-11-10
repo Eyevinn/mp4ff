@@ -16,8 +16,8 @@ type PrftBox struct {
 	MediaTime    uint64
 }
 
-// NewPrftBox - Create a new PrftBox
-func NewPrftBox(version byte, ntp uint64, mediatime uint64) *PrftBox {
+// CreatePrftBox - Create a new PrftBox
+func CreatePrftBox(version byte, ntp uint64, mediatime uint64) *PrftBox {
 	return &PrftBox{
 		Version:      version,
 		Flags:        0,
