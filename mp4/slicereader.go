@@ -106,6 +106,11 @@ func (s *SliceReader) RemainingBytes() []byte {
 	return res
 }
 
+// NrRemaingingByts - return number of bytes remaining
+func (s *SliceReader) NrRemainingBytes() int {
+	return s.Length() - s.GetPos()
+}
+
 // SkipBytes - skip passed n bytes
 func (s *SliceReader) SkipBytes(n int) {
 	if s.pos+n > s.Length() {
