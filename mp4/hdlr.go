@@ -12,8 +12,8 @@ import (
 // Contained in: Media Box (mdia) or Meta Box (meta)
 //
 // This box describes the type of data contained in the trak.
-//
-// HandlerType can be : "vide" (video track), "soun" (audio track), "hint" (hint track), "meta" (timed Metadata track), "auxv" (auxiliary video track).
+// HandlerType can be : "vide" (video track), "soun" (audio track), "subt" (subtitle track)
+// Other types are: "hint" (hint track), "meta" (timed Metadata track), "auxv" (auxiliary video track).
 type HdlrBox struct {
 	Version     byte
 	Flags       uint32
@@ -32,6 +32,9 @@ func CreateHdlr(mediaType string) (*HdlrBox, error) {
 	case "audio":
 		hdlr.HandlerType = "soun"
 		hdlr.Name = "Edgeware Audio Handler"
+	case "subtitle":
+		hdlr.HandlerType = "subt"
+		hdlr.Name = "Edgeware Subtitle Handler"
 	default:
 		return nil, fmt.Errorf("Unkown mediaType %s", mediaType)
 	}

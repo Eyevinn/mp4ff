@@ -39,3 +39,10 @@ func boxAfterEncodeAndDecode(t *testing.T, box Box) Box {
 	}
 	return boxDec
 }
+
+func assertNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("Got error %s but expected none", err)
+	}
+}
