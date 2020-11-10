@@ -1,10 +1,7 @@
 package mp4
 
 import (
-	"bytes"
 	"testing"
-
-	"github.com/go-test/deep"
 )
 
 func TestEmsg(t *testing.T) {
@@ -28,21 +25,6 @@ func TestEmsg(t *testing.T) {
 	}
 
 	for _, inBox := range boxes {
-		buf := bytes.Buffer{}
-		err := inBox.Encode(&buf)
-		if err != nil {
-			t.Error(err)
-		}
-
-		outBox, err := DecodeBox(0, &buf)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if diff := deep.Equal(outBox, inBox); diff != nil {
-			t.Error(diff)
-		}
-
+		boxDiffAfterEncodeAndDecode(t, inBox)
 	}
-
 }

@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 )
 
-// BtrtBox - BitraRateBox - 14496-12 Secion 8.5.2.2
+// BtrtBox - BitRateBox - ISO/IEC 14496-12 Section 8.5.2.2
 type BtrtBox struct {
 	BufferSizeDB uint32
 	MaxBitrate   uint32
