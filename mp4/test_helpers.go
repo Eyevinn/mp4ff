@@ -46,3 +46,10 @@ func assertNoError(t *testing.T, err error) {
 		t.Errorf("Got error %s but expected none", err)
 	}
 }
+
+func assertError(t *testing.T, err error, msg string) {
+	t.Helper()
+	if err == nil {
+		t.Errorf(msg)
+	}
+}
