@@ -42,6 +42,7 @@ func init() {
 		"esds": DecodeEsds,
 		"edts": DecodeEdts,
 		"elst": DecodeElst,
+		"emsg": DecodeEmsg,
 		"free": DecodeFree,
 		"ftyp": DecodeFtyp,
 		"hdlr": DecodeHdlr,
