@@ -9,21 +9,45 @@ import (
 	"github.com/edgeware/mp4ff/bits"
 )
 
+var ErrNotSPS = errors.New("Not an SPS NAL unit")
+
 const (
-	// AvcNalSEI - Supplementary Enhancement Information NAL Unit
-	AvcNalSEI = 6
-	// AvcNalSPS - SequenceParameterSet NAL Unit
-	AvcNalSPS = 7
-	// AvcNalPPS - PictureParameterSet NAL Unit
-	AvcNalPPS = 8
-	// AvcNalAUD - AccessUnitDelimiter NAL Unit
-	AvcNalAUD = 9
+	// NALU_SEI - Supplementary Enhancement Information NAL Unit
+	NALU_SEI = 6
+	// NALU_SSP - SequenceParameterSet NAL Unit
+	NALU_SPS = 7
+	// NALU_PPS - PictureParameterSet NAL Unit
+	NALU_PPS = 8
+	// NALU_AUD - AccessUnitDelimiter NAL Unit
+	NALU_AUD = 9
+	// NALU_FILL - Filler NAL Unit
+	NALU_FILL = 12
 	// ExtendedSAR - Extended Sample Aspect Ratio Code
 	ExtendedSAR = 255
 )
 
 // AvcNalType -
 type AvcNalType uint16
+
+func (a AvcNalType) String() string {
+	switch a {
+	case NALU_SEI:
+		return "SEI"
+	case NALU_SPS:
+		return "SPS"
+	case NALU_PPS:
+		return "PPS"
+	case NALU_AUD:
+		return "AUD"
+	default:
+		return "other"
+	}
+}
+
+// Get NalType from NAL Header byte
+func GetNalType(nalHeader byte) AvcNalType {
+	return AvcNalType(nalHeader & 0x1f)
+}
 
 // FindAvcNalTypes - find list of nal types
 func FindAvcNalTypes(b []byte) []AvcNalType {
@@ -49,10 +73,10 @@ func HasAvcParameterSets(b []byte) bool {
 	hasSPS := false
 	hasPPS := false
 	for _, nalType := range nalTypeList {
-		if nalType == AvcNalSPS {
+		if nalType == NALU_SPS {
 			hasSPS = true
 		}
-		if nalType == AvcNalPPS {
+		if nalType == NALU_PPS {
 			hasPPS = true
 		}
 		if hasSPS && hasPPS {
@@ -171,10 +195,13 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*AvcSPS, erro
 	reader := bits.NewEBSPReader(rd)
 	// Note! First byte is NAL Header
 
-	nalHdr := reader.MustRead(8)
+	nalHdr, err := reader.Read(8)
+	if err != nil {
+		return nil, err
+	}
 	nalType := nalHdr & 0x1f
-	if nalType != 7 {
-		return nil, errors.New("Not an SPS NAL unit")
+	if nalType != NALU_SPS {
+		return nil, ErrNotSPS
 	}
 
 	sps.Profile = reader.MustRead(8)
@@ -413,6 +440,7 @@ func (a *AvcSPS) ConstraintFlags() byte {
 	return byte(a.ProfileCompatibility >> 4)
 }
 
+// getSAR - get Sample Aspect Ratio
 func getSAR(index uint) (uint, uint) {
 	if index < 1 || index > 16 {
 		panic(fmt.Sprintf("Bad index %d to SAR", index))
