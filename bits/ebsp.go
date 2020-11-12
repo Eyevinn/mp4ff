@@ -118,3 +118,88 @@ func EBSP2rbsp(ebsp []byte) []byte {
 	}
 	return output
 }
+
+// Read - read n bits and return error if not possible
+func (r *EBSPReader) Read(n int) (uint, error) {
+	var err error
+
+	for r.n <= n {
+		r.v <<= 8
+		var b uint8
+		err = binary.Read(r.rd, binary.BigEndian, &b)
+		if err != nil {
+			return 0, err
+		}
+		r.pos++
+		if r.zeroCount == 2 {
+			err = binary.Read(r.rd, binary.BigEndian, &b)
+			if err != nil {
+				return 0, err
+			}
+			r.pos++
+			r.zeroCount = 0
+		} else {
+			if b != 0 {
+				r.zeroCount = 0
+			} else {
+				r.zeroCount++
+			}
+		}
+		r.v |= uint(b)
+
+		r.n += 8
+	}
+	v := r.v >> uint(r.n-n)
+
+	r.n -= n
+	r.v &= mask(r.n)
+
+	return v, nil
+}
+
+// ReadFlag - read 1 bit into flag. Return error if not possible
+func (r *EBSPReader) ReadFlag() (bool, error) {
+	bit, err := r.Read(1)
+	if err != nil {
+		return false, err
+	}
+	return bit == 1, nil
+}
+
+// ReadExpGolomb - Read one unsigned exponential golomb code
+func (r *EBSPReader) ReadExpGolomb() (uint, error) {
+	leadingZeroBits := 0
+
+	for {
+		b, err := r.Read(1)
+		if err != nil {
+			return 0, err
+		}
+		if b == 1 {
+			break
+		}
+		leadingZeroBits++
+	}
+
+	var res uint = (1 << leadingZeroBits) - 1
+
+	endBits, err := r.Read(leadingZeroBits)
+	if err != nil {
+		return 0, err
+	}
+
+	return res + endBits, nil
+}
+
+// ReadSignedGolomb - Read one signed exponential golomb code
+func (r *EBSPReader) ReadSignedGolomb() (int, error) {
+	unsignedGolomb, err := r.ReadExpGolomb()
+	if err != nil {
+		return 0, err
+	}
+	if unsignedGolomb%2 == 1 {
+		return int((unsignedGolomb + 1) / 2), nil
+	} else {
+		return -int(unsignedGolomb / 2), nil
+	}
+}

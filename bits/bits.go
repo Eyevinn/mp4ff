@@ -98,6 +98,15 @@ func (r *Reader) Read(n int) (uint, error) {
 	return v, err
 }
 
+// ReadFlag - read 1 bit into flag
+func (r *Reader) ReadFlag() (bool, error) {
+	bit, err := r.Read(1)
+	if err != nil {
+		return false, err
+	}
+	return bit == 1, nil
+}
+
 // MustRead - Read bits and panic if not possible
 func (r *Reader) MustRead(n int) uint {
 	var err error
