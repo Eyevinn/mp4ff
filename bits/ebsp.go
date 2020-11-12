@@ -84,6 +84,16 @@ func (r *EBSPReader) MustReadExpGolomb() uint {
 	return res + endBits
 }
 
+// MustReadSignedGolomb - Read one signed exponential golomb code
+func (r *EBSPReader) MustReadSignedGolomb() int {
+	unsignedGolomb := r.MustReadExpGolomb()
+	if unsignedGolomb%2 == 1 {
+		return int((unsignedGolomb + 1) / 2)
+	} else {
+		return -int(unsignedGolomb / 2)
+	}
+}
+
 // NrBytesRead - how many bytes read into parser
 func (r *EBSPReader) NrBytesRead() int {
 	return r.pos
