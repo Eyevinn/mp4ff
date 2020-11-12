@@ -74,6 +74,7 @@ type AvcSPS struct {
 	BitDepthChromaMinus8            uint
 	QPPrimeYZeroTransformBypassFlag bool
 	SeqScalingMatrixPresentFlag     bool
+	SeqScalings                     *SeqScalings
 	Log2MaxFrameNumMinus4           uint
 	PicOrderCntType                 uint
 	Log2MaxPicOrderCntLsbMinus4     uint
@@ -96,6 +97,14 @@ type AvcSPS struct {
 	NrBytesBeforeVUI                int
 	NrBytesRead                     int
 	VUI                             VUIParameters
+}
+
+type SeqScalings struct {
+	SeqScalingLists []SeqScalingList
+}
+type SeqScalingList struct {
+	SeqScalingListPresentFlag bool
+	ScalingLists              []int
 }
 
 // VUIParameters - extra parameters according to 14496-10, E.1
@@ -192,7 +201,46 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*AvcSPS, erro
 		sps.QPPrimeYZeroTransformBypassFlag = reader.MustReadFlag()
 		sps.SeqScalingMatrixPresentFlag = reader.MustReadFlag()
 		if sps.SeqScalingMatrixPresentFlag {
-			return nil, errors.New("Not implemented: Need to handle seq_scaling_matrix_present_flag")
+			sps.SeqScalings = &SeqScalings{}
+			length := 12 // Default
+			if sps.ChromaFormatIDC == 3 {
+				length = 8
+			}
+			for i := 0; i < length; i++ {
+				if i < 6 {
+					sm := make([]int, 16) // 4x4 scaling matrix
+					lastScale := 8
+					nextScale := 8
+					for j := 0; j < 16; j++ {
+						if nextScale != 0 {
+							deltaScale := reader.MustReadSignedGolomb()
+							nextScale = (lastScale + deltaScale + 256) % 256
+						}
+						if nextScale == 0 {
+							sm[j] = lastScale
+						} else {
+							sm[j] = nextScale
+						}
+						lastScale = sm[j]
+					}
+				} else {
+					sm := make([]int, 64) // 8x8 scaling matrix
+					lastScale := 8
+					nextScale := 8
+					for j := 0; j < 64; j++ {
+						if nextScale != 0 {
+							deltaScale := reader.MustReadSignedGolomb()
+							nextScale = (lastScale + deltaScale + 256) % 256
+						}
+						if nextScale == 0 {
+							sm[j] = lastScale
+						} else {
+							sm[j] = nextScale
+						}
+						lastScale = sm[j]
+					}
+				}
+			}
 		}
 	default:
 		// Empty
