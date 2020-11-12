@@ -62,7 +62,7 @@ func HasAvcParameterSets(b []byte) bool {
 	return false
 }
 
-// AvcSPS - AVC SPS paramaeters
+// AvcSPS - AVC SPS parameters
 type AvcSPS struct {
 	Profile                         uint
 	ProfileCompatibility            uint
@@ -119,8 +119,10 @@ type VUIParameters struct {
 	TimeScale                          uint
 	FixedFrameRateFlag                 bool
 	NalHrdParametersPresentFlag        bool
+	NalHrdParameters                   *HrdParameters
 	VclHrdParametersPresentFlag        bool
-	LowDelayHrdFlag                    bool
+	VclHrdParameters                   *HrdParameters
+	LowDelayHrdFlag                    bool // Only present with HrdParameters
 	PicStructPresentFlag               bool
 	BitstreamRestrictionFlag           bool
 	MotionVectorsOverPicBoundariesFlag bool
@@ -132,8 +134,27 @@ type VUIParameters struct {
 	MaxDecFrameBuffering               uint
 }
 
-// ParseSPSNALUnit - Parse AVC SPS NAL unit
-func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
+// HrdParameters inside VUI
+type HrdParameters struct {
+	CpbCountMinus1                     uint
+	BitRateScale                       uint
+	CpbSizeScale                       uint
+	CpbEntries                         []CpbEntry
+	InitialCpbRemovalDelayLengthMinus1 uint
+	CpbRemovalDelayLengthMinus1        uint
+	DpbOutpuDelayLengthMinus1          uint
+	TimeOffsetLength                   uint
+}
+
+// CpbEntry inside HrdParameters
+type CpbEntry struct {
+	BitRateValueMinus1 uint
+	CpbSizeValueMinus1 uint
+	CbrFlag            bool
+}
+
+// ParseSPSNALUnit - Parse AVC SPS NAL unit starting with NAL header
+func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*AvcSPS, error) {
 
 	sps := &AvcSPS{}
 
@@ -153,7 +174,7 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 
 	sps.ParameterID = reader.MustReadExpGolomb()
 
-	sps.ChromaFormatIDC = 1 // Default value if value not present
+	sps.ChromaFormatIDC = 1 // Default value if no explicit value present
 
 	if sps.Profile == 138 {
 		sps.ChromaFormatIDC = 0
@@ -241,7 +262,7 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 	vuiParametersPresentFlag := reader.MustReadFlag()
 	sps.NrBytesBeforeVUI = reader.NrBytesRead()
 	if vuiParametersPresentFlag {
-		err := parseVUI(reader, &sps.VUI, true)
+		err := parseVUI(reader, &sps.VUI, parseVUIBeyondAspectRatio)
 		if err != nil {
 			return nil, err
 		}
@@ -252,7 +273,9 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 	return sps, nil
 }
 
-func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
+// parseVUI - parse VUI (Visual Usability Information)
+// if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
+func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, parseVUIBeyondAspectRatio bool) error {
 	aspectRatioInfoPresentFlag := reader.MustReadFlag()
 	if aspectRatioInfoPresentFlag {
 		aspectRatioIDC := reader.MustRead(8)
@@ -263,7 +286,7 @@ func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
 			vui.SampleAspectRatioWidth, vui.SampleAspectRatioHeight = getSAR(aspectRatioIDC)
 		}
 	}
-	if onlyAR {
+	if !parseVUIBeyondAspectRatio {
 		return nil
 	}
 	vui.OverscanInfoPresentFlag = reader.MustReadFlag()
@@ -294,11 +317,11 @@ func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
 	}
 	vui.NalHrdParametersPresentFlag = reader.MustReadFlag()
 	if vui.NalHrdParametersPresentFlag {
-		return nil // No support for parsing further
+		vui.NalHrdParameters = parseHrdParameters(reader)
 	}
 	vui.VclHrdParametersPresentFlag = reader.MustReadFlag()
 	if vui.VclHrdParametersPresentFlag {
-		return nil // No support parsing further
+		vui.VclHrdParameters = parseHrdParameters(reader)
 	}
 	if vui.NalHrdParametersPresentFlag || vui.VclHrdParametersPresentFlag {
 		vui.LowDelayHrdFlag = reader.MustReadFlag()
@@ -316,6 +339,25 @@ func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
 	}
 
 	return nil
+}
+
+func parseHrdParameters(r *bits.EBSPReader) *HrdParameters {
+	hp := &HrdParameters{}
+	hp.CpbCountMinus1 = r.MustReadExpGolomb()
+	hp.BitRateScale = r.MustRead(4)
+	hp.CpbSizeScale = r.MustRead(4)
+	for schedSelIdx := uint(0); schedSelIdx <= hp.CpbCountMinus1; schedSelIdx++ {
+		ce := CpbEntry{}
+		ce.BitRateValueMinus1 = r.MustReadExpGolomb()
+		ce.CpbSizeValueMinus1 = r.MustReadExpGolomb()
+		ce.CbrFlag = r.MustReadFlag()
+		hp.CpbEntries = append(hp.CpbEntries, ce)
+	}
+	hp.InitialCpbRemovalDelayLengthMinus1 = r.MustRead(5)
+	hp.CpbRemovalDelayLengthMinus1 = r.MustRead(5)
+	hp.DpbOutpuDelayLengthMinus1 = r.MustRead(5)
+	hp.TimeOffsetLength = r.MustRead(5)
+	return hp
 }
 
 // ConstraintFlags - return the four ConstraintFlag bits
