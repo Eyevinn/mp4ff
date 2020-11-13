@@ -123,7 +123,7 @@ func EBSP2rbsp(ebsp []byte) []byte {
 func (r *EBSPReader) Read(n int) (uint, error) {
 	var err error
 
-	for r.n <= n {
+	for r.n < n {
 		r.v <<= 8
 		var b uint8
 		err = binary.Read(r.rd, binary.BigEndian, &b)
@@ -131,7 +131,7 @@ func (r *EBSPReader) Read(n int) (uint, error) {
 			return 0, err
 		}
 		r.pos++
-		if r.zeroCount == 2 {
+		if r.zeroCount == 2 && b <= 3 {
 			err = binary.Read(r.rd, binary.BigEndian, &b)
 			if err != nil {
 				return 0, err
