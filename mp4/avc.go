@@ -9,21 +9,45 @@ import (
 	"github.com/edgeware/mp4ff/bits"
 )
 
+var ErrNotSPS = errors.New("Not an SPS NAL unit")
+
 const (
-	// AvcNalSEI - Supplementary Enhancement Information NAL Unit
-	AvcNalSEI = 6
-	// AvcNalSPS - SequenceParameterSet NAL Unit
-	AvcNalSPS = 7
-	// AvcNalPPS - PictureParameterSet NAL Unit
-	AvcNalPPS = 8
-	// AvcNalAUD - AccessUnitDelimiter NAL Unit
-	AvcNalAUD = 9
+	// NALU_SEI - Supplementary Enhancement Information NAL Unit
+	NALU_SEI = 6
+	// NALU_SSP - SequenceParameterSet NAL Unit
+	NALU_SPS = 7
+	// NALU_PPS - PictureParameterSet NAL Unit
+	NALU_PPS = 8
+	// NALU_AUD - AccessUnitDelimiter NAL Unit
+	NALU_AUD = 9
+	// NALU_FILL - Filler NAL Unit
+	NALU_FILL = 12
 	// ExtendedSAR - Extended Sample Aspect Ratio Code
 	ExtendedSAR = 255
 )
 
 // AvcNalType -
 type AvcNalType uint16
+
+func (a AvcNalType) String() string {
+	switch a {
+	case NALU_SEI:
+		return "SEI"
+	case NALU_SPS:
+		return "SPS"
+	case NALU_PPS:
+		return "PPS"
+	case NALU_AUD:
+		return "AUD"
+	default:
+		return "other"
+	}
+}
+
+// Get NalType from NAL Header byte
+func GetNalType(nalHeader byte) AvcNalType {
+	return AvcNalType(nalHeader & 0x1f)
+}
 
 // FindAvcNalTypes - find list of nal types
 func FindAvcNalTypes(b []byte) []AvcNalType {
@@ -49,10 +73,10 @@ func HasAvcParameterSets(b []byte) bool {
 	hasSPS := false
 	hasPPS := false
 	for _, nalType := range nalTypeList {
-		if nalType == AvcNalSPS {
+		if nalType == NALU_SPS {
 			hasSPS = true
 		}
-		if nalType == AvcNalPPS {
+		if nalType == NALU_PPS {
 			hasPPS = true
 		}
 		if hasSPS && hasPPS {
@@ -62,7 +86,7 @@ func HasAvcParameterSets(b []byte) bool {
 	return false
 }
 
-// AvcSPS - AVC SPS paramaeters
+// AvcSPS - AVC SPS parameters
 type AvcSPS struct {
 	Profile                         uint
 	ProfileCompatibility            uint
@@ -74,6 +98,7 @@ type AvcSPS struct {
 	BitDepthChromaMinus8            uint
 	QPPrimeYZeroTransformBypassFlag bool
 	SeqScalingMatrixPresentFlag     bool
+	SeqScalings                     *SeqScalings
 	Log2MaxFrameNumMinus4           uint
 	PicOrderCntType                 uint
 	Log2MaxPicOrderCntLsbMinus4     uint
@@ -98,6 +123,14 @@ type AvcSPS struct {
 	VUI                             VUIParameters
 }
 
+type SeqScalings struct {
+	SeqScalingLists []SeqScalingList
+}
+type SeqScalingList struct {
+	SeqScalingListPresentFlag bool
+	ScalingLists              []int
+}
+
 // VUIParameters - extra parameters according to 14496-10, E.1
 type VUIParameters struct {
 	SampleAspectRatioWidth             uint
@@ -119,8 +152,10 @@ type VUIParameters struct {
 	TimeScale                          uint
 	FixedFrameRateFlag                 bool
 	NalHrdParametersPresentFlag        bool
+	NalHrdParameters                   *HrdParameters
 	VclHrdParametersPresentFlag        bool
-	LowDelayHrdFlag                    bool
+	VclHrdParameters                   *HrdParameters
+	LowDelayHrdFlag                    bool // Only present with HrdParameters
 	PicStructPresentFlag               bool
 	BitstreamRestrictionFlag           bool
 	MotionVectorsOverPicBoundariesFlag bool
@@ -132,8 +167,27 @@ type VUIParameters struct {
 	MaxDecFrameBuffering               uint
 }
 
-// ParseSPSNALUnit - Parse AVC SPS NAL unit
-func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
+// HrdParameters inside VUI
+type HrdParameters struct {
+	CpbCountMinus1                     uint
+	BitRateScale                       uint
+	CpbSizeScale                       uint
+	CpbEntries                         []CpbEntry
+	InitialCpbRemovalDelayLengthMinus1 uint
+	CpbRemovalDelayLengthMinus1        uint
+	DpbOutpuDelayLengthMinus1          uint
+	TimeOffsetLength                   uint
+}
+
+// CpbEntry inside HrdParameters
+type CpbEntry struct {
+	BitRateValueMinus1 uint
+	CpbSizeValueMinus1 uint
+	CbrFlag            bool
+}
+
+// ParseSPSNALUnit - Parse AVC SPS NAL unit starting with NAL header
+func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*AvcSPS, error) {
 
 	sps := &AvcSPS{}
 
@@ -141,10 +195,13 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 	reader := bits.NewEBSPReader(rd)
 	// Note! First byte is NAL Header
 
-	nalHdr := reader.MustRead(8)
+	nalHdr, err := reader.Read(8)
+	if err != nil {
+		return nil, err
+	}
 	nalType := nalHdr & 0x1f
-	if nalType != 7 {
-		return nil, errors.New("Not an SPS NAL unit")
+	if nalType != NALU_SPS {
+		return nil, ErrNotSPS
 	}
 
 	sps.Profile = reader.MustRead(8)
@@ -153,7 +210,7 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 
 	sps.ParameterID = reader.MustReadExpGolomb()
 
-	sps.ChromaFormatIDC = 1 // Default value if value not present
+	sps.ChromaFormatIDC = 1 // Default value if no explicit value present
 
 	if sps.Profile == 138 {
 		sps.ChromaFormatIDC = 0
@@ -171,7 +228,46 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 		sps.QPPrimeYZeroTransformBypassFlag = reader.MustReadFlag()
 		sps.SeqScalingMatrixPresentFlag = reader.MustReadFlag()
 		if sps.SeqScalingMatrixPresentFlag {
-			return nil, errors.New("Not implemented: Need to handle seq_scaling_matrix_present_flag")
+			sps.SeqScalings = &SeqScalings{}
+			length := 12 // Default
+			if sps.ChromaFormatIDC == 3 {
+				length = 8
+			}
+			for i := 0; i < length; i++ {
+				if i < 6 {
+					sm := make([]int, 16) // 4x4 scaling matrix
+					lastScale := 8
+					nextScale := 8
+					for j := 0; j < 16; j++ {
+						if nextScale != 0 {
+							deltaScale := reader.MustReadSignedGolomb()
+							nextScale = (lastScale + deltaScale + 256) % 256
+						}
+						if nextScale == 0 {
+							sm[j] = lastScale
+						} else {
+							sm[j] = nextScale
+						}
+						lastScale = sm[j]
+					}
+				} else {
+					sm := make([]int, 64) // 8x8 scaling matrix
+					lastScale := 8
+					nextScale := 8
+					for j := 0; j < 64; j++ {
+						if nextScale != 0 {
+							deltaScale := reader.MustReadSignedGolomb()
+							nextScale = (lastScale + deltaScale + 256) % 256
+						}
+						if nextScale == 0 {
+							sm[j] = lastScale
+						} else {
+							sm[j] = nextScale
+						}
+						lastScale = sm[j]
+					}
+				}
+			}
 		}
 	default:
 		// Empty
@@ -241,7 +337,7 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 	vuiParametersPresentFlag := reader.MustReadFlag()
 	sps.NrBytesBeforeVUI = reader.NrBytesRead()
 	if vuiParametersPresentFlag {
-		err := parseVUI(reader, &sps.VUI, true)
+		err := parseVUI(reader, &sps.VUI, parseVUIBeyondAspectRatio)
 		if err != nil {
 			return nil, err
 		}
@@ -252,7 +348,9 @@ func ParseSPSNALUnit(data []byte) (*AvcSPS, error) {
 	return sps, nil
 }
 
-func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
+// parseVUI - parse VUI (Visual Usability Information)
+// if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
+func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, parseVUIBeyondAspectRatio bool) error {
 	aspectRatioInfoPresentFlag := reader.MustReadFlag()
 	if aspectRatioInfoPresentFlag {
 		aspectRatioIDC := reader.MustRead(8)
@@ -263,7 +361,7 @@ func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
 			vui.SampleAspectRatioWidth, vui.SampleAspectRatioHeight = getSAR(aspectRatioIDC)
 		}
 	}
-	if onlyAR {
+	if !parseVUIBeyondAspectRatio {
 		return nil
 	}
 	vui.OverscanInfoPresentFlag = reader.MustReadFlag()
@@ -294,11 +392,11 @@ func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
 	}
 	vui.NalHrdParametersPresentFlag = reader.MustReadFlag()
 	if vui.NalHrdParametersPresentFlag {
-		return nil // No support for parsing further
+		vui.NalHrdParameters = parseHrdParameters(reader)
 	}
 	vui.VclHrdParametersPresentFlag = reader.MustReadFlag()
 	if vui.VclHrdParametersPresentFlag {
-		return nil // No support parsing further
+		vui.VclHrdParameters = parseHrdParameters(reader)
 	}
 	if vui.NalHrdParametersPresentFlag || vui.VclHrdParametersPresentFlag {
 		vui.LowDelayHrdFlag = reader.MustReadFlag()
@@ -318,11 +416,31 @@ func parseVUI(reader *bits.EBSPReader, vui *VUIParameters, onlyAR bool) error {
 	return nil
 }
 
+func parseHrdParameters(r *bits.EBSPReader) *HrdParameters {
+	hp := &HrdParameters{}
+	hp.CpbCountMinus1 = r.MustReadExpGolomb()
+	hp.BitRateScale = r.MustRead(4)
+	hp.CpbSizeScale = r.MustRead(4)
+	for schedSelIdx := uint(0); schedSelIdx <= hp.CpbCountMinus1; schedSelIdx++ {
+		ce := CpbEntry{}
+		ce.BitRateValueMinus1 = r.MustReadExpGolomb()
+		ce.CpbSizeValueMinus1 = r.MustReadExpGolomb()
+		ce.CbrFlag = r.MustReadFlag()
+		hp.CpbEntries = append(hp.CpbEntries, ce)
+	}
+	hp.InitialCpbRemovalDelayLengthMinus1 = r.MustRead(5)
+	hp.CpbRemovalDelayLengthMinus1 = r.MustRead(5)
+	hp.DpbOutpuDelayLengthMinus1 = r.MustRead(5)
+	hp.TimeOffsetLength = r.MustRead(5)
+	return hp
+}
+
 // ConstraintFlags - return the four ConstraintFlag bits
 func (a *AvcSPS) ConstraintFlags() byte {
 	return byte(a.ProfileCompatibility >> 4)
 }
 
+// getSAR - get Sample Aspect Ratio
 func getSAR(index uint) (uint, uint) {
 	if index < 1 || index > 16 {
 		panic(fmt.Sprintf("Bad index %d to SAR", index))

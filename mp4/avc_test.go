@@ -47,11 +47,23 @@ func TestSPSParser1(t *testing.T) {
 		Width:                           1280,
 		Height:                          720,
 		VUI: VUIParameters{
-			SampleAspectRatioWidth:  1,
-			SampleAspectRatioHeight: 1,
+			SampleAspectRatioWidth:      1,
+			SampleAspectRatioHeight:     1,
+			VideoSignalTypePresentFlag:  true,
+			VideoFormat:                 5,
+			ChromaLocInfoPresentFlag:    true,
+			TimingInfoPresentFlag:       true,
+			NumUnitsInTick:              1,
+			TimeScale:                   1250,
+			NalHrdParametersPresentFlag: true,
+			NalHrdParameters: &HrdParameters{
+				CpbEntries:                         []CpbEntry{{133, 1, false}},
+				InitialCpbRemovalDelayLengthMinus1: 14,
+				TimeOffsetLength:                   1,
+			},
 		},
 	}
-	got, err := ParseSPSNALUnit(byteData)
+	got, err := ParseSPSNALUnit(byteData, true)
 	got.NrBytesBeforeVUI = 0
 	got.NrBytesRead = 0
 	if err != nil {
@@ -95,11 +107,20 @@ func TestSPSParser2(t *testing.T) {
 		Width:                           320,
 		Height:                          180,
 		VUI: VUIParameters{
-			SampleAspectRatioWidth:  0,
-			SampleAspectRatioHeight: 0,
+			SampleAspectRatioWidth:             0,
+			SampleAspectRatioHeight:            0,
+			TimingInfoPresentFlag:              true,
+			NumUnitsInTick:                     1,
+			TimeScale:                          60,
+			BitstreamRestrictionFlag:           true,
+			MotionVectorsOverPicBoundariesFlag: true,
+			Log2MaxMvLengthHorizontal:          9,
+			Log2MaxMvLengthVertical:            9,
+			MaxNumReorderFrames:                2,
+			MaxDecFrameBuffering:               4,
 		},
 	}
-	got, err := ParseSPSNALUnit(byteData)
+	got, err := ParseSPSNALUnit(byteData, true)
 	got.NrBytesBeforeVUI = 0
 	got.NrBytesRead = 0
 	if err != nil {

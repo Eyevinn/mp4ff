@@ -24,7 +24,7 @@ type AVCDecConfRec struct {
 
 // CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
 func CreateAVCDecConfRec(spsNALU []byte, ppsNALUs [][]byte) AVCDecConfRec {
-	sps, err := ParseSPSNALUnit(spsNALU)
+	sps, err := ParseSPSNALUnit(spsNALU, false) // false -> parse only start of VUI
 	if err != nil {
 		panic("Could not parse SPS")
 	}
