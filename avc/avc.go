@@ -26,10 +26,10 @@ const (
 	ExtendedSAR = 255
 )
 
-// AvcNalType -
-type AvcNalType uint16
+// NalType - AVC nal type
+type NalType uint16
 
-func (a AvcNalType) String() string {
+func (a NalType) String() string {
 	switch a {
 	case NALU_SEI:
 		return "SEI"
@@ -45,14 +45,14 @@ func (a AvcNalType) String() string {
 }
 
 // Get NalType from NAL Header byte
-func GetNalType(nalHeader byte) AvcNalType {
-	return AvcNalType(nalHeader & 0x1f)
+func GetNalType(nalHeader byte) NalType {
+	return NalType(nalHeader & 0x1f)
 }
 
-// FindAvcNalTypes - find list of nal types
-func FindAvcNalTypes(b []byte) []AvcNalType {
+// FindNalTypes - find list of nal types
+func FindNalTypes(b []byte) []NalType {
 	var pos uint32 = 0
-	nalList := make([]AvcNalType, 0)
+	nalList := make([]NalType, 0)
 	length := len(b)
 	if length < 4 {
 		return nalList
@@ -60,16 +60,16 @@ func FindAvcNalTypes(b []byte) []AvcNalType {
 	for pos < uint32(length-4) {
 		nalLength := binary.BigEndian.Uint32(b[pos : pos+4])
 		pos += 4
-		nalType := AvcNalType(b[pos] & 0x1f)
+		nalType := NalType(b[pos] & 0x1f)
 		nalList = append(nalList, nalType)
 		pos += nalLength
 	}
 	return nalList
 }
 
-// HasAvcParameterSets - Check if H.264 SPS and PPS are present
-func HasAvcParameterSets(b []byte) bool {
-	nalTypeList := FindAvcNalTypes(b)
+// HasParameterSets - Check if H.264 SPS and PPS are present
+func HasParameterSets(b []byte) bool {
+	nalTypeList := FindNalTypes(b)
 	hasSPS := false
 	hasPPS := false
 	for _, nalType := range nalTypeList {
@@ -86,8 +86,8 @@ func HasAvcParameterSets(b []byte) bool {
 	return false
 }
 
-// AvcSPS - AVC SPS parameters
-type AvcSPS struct {
+// SPS - AVC SPS parameters
+type SPS struct {
 	Profile                         uint
 	ProfileCompatibility            uint
 	Level                           uint
@@ -187,9 +187,9 @@ type CpbEntry struct {
 }
 
 // ParseSPSNALUnit - Parse AVC SPS NAL unit starting with NAL header
-func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*AvcSPS, error) {
+func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) {
 
-	sps := &AvcSPS{}
+	sps := &SPS{}
 
 	rd := bytes.NewReader(data)
 	reader := bits.NewEBSPReader(rd)
@@ -436,7 +436,7 @@ func parseHrdParameters(r *bits.EBSPReader) *HrdParameters {
 }
 
 // ConstraintFlags - return the four ConstraintFlag bits
-func (a *AvcSPS) ConstraintFlags() byte {
+func (a *SPS) ConstraintFlags() byte {
 	return byte(a.ProfileCompatibility >> 4)
 }
 

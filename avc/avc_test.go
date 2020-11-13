@@ -13,7 +13,7 @@ const sps2nalu = "6764000dacd941419f9e10000003001000000303c0f1429960"
 func TestSPSParser1(t *testing.T) {
 	byteData, _ := hex.DecodeString(sps1nalu)
 
-	wanted := AvcSPS{
+	wanted := SPS{
 		Profile:                         100,
 		ProfileCompatibility:            0,
 		Level:                           32,
@@ -73,7 +73,7 @@ func TestSPSParser1(t *testing.T) {
 func TestSPSParser2(t *testing.T) {
 	byteData, _ := hex.DecodeString(sps2nalu)
 
-	wanted := AvcSPS{
+	wanted := SPS{
 		Profile:                         100,
 		ProfileCompatibility:            0,
 		Level:                           13,
