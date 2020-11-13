@@ -2,7 +2,11 @@ package bits
 
 import (
 	"bytes"
+	"encoding/hex"
+	"io"
 	"testing"
+
+	"github.com/go-test/deep"
 )
 
 func TestGolomb(t *testing.T) {
@@ -50,4 +54,41 @@ func TestGolomb(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestEbspParser(t *testing.T) {
+
+	cases := []struct{ name, start, want string }{
+		{
+			"read last byte",
+			"32",
+			"32",
+		},
+		{
+			"remove escape but not 007",
+			"27640020ac2ec05005bb011000000300100000078e840016e300005b8d8bdef83b438627",
+			"27640020ac2ec05005bb0110000000100000078e840016e300005b8d8bdef83b438627",
+		},
+	}
+
+	for _, c := range cases {
+		byteData, _ := hex.DecodeString(c.start)
+		buf := bytes.NewBuffer(byteData)
+		r := NewEBSPReader(buf)
+		got := []byte{}
+		for {
+			b, err := r.Read(8)
+			if err == io.EOF {
+				break
+			}
+			got = append(got, byte(b))
+		}
+		wantBytes, err := hex.DecodeString(c.want)
+		if err != nil {
+			t.Error(err)
+		}
+		if diff := deep.Equal(got, wantBytes); diff != nil {
+			t.Errorf("%s: %v", c.name, diff)
+		}
+	}
 }
