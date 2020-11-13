@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+const sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
+
 func parseInitFile(fileName string) (*File, error) {
 	fd, err := os.Open(fileName)
 	if err != nil {

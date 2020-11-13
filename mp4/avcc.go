@@ -3,24 +3,26 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/avc"
 )
 
 // AvcCBox - AVCConfigurationBox (ISO/IEC 14496-15 5.4.2.1.2 and 5.3.3.1.2)
 // Contains one AVCDecoderConfigurationRecord
 type AvcCBox struct {
-	AVCDecConfRec
+	avc.AVCDecConfRec
 }
 
 // CreateAvcC - Create an avcC box based on SPS and PPS
 func CreateAvcC(spsNALU []byte, ppsNALUs [][]byte) *AvcCBox {
-	avcDecConfRec := CreateAVCDecConfRec(spsNALU, ppsNALUs)
+	avcDecConfRec := avc.CreateAVCDecConfRec(spsNALU, ppsNALUs)
 
 	return &AvcCBox{avcDecConfRec}
 }
 
 // DecodeAvcC - box-specific decode
 func DecodeAvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	avcDecConfRec, err := DecodeAVCDecConfRec(r)
+	avcDecConfRec, err := avc.DecodeAVCDecConfRec(r)
 	if err != nil {
 		return nil, err
 	}

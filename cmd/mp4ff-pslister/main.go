@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/edgeware/mp4ff/avc"
 	"github.com/edgeware/mp4ff/mp4"
 	log "github.com/sirupsen/logrus"
 )
@@ -63,7 +64,7 @@ func main() {
 			for i, sps := range avcC.SPSnalus {
 				hexStr := hex.EncodeToString(sps)
 				length := len(hexStr) / 2
-				spsInfo, err := mp4.ParseSPSNALUnit(sps, *fullVUI)
+				spsInfo, err := avc.ParseSPSNALUnit(sps, *fullVUI)
 				if err != nil {
 					fmt.Println("Could not parse SPS")
 					return
