@@ -1,11 +1,12 @@
-// mp4ff-pslister lists parameter sets for H.264/AVC video.
+// mp4ff-pslister lists parameter sets for H.264/AVC video in mp4 files.
 //
 // It prints them as hex and with verbose mode it also  interprets them.
 //
 //   Usage:
 //
-//    mp4ff-pslister -f <mp4string> [-v]
+//    mp4ff-pslister -f <mp4file> [-v]
 //      -f: Required: Path to mp4 file to read
+//      -vui: Parse full VUI
 //      -v:	Verbose output
 //
 package main
@@ -22,6 +23,7 @@ import (
 
 func main() {
 	fileName := flag.String("f", "", "Required: Path to mp4 file to read")
+	fullVUI := flag.Bool("vui", false, "Parse full VUI")
 	verbose := flag.Bool("v", false, "Verbose output")
 
 	flag.Parse()
@@ -61,12 +63,12 @@ func main() {
 			for i, sps := range avcC.SPSnalus {
 				hexStr := hex.EncodeToString(sps)
 				length := len(hexStr) / 2
-				spsInfo, err := mp4.ParseSPSNALUnit(sps)
+				spsInfo, err := mp4.ParseSPSNALUnit(sps, *fullVUI)
 				if err != nil {
 					fmt.Println("Could not parse SPS")
 					return
 				}
-				nrBytesRead := spsInfo.NrBytesRead // Not reading all VUI bytes
+				nrBytesRead := spsInfo.NrBytesRead
 				if nrBytesRead < length {
 					hexStr = fmt.Sprintf("%s_%s", hexStr[:2*nrBytesRead], hexStr[2*nrBytesRead:])
 				}
