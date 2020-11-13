@@ -1,4 +1,4 @@
-package mp4
+package avc
 
 import (
 	"encoding/hex"
@@ -7,17 +7,13 @@ import (
 	"github.com/go-test/deep"
 )
 
-// From ~tobbe/content/encmompass/dazn_ad/video_4400kbps/init.cmfv (dropped 67)
 const sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
-
-// From test in repackaging-poc
-
 const sps2nalu = "6764000dacd941419f9e10000003001000000303c0f1429960"
 
 func TestSPSParser1(t *testing.T) {
 	byteData, _ := hex.DecodeString(sps1nalu)
 
-	wanted := AvcSPS{
+	wanted := SPS{
 		Profile:                         100,
 		ProfileCompatibility:            0,
 		Level:                           32,
@@ -77,7 +73,7 @@ func TestSPSParser1(t *testing.T) {
 func TestSPSParser2(t *testing.T) {
 	byteData, _ := hex.DecodeString(sps2nalu)
 
-	wanted := AvcSPS{
+	wanted := SPS{
 		Profile:                         100,
 		ProfileCompatibility:            0,
 		Level:                           13,

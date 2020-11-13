@@ -114,6 +114,8 @@ it can be calculated. It is set to `MoofBox.Size()+8`.
 
 Some simple command line tools are available in `cmd`.
 
+1. `mp4ff-pslister` extracts and displays pps and sps for AVC in an mp4 file
+
 ## Example code
 
 Example code is available in the `examples` directory.
