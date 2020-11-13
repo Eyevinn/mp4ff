@@ -11,23 +11,23 @@ import (
 
 var ErrNotSPS = errors.New("Not an SPS NAL unit")
 
+// NalType - AVC nal type
+type NalType uint16
+
 const (
 	// NALU_SEI - Supplementary Enhancement Information NAL Unit
-	NALU_SEI = 6
+	NALU_SEI = NalType(6)
 	// NALU_SSP - SequenceParameterSet NAL Unit
-	NALU_SPS = 7
+	NALU_SPS = NalType(7)
 	// NALU_PPS - PictureParameterSet NAL Unit
-	NALU_PPS = 8
+	NALU_PPS = NalType(8)
 	// NALU_AUD - AccessUnitDelimiter NAL Unit
-	NALU_AUD = 9
+	NALU_AUD = NalType(9)
 	// NALU_FILL - Filler NAL Unit
-	NALU_FILL = 12
+	NALU_FILL = NalType(12)
 	// ExtendedSAR - Extended Sample Aspect Ratio Code
 	ExtendedSAR = 255
 )
-
-// NalType - AVC nal type
-type NalType uint16
 
 func (a NalType) String() string {
 	switch a {
@@ -199,7 +199,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	if err != nil {
 		return nil, err
 	}
-	nalType := nalHdr & 0x1f
+	nalType := GetNalType(byte(nalHdr))
 	if nalType != NALU_SPS {
 		return nil, ErrNotSPS
 	}
