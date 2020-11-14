@@ -2,8 +2,12 @@ package bits
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 )
+
+var ErrNotReedSeeker = errors.New("Reader does not support Seek")
 
 // NewEBSPReader - return a new Reader.
 func NewEBSPReader(rd io.Reader) *EBSPReader {
@@ -96,7 +100,12 @@ func (r *EBSPReader) MustReadSignedGolomb() int {
 
 // NrBytesRead - how many bytes read into parser
 func (r *EBSPReader) NrBytesRead() int {
-	return r.pos
+	return r.pos + 1 // Starts at -1
+}
+
+// NrBitsReadInCurrentByte - how many bits have been read
+func (r *EBSPReader) NrBitsReadInCurrentByte() int {
+	return 8 - r.n
 }
 
 // EBSP2rbsp - convert from EBSP to RBSP by removing escape 0x03 after two 0x00
@@ -201,5 +210,94 @@ func (r *EBSPReader) ReadSignedGolomb() (int, error) {
 		return int((unsignedGolomb + 1) / 2), nil
 	} else {
 		return -int(unsignedGolomb / 2), nil
+	}
+}
+
+// IsSeeker - does reader support Seek
+func (r *EBSPReader) IsSeeker() bool {
+	_, ok := r.rd.(io.ReadSeeker)
+	return ok
+}
+
+// MoreRbspData - false if next bit is 1 and last 1 in fullSlice
+// Underlying reader must support ReadSeeker interface
+func (r *EBSPReader) MoreRbspData() (bool, error) {
+	if !r.IsSeeker() {
+		return false, ErrNotReedSeeker
+	}
+	// Find out if next positon is the last 1
+	stateCopy := *r
+
+	firstBit, err := r.Read(1)
+	if err != nil {
+		return false, err
+	}
+	if firstBit != 1 {
+		err = r.reset(stateCopy)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	// Must check if all remaining bits are zero
+	more := false
+	for {
+		b, err := r.Read(1)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return false, err
+		}
+		if b == 1 {
+			more = true
+			break
+		}
+	}
+	err = r.reset(stateCopy)
+	if err != nil {
+		return false, nil
+	}
+	return more, nil
+}
+
+func (r *EBSPReader) reset(prevState EBSPReader) error {
+	rdSeek, ok := r.rd.(io.ReadSeeker)
+
+	if !ok {
+		return ErrNotReedSeeker
+	}
+
+	_, err := rdSeek.Seek(int64(prevState.pos+1), 0)
+	if err != nil {
+		return err
+	}
+	r.n = prevState.n
+	r.v = prevState.v
+	r.pos = prevState.pos
+	r.zeroCount = prevState.zeroCount
+	return nil
+}
+
+// ReadRbspTrailingBits - read rbsp_traling_bits. Return false if wrong pattern
+func (r *EBSPReader) ReadRbspTrailingBits() error {
+	firstBit, err := r.Read(1)
+	if err != nil {
+		return err
+	}
+	if firstBit != 1 {
+		return fmt.Errorf("RbspTrailingBits don't start with 1")
+	}
+	for {
+		b, err := r.Read(1)
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if b == 1 {
+			return fmt.Errorf("Another 1 in RbspTrailingBits")
+		}
 	}
 }
