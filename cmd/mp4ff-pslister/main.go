@@ -59,12 +59,14 @@ func main() {
 			avcC := stsd.AvcX.AvcC
 			trackID := trak.Tkhd.TrackID
 			if *verbose {
-				fmt.Printf("Video track ID=%d\n", trackID)
+				fmt.Printf("Videavo track ID=%d\n", trackID)
 			}
+			var spsInfo *avc.SPS
+			var err error
 			for i, sps := range avcC.SPSnalus {
 				hexStr := hex.EncodeToString(sps)
 				length := len(hexStr) / 2
-				spsInfo, err := avc.ParseSPSNALUnit(sps, *fullVUI)
+				spsInfo, err = avc.ParseSPSNALUnit(sps, *fullVUI)
 				if err != nil {
 					fmt.Println("Could not parse SPS")
 					return
@@ -73,18 +75,24 @@ func main() {
 				if nrBytesRead < length {
 					hexStr = fmt.Sprintf("%s_%s", hexStr[:2*nrBytesRead], hexStr[2*nrBytesRead:])
 				}
-				fmt.Printf("%+v\n", spsInfo)
 				if *verbose {
 					fmt.Printf("SPS %d len %d: %+v\n", i, length, hexStr)
+					fmt.Printf("%+v\n", spsInfo)
 				} else {
 					fmt.Printf("#SPS_%d_%dB:%+v", i, length, hexStr)
 				}
 			}
 			for i, pps := range avcC.PPSnalus {
+				ppsInfo, err := avc.ParsePPSNALUnit(pps, spsInfo)
+				if err != nil {
+					fmt.Println("Could not parse PPS")
+					return
+				}
 				hexStr := hex.EncodeToString(pps)
 				length := len(hexStr) / 2
 				if *verbose {
 					fmt.Printf("PPS %d len %d: %+v\n", i, length, hexStr)
+					fmt.Printf("%+v\n", ppsInfo)
 				} else {
 					fmt.Printf("#PPS_%d_%dB:%+v", i, length, hexStr)
 				}
