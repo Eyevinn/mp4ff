@@ -98,7 +98,7 @@ type SPS struct {
 	BitDepthChromaMinus8            uint
 	QPPrimeYZeroTransformBypassFlag bool
 	SeqScalingMatrixPresentFlag     bool
-	SeqScalings                     *SeqScalings
+	SeqScalingLists                 []ScalingList
 	Log2MaxFrameNumMinus4           uint
 	PicOrderCntType                 uint
 	Log2MaxPicOrderCntLsbMinus4     uint
@@ -123,13 +123,7 @@ type SPS struct {
 	VUI                             *VUIParameters
 }
 
-type SeqScalings struct {
-	SeqScalingLists []SeqScalingList
-}
-type SeqScalingList struct {
-	SeqScalingListPresentFlag bool
-	ScalingLists              []int
-}
+type ScalingList []int // 4x4 or 8x8 Scaling lists. Nil if not present
 
 // VUIParameters - extra parameters according to 14496-10, E.1
 type VUIParameters struct {
@@ -256,50 +250,28 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 			return nil, err
 		}
 		if sps.SeqScalingMatrixPresentFlag {
-			sps.SeqScalings = &SeqScalings{}
-			length := 12 // Default
-			if sps.ChromaFormatIDC == 3 {
-				length = 8
+			nrScalingLists := 12
+			if sps.ChromaFormatIDC != 3 {
+				nrScalingLists = 8
 			}
-			for i := 0; i < length; i++ {
-				if i < 6 {
-					sm := make([]int, 16) // 4x4 scaling matrix
-					lastScale := 8
-					nextScale := 8
-					for j := 0; j < 16; j++ {
-						if nextScale != 0 {
-							deltaScale, err := reader.ReadSignedGolomb()
-							if err != nil {
-								return nil, err
-							}
-							nextScale = (lastScale + deltaScale + 256) % 256
-						}
-						if nextScale == 0 {
-							sm[j] = lastScale
-						} else {
-							sm[j] = nextScale
-						}
-						lastScale = sm[j]
-					}
-				} else {
-					sm := make([]int, 64) // 8x8 scaling matrix
-					lastScale := 8
-					nextScale := 8
-					for j := 0; j < 64; j++ {
-						if nextScale != 0 {
-							deltaScale, err := reader.ReadSignedGolomb()
-							if err != nil {
-								return nil, err
-							}
-							nextScale = (lastScale + deltaScale + 256) % 256
-						}
-						if nextScale == 0 {
-							sm[j] = lastScale
-						} else {
-							sm[j] = nextScale
-						}
-						lastScale = sm[j]
-					}
+			sps.SeqScalingLists = make([]ScalingList, nrScalingLists)
+
+			for i := 0; i < nrScalingLists; i++ {
+				seqScalingPresent, err := reader.ReadFlag()
+				if err != nil {
+					return nil, err
+				}
+				if !seqScalingPresent {
+					sps.SeqScalingLists[i] = nil
+					continue
+				}
+				sizeOfScalingList := 16 // 4x4 for i < 6
+				if i >= 6 {
+					sizeOfScalingList = 64 // 8x8 for i >= 6
+				}
+				sps.SeqScalingLists[i], err = readScalingList(reader, sizeOfScalingList)
+				if err != nil {
+					return nil, err
 				}
 			}
 		}
@@ -689,4 +661,26 @@ func getSAR(index uint) (uint, uint, error) {
 		{80, 33}, {18, 11}, {15, 11}, {64, 33},
 		{160, 99}, {4, 3}, {3, 2}, {2, 1}}
 	return aspectRatioTable[index-1][0], aspectRatioTable[index-1][1], nil
+}
+
+func readScalingList(reader *bits.EBSPReader, sizeOfScalingList int) (ScalingList, error) {
+	scalingList := make([]int, sizeOfScalingList)
+	lastScale := 8
+	nextScale := 8
+	for j := 0; j < sizeOfScalingList; j++ {
+		if nextScale != 0 {
+			deltaScale, err := reader.ReadSignedGolomb()
+			if err != nil {
+				return nil, err
+			}
+			nextScale = (lastScale + deltaScale + 256) % 256
+		}
+		if nextScale == 0 {
+			scalingList[j] = lastScale
+		} else {
+			scalingList[j] = nextScale
+		}
+		lastScale = scalingList[j]
+	}
+	return scalingList, nil
 }
