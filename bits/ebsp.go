@@ -27,7 +27,7 @@ type EBSPReader struct {
 func (r *EBSPReader) MustRead(n int) uint {
 	var err error
 
-	for r.n <= n {
+	for r.n < n {
 		r.v <<= 8
 		var b uint8
 		err = binary.Read(r.rd, binary.BigEndian, &b)
