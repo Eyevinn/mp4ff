@@ -92,3 +92,122 @@ func TestEbspParser(t *testing.T) {
 		}
 	}
 }
+
+func TestGetPrecisePosition(t *testing.T) {
+
+	testCases := []struct {
+		name             string
+		inBytes          []byte
+		nrBitsToRead     int
+		nrBytesRead      int
+		nrBitsReadInByte int
+	}{
+		{
+			name:             "Read 13 bits",
+			inBytes:          []byte{0, 1, 2},
+			nrBitsToRead:     13,
+			nrBytesRead:      2,
+			nrBitsReadInByte: 5,
+		},
+	}
+
+	for _, c := range testCases {
+
+		buf := bytes.NewBuffer(c.inBytes)
+		r := NewEBSPReader(buf)
+		_, err := r.Read(c.nrBitsToRead)
+		if err != nil {
+			t.Error(err)
+		}
+		if r.NrBytesRead() != c.nrBytesRead {
+			t.Errorf("%s: got %d bytes want %d bytes", c.name, r.NrBytesRead(), c.nrBytesRead)
+		}
+		if r.NrBitsReadInCurrentByte() != c.nrBitsReadInByte {
+			t.Errorf("%s: got %d bits want %d bits", c.name, r.NrBitsReadInCurrentByte(), c.nrBitsReadInByte)
+		}
+
+	}
+}
+
+func TestMoreRbspData(t *testing.T) {
+
+	testCases := []struct {
+		name         string
+		inBytes      []byte
+		nrBitsBefore int
+		moreRbsp     bool
+		nrBitsAfter  int
+		valueRead    uint
+	}{
+		{
+			name:         "start of byte",
+			inBytes:      []byte{0b10000000},
+			nrBitsBefore: 0,
+			moreRbsp:     false,
+			nrBitsAfter:  0,
+			valueRead:    0,
+		},
+		{
+			name:         "one bit left",
+			inBytes:      []byte{0b11000000},
+			nrBitsBefore: 0,
+			moreRbsp:     true,
+			nrBitsAfter:  2,
+			valueRead:    3,
+		},
+		{
+			name:         "after one bit",
+			inBytes:      []byte{0b11000000},
+			nrBitsBefore: 1,
+			moreRbsp:     false,
+			nrBitsAfter:  0,
+			valueRead:    0,
+		},
+		{
+			name:         "after one byte",
+			inBytes:      []byte{0b11110111, 0b11001000},
+			nrBitsBefore: 9,
+			moreRbsp:     true,
+			nrBitsAfter:  4,
+			valueRead:    0b00001001,
+		},
+	}
+
+	for _, c := range testCases {
+
+		brd := bytes.NewReader(c.inBytes)
+		r := NewEBSPReader(brd)
+		_, err := r.Read(c.nrBitsBefore)
+		if err != nil {
+			t.Error(err)
+		}
+		moreRbsp, err := r.MoreRbspData()
+		if err != nil {
+			t.Error(err)
+		}
+		if moreRbsp != c.moreRbsp {
+			t.Errorf("%s: got %t want %t", c.name, moreRbsp, c.moreRbsp)
+		}
+		got, err := r.Read(c.nrBitsAfter)
+		if err != nil {
+			t.Error(err)
+		}
+		if got != c.valueRead {
+			t.Errorf("%s: got %d want %d after check", c.name, got, c.valueRead)
+		}
+	}
+}
+
+func TestReadTrailingRbspBits(t *testing.T) {
+	input := []byte{0b10000000}
+	brd := bytes.NewReader(input)
+	reader := NewEBSPReader(brd)
+	err := reader.ReadRbspTrailingBits()
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = reader.Read(1)
+	if err != io.EOF {
+		t.Errorf("Not at end after reading rbsp_trailing_bits")
+	}
+}
