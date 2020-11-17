@@ -1,8 +1,8 @@
 /*
-Package bits implements bit reading and writing.
+Package bits implements bit reading and writing including EBSP.
 
 Beyond plain bit reading and writing, it includes reading of ebsp (Encapsulated Byte Sequence Packets)
-Golomb codes as usid in the AVC/H.264 video coding standard.
+Golomb codes as used in the AVC/H.264 and HEVC video coding standards.
 
 */
 package bits

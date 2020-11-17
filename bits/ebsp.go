@@ -70,7 +70,7 @@ func (r *EBSPReader) MustReadFlag() bool {
 	return r.MustRead(1) == 1
 }
 
-// MustReadExpGolomb - Read one unsigned exponential golomb code
+// MustReadExpGolomb - Read one unsigned exponential golomb code. Panic if not possible
 func (r *EBSPReader) MustReadExpGolomb() uint {
 	leadingZeroBits := 0
 
@@ -88,7 +88,7 @@ func (r *EBSPReader) MustReadExpGolomb() uint {
 	return res + endBits
 }
 
-// MustReadSignedGolomb - Read one signed exponential golomb code
+// MustReadSignedGolomb - Read one signed exponential golomb code. Panic if not possible
 func (r *EBSPReader) MustReadSignedGolomb() int {
 	unsignedGolomb := r.MustReadExpGolomb()
 	if unsignedGolomb%2 == 1 {
@@ -220,7 +220,7 @@ func (r *EBSPReader) IsSeeker() bool {
 }
 
 // MoreRbspData - false if next bit is 1 and last 1 in fullSlice
-// Underlying reader must support ReadSeeker interface
+// Underlying reader must support ReadSeeker interface to reset after check
 func (r *EBSPReader) MoreRbspData() (bool, error) {
 	if !r.IsSeeker() {
 		return false, ErrNotReedSeeker
@@ -239,7 +239,7 @@ func (r *EBSPReader) MoreRbspData() (bool, error) {
 		}
 		return true, nil
 	}
-	// Must check if all remaining bits are zero
+	// If all remainging bits are zero, there is no more rbsp data
 	more := false
 	for {
 		b, err := r.Read(1)
@@ -261,6 +261,7 @@ func (r *EBSPReader) MoreRbspData() (bool, error) {
 	return more, nil
 }
 
+// reset EBSPReader based on copy of previous state
 func (r *EBSPReader) reset(prevState EBSPReader) error {
 	rdSeek, ok := r.rd.(io.ReadSeeker)
 
