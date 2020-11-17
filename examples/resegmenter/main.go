@@ -1,10 +1,10 @@
-// mp4ff-resegmenter resegments mp4 files into concatenated segments with new duration.
+// resegmenter resegments mp4 files into concatenated segments with new duration.
 //
-// The mp4 files must look like a CMAF track with init segment and media segments.
+// The input file must be a CMAF track with init segment and media segments.
 //
 //   Usage:
 //
-//    mp4ff-resegmenter -f <input.mp4> -o <output.mp4> -b <chunk_dur>
+//    resegmenter -f <input.mp4> -o <output.mp4> -b <chunk_dur>
 //    -b int
 //         Required: chunk duration (ticks)
 //    -f string

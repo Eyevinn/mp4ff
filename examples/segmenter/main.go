@@ -1,9 +1,9 @@
 // segmenter segments a progressive mp4 file into audio and video segments
 //
-// There should be at most one audio and one video track in the file.
+// There should be at most one audio and one video track in the input.
 // The output files will be named as
-//   init segments: <output>_a.mp4 and <output>_v.mp4
-//   media segments: <output>_a_<n>.m4s and <output>_v_<n>.m4s where n >= 1
+// init segments: <output>_a.mp4 and <output>_v.mp4
+// media segments: <output>_a_<n>.m4s and <output>_v_<n>.m4s where n >= 1
 //
 //   Usage:
 //

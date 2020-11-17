@@ -7,6 +7,10 @@ import (
 	"io"
 )
 
+const (
+	startCodeEmulationPreventionByte = 0x03
+)
+
 var ErrNotReedSeeker = errors.New("Reader does not support Seek")
 
 // NewEBSPReader - return a new Reader.
@@ -39,7 +43,7 @@ func (r *EBSPReader) MustRead(n int) uint {
 			panic("Reading error")
 		}
 		r.pos++
-		if r.zeroCount == 2 {
+		if r.zeroCount == 2 && b == startCodeEmulationPreventionByte {
 			err = binary.Read(r.rd, binary.BigEndian, &b)
 			if err != nil {
 				panic("Reading error")
@@ -70,7 +74,7 @@ func (r *EBSPReader) MustReadFlag() bool {
 	return r.MustRead(1) == 1
 }
 
-// MustReadExpGolomb - Read one unsigned exponential golomb code
+// MustReadExpGolomb - Read one unsigned exponential golomb code. Panic if not possible
 func (r *EBSPReader) MustReadExpGolomb() uint {
 	leadingZeroBits := 0
 
@@ -88,7 +92,7 @@ func (r *EBSPReader) MustReadExpGolomb() uint {
 	return res + endBits
 }
 
-// MustReadSignedGolomb - Read one signed exponential golomb code
+// MustReadSignedGolomb - Read one signed exponential golomb code. Panic if not possible
 func (r *EBSPReader) MustReadSignedGolomb() int {
 	unsignedGolomb := r.MustReadExpGolomb()
 	if unsignedGolomb%2 == 1 {
@@ -108,13 +112,13 @@ func (r *EBSPReader) NrBitsReadInCurrentByte() int {
 	return 8 - r.n
 }
 
-// EBSP2rbsp - convert from EBSP to RBSP by removing escape 0x03 after two 0x00
+// EBSP2rbsp - convert from EBSP to RBSP by removing start code emulation prevention bytes
 func EBSP2rbsp(ebsp []byte) []byte {
 	zeroCount := 0
 	output := make([]byte, 0, len(ebsp))
 	for i := 0; i < len(ebsp); i++ {
 		b := ebsp[i]
-		if zeroCount == 2 && b == 3 {
+		if zeroCount == 2 && b == startCodeEmulationPreventionByte {
 			zeroCount = 0
 		} else {
 			if b != 0 {
@@ -140,7 +144,7 @@ func (r *EBSPReader) Read(n int) (uint, error) {
 			return 0, err
 		}
 		r.pos++
-		if r.zeroCount == 2 && b <= 3 {
+		if r.zeroCount == 2 && b == startCodeEmulationPreventionByte {
 			err = binary.Read(r.rd, binary.BigEndian, &b)
 			if err != nil {
 				return 0, err
@@ -220,7 +224,7 @@ func (r *EBSPReader) IsSeeker() bool {
 }
 
 // MoreRbspData - false if next bit is 1 and last 1 in fullSlice
-// Underlying reader must support ReadSeeker interface
+// Underlying reader must support ReadSeeker interface to reset after check
 func (r *EBSPReader) MoreRbspData() (bool, error) {
 	if !r.IsSeeker() {
 		return false, ErrNotReedSeeker
@@ -239,7 +243,7 @@ func (r *EBSPReader) MoreRbspData() (bool, error) {
 		}
 		return true, nil
 	}
-	// Must check if all remaining bits are zero
+	// If all remainging bits are zero, there is no more rbsp data
 	more := false
 	for {
 		b, err := r.Read(1)
@@ -261,6 +265,7 @@ func (r *EBSPReader) MoreRbspData() (bool, error) {
 	return more, nil
 }
 
+// reset EBSPReader based on copy of previous state
 func (r *EBSPReader) reset(prevState EBSPReader) error {
 	rdSeek, ok := r.rd.(io.ReadSeeker)
 

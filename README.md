@@ -6,13 +6,16 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/edgeware/mp4ff)](https://goreportcard.com/report/github.com/edgeware/mp4ff)
 [![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.md)
 
-MP4/ISOBMFF media file parser and writer. Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
+Package mp4ff implements MP4 media file parser and writer for AVC video, AAC audio and stpp/wvtt subtitles.
+Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 
 ## Library
 
-The library has functions for parsing (called Decode) and writing (Encode).
+The library has functions for parsing (called Decode) and writing (Encode) in the package `mp4ff/mp4`.
+It also contains codec specific parsing of of AVC/H.264 including complete parsing of
+SPS and PPS in the package `mp4ff.avc`.
 
-Traditional multiplexed non-fragmented mp4 files can be parsed and decoded, see `examples/segment`.
+Traditional multiplexed non-fragmented mp4 files can also be parsed and decoded, see `examples/segment`.
 
 The focus is, however, on non-multiplexed single-track fragmented mp4 files as used in DASH, HLS, and CMAF.
 
@@ -114,7 +117,7 @@ it can be calculated. It is set to `MoofBox.Size()+8`.
 
 Some simple command line tools are available in `cmd`.
 
-1. `mp4ff-pslister` extracts and displays pps and sps for AVC in an mp4 file
+1. `mp4ff-pslister` extracts and displays pps and sps for AVC in an mp4 file.
 
 ## Example code
 
@@ -133,7 +136,7 @@ The APIs should be fairly stable, but minor non-backwards-compatible tweaks may 
 
 MIT, see [LICENSE.md](LICENSE.md).
 
-Some code in pkg/mp4, es from or is based on https://github.com/jfbus/mp4 which has
+Some code in pkg/mp4, comes from or is based on https://github.com/jfbus/mp4 which has
 `Copyright (c) 2015 Jean-François Bustarret`.
 
 Some code in pkg/bits comes from or is based on https://github.com/tcnksm/go-casper/tree/master/internal/bits

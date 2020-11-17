@@ -59,7 +59,7 @@ func main() {
 			avcC := stsd.AvcX.AvcC
 			trackID := trak.Tkhd.TrackID
 			if *verbose {
-				fmt.Printf("Videavo track ID=%d\n", trackID)
+				fmt.Printf("Video track ID=%d\n", trackID)
 			}
 			var spsInfo *avc.SPS
 			var err error

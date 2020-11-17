@@ -56,6 +56,7 @@ func TestGolomb(t *testing.T) {
 	})
 }
 
+// TestEbspParser including startCodeEmulationPrevention removal
 func TestEbspParser(t *testing.T) {
 
 	cases := []struct{ name, start, want string }{

@@ -5,11 +5,12 @@ import (
 	"io"
 )
 
-// Writer writes bits into underlying io.Writer. Stops at first error
+// Writer writes bits into underlying io.Writer. Stops writing at first error.
+// Errors that have occured can later be checked with Error().
 type Writer struct {
 	n   int   // current number of bits
 	v   uint  // current accumulated value
-	err error // Has a write caused an error
+	err error // The first error caused by any write operation
 
 	wr io.Writer
 }
@@ -130,11 +131,12 @@ func (r *Reader) MustRead(n int) uint {
 	return v
 }
 
-// MustReadFlag - read 1 bit into flag
+// MustReadFlag - read 1 bit into flag and panic if not possible
 func (r *Reader) MustReadFlag() bool {
 	return r.MustRead(1) == 1
 }
 
+// mask - n-bit binary mask
 func mask(n int) uint {
 	return (1 << uint(n)) - 1
 }
