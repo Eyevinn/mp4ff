@@ -1,4 +1,4 @@
-// mp4ff-tree print a tree of the box structure of a file.
+// tree prints a tree of the box structure of a file using the Dump method of boxes.
 //
 //   Usage:
 //
@@ -30,5 +30,11 @@ func main() {
 	}
 	defer ifd.Close()
 	parsedMp4, err := mp4.DecodeFile(ifd)
-	parsedMp4.Dump(os.Stdout, "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = parsedMp4.Dump(os.Stdout, "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
 }
