@@ -7,6 +7,10 @@ import (
 	"io"
 )
 
+const (
+	startCodeEmulationPreventionByte = 0x03
+)
+
 var ErrNotReedSeeker = errors.New("Reader does not support Seek")
 
 // NewEBSPReader - return a new Reader.
@@ -39,7 +43,7 @@ func (r *EBSPReader) MustRead(n int) uint {
 			panic("Reading error")
 		}
 		r.pos++
-		if r.zeroCount == 2 {
+		if r.zeroCount == 2 && b == startCodeEmulationPreventionByte {
 			err = binary.Read(r.rd, binary.BigEndian, &b)
 			if err != nil {
 				panic("Reading error")
@@ -108,13 +112,13 @@ func (r *EBSPReader) NrBitsReadInCurrentByte() int {
 	return 8 - r.n
 }
 
-// EBSP2rbsp - convert from EBSP to RBSP by removing escape 0x03 after two 0x00
+// EBSP2rbsp - convert from EBSP to RBSP by removing start code emulation prevention bytes
 func EBSP2rbsp(ebsp []byte) []byte {
 	zeroCount := 0
 	output := make([]byte, 0, len(ebsp))
 	for i := 0; i < len(ebsp); i++ {
 		b := ebsp[i]
-		if zeroCount == 2 && b == 3 {
+		if zeroCount == 2 && b == startCodeEmulationPreventionByte {
 			zeroCount = 0
 		} else {
 			if b != 0 {
@@ -140,7 +144,7 @@ func (r *EBSPReader) Read(n int) (uint, error) {
 			return 0, err
 		}
 		r.pos++
-		if r.zeroCount == 2 && b <= 3 {
+		if r.zeroCount == 2 && b == startCodeEmulationPreventionByte {
 			err = binary.Read(r.rd, binary.BigEndian, &b)
 			if err != nil {
 				return 0, err
