@@ -15,11 +15,11 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/edgeware/mp4ff/avc"
 	"github.com/edgeware/mp4ff/mp4"
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -136,7 +134,6 @@ func decodeHeader(r io.Reader) (*boxHeader, error) {
 // EncodeHeader encodes a box header to a writer
 func EncodeHeader(b Box, w io.Writer) error {
 	boxType, boxSize := b.Type(), b.Size()
-	log.Debugf("Writing %v size %d\n", boxType, boxSize)
 	buf := make([]byte, boxHeaderSize)
 	largeSize := false
 	if boxSize < 1<<32 {
@@ -145,7 +142,7 @@ func EncodeHeader(b Box, w io.Writer) error {
 		largeSize = true
 		binary.BigEndian.PutUint32(buf, 1)
 	}
-	strtobuf(buf[4:], b.Type(), 4)
+	strtobuf(buf[4:], boxType, 4)
 	if largeSize {
 		binary.BigEndian.PutUint64(buf, boxSize)
 	}
@@ -179,11 +176,9 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 	remainingLength := int64(h.size) - int64(h.hdrlen)
 
 	if !ok {
-		log.Debugf("Found unknown box type %v, size %v", h.name, h.size)
 		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
 
 	} else {
-		log.Debugf("Found supported box %v, size %v", h.name, h.size)
 		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
 	}
 	if err != nil {

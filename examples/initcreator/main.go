@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/hex"
 	"errors"
+	"log"
 	"os"
 
 	"github.com/edgeware/mp4ff/mp4"
-	log "github.com/sirupsen/logrus"
 )
 
 const sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
@@ -16,11 +16,11 @@ func main() {
 
 	err := writeVideoAVCInitSegment()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	err = writeAudioAACInitSegment()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 }
 
