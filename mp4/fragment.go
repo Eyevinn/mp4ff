@@ -1,10 +1,9 @@
 package mp4
 
 import (
+	"errors"
 	"fmt"
 	"io"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
@@ -55,11 +54,10 @@ func (f *Fragment) AddChild(b Box) {
 }
 
 // GetFullSamples - Get full samples including media and accumulated time
-func (f *Fragment) GetFullSamples(trex *TrexBox) []*FullSample {
+func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	moof := f.Moof
 	mdat := f.Mdat
-	seqNr := moof.Mfhd.SequenceNumber
-	log.Debugf("Got samples for Segment %d\n", seqNr)
+	//seqNr := moof.Mfhd.SequenceNumber
 	tfhd := moof.Traf.Tfhd
 	baseTime := moof.Traf.Tfdt.BaseMediaDecodeTime
 	trun := moof.Traf.Trun
@@ -78,10 +76,10 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) []*FullSample {
 	mdatDataLength := uint64(len(mdat.Data)) // TODO Make len take 64-bit number
 	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
 	if offsetInMdat > mdatDataLength {
-		log.Fatalf("Offset in mdata beyond size")
+		return nil, errors.New("Offset in mdata beyond size")
 	}
 	samples := trun.GetFullSamples(uint32(offsetInMdat), baseTime, f.Mdat)
-	return samples
+	return samples, nil
 }
 
 // AddFullSample - add a full sample to a fragment
@@ -98,7 +96,10 @@ func (f *Fragment) AddFullSample(s *FullSample) {
 
 // DumpSampleData - Get Sample data and print out
 func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
-	samples := f.GetFullSamples(trex)
+	samples, err := f.GetFullSamples(trex)
+	if err != nil {
+		return err
+	}
 	for i, s := range samples {
 		if i < 9 {
 			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime(),

@@ -2,11 +2,14 @@ package avc
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"io/ioutil"
-
-	log "github.com/sirupsen/logrus"
+	"log"
 )
+
+var ErrCannotParseAVCExtension = errors.New("Cannot parse SPS extensions")
+var ErrLengthSize = errors.New("Can only handle 4byte NAL length size")
 
 //AVCDecConfRec - AVCDecoderConfigurationRecord
 type AVCDecConfRec struct {
@@ -56,7 +59,7 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 	AVCLevelIndication := data[3]
 	LengthSizeMinus1 := data[4] & 0x03 // The first 5 bits are 1
 	if LengthSizeMinus1 != 0x3 {
-		panic("Can only handle 4byte NAL length size")
+		return AVCDecConfRec{}, ErrLengthSize
 	}
 	numSPS := data[5] & 0x1f // 5 bits following 3 reserved bits
 	pos := 6
@@ -88,7 +91,7 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		// No more bytes
 	default:
 		if pos == len(data) { // Not according to standard, but have been seen
-			log.Warningf("No ChromaFormat info for AVCProfileIndication=%d", AVCProfileIndication)
+			log.Printf("No ChromaFormat info for AVCProfileIndication %d", AVCProfileIndication)
 			adcr.NoTrailingInfo = true
 			return adcr, nil
 		}
@@ -97,7 +100,7 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		adcr.BitDepthChromaMinus1 = data[pos+2] & 0x07
 		adcr.NumSPSExt = data[pos+3]
 		if adcr.NumSPSExt != 0 {
-			panic("Cannot handle SPS extensions")
+			return adcr, ErrCannotParseAVCExtension
 		}
 	}
 

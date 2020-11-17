@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // File - an MPEG-4 file asset
@@ -51,9 +49,6 @@ func DecodeFile(r io.Reader) (*File, error) {
 
 LoopBoxes:
 	for {
-		//f := r.(*os.File)
-		//p, err := f.Seek(0, os.SEEK_CUR)
-		//log.Printf("Byte position is %v", p)
 		box, err := DecodeBox(boxStartPos, r)
 		if err == io.EOF {
 			break LoopBoxes
@@ -61,21 +56,20 @@ LoopBoxes:
 		if err != nil {
 			return nil, err
 		}
-		bType, bSize := box.Type(), box.Size()
-		log.Debugf("Box %v, size %v at pos %v", bType, bSize, boxStartPos)
+		boxType, boxSize := box.Type(), box.Size()
 		if err != nil {
 			return nil, err
 		}
-		if bType == "mdat" {
+		if boxType == "mdat" {
 			if f.isFragmented {
 				if lastBoxType != "moof" {
-					log.Fatalf("Does not support %v between moof and mdat", lastBoxType)
+					return nil, fmt.Errorf("Does not support %v between moof and mdat", lastBoxType)
 				}
 			}
 		}
 		f.AddChild(box, boxStartPos)
-		lastBoxType = bType
-		boxStartPos += bSize
+		lastBoxType = boxType
+		boxStartPos += boxSize
 	}
 	return f, nil
 }

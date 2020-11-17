@@ -16,7 +16,10 @@ func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 
 	for _, iSeg := range in.Segments {
 		for _, iFrag := range iSeg.Fragments {
-			fSamples := iFrag.GetFullSamples(in.Init.Moov.Mvex.Trex)
+			fSamples, err := iFrag.GetFullSamples(in.Init.Moov.Mvex.Trex)
+			if err != nil {
+				return nil, err
+			}
 			iSamples = append(iSamples, fSamples...)
 		}
 	}
