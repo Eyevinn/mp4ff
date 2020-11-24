@@ -144,9 +144,9 @@ Some code in pkg/bits comes from or is based on https://github.com/tcnksm/go-cas
 
 ## Versions
 
-|Version | Highlight |
-|---|---|---|---|---|
-|0.14| Added functions to use Annex B byte stream for AVC/H.264|
-|0.13| Removed third-party log library |
-|0.12| Complete parsing of AVC/H.264 SPS and PPS |
+| Version | Highlight |
+| ------  | --------- |
+| 0.14.0 | Added functions to use Annex B byte stream for AVC/H.264 |
+| 0.13.0 | Removed third-party log library |
+| 0.12.0 | Complete parsing of AVC/H.264 SPS and PPS |
 
