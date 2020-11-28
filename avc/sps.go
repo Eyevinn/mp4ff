@@ -8,6 +8,9 @@ import (
 	"github.com/edgeware/mp4ff/bits"
 )
 
+// extendedSAR - Extended Sample Aspect Ratio Code
+const extendedSAR = 255
+
 var ErrNotSPS = errors.New("Not an SPS NAL unit")
 
 // SPS - AVC SPS parameters
@@ -355,7 +358,7 @@ func parseVUI(reader *bits.EBSPReader, parseVUIBeyondAspectRatio bool) (*VUIPara
 		if err != nil {
 			return nil, err
 		}
-		if aspectRatioIDC == ExtendedSAR {
+		if aspectRatioIDC == extendedSAR {
 			vui.SampleAspectRatioWidth, err = reader.Read(16)
 			if err != nil {
 				return nil, err

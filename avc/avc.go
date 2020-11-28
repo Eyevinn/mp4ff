@@ -2,13 +2,16 @@ package avc
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // NalType - AVC nal type
 type NalType uint16
 
 const (
-	// NALU_IDR - IDR Random Access Picture NAL Unit
+	// NALU_NON_IDR - Non-IDR Slice NAL unit
+	NALU_NON_IDR = NalType(1)
+	// NALU_IDR - IDR Random Access Slice NAL Unit
 	NALU_IDR = NalType(5)
 	// NALU_SEI - Supplementary Enhancement Information NAL Unit
 	NALU_SEI = NalType(6)
@@ -18,10 +21,12 @@ const (
 	NALU_PPS = NalType(8)
 	// NALU_AUD - AccessUnitDelimiter NAL Unit
 	NALU_AUD = NalType(9)
+	// NALU_EO_SEQ - End of Sequence NAL Unit
+	NALU_EO_SEQ = NalType(10)
+	// NALU_EO_STREAM - End of Stream NAL Unit
+	NALU_EO_STREAM = NalType(11)
 	// NALU_FILL - Filler NAL Unit
 	NALU_FILL = NalType(12)
-	// ExtendedSAR - Extended Sample Aspect Ratio Code
-	ExtendedSAR = 255
 )
 
 func (a NalType) String() string {
@@ -37,7 +42,7 @@ func (a NalType) String() string {
 	case NALU_AUD:
 		return "AUD"
 	default:
-		return "other"
+		return fmt.Sprintf("Other %d", a)
 	}
 }
 
@@ -102,4 +107,26 @@ func HasParameterSets(b []byte) bool {
 		}
 	}
 	return false
+}
+
+// GetParameterSets - get SPS and (multipled) PPS from a sample
+func GetParameterSets(sample []byte) (sps []byte, pps [][]byte) {
+	sampleLength := uint32(len(sample))
+	var pos uint32 = 0
+	for {
+		if pos >= sampleLength {
+			break
+		}
+		nalLength := binary.BigEndian.Uint32(sample[pos : pos+4])
+		pos += 4
+		nalHdr := sample[pos]
+		switch GetNalType(nalHdr) {
+		case NALU_SPS:
+			sps = sample[pos : pos+nalLength]
+		case NALU_PPS:
+			pps = append(pps, sample[pos:pos+nalLength])
+		}
+		pos += nalLength
+	}
+	return sps, pps
 }
