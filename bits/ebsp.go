@@ -50,12 +50,11 @@ func (r *EBSPReader) MustRead(n int) uint {
 			}
 			r.pos++
 			r.zeroCount = 0
+		}
+		if b != 0 {
+			r.zeroCount = 0
 		} else {
-			if b != 0 {
-				r.zeroCount = 0
-			} else {
-				r.zeroCount++
-			}
+			r.zeroCount++
 		}
 		r.v |= uint(b)
 
@@ -151,12 +150,11 @@ func (r *EBSPReader) Read(n int) (uint, error) {
 			}
 			r.pos++
 			r.zeroCount = 0
+		}
+		if b != 0 {
+			r.zeroCount = 0
 		} else {
-			if b != 0 {
-				r.zeroCount = 0
-			} else {
-				r.zeroCount++
-			}
+			r.zeroCount++
 		}
 		r.v |= uint(b)
 

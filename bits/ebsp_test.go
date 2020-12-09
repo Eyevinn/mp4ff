@@ -70,6 +70,11 @@ func TestEbspParser(t *testing.T) {
 			"27640020ac2ec05005bb011000000300100000078e840016e300005b8d8bdef83b438627",
 			"27640020ac2ec05005bb0110000000100000078e840016e300005b8d8bdef83b438627",
 		},
+		{
+			"Long zero sequence",
+			"00000300000300",
+			"0000000000",
+		},
 	}
 
 	for _, c := range cases {
@@ -210,5 +215,36 @@ func TestReadTrailingRbspBits(t *testing.T) {
 	_, err = reader.Read(1)
 	if err != io.EOF {
 		t.Errorf("Not at end after reading rbsp_trailing_bits")
+	}
+}
+
+func TestEBSPWriter(t *testing.T) {
+	testCases := []struct {
+		in  []byte
+		out []byte
+	}{
+		{
+			in:  []byte{0, 0, 0, 1},
+			out: []byte{0, 0, 3, 0, 1},
+		},
+		{
+			in:  []byte{1, 0, 0, 2},
+			out: []byte{1, 0, 0, 3, 2},
+		},
+		{
+			in:  []byte{0, 0, 0, 0, 0},
+			out: []byte{0, 0, 3, 0, 0, 3, 0},
+		},
+	}
+	for _, tc := range testCases {
+		buf := bytes.Buffer{}
+		w := NewEBSPWriter(&buf)
+		for _, b := range tc.in {
+			w.Write(uint(b), 8)
+		}
+		diff := deep.Equal(buf.Bytes(), tc.out)
+		if diff != nil {
+			t.Errorf("Got %v but wanted %d", buf.Bytes(), tc.out)
+		}
 	}
 }

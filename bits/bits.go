@@ -80,7 +80,7 @@ func NewReader(rd io.Reader) *Reader {
 func (r *Reader) Read(n int) (uint, error) {
 	var err error
 
-	for r.n <= n {
+	for r.n < n {
 		r.v <<= 8
 		var b uint8
 		err = binary.Read(r.rd, binary.BigEndian, &b)
@@ -112,7 +112,7 @@ func (r *Reader) ReadFlag() (bool, error) {
 func (r *Reader) MustRead(n int) uint {
 	var err error
 
-	for r.n <= n {
+	for r.n < n {
 		r.v <<= 8
 		var b uint8
 		err = binary.Read(r.rd, binary.BigEndian, &b)

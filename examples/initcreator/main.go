@@ -25,14 +25,15 @@ func main() {
 }
 
 func writeVideoAVCInitSegment() error {
-	spsNALU, _ := hex.DecodeString(sps1nalu)
+	sps, _ := hex.DecodeString(sps1nalu)
+	spsNALUs := [][]byte{sps}
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsNALUs := [][]byte{pps}
 
 	videoTimescale := uint32(180000)
 	init := mp4.CreateEmptyMP4Init(videoTimescale, "video", "und")
 	trak := init.Moov.Trak[0]
-	trak.SetAVCDescriptor("avc1", spsNALU, ppsNALUs)
+	trak.SetAVCDescriptor("avc1", spsNALUs, ppsNALUs)
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
 	if width != 1280 || height != 720 {
