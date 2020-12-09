@@ -109,8 +109,8 @@ func HasParameterSets(b []byte) bool {
 	return false
 }
 
-// GetParameterSets - get SPS and (multipled) PPS from a sample
-func GetParameterSets(sample []byte) (sps []byte, pps [][]byte) {
+// GetParameterSets - get (multiple) SPS and PPS from a sample
+func GetParameterSets(sample []byte) (sps [][]byte, pps [][]byte) {
 	sampleLength := uint32(len(sample))
 	var pos uint32 = 0
 	for {
@@ -122,7 +122,7 @@ func GetParameterSets(sample []byte) (sps []byte, pps [][]byte) {
 		nalHdr := sample[pos]
 		switch GetNalType(nalHdr) {
 		case NALU_SPS:
-			sps = sample[pos : pos+nalLength]
+			sps = append(sps, sample[pos:pos+nalLength])
 		case NALU_PPS:
 			pps = append(pps, sample[pos:pos+nalLength])
 		}

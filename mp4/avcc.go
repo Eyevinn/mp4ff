@@ -14,8 +14,8 @@ type AvcCBox struct {
 }
 
 // CreateAvcC - Create an avcC box based on SPS and PPS
-func CreateAvcC(spsNALU []byte, ppsNALUs [][]byte) *AvcCBox {
-	avcDecConfRec := avc.CreateAVCDecConfRec(spsNALU, ppsNALUs)
+func CreateAvcC(spsNALUs [][]byte, ppsNALUs [][]byte) *AvcCBox {
+	avcDecConfRec := avc.CreateAVCDecConfRec(spsNALUs, ppsNALUs)
 
 	return &AvcCBox{avcDecConfRec}
 }

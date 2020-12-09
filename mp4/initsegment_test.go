@@ -85,7 +85,8 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 const pps1nalu = "68b5df20"
 
 func TestGenerateInitSegment(t *testing.T) {
-	spsData, _ := hex.DecodeString(sps1nalu)
+	sps, _ := hex.DecodeString(sps1nalu)
+	spsData := [][]byte{sps}
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsData := [][]byte{pps}
 
