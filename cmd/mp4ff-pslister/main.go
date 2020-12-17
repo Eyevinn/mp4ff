@@ -49,7 +49,7 @@ func main() {
 	}
 
 	found := false
-	for _, trak := range parsedMp4.Moov.Trak {
+	for _, trak := range parsedMp4.Moov.Traks {
 		if trak.Mdia.Hdlr.HandlerType == "vide" {
 			stsd := trak.Mdia.Minf.Stbl.Stsd
 			if stsd.AvcX == nil {

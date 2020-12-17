@@ -164,7 +164,7 @@ func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs [][]byt
 
 // GetMediaType - should return video or audio (at present)
 func (s *InitSegment) GetMediaType() string {
-	switch s.Moov.Trak[0].Mdia.Hdlr.HandlerType {
+	switch s.Moov.Trak.Mdia.Hdlr.HandlerType {
 	case "soun":
 		return "audio"
 	case "vide":

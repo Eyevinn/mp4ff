@@ -30,7 +30,7 @@ func parseInitFile(fileName string) (*File, error) {
 		return nil, fmt.Errorf("No ftyp present")
 	}
 
-	if f.isFragmented && len(f.Init.Moov.Trak) != 1 {
+	if f.isFragmented && len(f.Init.Moov.Traks) != 1 {
 		return nil, fmt.Errorf("Not exactly one track")
 	}
 	return f, nil
@@ -42,11 +42,11 @@ func TestInitSegmentParsing(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	url := f.Init.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Children[0]
+	url := f.Init.Moov.Trak.Mdia.Minf.Dinf.Dref.Children[0]
 	if url.Type() != "url " {
 		t.Errorf("Could not find url box")
 	}
-	avcC := f.Init.Moov.Trak[0].Mdia.Minf.Stbl.Stsd.AvcX.AvcC
+	avcC := f.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.AvcX.AvcC
 
 	wanted := byte(31)
 	got := avcC.AVCLevelIndication
@@ -60,11 +60,11 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	url := f.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Children[0]
+	url := f.Moov.Trak.Mdia.Minf.Dinf.Dref.Children[0]
 	if url.Type() != "url " {
 		t.Errorf("Could not find url box")
 	}
-	avcx := f.Moov.Trak[0].Mdia.Minf.Stbl.Stsd.AvcX
+	avcx := f.Moov.Trak.Mdia.Minf.Stbl.Stsd.AvcX
 	avcC := avcx.AvcC
 
 	wanted := byte(31)
@@ -91,7 +91,7 @@ func TestGenerateInitSegment(t *testing.T) {
 	ppsData := [][]byte{pps}
 
 	init := CreateEmptyMP4Init(180000, "video", "und")
-	trak := init.Moov.Trak[0]
+	trak := init.Moov.Trak
 	trak.SetAVCDescriptor("avc3", spsData, ppsData)
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height

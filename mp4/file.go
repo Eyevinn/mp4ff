@@ -36,6 +36,36 @@ func NewFile() *File {
 	}
 }
 
+// ReadMP4File - read an mp4 file from path
+func ReadMP4File(path string) (*File, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	mp4Root, err := DecodeFile(f)
+	if err != nil {
+		return nil, err
+	}
+	return mp4Root, nil
+}
+
+// BoxStructure represent a box or similar entity such as a Segment
+type BoxStructure interface {
+	Encode(w io.Writer) error
+}
+
+// WriteToFile - write a box structure to a file at filePath
+func WriteToFile(boxStructure BoxStructure, filePath string) error {
+	ofd, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer ofd.Close()
+	err = boxStructure.Encode(ofd)
+	return err
+}
+
 // AddMediaSegment - add a mediasegment to file f
 func (f *File) AddMediaSegment(m *MediaSegment) {
 	f.Segments = append(f.Segments, m)
@@ -81,7 +111,7 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 		f.Ftyp = box.(*FtypBox)
 	case "moov":
 		f.Moov = box.(*MoovBox)
-		if len(f.Moov.Trak[0].Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+		if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
 			f.isFragmented = true
 			f.Init = NewMP4Init()
 			f.Init.Ftyp = f.Ftyp

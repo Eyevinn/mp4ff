@@ -10,6 +10,7 @@ import "io"
 type MvexBox struct {
 	//Mehd *TkhdBox
 	Trex     *TrexBox
+	Trexs    []*TrexBox
 	Children []Box
 }
 
@@ -23,7 +24,10 @@ func (m *MvexBox) AddChild(box Box) {
 
 	switch box.Type() {
 	case "trex":
-		m.Trex = box.(*TrexBox)
+		if m.Trex == nil {
+			m.Trex = box.(*TrexBox)
+		}
+		m.Trexs = append(m.Trexs, box.(*TrexBox))
 	}
 	m.Children = append(m.Children, box)
 }

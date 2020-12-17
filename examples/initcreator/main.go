@@ -32,7 +32,7 @@ func writeVideoAVCInitSegment() error {
 
 	videoTimescale := uint32(180000)
 	init := mp4.CreateEmptyMP4Init(videoTimescale, "video", "und")
-	trak := init.Moov.Trak[0]
+	trak := init.Moov.Trak
 	trak.SetAVCDescriptor("avc1", spsNALUs, ppsNALUs)
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
@@ -46,7 +46,7 @@ func writeVideoAVCInitSegment() error {
 func writeAudioAACInitSegment() error {
 	audioTimeScale := 48000
 	init := mp4.CreateEmptyMP4Init(uint32(audioTimeScale), "audio", "en")
-	trak := init.Moov.Trak[0]
+	trak := init.Moov.Trak
 	err := trak.SetAACDescriptor(mp4.AAClc, audioTimeScale)
 	if err != nil {
 		return err
