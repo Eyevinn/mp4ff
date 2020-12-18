@@ -38,7 +38,7 @@ func parseInitFile(fileName string) (*File, error) {
 
 // InitSegmentParsing - Check  to read a file with moov box.
 func TestInitSegmentParsing(t *testing.T) {
-	f, err := parseInitFile("test_data/init1.cmfv")
+	f, err := parseInitFile("testdata/init1.cmfv")
 	if err != nil {
 		t.Error(err)
 	}
@@ -56,7 +56,7 @@ func TestInitSegmentParsing(t *testing.T) {
 }
 
 func TestMoovParsingWithBtrtParsing(t *testing.T) {
-	f, err := parseInitFile("test_data/init_prog.mp4")
+	f, err := parseInitFile("testdata/init_prog.mp4")
 	if err != nil {
 		t.Error(err)
 	}
@@ -116,7 +116,7 @@ func TestGenerateInitSegment(t *testing.T) {
 	}
 
 	// Next write to a file
-	ofd, err := os.Create("test_data/out_init.cmfv")
+	ofd, err := os.Create("testdata/out_init.cmfv")
 	if err != nil {
 		t.Error(err)
 	}

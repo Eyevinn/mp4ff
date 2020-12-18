@@ -14,8 +14,8 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		TrackID: 2,
 	}
 
-	//fd, err := os.Open("test_data/1.m4s")
-	fd, err := os.Open("test_data/1_frag.m4s")
+	//fd, err := os.Open("testdata/1.m4s")
+	fd, err := os.Open("testdata/1_frag.m4s")
 	if err != nil {
 		if err != nil {
 			t.Error(err)
@@ -57,7 +57,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		}
 	}
 
-	inFileContent, err := ioutil.ReadFile("test_data/1_frag.m4s")
+	inFileContent, err := ioutil.ReadFile("testdata/1_frag.m4s")
 	if err != nil {
 		t.Errorf("Could not read test content")
 	}
