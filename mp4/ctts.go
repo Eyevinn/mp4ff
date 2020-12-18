@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -86,6 +85,6 @@ func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
 }
 
 func (b *CttsBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
-	return err
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	return bd.err
 }

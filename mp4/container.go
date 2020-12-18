@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -60,10 +59,11 @@ func EncodeContainer(c ContainerBox, w io.Writer) error {
 }
 
 func DumpContainer(c ContainerBox, w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, c.Type(), c.Size())
-	if err != nil {
-		return err
+	bd := newBoxDumper(c, indent, c, -1)
+	if bd.err != nil {
+		return bd.err
 	}
+	var err error
 	for _, child := range c.GetChildren() {
 		err := child.Dump(w, indent+indentStep, indentStep)
 		if err != nil {

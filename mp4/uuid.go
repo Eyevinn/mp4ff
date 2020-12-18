@@ -192,6 +192,7 @@ func (t *TfrfData) encode(w io.Writer) error {
 }
 
 func (u *UUIDBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, u.Type(), u.Size())
-	return err
+	bd := newBoxDumper(w, indent, u, -1)
+	bd.write(" - subType: %s", u.SubType)
+	return bd.err
 }

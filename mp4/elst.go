@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -103,16 +102,11 @@ func (b *ElstBox) Encode(w io.Writer) error {
 }
 
 func (b *ElstBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Segment durations:\n",
-		indent, b.Type(), b.Size(), indent)
-	if err != nil {
-		return err
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	for i := 0; i < len(b.SegmentDuration); i++ {
+		bd.write("-s segmentDuration: %d, mediaTime: %d, mediaRateInteger: %d,"+
+			"mediaRateFraction: %d %d units", b.SegmentDuration[i], b.MediaTime[i],
+			b.MediaRateInteger[i], b.MediaRateFraction[i])
 	}
-	for i, d := range b.SegmentDuration {
-		_, err := fmt.Fprintf(w, "%s - #%d: %d units\n", indent, i, d)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return bd.err
 }

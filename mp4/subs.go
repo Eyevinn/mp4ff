@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -141,6 +140,7 @@ func (b *SubsBox) Encode(w io.Writer) error {
 }
 
 func (b *SubsBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
-	return err
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	// TODO Add more details in subs dump
+	return bd.err
 }

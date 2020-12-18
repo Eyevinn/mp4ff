@@ -14,6 +14,7 @@ import (
 // This box describes the type of data contained in the trak.
 // HandlerType can be : "vide" (video track), "soun" (audio track), "subt" (subtitle track)
 // Other types are: "hint" (hint track), "meta" (timed Metadata track), "auxv" (auxiliary video track).
+// clcp (Closed Captions (QuickTime))
 type HdlrBox struct {
 	Version     byte
 	Flags       uint32
@@ -54,7 +55,7 @@ func DecodeHdlr(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Flags:       versionAndFlags & flagsMask,
 		PreDefined:  binary.BigEndian.Uint32(data[4:8]),
 		HandlerType: string(data[8:12]),
-		Name:        string(data[24:]),
+		Name:        string(data[24 : len(data)-1]),
 	}, nil
 }
 
@@ -65,7 +66,7 @@ func (b *HdlrBox) Type() string {
 
 // Size - calculated size of box
 func (b *HdlrBox) Size() uint64 {
-	return uint64(boxHeaderSize + 24 + len(b.Name))
+	return uint64(boxHeaderSize + 24 + len(b.Name) + 1)
 }
 
 // Encode - write box to w
@@ -80,12 +81,14 @@ func (b *HdlrBox) Encode(w io.Writer) error {
 	binary.BigEndian.PutUint32(buf[4:], b.PreDefined)
 	strtobuf(buf[8:], b.HandlerType, 4)
 	strtobuf(buf[24:], b.Name, len(b.Name))
+	buf[len(buf)-1] = 0 // null-termination of string
 	_, err = w.Write(buf)
 	return err
 }
 
 func (b *HdlrBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Handler type: %s\n%s - Handler name: %s\n",
-		indent, b.Type(), b.Size(), indent, b.HandlerType, indent, b.Name)
-	return err
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	bd.write(" - handlerType: %s", b.HandlerType)
+	bd.write(" - handlerName: %q", b.Name)
+	return bd.err
 }

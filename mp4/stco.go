@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -70,6 +69,7 @@ func (b *StcoBox) Encode(w io.Writer) error {
 }
 
 func (s *StcoBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+	bd := newBoxDumper(w, indent, s, int(s.Version))
+	//TODO. Add more files to stco dump
+	return bd.err
 }

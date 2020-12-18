@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/avc"
@@ -64,6 +63,6 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 }
 
 func (a *AvcCBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
-	return err
+	bd := newBoxDumper(w, indent, a, -1)
+	return bd.err
 }

@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -63,6 +62,9 @@ func (b *BtrtBox) Encode(w io.Writer) error {
 }
 
 func (b *BtrtBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
-	return err
+	bd := newBoxDumper(w, indent, b, -1)
+	bd.write(" - bufferSizeDB: %d", b.BufferSizeDB)
+	bd.write(" - maxBitrate: %d", b.MaxBitrate)
+	bd.write(" - AvgBitrate: %d", b.AvgBitrate)
+	return bd.err
 }

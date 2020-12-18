@@ -81,8 +81,9 @@ func (b *StscBox) Encode(w io.Writer) error {
 }
 
 func (s *StscBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+	bd := newBoxDumper(w, indent, s, int(s.Version))
+	//TODO. Add more files to stsc dump
+	return bd.err
 }
 
 // ChunkNrFromSampleNr - get chunk number from sampleNr (1-based)

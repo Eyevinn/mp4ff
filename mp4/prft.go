@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -84,6 +83,8 @@ func (p *PrftBox) Encode(w io.Writer) error {
 }
 
 func (p *PrftBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, p.Type(), p.Size())
-	return err
+	bd := newBoxDumper(w, indent, p, int(p.Version))
+	bd.write(" - ntpTimestampe: %d", p.NTPTimestamp)
+	bd.write(" - mediaTime: %d", p.MediaTime)
+	return bd.err
 }

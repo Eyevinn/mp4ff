@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -231,8 +230,10 @@ func (t *TrunBox) Encode(w io.Writer) error {
 }
 
 func (t *TrunBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
-	return err
+	bd := newBoxDumper(w, indent, t, int(t.Version))
+	bd.write(" - sampleCount; %d", t.sampleCount)
+	// TODO. Add more details to trun dump
+	return bd.err
 }
 
 // GetFullSamples - get all sample data including accumulated time and binary media

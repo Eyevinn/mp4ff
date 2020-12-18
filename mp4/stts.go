@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"time"
@@ -112,6 +111,7 @@ func (b *SttsBox) Encode(w io.Writer) error {
 	return err
 }
 func (s *SttsBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+	bd := newBoxDumper(w, indent, s, int(s.Version))
+	// TODO. Add more details to stts dump
+	return bd.err
 }

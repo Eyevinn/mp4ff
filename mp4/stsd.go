@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 )
 
@@ -136,6 +135,16 @@ func (s *StsdBox) Encode(w io.Writer) error {
 }
 
 func (s *StsdBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
+	bd := newBoxDumper(w, indent, s, int(s.Version))
+	if bd.err != nil {
+		return bd.err
+	}
+	var err error
+	for _, c := range s.Children {
+		err = c.Dump(w, indent+indentStep, indentStep)
+		if err != nil {
+			return err
+		}
+	}
 	return err
 }

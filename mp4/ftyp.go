@@ -1,7 +1,7 @@
 package mp4
 
 import (
-	"fmt"
+	"encoding/binary"
 	"io"
 	"io/ioutil"
 )
@@ -9,7 +9,7 @@ import (
 // FtypBox - File Type Box (ftyp - mandatory)
 type FtypBox struct {
 	MajorBrand       string
-	MinorVersion     []byte
+	MinorVersion     uint32
 	CompatibleBrands []string
 }
 
@@ -17,7 +17,7 @@ type FtypBox struct {
 func CreateFtyp() *FtypBox {
 	return &FtypBox{
 		MajorBrand:       "iso5",
-		MinorVersion:     []byte{0, 0, 0, 0},
+		MinorVersion:     0,
 		CompatibleBrands: []string{"isom", "dash", "mp42"},
 	}
 }
@@ -30,7 +30,7 @@ func DecodeFtyp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	b := &FtypBox{
 		MajorBrand:       string(data[0:4]),
-		MinorVersion:     data[4:8],
+		MinorVersion:     binary.BigEndian.Uint32(data[4:8]),
 		CompatibleBrands: []string{},
 	}
 	if len(data) > 8 {
@@ -59,7 +59,7 @@ func (b *FtypBox) Encode(w io.Writer) error {
 	}
 	buf := makebuf(b)
 	strtobuf(buf, b.MajorBrand, 4)
-	copy(buf[4:], b.MinorVersion)
+	binary.LittleEndian.PutUint32(buf[4:8], b.MinorVersion)
 	for i, c := range b.CompatibleBrands {
 		strtobuf(buf[8+i*4:], c, 4)
 	}
@@ -68,7 +68,11 @@ func (b *FtypBox) Encode(w io.Writer) error {
 }
 
 func (b *FtypBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Major Brand: %s\n",
-		indent, b.Type(), b.Size(), indent, b.MajorBrand)
-	return err
+	bd := newBoxDumper(w, indent, b, -1)
+	bd.write(" - majorBrand: %s", b.MajorBrand)
+	bd.write(" - minorVersion: %d", b.MinorVersion)
+	for _, cb := range b.CompatibleBrands {
+		bd.write(" - compatibleBrand: %s", cb)
+	}
+	return bd.err
 }

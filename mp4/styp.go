@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -59,7 +58,11 @@ func (b *StypBox) Encode(w io.Writer) error {
 }
 
 func (b *StypBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Major Brand: %s\n",
-		indent, b.Type(), b.Size(), indent, b.MajorBrand)
-	return err
+	bd := newBoxDumper(w, indent, b, -1)
+	bd.write(" - majorBrand: %s", b.MajorBrand)
+	bd.write(" - minorVersion: %d", b.MinorVersion)
+	for _, cb := range b.CompatibleBrands {
+		bd.write(" - compatibleBrand: %s", cb)
+	}
+	return bd.err
 }

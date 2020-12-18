@@ -118,7 +118,8 @@ func (m *MdhdBox) Encode(w io.Writer) error {
 }
 
 func (m *MdhdBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Timescale: %d\n%s - Language: %s\n",
-		indent, m.Type(), m.Size(), indent, m.Timescale, indent, m.GetLanguage())
-	return err
+	bd := newBoxDumper(w, indent, m, int(m.Version))
+	bd.write(" - timeScale: %d", m.Timescale)
+	bd.write(" - language: %s", m.GetLanguage())
+	return bd.err
 }
