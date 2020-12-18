@@ -68,7 +68,7 @@ func (b *StcoBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StcoBox) Dump(w io.Writer, indent, indentStep string) error {
+func (s *StcoBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, s, int(s.Version))
 	//TODO. Add more files to stco dump
 	return bd.err

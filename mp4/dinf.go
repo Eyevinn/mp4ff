@@ -55,6 +55,6 @@ func (d *DinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(d, w)
 }
 
-func (d *DinfBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(d, w, indent, indentStep)
+func (d *DinfBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return DumpContainer(d, w, specificBoxLevels, indent, indentStep)
 }

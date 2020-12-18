@@ -56,7 +56,7 @@ func (m *MdatBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (m *MdatBox) Dump(w io.Writer, indent, indentStep string) error {
+func (m *MdatBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, m, -1)
 	return bd.err
 }

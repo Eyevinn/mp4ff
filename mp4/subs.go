@@ -139,7 +139,7 @@ func (b *SubsBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *SubsBox) Dump(w io.Writer, indent, indentStep string) error {
+func (b *SubsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, b, int(b.Version))
 	// TODO Add more details in subs dump
 	return bd.err

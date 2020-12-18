@@ -116,7 +116,7 @@ func (b *MvhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *MvhdBox) Dump(w io.Writer, indent, indentStep string) error {
+func (b *MvhdBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, b, int(b.Version))
 	return bd.err
 }

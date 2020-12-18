@@ -203,7 +203,7 @@ func (s *SencBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *SencBox) Dump(w io.Writer, indent, indentStep string) error {
+func (s *SencBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, s, int(s.Version))
 	//TODO. Add more fields to dump
 	return bd.err

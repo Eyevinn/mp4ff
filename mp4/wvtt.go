@@ -124,14 +124,14 @@ func (a *WvttBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *WvttBox) Dump(w io.Writer, indent, indentStep string) error {
+func (a *WvttBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, a, -1)
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
 	for _, child := range a.Children {
-		err = child.Dump(w, indent+indentStep, indent)
+		err = child.Dump(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err
 		}
@@ -179,7 +179,7 @@ func (v *VttCBox) Encode(w io.Writer) error {
 }
 
 // Dump - write box content with indentation to w
-func (v *VttCBox) Dump(w io.Writer, indent, indentStep string) error {
+func (v *VttCBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, v, -1)
 	bd.write(" - config: %s", v.Config)
 	return bd.err
@@ -224,7 +224,7 @@ func (v *VlabBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (v *VlabBox) Dump(w io.Writer, indent, indentStep string) error {
+func (v *VlabBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, v, -1)
 	bd.write(" - sourceLabel: %s", v.SourceLabel)
 	return bd.err
@@ -259,7 +259,7 @@ func (v *VtteBox) Encode(w io.Writer) error {
 	return EncodeHeader(v, w)
 }
 
-func (v *VtteBox) Dump(w io.Writer, indent, indentStep string) error {
+func (v *VtteBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, v, -1)
 	return bd.err
 }
@@ -328,8 +328,8 @@ func (v *VttcBox) Encode(w io.Writer) error {
 	return EncodeContainer(v, w)
 }
 
-func (v *VttcBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(v, w, indent, indentStep)
+func (v *VttcBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return DumpContainer(v, w, specificBoxLevels, indent, indentStep)
 }
 
 ////////////////////////////// vsid //////////////////////////////
@@ -373,7 +373,7 @@ func (v *VsidBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (v *VsidBox) Dump(w io.Writer, indent, indentStep string) error {
+func (v *VsidBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, v, -1)
 	bd.write(" - sourceID: %d", v.SourceID)
 	return bd.err
@@ -419,7 +419,7 @@ func (c *CtimBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (c *CtimBox) Dump(w io.Writer, indent, indentStep string) error {
+func (c *CtimBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, c, -1)
 	bd.write(" - cueCurrentTime: %s", c.CueCurrentTime)
 	return bd.err
@@ -464,7 +464,7 @@ func (i *IdenBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (i *IdenBox) Dump(w io.Writer, indent, indentStep string) error {
+func (i *IdenBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, i, -1)
 	bd.write(" - cueID: %s", i.CueID)
 	return bd.err
@@ -509,7 +509,7 @@ func (s *SttgBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *SttgBox) Dump(w io.Writer, indent, indentStep string) error {
+func (s *SttgBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, s, -1)
 	bd.write(" - settings: %s", s.Settings)
 	return bd.err
@@ -554,7 +554,7 @@ func (p *PaylBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (p *PaylBox) Dump(w io.Writer, indent, indentStep string) error {
+func (p *PaylBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, p, -1)
 	bd.write(" - cueText: %s", p.CueText)
 	return bd.err
@@ -599,7 +599,7 @@ func (v *VttaBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (v *VttaBox) Dump(w io.Writer, indent, indentStep string) error {
+func (v *VttaBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, v, -1)
 	bd.write(" - cueAdditionalText: %s", v.CueAdditionalText)
 	return bd.err

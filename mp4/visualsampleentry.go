@@ -175,7 +175,7 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *VisualSampleEntryBox) Dump(w io.Writer, indent, indentStep string) error {
+func (a *VisualSampleEntryBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, a, -1)
 	bd.write(" - compressorName: %s", a.CompressorName)
 	return bd.err

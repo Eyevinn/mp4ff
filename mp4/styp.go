@@ -57,7 +57,7 @@ func (b *StypBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *StypBox) Dump(w io.Writer, indent, indentStep string) error {
+func (b *StypBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, b, -1)
 	bd.write(" - majorBrand: %s", b.MajorBrand)
 	bd.write(" - minorVersion: %d", b.MinorVersion)

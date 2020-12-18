@@ -198,7 +198,7 @@ func (e *EsdsBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (e *EsdsBox) Dump(w io.Writer, indent, indentStep string) error {
+func (e *EsdsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, e, int(e.Version))
 	return bd.err
 }

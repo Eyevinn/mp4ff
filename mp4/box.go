@@ -155,7 +155,7 @@ type Box interface {
 	Type() string
 	Size() uint64
 	Encode(w io.Writer) error
-	Dump(w io.Writer, indent, indentStep string) error
+	Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
 
 // BoxDecoder is function signature of the Box Decode method

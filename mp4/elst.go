@@ -101,7 +101,7 @@ func (b *ElstBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *ElstBox) Dump(w io.Writer, indent, indentStep string) error {
+func (b *ElstBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, b, int(b.Version))
 	for i := 0; i < len(b.SegmentDuration); i++ {
 		bd.write("-s segmentDuration: %d, mediaTime: %d, mediaRateInteger: %d,"+

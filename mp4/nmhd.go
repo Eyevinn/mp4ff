@@ -50,7 +50,7 @@ func (b *NmhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *NmhdBox) Dump(w io.Writer, indent, indentStep string) error {
+func (b *NmhdBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, b, int(b.Version))
 	return bd.err
 }

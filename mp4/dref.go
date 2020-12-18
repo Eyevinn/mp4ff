@@ -98,14 +98,14 @@ func (d *DrefBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (d *DrefBox) Dump(w io.Writer, indent, indentStep string) error {
+func (d *DrefBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, d, int(d.Version))
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
 	for _, c := range d.Children {
-		err = c.Dump(w, indent+indentStep, indentStep)
+		err = c.Dump(w, specificBoxLevels, indent+indentStep, indentStep)
 		if err != nil {
 			return err
 		}

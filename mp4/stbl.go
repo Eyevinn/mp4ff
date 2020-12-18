@@ -80,6 +80,6 @@ func (s *StblBox) Encode(w io.Writer) error {
 	return EncodeContainer(s, w)
 }
 
-func (s *StblBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(s, w, indent, indentStep)
+func (s *StblBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return DumpContainer(s, w, specificBoxLevels, indent, indentStep)
 }

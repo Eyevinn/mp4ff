@@ -78,7 +78,7 @@ func (u *URLBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
-func (u *URLBox) Dump(w io.Writer, indent, indentStep string) error {
+func (u *URLBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, u, -1)
 	bd.write(" - location: %q", u.Location)
 	return bd.err

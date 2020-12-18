@@ -16,6 +16,7 @@ import (
 func main() {
 
 	inFilePath := flag.String("i", "", "Required: Path to input file")
+	specBoxLevels := flag.String("s", "", "SpecificBoxLevels: Commaseparated box:level list")
 
 	flag.Parse()
 
@@ -33,7 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = parsedMp4.Dump(os.Stdout, "  ")
+	err = parsedMp4.Dump(os.Stdout, *specBoxLevels, "  ")
 	if err != nil {
 		log.Fatal(err)
 	}

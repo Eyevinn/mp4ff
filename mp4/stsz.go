@@ -87,7 +87,7 @@ func (b *StszBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StszBox) Dump(w io.Writer, indent, indentStep string) error {
+func (s *StszBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, s, int(s.Version))
 	// TODO. Add more details to stsz dump
 	return bd.err

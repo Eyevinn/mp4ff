@@ -10,7 +10,7 @@ type ContainerBox interface {
 	Size() uint64
 	Encode(w io.Writer) error
 	GetChildren() []Box
-	Dump(w io.Writer, indent, indentStep string) error
+	Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
 
 func containerSize(boxes []Box) uint64 {
@@ -58,14 +58,14 @@ func EncodeContainer(c ContainerBox, w io.Writer) error {
 	return nil
 }
 
-func DumpContainer(c ContainerBox, w io.Writer, indent, indentStep string) error {
-	bd := newBoxDumper(c, indent, c, -1)
+func DumpContainer(c ContainerBox, w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newBoxDumper(w, indent, c, -1)
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
 	for _, child := range c.GetChildren() {
-		err := child.Dump(w, indent+indentStep, indentStep)
+		err := child.Dump(w, specificBoxLevels, indent+indentStep, indentStep)
 		if err != nil {
 			return err
 		}

@@ -134,14 +134,14 @@ func (s *StsdBox) Encode(w io.Writer) error {
 	return nil
 }
 
-func (s *StsdBox) Dump(w io.Writer, indent, indentStep string) error {
+func (s *StsdBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, s, int(s.Version))
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
 	for _, c := range s.Children {
-		err = c.Dump(w, indent+indentStep, indentStep)
+		err = c.Dump(w, specificBoxLevels, indent+indentStep, indentStep)
 		if err != nil {
 			return err
 		}

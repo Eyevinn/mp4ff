@@ -76,7 +76,7 @@ func (t *TrexBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *TrexBox) Dump(w io.Writer, indent, indentStep string) error {
+func (t *TrexBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, t, int(t.Version))
 	bd.write(" - trackID: %d", t.TrackID)
 	bd.write(" - defaultSampleDescriptionIndex: %d", t.DefaultSampleDescriptionIndex)

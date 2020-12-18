@@ -229,7 +229,7 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *TrunBox) Dump(w io.Writer, indent, indentStep string) error {
+func (t *TrunBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, t, int(t.Version))
 	bd.write(" - sampleCount; %d", t.sampleCount)
 	// TODO. Add more details to trun dump

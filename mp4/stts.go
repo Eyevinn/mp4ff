@@ -110,7 +110,7 @@ func (b *SttsBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
-func (s *SttsBox) Dump(w io.Writer, indent, indentStep string) error {
+func (s *SttsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, s, int(s.Version))
 	// TODO. Add more details to stts dump
 	return bd.err

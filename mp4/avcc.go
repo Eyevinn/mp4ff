@@ -62,7 +62,7 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 	return a.AVCDecConfRec.Encode(w)
 }
 
-func (a *AvcCBox) Dump(w io.Writer, indent, indentStep string) error {
+func (a *AvcCBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, a, -1)
 	return bd.err
 }
