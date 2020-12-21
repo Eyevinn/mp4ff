@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -139,8 +140,21 @@ func (b *SubsBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Dump - specificBoxLevels dump:1 gives details
 func (b *SubsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, b, int(b.Version))
-	// TODO Add more details in subs dump
+	level := getDumpLevel(b, specificBoxLevels)
+	if level < 1 {
+		return bd.err
+	}
+	for _, e := range b.Entries {
+		bd.write(" - sampleDelta: %d", e.SampleDelta)
+		for _, s := range e.SubSamples {
+			msg := fmt.Sprintf("  > subSampleSize=%d", s.SubsampleSize)
+			msg += fmt.Sprintf(" subSamplePriority=%d discardable=%d", s.SubsamplePriority, s.Discardable)
+			msg += fmt.Sprintf(" codecSpecificParameters=%d", s.CodecSpecificParameters)
+			bd.write(msg)
+		}
+	}
 	return bd.err
 }
