@@ -104,8 +104,8 @@ func (b *ElstBox) Encode(w io.Writer) error {
 func (b *ElstBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newBoxDumper(w, indent, b, int(b.Version))
 	for i := 0; i < len(b.SegmentDuration); i++ {
-		bd.write("-s segmentDuration: %d, mediaTime: %d, mediaRateInteger: %d,"+
-			"mediaRateFraction: %d %d units", b.SegmentDuration[i], b.MediaTime[i],
+		bd.write("- segmentDuration=%d mediaTime=%d, mediaRateInteger=%d "+
+			"mediaRateFraction=%d", b.SegmentDuration[i], b.MediaTime[i],
 			b.MediaRateInteger[i], b.MediaRateFraction[i])
 	}
 	return bd.err
