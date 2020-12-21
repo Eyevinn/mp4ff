@@ -20,9 +20,9 @@ type boxDumper struct {
 func newBoxDumper(w io.Writer, indent string, b Box, version int) *boxDumper {
 	bd := boxDumper{w, indent, b, nil}
 	if version < 0 {
-		bd.write("%s size=%d", b.Type(), b.Size())
+		bd.write("[%s] size=%d", b.Type(), b.Size())
 	} else {
-		bd.write("%s size=%d version=%d", b.Type(), b.Size(), version)
+		bd.write("[%s] size=%d version=%d", b.Type(), b.Size(), version)
 	}
 
 	return &bd
