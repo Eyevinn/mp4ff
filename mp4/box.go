@@ -40,6 +40,8 @@ func init() {
 		"esds": DecodeEsds,
 		"edts": DecodeEdts,
 		"elst": DecodeElst,
+		"enca": DecodeAudioSampleEntry,
+		"encv": DecodeVisualSampleEntry,
 		"emsg": DecodeEmsg,
 		"free": DecodeFree,
 		"ftyp": DecodeFtyp,
