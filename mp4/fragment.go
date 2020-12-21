@@ -73,7 +73,7 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	if trun.HasDataOffset() {
 		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 	}
-	mdatDataLength := uint64(len(mdat.Data)) // TODO Make len take 64-bit number
+	mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
 	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
 	if offsetInMdat > mdatDataLength {
 		return nil, errors.New("Offset in mdata beyond size")

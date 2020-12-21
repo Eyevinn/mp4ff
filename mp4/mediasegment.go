@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -95,7 +94,7 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 			of.AddFullSample(s)
 			cumDur += s.Dur
 			if cumDur >= duration {
-				fmt.Printf("Wrote fragment with duration %d\n", cumDur)
+				// fmt.Printf("Wrote fragment with duration %d\n", cumDur)
 				cumDur = 0
 			}
 		}

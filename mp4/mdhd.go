@@ -69,7 +69,7 @@ func (m *MdhdBox) GetLanguage() string {
 
 // SetLanguage - Set three-byte language string
 func (m *MdhdBox) SetLanguage(lang string) {
-	var l uint16 = 0 //TODO. Fix this
+	var l uint16 = 0
 	for i, c := range lang {
 		l += uint16(((c - charOffset) & 0x1f) << (5 * (2 - i)))
 	}
