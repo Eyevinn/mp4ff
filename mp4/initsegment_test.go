@@ -5,11 +5,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/go-test/deep"
 )
 
-const sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
+const sps1nalu = "674d401fe4605017fcb80b4f00000300010000030032e4800753003a9e08200e58e189c0"
+const pps1nalu = "685bdf20"
 
 func parseInitFile(fileName string) (*File, error) {
 	fd, err := os.Open(fileName)
@@ -81,10 +85,9 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 
 }
 
-// sps1nalu is already defined in avc_test.go
-const pps1nalu = "68b5df20"
-
 func TestGenerateInitSegment(t *testing.T) {
+	goldenAssetPath := "testdata/init_video.golden"
+	goldenDumpPath := "testdata/init_video_dump.golden"
 	sps, _ := hex.DecodeString(sps1nalu)
 	spsData := [][]byte{sps}
 	pps, _ := hex.DecodeString(pps1nalu)
@@ -95,8 +98,8 @@ func TestGenerateInitSegment(t *testing.T) {
 	trak.SetAVCDescriptor("avc3", spsData, ppsData)
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
-	if width != 1280 || height != 720 {
-		t.Errorf("Did not get righ width and height")
+	if width != 640 || height != 360 {
+		t.Errorf("Got %dx%d instead of 640x360", width, height)
 	}
 	// Write to a buffer so that we can read and check
 	var buf bytes.Buffer
@@ -115,14 +118,48 @@ func TestGenerateInitSegment(t *testing.T) {
 		t.Errorf("Mismatch generated vs read moov size: %d != %d", init.Moov.Size(), initRead.Moov.Size())
 	}
 
-	// Next write to a file
-	ofd, err := os.Create("testdata/out_init.cmfv")
+	// Regenerated buf
+	err = init.Encode(&buf)
 	if err != nil {
 		t.Error(err)
 	}
-	defer ofd.Close()
-	err = init.Encode(ofd)
+
+	var dumpBuf bytes.Buffer
+	err = init.Dump(&dumpBuf, "all:1", "  ")
 	if err != nil {
 		t.Error(err)
 	}
+
+	// Generate or compare with golden files
+	if *update {
+		err = writeGolden(t, goldenAssetPath, buf.Bytes())
+		if err != nil {
+			t.Error(err)
+		}
+		err = writeGolden(t, goldenDumpPath, dumpBuf.Bytes())
+		if err != nil {
+			t.Error(err)
+		}
+
+		return
+	}
+
+	golden, err := ioutil.ReadFile(goldenAssetPath)
+	if err != nil {
+		t.Error(err)
+	}
+	diff := deep.Equal(golden, buf.Bytes())
+	if diff != nil {
+		t.Errorf("Generated init segment different from %s", goldenAssetPath)
+	}
+
+	goldenDump, err := ioutil.ReadFile(goldenDumpPath)
+	if err != nil {
+		t.Error(err)
+	}
+	diff = deep.Equal(goldenDump, dumpBuf.Bytes())
+	if diff != nil {
+		t.Errorf("Generated init segment different from %s", goldenDumpPath)
+	}
+
 }
