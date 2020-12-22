@@ -15,7 +15,7 @@ func TestSubs(t *testing.T) {
 }
 
 func TestSubsDump(t *testing.T) {
-	goldenAssetPath := "testdata/subs_dump.golden"
+	goldenAssetPath := "testdata/golden_subs_dump.txt"
 	subs := &SubsBox{}
 	e := SubsSample{SubsampleSize: 1000, SubsamplePriority: 255, Discardable: 0, CodecSpecificParameters: 0}
 	subs.Entries = append(subs.Entries, SubsEntry{SampleDelta: 100, SubSamples: []SubsSample{e}})

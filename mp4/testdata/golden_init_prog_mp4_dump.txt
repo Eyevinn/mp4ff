@@ -1,0 +1,47 @@
+[ftyp] size=24
+ - majorBrand: isom
+ - minorVersion: 1
+ - compatibleBrand: isom
+ - compatibleBrand: avc1
+[moov] size=5089
+  [mvhd] size=108 version=0
+  [iods] size=21
+  [trak] size=4952
+    [tkhd] size=92 version=0
+     - trackID: 1
+    [edts] size=36
+      [elst] size=28 version=0
+      - segmentDuration=11520 mediaTime=4, mediaRateInteger=1 mediaRateFraction=0
+    [mdia] size=4816
+      [mdhd] size=32 version=0
+       - timeScale: 100
+       - language: und
+      [hdlr] size=57 version=0
+       - handlerType: vide
+       - handlerName: "264@GPAC0.8.0-revrelease"
+      [minf] size=4719
+        [vmhd] size=20 version=0
+        [dinf] size=36
+          [dref] size=28 version=0
+            [url ] size=12
+             - location: ""
+        [stbl] size=4655
+          [stsd] size=183 version=0
+            [avc1] size=167
+             - compressorName: ""
+              [avcC] size=61
+               - AVCProfileIndication: 77
+               - profileCompatbility: 40
+               - AVCLevelIndication: 31
+               - SPS: 674d401fe4607808bf780b4f00000300010000030032e020005b8d00016e3782080396386270
+               - PPS: 68efbc80
+              [btrt] size=20
+               - bufferSizeDB: 150491
+               - maxBitrate: 2450912
+               - AvgBitrate: 1384000
+          [stts] size=24 version=0
+          [ctts] size=2128 version=0
+          [stss] size=144 version=0
+          [stsc] size=52 version=0
+          [stsz] size=1940 version=0
+          [stco] size=176 version=0

@@ -8,7 +8,7 @@ import (
 
 // TestBoxDumper versus golden file. Can be regenerated with -update
 func TestBoxDumper(t *testing.T) {
-	goldenAssetPath := "testdata/trun_dump.golden"
+	goldenAssetPath := "testdata/golden_trun_dump.txt"
 	trun := CreateTrun()
 	trun.DataOffset = 314159
 	fs := FullSample{

@@ -42,7 +42,8 @@ func parseInitFile(fileName string) (*File, error) {
 
 // InitSegmentParsing - Check  to read a file with moov box.
 func TestInitSegmentParsing(t *testing.T) {
-	f, err := parseInitFile("testdata/init1.cmfv")
+	initFile := "testdata/init1.cmfv"
+	f, err := parseInitFile(initFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -57,10 +58,13 @@ func TestInitSegmentParsing(t *testing.T) {
 	if got != wanted {
 		t.Errorf("Got level %d insted of %d", got, wanted)
 	}
+
 }
 
 func TestMoovParsingWithBtrtParsing(t *testing.T) {
-	f, err := parseInitFile("testdata/init_prog.mp4")
+	initFile := "testdata/init_prog.mp4"
+	initDumpGoldenPath := "testdata/golden_init_prog_mp4_dump.txt"
+	f, err := parseInitFile(initFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -83,11 +87,52 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 		t.Errorf("Got averate bitrate %d instead of %d", btrt.AvgBitrate, 1384000)
 	}
 
+	var buf bytes.Buffer
+	err = f.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	initFileBytes, err := ioutil.ReadFile(initFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if deep.Equal(buf.Bytes(), initFileBytes) != nil {
+		t.Errorf("Encoded output not same as input for %s", initFile)
+	}
+
+	err = writeGolden(t, "testdata/tmp.mp4", buf.Bytes())
+	if err != nil {
+		t.Error(err)
+	}
+
+	var dumpBuf bytes.Buffer
+	err = f.Dump(&dumpBuf, "all:1", "  ")
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Generate or compare with golden files
+	if *update {
+		err = writeGolden(t, initDumpGoldenPath, dumpBuf.Bytes())
+		if err != nil {
+			t.Error(err)
+		}
+		return
+	}
+
+	golden, err := ioutil.ReadFile(initDumpGoldenPath)
+	if err != nil {
+		t.Error(err)
+	}
+	diff := deep.Equal(golden, dumpBuf.Bytes())
+	if diff != nil {
+		t.Errorf("Generated init segment dump different from %s", initDumpGoldenPath)
+	}
 }
 
 func TestGenerateInitSegment(t *testing.T) {
-	goldenAssetPath := "testdata/init_video.golden"
-	goldenDumpPath := "testdata/init_video_dump.golden"
+	goldenAssetPath := "testdata/golden_init_video.mp4"
+	goldenDumpPath := "testdata/golden_init_video_mp4_dump.txt"
 	sps, _ := hex.DecodeString(sps1nalu)
 	spsData := [][]byte{sps}
 	pps, _ := hex.DecodeString(pps1nalu)
