@@ -152,11 +152,19 @@ func EncodeHeader(b Box, w io.Writer) error {
 	return err
 }
 
-// Box is the general interface
+// Box is the general interface to any ISOBMFF box or similar
 type Box interface {
+	// Type of box, normally 4 asccii characters, but is uint32 according to spec
 	Type() string
+	// Size of box including header and all children if any
 	Size() uint64
+	// Encode box to writer
 	Encode(w io.Writer) error
+	// Dump - write box details
+	//   spedificBoxLevels is a comma-separated list box:level or all:level where level >= 0.
+	//   Higher levels give more details. 0 is default
+	//   indent is indent at this box level.
+	//   indentStep is how much to indent at each level
 	Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
 
