@@ -14,6 +14,7 @@ type MediaSegment struct {
 // NewMediaSegment - New empty MediaSegment
 func NewMediaSegment() *MediaSegment {
 	return &MediaSegment{
+		Styp:      CreateStyp(),
 		Fragments: []*Fragment{},
 	}
 }
@@ -55,6 +56,12 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 func (m *MediaSegment) Dump(w io.Writer, specificBoxLevels, indent string) error {
 	if m.Styp != nil {
 		err := m.Styp.Dump(w, specificBoxLevels, "", indent)
+		if err != nil {
+			return err
+		}
+	}
+	if m.Sidx != nil {
+		err := m.Sidx.Dump(w, specificBoxLevels, "", indent)
 		if err != nil {
 			return err
 		}

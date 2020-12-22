@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"io"
 	"io/ioutil"
 )
@@ -8,8 +9,17 @@ import (
 // StypBox  Segment Type Box (styp)
 type StypBox struct {
 	MajorBrand       string
-	MinorVersion     []byte
+	MinorVersion     uint32
 	CompatibleBrands []string
+}
+
+// CreateStyp - Create an Styp box suitable for DASH/CMAF
+func CreateStyp() *StypBox {
+	return &StypBox{
+		MajorBrand:       "cmfs",
+		MinorVersion:     0,
+		CompatibleBrands: []string{"dash", "msdh"},
+	}
 }
 
 // DecodeStyp - box-specific decode
@@ -20,7 +30,7 @@ func DecodeStyp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	b := &StypBox{
 		MajorBrand:       string(data[0:4]),
-		MinorVersion:     data[4:8],
+		MinorVersion:     binary.BigEndian.Uint32(data[4:8]),
 		CompatibleBrands: []string{},
 	}
 	if len(data) > 8 {
@@ -49,7 +59,7 @@ func (b *StypBox) Encode(w io.Writer) error {
 	}
 	buf := makebuf(b)
 	strtobuf(buf, b.MajorBrand, 4)
-	copy(buf[4:], b.MinorVersion)
+	binary.BigEndian.PutUint32(buf[4:8], b.MinorVersion)
 	for i, c := range b.CompatibleBrands {
 		strtobuf(buf[8+i*4:], c, 4)
 	}

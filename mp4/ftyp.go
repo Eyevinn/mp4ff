@@ -13,12 +13,12 @@ type FtypBox struct {
 	CompatibleBrands []string
 }
 
-// CreateFtyp - Create an Ftyp box suitaable for DASH/CMAF
+// CreateFtyp - Create an Ftyp box suitable for DASH/CMAF
 func CreateFtyp() *FtypBox {
 	return &FtypBox{
-		MajorBrand:       "iso5",
+		MajorBrand:       "cmfc",
 		MinorVersion:     0,
-		CompatibleBrands: []string{"isom", "dash", "mp42"},
+		CompatibleBrands: []string{"dash", "iso6"},
 	}
 }
 
@@ -59,7 +59,7 @@ func (b *FtypBox) Encode(w io.Writer) error {
 	}
 	buf := makebuf(b)
 	strtobuf(buf, b.MajorBrand, 4)
-	binary.LittleEndian.PutUint32(buf[4:8], b.MinorVersion)
+	binary.BigEndian.PutUint32(buf[4:8], b.MinorVersion)
 	for i, c := range b.CompatibleBrands {
 		strtobuf(buf[8+i*4:], c, 4)
 	}
