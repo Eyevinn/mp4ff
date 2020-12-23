@@ -49,6 +49,7 @@ func init() {
 		"iden": DecodeIden,
 		"iods": DecodeUnknown,
 		"mdat": DecodeMdat,
+		"mehd": DecodeMehd,
 		"mdhd": DecodeMdhd,
 		"mdia": DecodeMdia,
 		"meta": DecodeUnknown,

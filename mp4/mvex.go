@@ -8,7 +8,7 @@ import "io"
 //
 // Its presence signals a fragmented asset
 type MvexBox struct {
-	//Mehd *TkhdBox
+	Mehd     *MehdBox
 	Trex     *TrexBox
 	Trexs    []*TrexBox
 	Children []Box
@@ -23,6 +23,8 @@ func NewMvexBox() *MvexBox {
 func (m *MvexBox) AddChild(box Box) {
 
 	switch box.Type() {
+	case "mehd":
+		m.Mehd = box.(*MehdBox)
 	case "trex":
 		if m.Trex == nil {
 			m.Trex = box.(*TrexBox)
