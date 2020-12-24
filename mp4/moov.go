@@ -70,6 +70,6 @@ func (m *MoovBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
-func (m *MoovBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return DumpContainer(m, w, specificBoxLevels, indent, indentStep)
+func (m *MoovBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

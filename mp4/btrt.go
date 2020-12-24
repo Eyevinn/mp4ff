@@ -61,8 +61,8 @@ func (b *BtrtBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *BtrtBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, -1)
+func (b *BtrtBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1)
 	bd.write(" - bufferSizeDB: %d", b.BufferSizeDB)
 	bd.write(" - maxBitrate: %d", b.MaxBitrate)
 	bd.write(" - AvgBitrate: %d", b.AvgBitrate)

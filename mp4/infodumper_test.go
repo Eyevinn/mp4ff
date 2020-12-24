@@ -9,12 +9,12 @@ import (
 	"github.com/go-test/deep"
 )
 
-// compareOrUpdateDump - compare box with golden dump or update it with -update flag set
-func compareOrUpdateDump(t *testing.T, b Dumper, path string) error {
+// compareOrUpdateInfo - compare box with golden dump or update it with -update flag set
+func compareOrUpdateInfo(t *testing.T, b Informer, path string) error {
 	t.Helper()
 
 	var dumpBuf bytes.Buffer
-	err := b.Dump(&dumpBuf, "all:1", "", "  ")
+	err := b.Info(&dumpBuf, "all:1", "", "  ")
 	if err != nil {
 		t.Error(err)
 	}

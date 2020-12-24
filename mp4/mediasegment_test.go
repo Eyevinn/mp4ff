@@ -56,7 +56,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 	}
 
 	var bufInSegDump bytes.Buffer
-	err = f.Dump(&bufInSegDump, "all:1", "", "  ")
+	err = f.Info(&bufInSegDump, "all:1", "", "  ")
 	if err != nil {
 		t.Error(err)
 	}
@@ -99,7 +99,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 	}
 
 	var bufFragDump bytes.Buffer
-	err = fragmentedSegment.Dump(&bufFragDump, "all:1", "", "  ")
+	err = fragmentedSegment.Info(&bufFragDump, "all:1", "", "  ")
 	if err != nil {
 		t.Error(err)
 	}

@@ -54,6 +54,6 @@ func (b *EdtsBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-func (b *EdtsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return DumpContainer(b, w, specificBoxLevels, indent, indentStep)
+func (b *EdtsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }

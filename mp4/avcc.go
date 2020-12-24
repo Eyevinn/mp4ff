@@ -63,8 +63,8 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 	return a.AVCDecConfRec.Encode(w)
 }
 
-func (a *AvcCBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, a, -1)
+func (a *AvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, a, -1)
 	bd.write(" - AVCProfileIndication: %d", a.AVCProfileIndication)
 	bd.write(" - profileCompatbility: %02x", a.ProfileCompatibility)
 	bd.write(" - AVCLevelIndication: %d", a.AVCLevelIndication)

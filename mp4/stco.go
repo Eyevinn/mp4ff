@@ -68,9 +68,9 @@ func (b *StcoBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *StcoBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, int(b.Version))
-	level := getDumpLevel(b, specificBoxLevels)
+func (b *StcoBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.ChunkOffset {
 			bd.write(" - %3d chunkOffset: %d", i+1, b.ChunkOffset[i])

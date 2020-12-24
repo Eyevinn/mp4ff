@@ -110,9 +110,9 @@ func (b *SttsBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
-func (b *SttsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, int(b.Version))
-	level := getDumpLevel(b, specificBoxLevels)
+func (b *SttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.SampleCount {
 			bd.write(" - %3d sampleCount=%d sampleDelta=%d",

@@ -78,9 +78,9 @@ func (b *StssBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *StssBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, int(b.Version))
-	level := getDumpLevel(b, specificBoxLevels)
+func (b *StssBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.SampleNumber {
 			bd.write(" - %5d sampleNumber: %d", i+1, b.SampleNumber[i])

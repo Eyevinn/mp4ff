@@ -45,10 +45,10 @@ func (s *InitSegment) Encode(w io.Writer) error {
 	return nil
 }
 
-// Dump - write box tree with indent for each level
-func (i *InitSegment) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+// Info - write box tree with indent for each level
+func (i *InitSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	for _, box := range i.Children {
-		err := box.Dump(w, specificBoxLevels, indent, indentStep)
+		err := box.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}

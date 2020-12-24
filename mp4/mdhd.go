@@ -117,8 +117,8 @@ func (m *MdhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (m *MdhdBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, m, int(m.Version))
+func (m *MdhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, m, int(m.Version))
 	bd.write(" - timeScale: %d", m.Timescale)
 	bd.write(" - language: %s", m.GetLanguage())
 	return bd.err

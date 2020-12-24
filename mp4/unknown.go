@@ -41,7 +41,7 @@ func (b *UnknownBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *UnknownBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, -1)
+func (b *UnknownBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1)
 	return bd.err
 }

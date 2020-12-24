@@ -230,11 +230,11 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - specificBoxLevels trun:1 gives details
-func (t *TrunBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, t, int(t.Version))
+// Info - specificBoxLevels trun:1 gives details
+func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, t, int(t.Version))
 	bd.write(" - sampleCount: %d", t.sampleCount)
-	level := getDumpLevel(t, specificBoxLevels)
+	level := getInfoLevel(t, specificBoxLevels)
 	if level > 0 {
 		if t.HasDataOffset() {
 			bd.write(" - DataOffset: %d", t.DataOffset)

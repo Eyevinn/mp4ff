@@ -80,9 +80,9 @@ func (b *StscBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *StscBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, int(b.Version))
-	level := getDumpLevel(b, specificBoxLevels)
+func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.FirstChunk {
 			bd.write(" - %3d firstChunk=%d samplesPerChunk=%d sampleDescriptionID=%d",

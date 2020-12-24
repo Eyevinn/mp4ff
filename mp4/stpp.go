@@ -138,8 +138,8 @@ func (s *StppBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StppBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, s, -1)
+func (s *StppBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, s, -1)
 	bd.write(" - dataReferenceIndex: %d", s.DataReferenceIndex)
 	bd.write(" - nameSpace: %s", s.Namespace)
 	bd.write(" - schemaLocation: %s", s.SchemaLocation)
@@ -149,7 +149,7 @@ func (s *StppBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	var err error
 	for _, child := range s.Children {
-		err = child.Dump(w, specificBoxLevels, indent+indentStep, indent)
+		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err
 		}

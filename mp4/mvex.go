@@ -65,6 +65,6 @@ func (m *MvexBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
-func (m *MvexBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return DumpContainer(m, w, specificBoxLevels, indent, indentStep)
+func (m *MvexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

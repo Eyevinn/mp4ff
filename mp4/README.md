@@ -19,7 +19,7 @@ Fooo should then implement the Box interface methods:
      Type()
      Size()
      Encode()
-     Dump()
+     Info()
 
 but also its own decode method `DecodeFooo`, and register that method in the `decoders` map in `box.go`. For a simple example, look at the `prft` box in `prft.go`.
 

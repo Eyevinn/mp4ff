@@ -88,6 +88,6 @@ func (m *MoofBox) GetChildren() []Box {
 	return m.Children
 }
 
-func (m *MoofBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return DumpContainer(m, w, specificBoxLevels, indent, indentStep)
+func (m *MoofBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

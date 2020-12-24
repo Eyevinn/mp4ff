@@ -84,7 +84,8 @@ func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
 	return 0 // Should never get here, but a harmless return value
 }
 
-func (b *CttsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, int(b.Version))
+func (b *CttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	// TODO. Add more data to Ctts Info
 	return bd.err
 }

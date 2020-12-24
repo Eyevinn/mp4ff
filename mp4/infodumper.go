@@ -7,29 +7,28 @@ import (
 	"strings"
 )
 
-// boxDumper - dump box name and size. Allow for more with write.
-type boxDumper struct {
+// infoDumper - dump box name and size. Allow for more with write.
+type infoDumper struct {
 	w      io.Writer
 	indent string
 	box    Box
 	err    error
 }
 
-// newBoxDumper - make a boxDumper with max level on what to write
+// newInfoDumper - make an infoDumper with indent
 // set Version to -1 if not present
-func newBoxDumper(w io.Writer, indent string, b Box, version int) *boxDumper {
-	bd := boxDumper{w, indent, b, nil}
+func newInfoDumper(w io.Writer, indent string, b Box, version int) *infoDumper {
+	bd := infoDumper{w, indent, b, nil}
 	if version < 0 {
 		bd.write("[%s] size=%d", b.Type(), b.Size())
 	} else {
 		bd.write("[%s] size=%d version=%d", b.Type(), b.Size(), version)
 	}
-
 	return &bd
 }
 
 // write - write formated objecds if level <= bd.level
-func (b boxDumper) write(format string, p ...interface{}) {
+func (b infoDumper) write(format string, p ...interface{}) {
 	if b.err != nil {
 		return
 	}
@@ -40,8 +39,8 @@ func (b boxDumper) write(format string, p ...interface{}) {
 	_, b.err = fmt.Fprintf(b.w, format+"\n", p...)
 }
 
-// getDumpLevel - get dump level for box, or from all
-func getDumpLevel(b Box, specificBoxLevels string) (level int) {
+// getInfoLevel - get info level for specific box, or from all
+func getInfoLevel(b Box, specificBoxLevels string) (level int) {
 	if len(specificBoxLevels) == 0 {
 		return level
 	}

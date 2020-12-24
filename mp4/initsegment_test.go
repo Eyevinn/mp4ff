@@ -106,7 +106,7 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 	}
 
 	var dumpBuf bytes.Buffer
-	err = f.Dump(&dumpBuf, "all:1", "", "  ")
+	err = f.Info(&dumpBuf, "all:1", "", "  ")
 	if err != nil {
 		t.Error(err)
 	}
@@ -169,7 +169,7 @@ func TestGenerateInitSegment(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = compareOrUpdateDump(t, init, goldenDumpPath)
+	err = compareOrUpdateInfo(t, init, goldenDumpPath)
 	if err != nil {
 		t.Error(err)
 	}

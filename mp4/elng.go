@@ -51,8 +51,8 @@ func (b *ElngBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *ElngBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, -1)
+func (b *ElngBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1)
 	bd.write(" - language: %s", b.Language)
 	return bd.err
 }

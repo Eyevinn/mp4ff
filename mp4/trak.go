@@ -68,6 +68,6 @@ func (t *TrakBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
 }
 
-func (t *TrakBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return DumpContainer(t, w, specificBoxLevels, indent, indentStep)
+func (t *TrakBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(t, w, specificBoxLevels, indent, indentStep)
 }

@@ -172,8 +172,8 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *TfhdBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, t, -1)
+func (t *TfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, t, -1)
 
 	if t.HasBaseDataOffset() {
 		bd.write(" - baseDataOffset=%d", t.BaseDataOffset)

@@ -108,8 +108,8 @@ func (b *EmsgBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *EmsgBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, int(b.Version))
+func (b *EmsgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
 	bd.write(" - timeScale: %d", b.TimeScale)
 	if b.Version > 0 {
 		bd.write(" - presentationTime: %d", b.PresentationTime)

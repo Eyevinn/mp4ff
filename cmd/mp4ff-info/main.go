@@ -1,8 +1,3 @@
-// tree prints a tree of the box structure of a file using the Dump method of boxes.
-//
-//   Usage:
-//
-//    mp4ff-tree <input.mp4>
 package main
 
 import (
@@ -15,9 +10,9 @@ import (
 	"github.com/edgeware/mp4ff/mp4"
 )
 
-var usg = `Usage of mp4ff:
+var usg = `Usage of mp4ff-info:
 
-mp4ff-dump prints the box tree of input mp4 (ISOBMFF) file.
+mp4ff-info prints the box tree of input mp4 (ISOBMFF) file.
 For some boxes, more details are available by using -l with a comma-separated list:
   all:1  - level 1 for all boxes
   trun:1 - level 1 only for trun box
@@ -53,7 +48,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = parsedMp4.Dump(os.Stdout, *specBoxLevels, "", "  ")
+	err = parsedMp4.Info(os.Stdout, *specBoxLevels, "", "  ")
 	if err != nil {
 		log.Fatal(err)
 	}

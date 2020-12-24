@@ -86,8 +86,8 @@ func (b *HdlrBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *HdlrBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, b, int(b.Version))
+func (b *HdlrBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
 	bd.write(" - handlerType: %s", b.HandlerType)
 	bd.write(" - handlerName: %q", b.Name)
 	return bd.err

@@ -175,15 +175,15 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *VisualSampleEntryBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, a, -1)
+func (a *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, a, -1)
 	bd.write(" - compressorName: %q", a.CompressorName)
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
 	for _, child := range a.Children {
-		err = child.Dump(w, specificBoxLevels, indent+indentStep, indent)
+		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err
 		}

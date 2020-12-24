@@ -71,8 +71,8 @@ func (t *TrafBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
 }
 
-func (t *TrafBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return DumpContainer(t, w, specificBoxLevels, indent, indentStep)
+func (t *TrafBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(t, w, specificBoxLevels, indent, indentStep)
 }
 
 // OptimizeTfhdTrun - optimize trun by default values in tfhd box
