@@ -110,8 +110,14 @@ func (b *SttsBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
-func (s *SttsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, s, int(s.Version))
-	// TODO. Add more details to stts dump
+func (b *SttsBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	level := getDumpLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.SampleCount {
+			bd.write(" - %3d sampleCount=%d sampleDelta=%d",
+				i+1, b.SampleCount[i], b.SampleTimeDelta[i])
+		}
+	}
 	return bd.err
 }

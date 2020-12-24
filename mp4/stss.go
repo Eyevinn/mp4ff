@@ -78,8 +78,13 @@ func (b *StssBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StssBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, s, int(s.Version))
-	// TODO. Add more details to stss dump
+func (b *StssBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	level := getDumpLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.SampleNumber {
+			bd.write(" - %5d sampleNumber: %d", i+1, b.SampleNumber[i])
+		}
+	}
 	return bd.err
 }

@@ -87,8 +87,19 @@ func (b *StszBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StszBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, s, int(s.Version))
-	// TODO. Add more details to stsz dump
+func (b *StszBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	if len(b.SampleSize) == 0 {
+		bd.write(" - sampleSize: %d", b.SampleUniformSize)
+		bd.write(" - sampleCount: %d", b.SampleNumber)
+	} else {
+		bd.write(" - sampleCount: %d", b.SampleNumber)
+	}
+	level := getDumpLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.SampleSize {
+			bd.write(" - %4d sampleSize: %d", i+1, b.SampleSize[i])
+		}
+	}
 	return bd.err
 }

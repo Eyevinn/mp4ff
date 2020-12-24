@@ -68,8 +68,13 @@ func (b *StcoBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StcoBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newBoxDumper(w, indent, s, int(s.Version))
-	//TODO. Add more files to stco dump
+func (b *StcoBox) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newBoxDumper(w, indent, b, int(b.Version))
+	level := getDumpLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.ChunkOffset {
+			bd.write(" - %3d chunkOffset: %d", i+1, b.ChunkOffset[i])
+		}
+	}
 	return bd.err
 }

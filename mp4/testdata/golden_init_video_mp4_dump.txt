@@ -34,6 +34,8 @@
           [stts] size=16 version=0
           [stsc] size=16 version=0
           [stsz] size=20 version=0
+           - sampleSize: 0
+           - sampleCount: 0
           [stco] size=16 version=0
   [mvex] size=40
     [trex] size=32 version=0
