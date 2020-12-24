@@ -53,7 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = parsedMp4.Dump(os.Stdout, *specBoxLevels, "  ")
+	err = parsedMp4.Dump(os.Stdout, *specBoxLevels, "", "  ")
 	if err != nil {
 		log.Fatal(err)
 	}

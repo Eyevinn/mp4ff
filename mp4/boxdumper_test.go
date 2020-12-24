@@ -2,47 +2,39 @@ package mp4
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"testing"
+
+	"github.com/go-test/deep"
 )
 
-// TestBoxDumper versus golden file. Can be regenerated with -update
-func TestBoxDumper(t *testing.T) {
-	goldenAssetPath := "testdata/golden_trun_dump.txt"
-	trun := CreateTrun()
-	trun.DataOffset = 314159
-	fs := FullSample{
-		Sample: Sample{
-			Flags: SyncSampleFlags,
-			Dur:   1024,
-			Size:  4,
-			Cto:   -512,
-		},
-		DecodeTime: 1024,
-		Data:       []byte{0, 1, 2, 3},
-	}
-	trun.AddFullSample(&fs)
+// compareOrUpdateDump - compare box with golden dump or update it with -update flag set
+func compareOrUpdateDump(t *testing.T, b Dumper, path string) error {
+	t.Helper()
 
-	specificBoxLevels := "trun:1"
-	buf := bytes.Buffer{}
-	err := trun.Dump(&buf, specificBoxLevels, "", "  ")
+	var dumpBuf bytes.Buffer
+	err := b.Dump(&dumpBuf, "all:1", "", "  ")
 	if err != nil {
 		t.Error(err)
 	}
-	if *update {
-		err = writeGolden(t, goldenAssetPath, buf.Bytes())
+
+	if *update { // Generate golden dump file
+		err = writeGolden(t, path, dumpBuf.Bytes())
 		if err != nil {
 			t.Error(err)
 		}
-		return
+		return nil
 	}
-	got := buf.String()
-	golden, err := ioutil.ReadFile(goldenAssetPath)
+
+	// Compare with golden dump file
+	golden, err := ioutil.ReadFile(path)
 	if err != nil {
 		t.Error(err)
 	}
-	want := string(golden)
-	if got != want {
-		t.Errorf("Got %s instead of %s", got, want)
+	diff := deep.Equal(golden, dumpBuf.Bytes())
+	if diff != nil {
+		return fmt.Errorf("Generated dump different from %s", path)
 	}
+	return nil
 }

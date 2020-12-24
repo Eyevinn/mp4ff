@@ -168,6 +168,16 @@ type Box interface {
 	Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
 
+// Dumper - interface including Segments which can Dump content hierarchically
+type Dumper interface {
+	// Dump - write box details
+	//   spedificBoxLevels is a comma-separated list box:level or all:level where level >= 0.
+	//   Higher levels give more details. 0 is default
+	//   indent is indent at this box level.
+	//   indentStep is how much to indent at each level
+	Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error
+}
+
 // BoxDecoder is function signature of the Box Decode method
 type BoxDecoder func(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error)
 

@@ -53,21 +53,21 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 }
 
 // Dump - write box tree with indent for each level
-func (m *MediaSegment) Dump(w io.Writer, specificBoxLevels, indent string) error {
+func (m *MediaSegment) Dump(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	if m.Styp != nil {
-		err := m.Styp.Dump(w, specificBoxLevels, "", indent)
+		err := m.Styp.Dump(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}
 	}
 	if m.Sidx != nil {
-		err := m.Sidx.Dump(w, specificBoxLevels, "", indent)
+		err := m.Sidx.Dump(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}
 	}
 	for _, f := range m.Fragments {
-		err := f.Dump(w, specificBoxLevels, indent)
+		err := f.Dump(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}

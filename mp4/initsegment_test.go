@@ -106,7 +106,7 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 	}
 
 	var dumpBuf bytes.Buffer
-	err = f.Dump(&dumpBuf, "all:1", "  ")
+	err = f.Dump(&dumpBuf, "all:1", "", "  ")
 	if err != nil {
 		t.Error(err)
 	}
@@ -169,23 +169,16 @@ func TestGenerateInitSegment(t *testing.T) {
 		t.Error(err)
 	}
 
-	var dumpBuf bytes.Buffer
-	err = init.Dump(&dumpBuf, "all:1", "  ")
+	err = compareOrUpdateDump(t, init, goldenDumpPath)
 	if err != nil {
 		t.Error(err)
 	}
-
 	// Generate or compare with golden files
 	if *update {
 		err = writeGolden(t, goldenAssetPath, buf.Bytes())
 		if err != nil {
 			t.Error(err)
 		}
-		err = writeGolden(t, goldenDumpPath, dumpBuf.Bytes())
-		if err != nil {
-			t.Error(err)
-		}
-
 		return
 	}
 
@@ -197,14 +190,4 @@ func TestGenerateInitSegment(t *testing.T) {
 	if diff != nil {
 		t.Errorf("Generated init segment different from %s", goldenAssetPath)
 	}
-
-	goldenDump, err := ioutil.ReadFile(goldenDumpPath)
-	if err != nil {
-		t.Error(err)
-	}
-	diff = deep.Equal(goldenDump, dumpBuf.Bytes())
-	if diff != nil {
-		t.Errorf("Generated init segment different from %s", goldenDumpPath)
-	}
-
 }
