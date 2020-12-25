@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -31,6 +32,10 @@ func compareOrUpdateInfo(t *testing.T, b Informer, path string) error {
 	golden, err := ioutil.ReadFile(path)
 	if err != nil {
 		t.Error(err)
+	}
+	if strings.HasSuffix(path, ".txt") {
+		// Replace \r\n with \n to handle accidental Windows line endings
+		golden = bytes.ReplaceAll(golden, []byte{13, 10}, []byte{10})
 	}
 	diff := deep.Equal(golden, dumpBuf.Bytes())
 	if diff != nil {

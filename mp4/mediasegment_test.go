@@ -55,25 +55,10 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		t.Errorf("Written segment differs from %s", inFile)
 	}
 
-	var bufInSegDump bytes.Buffer
-	err = f.Info(&bufInSegDump, "all:1", "", "  ")
+	err = compareOrUpdateInfo(t, f, inFileGoldenDumpPath)
+
 	if err != nil {
 		t.Error(err)
-	}
-	if *update {
-		err = writeGolden(t, inFileGoldenDumpPath, bufInSegDump.Bytes())
-		if err != nil {
-			t.Error(err)
-		}
-	} else {
-		goldenDump, err := ioutil.ReadFile(inFileGoldenDumpPath)
-		if err != nil {
-			t.Error(err)
-		}
-		diff := deep.Equal(goldenDump, bufInSegDump.Bytes())
-		if diff != nil {
-			t.Errorf("Generated dump different from %s", inFileGoldenDumpPath)
-		}
 	}
 
 	mediaSegment := f.Segments[0]
@@ -98,18 +83,13 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		t.Error(err)
 	}
 
-	var bufFragDump bytes.Buffer
-	err = fragmentedSegment.Info(&bufFragDump, "all:1", "", "  ")
+	err = compareOrUpdateInfo(t, fragmentedSegment, goldenFragDumpPath)
 	if err != nil {
 		t.Error(err)
 	}
 
 	if *update {
 		err = writeGolden(t, goldenFragPath, bufFrag.Bytes())
-		if err != nil {
-			t.Error(err)
-		}
-		err = writeGolden(t, goldenFragDumpPath, bufFragDump.Bytes())
 		if err != nil {
 			t.Error(err)
 		}
@@ -121,15 +101,6 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		diff := deep.Equal(goldenFrag, bufFrag.Bytes())
 		if diff != nil {
 			t.Errorf("Generated dump different from %s", goldenFragPath)
-		}
-
-		goldenFragDump, err := ioutil.ReadFile(goldenFragDumpPath)
-		if err != nil {
-			t.Error(err)
-		}
-		diff = deep.Equal(goldenFragDump, bufFragDump.Bytes())
-		if diff != nil {
-			t.Errorf("Generated fragment dump different from %s", goldenFragDumpPath)
 		}
 	}
 }

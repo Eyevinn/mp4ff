@@ -118,8 +118,8 @@ it can be calculated. It is set to `MoofBox.Size()+8`.
 Some simple command line tools are available in `cmd`.
 
 1. `mp4ff-pslister` extracts and displays pps and sps for AVC in an mp4 file.
-2. `mp4ff-dump` prints a tree of the box hierarchy of an mp4 file. The level of detail
-    can be increased for all boxes `-l all:1` of for specific boxes likes `-l trun:1,subs:1`
+2. `mp4ff-info` prints a tree of the box hierarchy of an mp4 file with information
+    of the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes or `-l trun:1,stss:1` for specific boxes.
 
 You can install them by going to their respective directory and run `go install`.
 
