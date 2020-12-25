@@ -115,7 +115,7 @@ func (b *SttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.SampleCount {
-			bd.write(" - %3d sampleCount=%d sampleDelta=%d",
+			bd.write(" - entry[%d]: sampleCount=%d sampleDelta=%d",
 				i+1, b.SampleCount[i], b.SampleTimeDelta[i])
 		}
 	}

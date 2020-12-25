@@ -83,7 +83,7 @@ func (b *StssBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.SampleNumber {
-			bd.write(" - %5d sampleNumber: %d", i+1, b.SampleNumber[i])
+			bd.write(" - syncSample[%d]: sampleNumber=%d", i+1, b.SampleNumber[i])
 		}
 	}
 	return bd.err

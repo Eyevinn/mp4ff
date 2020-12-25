@@ -73,7 +73,7 @@ func (b *StcoBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.ChunkOffset {
-			bd.write(" - %3d chunkOffset: %d", i+1, b.ChunkOffset[i])
+			bd.write(" - entry[%d]: chunkOffset=%d", i+1, b.ChunkOffset[i])
 		}
 	}
 	return bd.err

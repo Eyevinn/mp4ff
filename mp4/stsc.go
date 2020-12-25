@@ -85,7 +85,7 @@ func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.FirstChunk {
-			bd.write(" - %3d firstChunk=%d samplesPerChunk=%d sampleDescriptionID=%d",
+			bd.write(" - entry[%d]: firstChunk=%d samplesPerChunk=%d sampleDescriptionID=%d",
 				i+1, b.FirstChunk[i], b.SamplesPerChunk[i], b.SampleDescriptionID[i])
 		}
 	}

@@ -244,7 +244,7 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			bd.write(" - firstSampleFlags: %08x", t.firstSampleFlags)
 		}
 		for i := 0; i < int(t.sampleCount); i++ {
-			msg := fmt.Sprintf(" - sample[%d]:", i)
+			msg := fmt.Sprintf(" - sample[%d]:", i+1)
 			if t.HasSampleDuration() {
 				msg += fmt.Sprintf(" dur=%d", t.Samples[i].Dur)
 			}
