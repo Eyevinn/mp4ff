@@ -15,24 +15,27 @@ To implement a new box "fooo", the following is needed:
 
 Create a file fooo.go and with struct type FoooBox.
 
-FoooBox should then implement the Box{} interface methods:
+FoooBox should then implement the Box interface methods:
 
      Type()
      Size()
      Encode()
+     Info()
 
 but also its own decode method `DecodeFooo`, and register that method in the `decoders` map in `box.go`.
 For a simple example, look at the `prft` box in `prft.go`.
 
 Container Boxes
 
-Container boxes like moof, have a list of all their children called "boxes",
+Container boxes like moof, have a list of all their children called Children,
 but also direct pointers to the children with appropriate names,
-like `Mfhd` and `Traf`.
-This makes it easy to chain box paths to reach an element like a TfhdBox
-via its parent MoofBox moof as
+like Mfhd and Traf. This makes it easy to chain box paths to reach an
+element like a TfhdBox as
 
-	moof.Traf.Tfhd
+    file.Moof.Traf.Tfhd
+
+When there may be multiple children with the same name, there may be both a
+pointer to a slice Trafs with all boxes and Traf that points to the first.
 
 Media Sample Data Structures
 
