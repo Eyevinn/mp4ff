@@ -72,20 +72,24 @@ func (b *CttsBox) Encode(w io.Writer) error {
 // GetCompositionTimeOffset - composition time offset for sampleNr in track timescale
 func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
 	sampleNr-- // 1-based
-	i := 0
-	for i < len(b.SampleCount) {
+	for i := range b.SampleCount {
 		if sampleNr >= b.SampleCount[i] {
 			sampleNr -= b.SampleCount[i]
 		} else {
 			return b.SampleOffset[i]
 		}
-		i++
 	}
 	return 0 // Should never get here, but a harmless return value
 }
 
+// Info - get all info with specificBoxLevels ctts:1 or higher
 func (b *CttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version))
-	// TODO. Add more data to Ctts Info
+	bd.write(" - sampleCount: %d", len(b.SampleCount))
+	if getInfoLevel(b, specificBoxLevels) > 0 {
+		for i := range b.SampleCount {
+			bd.write(" - entry[%d]: sampleCount=%d sampleOffset=%d", i+1, b.SampleCount[i], b.SampleOffset[i])
+		}
+	}
 	return bd.err
 }
