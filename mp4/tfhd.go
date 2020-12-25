@@ -173,7 +173,12 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 }
 
 func (t *TfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, t, -1)
+	bd := newInfoDumper(w, indent, t, int(t.Version))
+	bd.write(" - flags: %08x", t.Flags)
+
+	if t.Flags&defaultBaseIsMoof != 0 {
+		bd.write(" - defaultBaseIsMoof: true")
+	}
 
 	if t.HasBaseDataOffset() {
 		bd.write(" - baseDataOffset=%d", t.BaseDataOffset)

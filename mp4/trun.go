@@ -233,6 +233,7 @@ func (t *TrunBox) Encode(w io.Writer) error {
 // Info - specificBoxLevels trun:1 gives details
 func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, t, int(t.Version))
+	bd.write(" - flags: %08x", t.flags)
 	bd.write(" - sampleCount: %d", t.sampleCount)
 	level := getInfoLevel(t, specificBoxLevels)
 	if level > 0 {
