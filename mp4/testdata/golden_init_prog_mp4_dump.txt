@@ -6,12 +6,13 @@
 [moov] size=5089
   [mvhd] size=108 version=0
   [iods] size=21
+   - not implemented or unknown box
   [trak] size=4952
     [tkhd] size=92 version=0
      - trackID: 1
     [edts] size=36
       [elst] size=28 version=0
-      - segmentDuration=11520 mediaTime=4, mediaRateInteger=1 mediaRateFraction=0
+      - entry[1]: segmentDuration=11520 mediaTime=4, mediaRateInteger=1 mediaRateFraction=0
     [mdia] size=4816
       [mdhd] size=32 version=0
        - timeScale: 100
@@ -40,830 +41,830 @@
                - maxBitrate: 2450912
                - AvgBitrate: 1384000
           [stts] size=24 version=0
-           -   1 sampleCount=480 sampleDelta=4
+           - entry[1]: sampleCount=480 sampleDelta=4
           [ctts] size=2128 version=0
            - sampleCount: 264
-           -   1 sampleCount=1 sampleOffset=4
-           -   2 sampleCount=1 sampleOffset=16
-           -   3 sampleCount=3 sampleOffset=0
-           -   4 sampleCount=1 sampleOffset=16
-           -   5 sampleCount=3 sampleOffset=0
-           -   6 sampleCount=1 sampleOffset=16
-           -   7 sampleCount=3 sampleOffset=0
-           -   8 sampleCount=1 sampleOffset=8
-           -   9 sampleCount=1 sampleOffset=0
-           -  10 sampleCount=1 sampleOffset=4
-           -  11 sampleCount=1 sampleOffset=16
-           -  12 sampleCount=3 sampleOffset=0
-           -  13 sampleCount=1 sampleOffset=16
-           -  14 sampleCount=3 sampleOffset=0
-           -  15 sampleCount=1 sampleOffset=16
-           -  16 sampleCount=3 sampleOffset=0
-           -  17 sampleCount=1 sampleOffset=16
-           -  18 sampleCount=3 sampleOffset=0
-           -  19 sampleCount=1 sampleOffset=16
-           -  20 sampleCount=3 sampleOffset=0
-           -  21 sampleCount=2 sampleOffset=4
-           -  22 sampleCount=1 sampleOffset=16
-           -  23 sampleCount=3 sampleOffset=0
-           -  24 sampleCount=1 sampleOffset=16
-           -  25 sampleCount=3 sampleOffset=0
-           -  26 sampleCount=1 sampleOffset=16
-           -  27 sampleCount=3 sampleOffset=0
-           -  28 sampleCount=1 sampleOffset=16
-           -  29 sampleCount=3 sampleOffset=0
-           -  30 sampleCount=1 sampleOffset=16
-           -  31 sampleCount=3 sampleOffset=0
-           -  32 sampleCount=1 sampleOffset=16
-           -  33 sampleCount=3 sampleOffset=0
-           -  34 sampleCount=1 sampleOffset=16
-           -  35 sampleCount=3 sampleOffset=0
-           -  36 sampleCount=1 sampleOffset=16
-           -  37 sampleCount=3 sampleOffset=0
-           -  38 sampleCount=1 sampleOffset=16
-           -  39 sampleCount=3 sampleOffset=0
-           -  40 sampleCount=1 sampleOffset=16
-           -  41 sampleCount=3 sampleOffset=0
-           -  42 sampleCount=1 sampleOffset=16
-           -  43 sampleCount=3 sampleOffset=0
-           -  44 sampleCount=1 sampleOffset=16
-           -  45 sampleCount=3 sampleOffset=0
-           -  46 sampleCount=1 sampleOffset=16
-           -  47 sampleCount=3 sampleOffset=0
-           -  48 sampleCount=1 sampleOffset=8
-           -  49 sampleCount=1 sampleOffset=0
-           -  50 sampleCount=1 sampleOffset=4
-           -  51 sampleCount=1 sampleOffset=16
-           -  52 sampleCount=3 sampleOffset=0
-           -  53 sampleCount=1 sampleOffset=4
-           -  54 sampleCount=1 sampleOffset=16
-           -  55 sampleCount=3 sampleOffset=0
-           -  56 sampleCount=1 sampleOffset=4
-           -  57 sampleCount=1 sampleOffset=16
-           -  58 sampleCount=3 sampleOffset=0
-           -  59 sampleCount=1 sampleOffset=4
-           -  60 sampleCount=1 sampleOffset=16
-           -  61 sampleCount=3 sampleOffset=0
-           -  62 sampleCount=1 sampleOffset=16
-           -  63 sampleCount=3 sampleOffset=0
-           -  64 sampleCount=1 sampleOffset=16
-           -  65 sampleCount=3 sampleOffset=0
-           -  66 sampleCount=1 sampleOffset=16
-           -  67 sampleCount=3 sampleOffset=0
-           -  68 sampleCount=1 sampleOffset=16
-           -  69 sampleCount=3 sampleOffset=0
-           -  70 sampleCount=1 sampleOffset=16
-           -  71 sampleCount=3 sampleOffset=0
-           -  72 sampleCount=1 sampleOffset=16
-           -  73 sampleCount=3 sampleOffset=0
-           -  74 sampleCount=1 sampleOffset=16
-           -  75 sampleCount=3 sampleOffset=0
-           -  76 sampleCount=1 sampleOffset=16
-           -  77 sampleCount=3 sampleOffset=0
-           -  78 sampleCount=1 sampleOffset=16
-           -  79 sampleCount=3 sampleOffset=0
-           -  80 sampleCount=2 sampleOffset=4
-           -  81 sampleCount=1 sampleOffset=16
-           -  82 sampleCount=3 sampleOffset=0
-           -  83 sampleCount=1 sampleOffset=16
-           -  84 sampleCount=3 sampleOffset=0
-           -  85 sampleCount=2 sampleOffset=4
-           -  86 sampleCount=1 sampleOffset=16
-           -  87 sampleCount=3 sampleOffset=0
-           -  88 sampleCount=1 sampleOffset=16
-           -  89 sampleCount=3 sampleOffset=0
-           -  90 sampleCount=1 sampleOffset=8
-           -  91 sampleCount=1 sampleOffset=0
-           -  92 sampleCount=1 sampleOffset=4
-           -  93 sampleCount=1 sampleOffset=16
-           -  94 sampleCount=3 sampleOffset=0
-           -  95 sampleCount=1 sampleOffset=16
-           -  96 sampleCount=3 sampleOffset=0
-           -  97 sampleCount=1 sampleOffset=4
-           -  98 sampleCount=1 sampleOffset=16
-           -  99 sampleCount=3 sampleOffset=0
-           - 100 sampleCount=1 sampleOffset=16
-           - 101 sampleCount=3 sampleOffset=0
-           - 102 sampleCount=1 sampleOffset=4
-           - 103 sampleCount=1 sampleOffset=16
-           - 104 sampleCount=3 sampleOffset=0
-           - 105 sampleCount=1 sampleOffset=16
-           - 106 sampleCount=3 sampleOffset=0
-           - 107 sampleCount=1 sampleOffset=12
-           - 108 sampleCount=2 sampleOffset=0
-           - 109 sampleCount=1 sampleOffset=4
-           - 110 sampleCount=1 sampleOffset=16
-           - 111 sampleCount=3 sampleOffset=0
-           - 112 sampleCount=1 sampleOffset=16
-           - 113 sampleCount=3 sampleOffset=0
-           - 114 sampleCount=1 sampleOffset=16
-           - 115 sampleCount=3 sampleOffset=0
-           - 116 sampleCount=1 sampleOffset=16
-           - 117 sampleCount=3 sampleOffset=0
-           - 118 sampleCount=1 sampleOffset=16
-           - 119 sampleCount=3 sampleOffset=0
-           - 120 sampleCount=1 sampleOffset=4
-           - 121 sampleCount=1 sampleOffset=16
-           - 122 sampleCount=3 sampleOffset=0
-           - 123 sampleCount=1 sampleOffset=4
-           - 124 sampleCount=1 sampleOffset=16
-           - 125 sampleCount=3 sampleOffset=0
-           - 126 sampleCount=2 sampleOffset=4
-           - 127 sampleCount=1 sampleOffset=16
-           - 128 sampleCount=3 sampleOffset=0
-           - 129 sampleCount=2 sampleOffset=4
-           - 130 sampleCount=1 sampleOffset=16
-           - 131 sampleCount=3 sampleOffset=0
-           - 132 sampleCount=2 sampleOffset=4
-           - 133 sampleCount=1 sampleOffset=16
-           - 134 sampleCount=3 sampleOffset=0
-           - 135 sampleCount=1 sampleOffset=12
-           - 136 sampleCount=2 sampleOffset=0
-           - 137 sampleCount=1 sampleOffset=4
-           - 138 sampleCount=1 sampleOffset=16
-           - 139 sampleCount=3 sampleOffset=0
-           - 140 sampleCount=1 sampleOffset=16
-           - 141 sampleCount=3 sampleOffset=0
-           - 142 sampleCount=1 sampleOffset=16
-           - 143 sampleCount=3 sampleOffset=0
-           - 144 sampleCount=1 sampleOffset=16
-           - 145 sampleCount=3 sampleOffset=0
-           - 146 sampleCount=1 sampleOffset=16
-           - 147 sampleCount=3 sampleOffset=0
-           - 148 sampleCount=1 sampleOffset=16
-           - 149 sampleCount=3 sampleOffset=0
-           - 150 sampleCount=1 sampleOffset=16
-           - 151 sampleCount=3 sampleOffset=0
-           - 152 sampleCount=1 sampleOffset=8
-           - 153 sampleCount=1 sampleOffset=0
-           - 154 sampleCount=1 sampleOffset=4
-           - 155 sampleCount=1 sampleOffset=16
-           - 156 sampleCount=3 sampleOffset=0
-           - 157 sampleCount=1 sampleOffset=16
-           - 158 sampleCount=3 sampleOffset=0
-           - 159 sampleCount=1 sampleOffset=8
-           - 160 sampleCount=1 sampleOffset=0
-           - 161 sampleCount=1 sampleOffset=4
-           - 162 sampleCount=1 sampleOffset=16
-           - 163 sampleCount=3 sampleOffset=0
-           - 164 sampleCount=1 sampleOffset=16
-           - 165 sampleCount=3 sampleOffset=0
-           - 166 sampleCount=1 sampleOffset=16
-           - 167 sampleCount=3 sampleOffset=0
-           - 168 sampleCount=1 sampleOffset=8
-           - 169 sampleCount=1 sampleOffset=0
-           - 170 sampleCount=1 sampleOffset=4
-           - 171 sampleCount=1 sampleOffset=16
-           - 172 sampleCount=3 sampleOffset=0
-           - 173 sampleCount=1 sampleOffset=16
-           - 174 sampleCount=3 sampleOffset=0
-           - 175 sampleCount=1 sampleOffset=16
-           - 176 sampleCount=3 sampleOffset=0
-           - 177 sampleCount=1 sampleOffset=8
-           - 178 sampleCount=1 sampleOffset=0
-           - 179 sampleCount=1 sampleOffset=4
-           - 180 sampleCount=1 sampleOffset=16
-           - 181 sampleCount=3 sampleOffset=0
-           - 182 sampleCount=1 sampleOffset=16
-           - 183 sampleCount=3 sampleOffset=0
-           - 184 sampleCount=1 sampleOffset=16
-           - 185 sampleCount=3 sampleOffset=0
-           - 186 sampleCount=1 sampleOffset=16
-           - 187 sampleCount=3 sampleOffset=0
-           - 188 sampleCount=1 sampleOffset=16
-           - 189 sampleCount=3 sampleOffset=0
-           - 190 sampleCount=1 sampleOffset=8
-           - 191 sampleCount=1 sampleOffset=0
-           - 192 sampleCount=1 sampleOffset=4
-           - 193 sampleCount=1 sampleOffset=16
-           - 194 sampleCount=3 sampleOffset=0
-           - 195 sampleCount=1 sampleOffset=16
-           - 196 sampleCount=3 sampleOffset=0
-           - 197 sampleCount=1 sampleOffset=12
-           - 198 sampleCount=2 sampleOffset=0
-           - 199 sampleCount=1 sampleOffset=4
-           - 200 sampleCount=1 sampleOffset=16
-           - 201 sampleCount=3 sampleOffset=0
-           - 202 sampleCount=1 sampleOffset=16
-           - 203 sampleCount=3 sampleOffset=0
-           - 204 sampleCount=1 sampleOffset=16
-           - 205 sampleCount=3 sampleOffset=0
-           - 206 sampleCount=1 sampleOffset=16
-           - 207 sampleCount=3 sampleOffset=0
-           - 208 sampleCount=1 sampleOffset=16
-           - 209 sampleCount=3 sampleOffset=0
-           - 210 sampleCount=1 sampleOffset=16
-           - 211 sampleCount=3 sampleOffset=0
-           - 212 sampleCount=1 sampleOffset=12
-           - 213 sampleCount=2 sampleOffset=0
-           - 214 sampleCount=1 sampleOffset=4
-           - 215 sampleCount=1 sampleOffset=16
-           - 216 sampleCount=3 sampleOffset=0
-           - 217 sampleCount=1 sampleOffset=16
-           - 218 sampleCount=3 sampleOffset=0
-           - 219 sampleCount=1 sampleOffset=16
-           - 220 sampleCount=3 sampleOffset=0
-           - 221 sampleCount=1 sampleOffset=12
-           - 222 sampleCount=2 sampleOffset=0
-           - 223 sampleCount=1 sampleOffset=4
-           - 224 sampleCount=1 sampleOffset=16
-           - 225 sampleCount=3 sampleOffset=0
-           - 226 sampleCount=1 sampleOffset=16
-           - 227 sampleCount=3 sampleOffset=0
-           - 228 sampleCount=1 sampleOffset=16
-           - 229 sampleCount=3 sampleOffset=0
-           - 230 sampleCount=2 sampleOffset=4
-           - 231 sampleCount=1 sampleOffset=16
-           - 232 sampleCount=3 sampleOffset=0
-           - 233 sampleCount=1 sampleOffset=16
-           - 234 sampleCount=3 sampleOffset=0
-           - 235 sampleCount=1 sampleOffset=16
-           - 236 sampleCount=3 sampleOffset=0
-           - 237 sampleCount=2 sampleOffset=4
-           - 238 sampleCount=1 sampleOffset=16
-           - 239 sampleCount=3 sampleOffset=0
-           - 240 sampleCount=1 sampleOffset=16
-           - 241 sampleCount=3 sampleOffset=0
-           - 242 sampleCount=1 sampleOffset=12
-           - 243 sampleCount=2 sampleOffset=0
-           - 244 sampleCount=1 sampleOffset=4
-           - 245 sampleCount=1 sampleOffset=16
-           - 246 sampleCount=3 sampleOffset=0
-           - 247 sampleCount=1 sampleOffset=16
-           - 248 sampleCount=3 sampleOffset=0
-           - 249 sampleCount=1 sampleOffset=16
-           - 250 sampleCount=3 sampleOffset=0
-           - 251 sampleCount=1 sampleOffset=16
-           - 252 sampleCount=3 sampleOffset=0
-           - 253 sampleCount=1 sampleOffset=4
-           - 254 sampleCount=1 sampleOffset=16
-           - 255 sampleCount=3 sampleOffset=0
-           - 256 sampleCount=1 sampleOffset=16
-           - 257 sampleCount=3 sampleOffset=0
-           - 258 sampleCount=1 sampleOffset=16
-           - 259 sampleCount=3 sampleOffset=0
-           - 260 sampleCount=1 sampleOffset=16
-           - 261 sampleCount=3 sampleOffset=0
-           - 262 sampleCount=1 sampleOffset=8
-           - 263 sampleCount=1 sampleOffset=0
-           - 264 sampleCount=1 sampleOffset=4
+           - entry[1]: sampleCount=1 sampleOffset=4
+           - entry[2]: sampleCount=1 sampleOffset=16
+           - entry[3]: sampleCount=3 sampleOffset=0
+           - entry[4]: sampleCount=1 sampleOffset=16
+           - entry[5]: sampleCount=3 sampleOffset=0
+           - entry[6]: sampleCount=1 sampleOffset=16
+           - entry[7]: sampleCount=3 sampleOffset=0
+           - entry[8]: sampleCount=1 sampleOffset=8
+           - entry[9]: sampleCount=1 sampleOffset=0
+           - entry[10]: sampleCount=1 sampleOffset=4
+           - entry[11]: sampleCount=1 sampleOffset=16
+           - entry[12]: sampleCount=3 sampleOffset=0
+           - entry[13]: sampleCount=1 sampleOffset=16
+           - entry[14]: sampleCount=3 sampleOffset=0
+           - entry[15]: sampleCount=1 sampleOffset=16
+           - entry[16]: sampleCount=3 sampleOffset=0
+           - entry[17]: sampleCount=1 sampleOffset=16
+           - entry[18]: sampleCount=3 sampleOffset=0
+           - entry[19]: sampleCount=1 sampleOffset=16
+           - entry[20]: sampleCount=3 sampleOffset=0
+           - entry[21]: sampleCount=2 sampleOffset=4
+           - entry[22]: sampleCount=1 sampleOffset=16
+           - entry[23]: sampleCount=3 sampleOffset=0
+           - entry[24]: sampleCount=1 sampleOffset=16
+           - entry[25]: sampleCount=3 sampleOffset=0
+           - entry[26]: sampleCount=1 sampleOffset=16
+           - entry[27]: sampleCount=3 sampleOffset=0
+           - entry[28]: sampleCount=1 sampleOffset=16
+           - entry[29]: sampleCount=3 sampleOffset=0
+           - entry[30]: sampleCount=1 sampleOffset=16
+           - entry[31]: sampleCount=3 sampleOffset=0
+           - entry[32]: sampleCount=1 sampleOffset=16
+           - entry[33]: sampleCount=3 sampleOffset=0
+           - entry[34]: sampleCount=1 sampleOffset=16
+           - entry[35]: sampleCount=3 sampleOffset=0
+           - entry[36]: sampleCount=1 sampleOffset=16
+           - entry[37]: sampleCount=3 sampleOffset=0
+           - entry[38]: sampleCount=1 sampleOffset=16
+           - entry[39]: sampleCount=3 sampleOffset=0
+           - entry[40]: sampleCount=1 sampleOffset=16
+           - entry[41]: sampleCount=3 sampleOffset=0
+           - entry[42]: sampleCount=1 sampleOffset=16
+           - entry[43]: sampleCount=3 sampleOffset=0
+           - entry[44]: sampleCount=1 sampleOffset=16
+           - entry[45]: sampleCount=3 sampleOffset=0
+           - entry[46]: sampleCount=1 sampleOffset=16
+           - entry[47]: sampleCount=3 sampleOffset=0
+           - entry[48]: sampleCount=1 sampleOffset=8
+           - entry[49]: sampleCount=1 sampleOffset=0
+           - entry[50]: sampleCount=1 sampleOffset=4
+           - entry[51]: sampleCount=1 sampleOffset=16
+           - entry[52]: sampleCount=3 sampleOffset=0
+           - entry[53]: sampleCount=1 sampleOffset=4
+           - entry[54]: sampleCount=1 sampleOffset=16
+           - entry[55]: sampleCount=3 sampleOffset=0
+           - entry[56]: sampleCount=1 sampleOffset=4
+           - entry[57]: sampleCount=1 sampleOffset=16
+           - entry[58]: sampleCount=3 sampleOffset=0
+           - entry[59]: sampleCount=1 sampleOffset=4
+           - entry[60]: sampleCount=1 sampleOffset=16
+           - entry[61]: sampleCount=3 sampleOffset=0
+           - entry[62]: sampleCount=1 sampleOffset=16
+           - entry[63]: sampleCount=3 sampleOffset=0
+           - entry[64]: sampleCount=1 sampleOffset=16
+           - entry[65]: sampleCount=3 sampleOffset=0
+           - entry[66]: sampleCount=1 sampleOffset=16
+           - entry[67]: sampleCount=3 sampleOffset=0
+           - entry[68]: sampleCount=1 sampleOffset=16
+           - entry[69]: sampleCount=3 sampleOffset=0
+           - entry[70]: sampleCount=1 sampleOffset=16
+           - entry[71]: sampleCount=3 sampleOffset=0
+           - entry[72]: sampleCount=1 sampleOffset=16
+           - entry[73]: sampleCount=3 sampleOffset=0
+           - entry[74]: sampleCount=1 sampleOffset=16
+           - entry[75]: sampleCount=3 sampleOffset=0
+           - entry[76]: sampleCount=1 sampleOffset=16
+           - entry[77]: sampleCount=3 sampleOffset=0
+           - entry[78]: sampleCount=1 sampleOffset=16
+           - entry[79]: sampleCount=3 sampleOffset=0
+           - entry[80]: sampleCount=2 sampleOffset=4
+           - entry[81]: sampleCount=1 sampleOffset=16
+           - entry[82]: sampleCount=3 sampleOffset=0
+           - entry[83]: sampleCount=1 sampleOffset=16
+           - entry[84]: sampleCount=3 sampleOffset=0
+           - entry[85]: sampleCount=2 sampleOffset=4
+           - entry[86]: sampleCount=1 sampleOffset=16
+           - entry[87]: sampleCount=3 sampleOffset=0
+           - entry[88]: sampleCount=1 sampleOffset=16
+           - entry[89]: sampleCount=3 sampleOffset=0
+           - entry[90]: sampleCount=1 sampleOffset=8
+           - entry[91]: sampleCount=1 sampleOffset=0
+           - entry[92]: sampleCount=1 sampleOffset=4
+           - entry[93]: sampleCount=1 sampleOffset=16
+           - entry[94]: sampleCount=3 sampleOffset=0
+           - entry[95]: sampleCount=1 sampleOffset=16
+           - entry[96]: sampleCount=3 sampleOffset=0
+           - entry[97]: sampleCount=1 sampleOffset=4
+           - entry[98]: sampleCount=1 sampleOffset=16
+           - entry[99]: sampleCount=3 sampleOffset=0
+           - entry[100]: sampleCount=1 sampleOffset=16
+           - entry[101]: sampleCount=3 sampleOffset=0
+           - entry[102]: sampleCount=1 sampleOffset=4
+           - entry[103]: sampleCount=1 sampleOffset=16
+           - entry[104]: sampleCount=3 sampleOffset=0
+           - entry[105]: sampleCount=1 sampleOffset=16
+           - entry[106]: sampleCount=3 sampleOffset=0
+           - entry[107]: sampleCount=1 sampleOffset=12
+           - entry[108]: sampleCount=2 sampleOffset=0
+           - entry[109]: sampleCount=1 sampleOffset=4
+           - entry[110]: sampleCount=1 sampleOffset=16
+           - entry[111]: sampleCount=3 sampleOffset=0
+           - entry[112]: sampleCount=1 sampleOffset=16
+           - entry[113]: sampleCount=3 sampleOffset=0
+           - entry[114]: sampleCount=1 sampleOffset=16
+           - entry[115]: sampleCount=3 sampleOffset=0
+           - entry[116]: sampleCount=1 sampleOffset=16
+           - entry[117]: sampleCount=3 sampleOffset=0
+           - entry[118]: sampleCount=1 sampleOffset=16
+           - entry[119]: sampleCount=3 sampleOffset=0
+           - entry[120]: sampleCount=1 sampleOffset=4
+           - entry[121]: sampleCount=1 sampleOffset=16
+           - entry[122]: sampleCount=3 sampleOffset=0
+           - entry[123]: sampleCount=1 sampleOffset=4
+           - entry[124]: sampleCount=1 sampleOffset=16
+           - entry[125]: sampleCount=3 sampleOffset=0
+           - entry[126]: sampleCount=2 sampleOffset=4
+           - entry[127]: sampleCount=1 sampleOffset=16
+           - entry[128]: sampleCount=3 sampleOffset=0
+           - entry[129]: sampleCount=2 sampleOffset=4
+           - entry[130]: sampleCount=1 sampleOffset=16
+           - entry[131]: sampleCount=3 sampleOffset=0
+           - entry[132]: sampleCount=2 sampleOffset=4
+           - entry[133]: sampleCount=1 sampleOffset=16
+           - entry[134]: sampleCount=3 sampleOffset=0
+           - entry[135]: sampleCount=1 sampleOffset=12
+           - entry[136]: sampleCount=2 sampleOffset=0
+           - entry[137]: sampleCount=1 sampleOffset=4
+           - entry[138]: sampleCount=1 sampleOffset=16
+           - entry[139]: sampleCount=3 sampleOffset=0
+           - entry[140]: sampleCount=1 sampleOffset=16
+           - entry[141]: sampleCount=3 sampleOffset=0
+           - entry[142]: sampleCount=1 sampleOffset=16
+           - entry[143]: sampleCount=3 sampleOffset=0
+           - entry[144]: sampleCount=1 sampleOffset=16
+           - entry[145]: sampleCount=3 sampleOffset=0
+           - entry[146]: sampleCount=1 sampleOffset=16
+           - entry[147]: sampleCount=3 sampleOffset=0
+           - entry[148]: sampleCount=1 sampleOffset=16
+           - entry[149]: sampleCount=3 sampleOffset=0
+           - entry[150]: sampleCount=1 sampleOffset=16
+           - entry[151]: sampleCount=3 sampleOffset=0
+           - entry[152]: sampleCount=1 sampleOffset=8
+           - entry[153]: sampleCount=1 sampleOffset=0
+           - entry[154]: sampleCount=1 sampleOffset=4
+           - entry[155]: sampleCount=1 sampleOffset=16
+           - entry[156]: sampleCount=3 sampleOffset=0
+           - entry[157]: sampleCount=1 sampleOffset=16
+           - entry[158]: sampleCount=3 sampleOffset=0
+           - entry[159]: sampleCount=1 sampleOffset=8
+           - entry[160]: sampleCount=1 sampleOffset=0
+           - entry[161]: sampleCount=1 sampleOffset=4
+           - entry[162]: sampleCount=1 sampleOffset=16
+           - entry[163]: sampleCount=3 sampleOffset=0
+           - entry[164]: sampleCount=1 sampleOffset=16
+           - entry[165]: sampleCount=3 sampleOffset=0
+           - entry[166]: sampleCount=1 sampleOffset=16
+           - entry[167]: sampleCount=3 sampleOffset=0
+           - entry[168]: sampleCount=1 sampleOffset=8
+           - entry[169]: sampleCount=1 sampleOffset=0
+           - entry[170]: sampleCount=1 sampleOffset=4
+           - entry[171]: sampleCount=1 sampleOffset=16
+           - entry[172]: sampleCount=3 sampleOffset=0
+           - entry[173]: sampleCount=1 sampleOffset=16
+           - entry[174]: sampleCount=3 sampleOffset=0
+           - entry[175]: sampleCount=1 sampleOffset=16
+           - entry[176]: sampleCount=3 sampleOffset=0
+           - entry[177]: sampleCount=1 sampleOffset=8
+           - entry[178]: sampleCount=1 sampleOffset=0
+           - entry[179]: sampleCount=1 sampleOffset=4
+           - entry[180]: sampleCount=1 sampleOffset=16
+           - entry[181]: sampleCount=3 sampleOffset=0
+           - entry[182]: sampleCount=1 sampleOffset=16
+           - entry[183]: sampleCount=3 sampleOffset=0
+           - entry[184]: sampleCount=1 sampleOffset=16
+           - entry[185]: sampleCount=3 sampleOffset=0
+           - entry[186]: sampleCount=1 sampleOffset=16
+           - entry[187]: sampleCount=3 sampleOffset=0
+           - entry[188]: sampleCount=1 sampleOffset=16
+           - entry[189]: sampleCount=3 sampleOffset=0
+           - entry[190]: sampleCount=1 sampleOffset=8
+           - entry[191]: sampleCount=1 sampleOffset=0
+           - entry[192]: sampleCount=1 sampleOffset=4
+           - entry[193]: sampleCount=1 sampleOffset=16
+           - entry[194]: sampleCount=3 sampleOffset=0
+           - entry[195]: sampleCount=1 sampleOffset=16
+           - entry[196]: sampleCount=3 sampleOffset=0
+           - entry[197]: sampleCount=1 sampleOffset=12
+           - entry[198]: sampleCount=2 sampleOffset=0
+           - entry[199]: sampleCount=1 sampleOffset=4
+           - entry[200]: sampleCount=1 sampleOffset=16
+           - entry[201]: sampleCount=3 sampleOffset=0
+           - entry[202]: sampleCount=1 sampleOffset=16
+           - entry[203]: sampleCount=3 sampleOffset=0
+           - entry[204]: sampleCount=1 sampleOffset=16
+           - entry[205]: sampleCount=3 sampleOffset=0
+           - entry[206]: sampleCount=1 sampleOffset=16
+           - entry[207]: sampleCount=3 sampleOffset=0
+           - entry[208]: sampleCount=1 sampleOffset=16
+           - entry[209]: sampleCount=3 sampleOffset=0
+           - entry[210]: sampleCount=1 sampleOffset=16
+           - entry[211]: sampleCount=3 sampleOffset=0
+           - entry[212]: sampleCount=1 sampleOffset=12
+           - entry[213]: sampleCount=2 sampleOffset=0
+           - entry[214]: sampleCount=1 sampleOffset=4
+           - entry[215]: sampleCount=1 sampleOffset=16
+           - entry[216]: sampleCount=3 sampleOffset=0
+           - entry[217]: sampleCount=1 sampleOffset=16
+           - entry[218]: sampleCount=3 sampleOffset=0
+           - entry[219]: sampleCount=1 sampleOffset=16
+           - entry[220]: sampleCount=3 sampleOffset=0
+           - entry[221]: sampleCount=1 sampleOffset=12
+           - entry[222]: sampleCount=2 sampleOffset=0
+           - entry[223]: sampleCount=1 sampleOffset=4
+           - entry[224]: sampleCount=1 sampleOffset=16
+           - entry[225]: sampleCount=3 sampleOffset=0
+           - entry[226]: sampleCount=1 sampleOffset=16
+           - entry[227]: sampleCount=3 sampleOffset=0
+           - entry[228]: sampleCount=1 sampleOffset=16
+           - entry[229]: sampleCount=3 sampleOffset=0
+           - entry[230]: sampleCount=2 sampleOffset=4
+           - entry[231]: sampleCount=1 sampleOffset=16
+           - entry[232]: sampleCount=3 sampleOffset=0
+           - entry[233]: sampleCount=1 sampleOffset=16
+           - entry[234]: sampleCount=3 sampleOffset=0
+           - entry[235]: sampleCount=1 sampleOffset=16
+           - entry[236]: sampleCount=3 sampleOffset=0
+           - entry[237]: sampleCount=2 sampleOffset=4
+           - entry[238]: sampleCount=1 sampleOffset=16
+           - entry[239]: sampleCount=3 sampleOffset=0
+           - entry[240]: sampleCount=1 sampleOffset=16
+           - entry[241]: sampleCount=3 sampleOffset=0
+           - entry[242]: sampleCount=1 sampleOffset=12
+           - entry[243]: sampleCount=2 sampleOffset=0
+           - entry[244]: sampleCount=1 sampleOffset=4
+           - entry[245]: sampleCount=1 sampleOffset=16
+           - entry[246]: sampleCount=3 sampleOffset=0
+           - entry[247]: sampleCount=1 sampleOffset=16
+           - entry[248]: sampleCount=3 sampleOffset=0
+           - entry[249]: sampleCount=1 sampleOffset=16
+           - entry[250]: sampleCount=3 sampleOffset=0
+           - entry[251]: sampleCount=1 sampleOffset=16
+           - entry[252]: sampleCount=3 sampleOffset=0
+           - entry[253]: sampleCount=1 sampleOffset=4
+           - entry[254]: sampleCount=1 sampleOffset=16
+           - entry[255]: sampleCount=3 sampleOffset=0
+           - entry[256]: sampleCount=1 sampleOffset=16
+           - entry[257]: sampleCount=3 sampleOffset=0
+           - entry[258]: sampleCount=1 sampleOffset=16
+           - entry[259]: sampleCount=3 sampleOffset=0
+           - entry[260]: sampleCount=1 sampleOffset=16
+           - entry[261]: sampleCount=3 sampleOffset=0
+           - entry[262]: sampleCount=1 sampleOffset=8
+           - entry[263]: sampleCount=1 sampleOffset=0
+           - entry[264]: sampleCount=1 sampleOffset=4
           [stss] size=144 version=0
-           -     1 sampleNumber: 1
-           -     2 sampleNumber: 16
-           -     3 sampleNumber: 38
-           -     4 sampleNumber: 93
-           -     5 sampleNumber: 98
-           -     6 sampleNumber: 103
-           -     7 sampleNumber: 108
-           -     8 sampleNumber: 150
-           -     9 sampleNumber: 160
-           -    10 sampleNumber: 171
-           -    11 sampleNumber: 180
-           -    12 sampleNumber: 189
-           -    13 sampleNumber: 201
-           -    14 sampleNumber: 222
-           -    15 sampleNumber: 227
-           -    16 sampleNumber: 233
-           -    17 sampleNumber: 239
-           -    18 sampleNumber: 245
-           -    19 sampleNumber: 253
-           -    20 sampleNumber: 284
-           -    21 sampleNumber: 295
-           -    22 sampleNumber: 310
-           -    23 sampleNumber: 325
-           -    24 sampleNumber: 348
-           -    25 sampleNumber: 360
-           -    26 sampleNumber: 388
-           -    27 sampleNumber: 404
-           -    28 sampleNumber: 418
-           -    29 sampleNumber: 432
-           -    30 sampleNumber: 444
-           -    31 sampleNumber: 461
-           -    32 sampleNumber: 480
+           - syncSample[1]: sampleNumber=1
+           - syncSample[2]: sampleNumber=16
+           - syncSample[3]: sampleNumber=38
+           - syncSample[4]: sampleNumber=93
+           - syncSample[5]: sampleNumber=98
+           - syncSample[6]: sampleNumber=103
+           - syncSample[7]: sampleNumber=108
+           - syncSample[8]: sampleNumber=150
+           - syncSample[9]: sampleNumber=160
+           - syncSample[10]: sampleNumber=171
+           - syncSample[11]: sampleNumber=180
+           - syncSample[12]: sampleNumber=189
+           - syncSample[13]: sampleNumber=201
+           - syncSample[14]: sampleNumber=222
+           - syncSample[15]: sampleNumber=227
+           - syncSample[16]: sampleNumber=233
+           - syncSample[17]: sampleNumber=239
+           - syncSample[18]: sampleNumber=245
+           - syncSample[19]: sampleNumber=253
+           - syncSample[20]: sampleNumber=284
+           - syncSample[21]: sampleNumber=295
+           - syncSample[22]: sampleNumber=310
+           - syncSample[23]: sampleNumber=325
+           - syncSample[24]: sampleNumber=348
+           - syncSample[25]: sampleNumber=360
+           - syncSample[26]: sampleNumber=388
+           - syncSample[27]: sampleNumber=404
+           - syncSample[28]: sampleNumber=418
+           - syncSample[29]: sampleNumber=432
+           - syncSample[30]: sampleNumber=444
+           - syncSample[31]: sampleNumber=461
+           - syncSample[32]: sampleNumber=480
           [stsc] size=52 version=0
-           -   1 firstChunk=1 samplesPerChunk=13 sampleDescriptionID=1
-           -   2 firstChunk=2 samplesPerChunk=12 sampleDescriptionID=1
-           -   3 firstChunk=40 samplesPerChunk=11 sampleDescriptionID=1
+           - entry[1]: firstChunk=1 samplesPerChunk=13 sampleDescriptionID=1
+           - entry[2]: firstChunk=2 samplesPerChunk=12 sampleDescriptionID=1
+           - entry[3]: firstChunk=40 samplesPerChunk=11 sampleDescriptionID=1
           [stsz] size=1940 version=0
            - sampleCount: 480
-           -    1 sampleSize: 61577
-           -    2 sampleSize: 8722
-           -    3 sampleSize: 1893
-           -    4 sampleSize: 950
-           -    5 sampleSize: 1757
-           -    6 sampleSize: 12717
-           -    7 sampleSize: 2326
-           -    8 sampleSize: 1604
-           -    9 sampleSize: 2301
-           -   10 sampleSize: 12015
-           -   11 sampleSize: 2307
-           -   12 sampleSize: 1917
-           -   13 sampleSize: 2479
-           -   14 sampleSize: 12515
-           -   15 sampleSize: 4141
-           -   16 sampleSize: 29912
-           -   17 sampleSize: 9872
-           -   18 sampleSize: 1538
-           -   19 sampleSize: 2069
-           -   20 sampleSize: 2222
-           -   21 sampleSize: 13512
-           -   22 sampleSize: 2799
-           -   23 sampleSize: 2563
-           -   24 sampleSize: 2489
-           -   25 sampleSize: 16361
-           -   26 sampleSize: 3038
-           -   27 sampleSize: 3346
-           -   28 sampleSize: 2961
-           -   29 sampleSize: 17377
-           -   30 sampleSize: 3521
-           -   31 sampleSize: 3285
-           -   32 sampleSize: 2618
-           -   33 sampleSize: 15497
-           -   34 sampleSize: 2688
-           -   35 sampleSize: 2747
-           -   36 sampleSize: 2290
-           -   37 sampleSize: 6832
-           -   38 sampleSize: 34733
-           -   39 sampleSize: 4241
-           -   40 sampleSize: 1753
-           -   41 sampleSize: 1495
-           -   42 sampleSize: 1278
-           -   43 sampleSize: 9579
-           -   44 sampleSize: 1505
-           -   45 sampleSize: 2129
-           -   46 sampleSize: 2285
-           -   47 sampleSize: 14207
-           -   48 sampleSize: 3425
-           -   49 sampleSize: 4003
-           -   50 sampleSize: 3339
-           -   51 sampleSize: 15380
-           -   52 sampleSize: 1899
-           -   53 sampleSize: 2205
-           -   54 sampleSize: 2825
-           -   55 sampleSize: 11586
-           -   56 sampleSize: 3180
-           -   57 sampleSize: 3147
-           -   58 sampleSize: 2898
-           -   59 sampleSize: 8395
-           -   60 sampleSize: 1783
-           -   61 sampleSize: 1979
-           -   62 sampleSize: 1846
-           -   63 sampleSize: 9858
-           -   64 sampleSize: 2120
-           -   65 sampleSize: 2214
-           -   66 sampleSize: 2135
-           -   67 sampleSize: 11020
-           -   68 sampleSize: 1791
-           -   69 sampleSize: 1840
-           -   70 sampleSize: 1747
-           -   71 sampleSize: 9404
-           -   72 sampleSize: 1710
-           -   73 sampleSize: 1937
-           -   74 sampleSize: 1919
-           -   75 sampleSize: 10650
-           -   76 sampleSize: 1802
-           -   77 sampleSize: 1956
-           -   78 sampleSize: 1866
-           -   79 sampleSize: 9989
-           -   80 sampleSize: 1796
-           -   81 sampleSize: 1745
-           -   82 sampleSize: 1631
-           -   83 sampleSize: 9682
-           -   84 sampleSize: 1608
-           -   85 sampleSize: 1658
-           -   86 sampleSize: 1638
-           -   87 sampleSize: 10902
-           -   88 sampleSize: 1800
-           -   89 sampleSize: 2070
-           -   90 sampleSize: 2205
-           -   91 sampleSize: 11977
-           -   92 sampleSize: 2047
-           -   93 sampleSize: 154
-           -   94 sampleSize: 29
-           -   95 sampleSize: 154
-           -   96 sampleSize: 154
-           -   97 sampleSize: 154
-           -   98 sampleSize: 154
-           -   99 sampleSize: 29
-           -  100 sampleSize: 154
-           -  101 sampleSize: 154
-           -  102 sampleSize: 154
-           -  103 sampleSize: 154
-           -  104 sampleSize: 29
-           -  105 sampleSize: 154
-           -  106 sampleSize: 154
-           -  107 sampleSize: 154
-           -  108 sampleSize: 154
-           -  109 sampleSize: 150491
-           -  110 sampleSize: 13307
-           -  111 sampleSize: 9332
-           -  112 sampleSize: 8323
-           -  113 sampleSize: 27426
-           -  114 sampleSize: 4692
-           -  115 sampleSize: 4786
-           -  116 sampleSize: 4261
-           -  117 sampleSize: 18869
-           -  118 sampleSize: 2370
-           -  119 sampleSize: 2373
-           -  120 sampleSize: 2291
-           -  121 sampleSize: 14042
-           -  122 sampleSize: 2186
-           -  123 sampleSize: 2265
-           -  124 sampleSize: 2058
-           -  125 sampleSize: 12964
-           -  126 sampleSize: 2687
-           -  127 sampleSize: 2316
-           -  128 sampleSize: 1947
-           -  129 sampleSize: 12004
-           -  130 sampleSize: 2530
-           -  131 sampleSize: 2382
-           -  132 sampleSize: 2396
-           -  133 sampleSize: 12523
-           -  134 sampleSize: 2448
-           -  135 sampleSize: 2590
-           -  136 sampleSize: 2497
-           -  137 sampleSize: 14786
-           -  138 sampleSize: 3326
-           -  139 sampleSize: 2695
-           -  140 sampleSize: 2882
-           -  141 sampleSize: 20500
-           -  142 sampleSize: 3245
-           -  143 sampleSize: 2397
-           -  144 sampleSize: 2296
-           -  145 sampleSize: 18232
-           -  146 sampleSize: 2663
-           -  147 sampleSize: 2177
-           -  148 sampleSize: 1958
-           -  149 sampleSize: 7767
-           -  150 sampleSize: 24271
-           -  151 sampleSize: 6706
-           -  152 sampleSize: 2634
-           -  153 sampleSize: 2431
-           -  154 sampleSize: 2012
-           -  155 sampleSize: 10333
-           -  156 sampleSize: 2437
-           -  157 sampleSize: 2234
-           -  158 sampleSize: 1783
-           -  159 sampleSize: 7671
-           -  160 sampleSize: 19534
-           -  161 sampleSize: 14330
-           -  162 sampleSize: 4629
-           -  163 sampleSize: 5115
-           -  164 sampleSize: 4174
-           -  165 sampleSize: 16749
-           -  166 sampleSize: 5115
-           -  167 sampleSize: 5305
-           -  168 sampleSize: 5335
-           -  169 sampleSize: 10182
-           -  170 sampleSize: 2639
-           -  171 sampleSize: 24991
-           -  172 sampleSize: 3381
-           -  173 sampleSize: 1191
-           -  174 sampleSize: 1388
-           -  175 sampleSize: 1454
-           -  176 sampleSize: 7774
-           -  177 sampleSize: 2252
-           -  178 sampleSize: 2319
-           -  179 sampleSize: 2213
-           -  180 sampleSize: 33124
-           -  181 sampleSize: 5652
-           -  182 sampleSize: 1785
-           -  183 sampleSize: 1964
-           -  184 sampleSize: 1783
-           -  185 sampleSize: 9751
-           -  186 sampleSize: 2566
-           -  187 sampleSize: 2800
-           -  188 sampleSize: 2788
-           -  189 sampleSize: 27965
-           -  190 sampleSize: 5868
-           -  191 sampleSize: 1039
-           -  192 sampleSize: 1174
-           -  193 sampleSize: 1266
-           -  194 sampleSize: 7180
-           -  195 sampleSize: 1547
-           -  196 sampleSize: 1787
-           -  197 sampleSize: 1188
-           -  198 sampleSize: 6401
-           -  199 sampleSize: 1359
-           -  200 sampleSize: 1752
-           -  201 sampleSize: 16793
-           -  202 sampleSize: 8036
-           -  203 sampleSize: 1953
-           -  204 sampleSize: 1999
-           -  205 sampleSize: 2188
-           -  206 sampleSize: 11018
-           -  207 sampleSize: 2723
-           -  208 sampleSize: 2840
-           -  209 sampleSize: 2506
-           -  210 sampleSize: 35302
-           -  211 sampleSize: 6009
-           -  212 sampleSize: 4792
-           -  213 sampleSize: 2815
-           -  214 sampleSize: 13440
-           -  215 sampleSize: 2897
-           -  216 sampleSize: 3226
-           -  217 sampleSize: 2709
-           -  218 sampleSize: 13943
-           -  219 sampleSize: 2529
-           -  220 sampleSize: 3006
-           -  221 sampleSize: 2398
-           -  222 sampleSize: 22554
-           -  223 sampleSize: 9577
-           -  224 sampleSize: 5083
-           -  225 sampleSize: 5654
-           -  226 sampleSize: 5499
-           -  227 sampleSize: 12148
-           -  228 sampleSize: 33813
-           -  229 sampleSize: 3565
-           -  230 sampleSize: 4051
-           -  231 sampleSize: 4114
-           -  232 sampleSize: 9217
-           -  233 sampleSize: 22871
-           -  234 sampleSize: 17276
-           -  235 sampleSize: 2329
-           -  236 sampleSize: 2233
-           -  237 sampleSize: 3236
-           -  238 sampleSize: 4023
-           -  239 sampleSize: 19088
-           -  240 sampleSize: 40050
-           -  241 sampleSize: 4883
-           -  242 sampleSize: 5120
-           -  243 sampleSize: 4745
-           -  244 sampleSize: 8250
-           -  245 sampleSize: 18811
-           -  246 sampleSize: 16286
-           -  247 sampleSize: 478
-           -  248 sampleSize: 561
-           -  249 sampleSize: 2276
-           -  250 sampleSize: 8505
-           -  251 sampleSize: 3143
-           -  252 sampleSize: 2769
-           -  253 sampleSize: 21400
-           -  254 sampleSize: 4802
-           -  255 sampleSize: 1332
-           -  256 sampleSize: 1489
-           -  257 sampleSize: 1349
-           -  258 sampleSize: 17852
-           -  259 sampleSize: 1292
-           -  260 sampleSize: 1905
-           -  261 sampleSize: 1579
-           -  262 sampleSize: 15512
-           -  263 sampleSize: 1427
-           -  264 sampleSize: 1681
-           -  265 sampleSize: 1502
-           -  266 sampleSize: 18642
-           -  267 sampleSize: 643
-           -  268 sampleSize: 858
-           -  269 sampleSize: 1267
-           -  270 sampleSize: 7190
-           -  271 sampleSize: 1570
-           -  272 sampleSize: 1525
-           -  273 sampleSize: 1308
-           -  274 sampleSize: 20007
-           -  275 sampleSize: 1305
-           -  276 sampleSize: 1306
-           -  277 sampleSize: 1138
-           -  278 sampleSize: 5847
-           -  279 sampleSize: 1474
-           -  280 sampleSize: 1166
-           -  281 sampleSize: 1120
-           -  282 sampleSize: 5822
-           -  283 sampleSize: 1383
-           -  284 sampleSize: 76127
-           -  285 sampleSize: 21354
-           -  286 sampleSize: 4455
-           -  287 sampleSize: 5421
-           -  288 sampleSize: 4234
-           -  289 sampleSize: 20169
-           -  290 sampleSize: 3686
-           -  291 sampleSize: 3964
-           -  292 sampleSize: 3705
-           -  293 sampleSize: 10765
-           -  294 sampleSize: 2085
-           -  295 sampleSize: 22523
-           -  296 sampleSize: 18798
-           -  297 sampleSize: 3083
-           -  298 sampleSize: 4237
-           -  299 sampleSize: 2965
-           -  300 sampleSize: 8286
-           -  301 sampleSize: 3249
-           -  302 sampleSize: 3598
-           -  303 sampleSize: 3202
-           -  304 sampleSize: 10342
-           -  305 sampleSize: 3619
-           -  306 sampleSize: 3922
-           -  307 sampleSize: 3253
-           -  308 sampleSize: 8076
-           -  309 sampleSize: 1876
-           -  310 sampleSize: 22807
-           -  311 sampleSize: 8960
-           -  312 sampleSize: 2940
-           -  313 sampleSize: 3122
-           -  314 sampleSize: 3258
-           -  315 sampleSize: 9637
-           -  316 sampleSize: 3371
-           -  317 sampleSize: 3312
-           -  318 sampleSize: 3007
-           -  319 sampleSize: 9278
-           -  320 sampleSize: 3204
-           -  321 sampleSize: 2953
-           -  322 sampleSize: 2392
-           -  323 sampleSize: 8726
-           -  324 sampleSize: 2805
-           -  325 sampleSize: 17041
-           -  326 sampleSize: 8190
-           -  327 sampleSize: 1767
-           -  328 sampleSize: 2727
-           -  329 sampleSize: 1910
-           -  330 sampleSize: 10141
-           -  331 sampleSize: 2450
-           -  332 sampleSize: 2719
-           -  333 sampleSize: 1896
-           -  334 sampleSize: 23330
-           -  335 sampleSize: 7937
-           -  336 sampleSize: 6813
-           -  337 sampleSize: 6256
-           -  338 sampleSize: 22758
-           -  339 sampleSize: 5896
-           -  340 sampleSize: 6394
-           -  341 sampleSize: 4884
-           -  342 sampleSize: 19266
-           -  343 sampleSize: 3883
-           -  344 sampleSize: 5361
-           -  345 sampleSize: 4936
-           -  346 sampleSize: 12003
-           -  347 sampleSize: 3092
-           -  348 sampleSize: 30484
-           -  349 sampleSize: 7970
-           -  350 sampleSize: 2186
-           -  351 sampleSize: 2597
-           -  352 sampleSize: 2480
-           -  353 sampleSize: 9564
-           -  354 sampleSize: 2340
-           -  355 sampleSize: 2679
-           -  356 sampleSize: 2743
-           -  357 sampleSize: 8566
-           -  358 sampleSize: 3018
-           -  359 sampleSize: 2963
-           -  360 sampleSize: 40306
-           -  361 sampleSize: 19087
-           -  362 sampleSize: 4298
-           -  363 sampleSize: 5323
-           -  364 sampleSize: 5662
-           -  365 sampleSize: 19714
-           -  366 sampleSize: 4907
-           -  367 sampleSize: 5711
-           -  368 sampleSize: 5393
-           -  369 sampleSize: 15426
-           -  370 sampleSize: 3533
-           -  371 sampleSize: 3725
-           -  372 sampleSize: 2853
-           -  373 sampleSize: 16630
-           -  374 sampleSize: 2811
-           -  375 sampleSize: 3604
-           -  376 sampleSize: 4353
-           -  377 sampleSize: 5748
-           -  378 sampleSize: 1242
-           -  379 sampleSize: 1367
-           -  380 sampleSize: 1747
-           -  381 sampleSize: 18456
-           -  382 sampleSize: 1223
-           -  383 sampleSize: 3552
-           -  384 sampleSize: 2062
-           -  385 sampleSize: 8310
-           -  386 sampleSize: 2823
-           -  387 sampleSize: 2705
-           -  388 sampleSize: 20406
-           -  389 sampleSize: 5802
-           -  390 sampleSize: 2369
-           -  391 sampleSize: 2662
-           -  392 sampleSize: 2369
-           -  393 sampleSize: 8500
-           -  394 sampleSize: 2627
-           -  395 sampleSize: 2109
-           -  396 sampleSize: 1804
-           -  397 sampleSize: 8551
-           -  398 sampleSize: 2144
-           -  399 sampleSize: 2142
-           -  400 sampleSize: 1838
-           -  401 sampleSize: 8324
-           -  402 sampleSize: 2490
-           -  403 sampleSize: 2021
-           -  404 sampleSize: 20560
-           -  405 sampleSize: 6826
-           -  406 sampleSize: 2594
-           -  407 sampleSize: 2943
-           -  408 sampleSize: 2813
-           -  409 sampleSize: 8740
-           -  410 sampleSize: 2822
-           -  411 sampleSize: 3218
-           -  412 sampleSize: 2789
-           -  413 sampleSize: 8080
-           -  414 sampleSize: 2827
-           -  415 sampleSize: 2918
-           -  416 sampleSize: 2470
-           -  417 sampleSize: 6860
-           -  418 sampleSize: 20483
-           -  419 sampleSize: 16776
-           -  420 sampleSize: 5770
-           -  421 sampleSize: 6310
-           -  422 sampleSize: 5604
-           -  423 sampleSize: 10989
-           -  424 sampleSize: 3887
-           -  425 sampleSize: 3522
-           -  426 sampleSize: 3175
-           -  427 sampleSize: 11320
-           -  428 sampleSize: 3927
-           -  429 sampleSize: 3779
-           -  430 sampleSize: 3358
-           -  431 sampleSize: 10366
-           -  432 sampleSize: 23479
-           -  433 sampleSize: 36581
-           -  434 sampleSize: 5881
-           -  435 sampleSize: 5991
-           -  436 sampleSize: 4813
-           -  437 sampleSize: 23834
-           -  438 sampleSize: 4055
-           -  439 sampleSize: 5093
-           -  440 sampleSize: 5102
-           -  441 sampleSize: 12665
-           -  442 sampleSize: 3387
-           -  443 sampleSize: 3782
-           -  444 sampleSize: 15905
-           -  445 sampleSize: 7908
-           -  446 sampleSize: 3105
-           -  447 sampleSize: 3071
-           -  448 sampleSize: 2784
-           -  449 sampleSize: 8486
-           -  450 sampleSize: 2905
-           -  451 sampleSize: 3018
-           -  452 sampleSize: 2571
-           -  453 sampleSize: 21583
-           -  454 sampleSize: 2285
-           -  455 sampleSize: 3172
-           -  456 sampleSize: 2701
-           -  457 sampleSize: 10477
-           -  458 sampleSize: 3235
-           -  459 sampleSize: 3542
-           -  460 sampleSize: 3521
-           -  461 sampleSize: 18402
-           -  462 sampleSize: 8905
-           -  463 sampleSize: 2537
-           -  464 sampleSize: 2728
-           -  465 sampleSize: 2796
-           -  466 sampleSize: 10836
-           -  467 sampleSize: 4544
-           -  468 sampleSize: 4573
-           -  469 sampleSize: 3708
-           -  470 sampleSize: 10105
-           -  471 sampleSize: 2755
-           -  472 sampleSize: 2684
-           -  473 sampleSize: 2471
-           -  474 sampleSize: 10839
-           -  475 sampleSize: 2573
-           -  476 sampleSize: 2638
-           -  477 sampleSize: 2393
-           -  478 sampleSize: 9156
-           -  479 sampleSize: 2949
-           -  480 sampleSize: 23339
+           - sample[1] size=61577
+           - sample[2] size=8722
+           - sample[3] size=1893
+           - sample[4] size=950
+           - sample[5] size=1757
+           - sample[6] size=12717
+           - sample[7] size=2326
+           - sample[8] size=1604
+           - sample[9] size=2301
+           - sample[10] size=12015
+           - sample[11] size=2307
+           - sample[12] size=1917
+           - sample[13] size=2479
+           - sample[14] size=12515
+           - sample[15] size=4141
+           - sample[16] size=29912
+           - sample[17] size=9872
+           - sample[18] size=1538
+           - sample[19] size=2069
+           - sample[20] size=2222
+           - sample[21] size=13512
+           - sample[22] size=2799
+           - sample[23] size=2563
+           - sample[24] size=2489
+           - sample[25] size=16361
+           - sample[26] size=3038
+           - sample[27] size=3346
+           - sample[28] size=2961
+           - sample[29] size=17377
+           - sample[30] size=3521
+           - sample[31] size=3285
+           - sample[32] size=2618
+           - sample[33] size=15497
+           - sample[34] size=2688
+           - sample[35] size=2747
+           - sample[36] size=2290
+           - sample[37] size=6832
+           - sample[38] size=34733
+           - sample[39] size=4241
+           - sample[40] size=1753
+           - sample[41] size=1495
+           - sample[42] size=1278
+           - sample[43] size=9579
+           - sample[44] size=1505
+           - sample[45] size=2129
+           - sample[46] size=2285
+           - sample[47] size=14207
+           - sample[48] size=3425
+           - sample[49] size=4003
+           - sample[50] size=3339
+           - sample[51] size=15380
+           - sample[52] size=1899
+           - sample[53] size=2205
+           - sample[54] size=2825
+           - sample[55] size=11586
+           - sample[56] size=3180
+           - sample[57] size=3147
+           - sample[58] size=2898
+           - sample[59] size=8395
+           - sample[60] size=1783
+           - sample[61] size=1979
+           - sample[62] size=1846
+           - sample[63] size=9858
+           - sample[64] size=2120
+           - sample[65] size=2214
+           - sample[66] size=2135
+           - sample[67] size=11020
+           - sample[68] size=1791
+           - sample[69] size=1840
+           - sample[70] size=1747
+           - sample[71] size=9404
+           - sample[72] size=1710
+           - sample[73] size=1937
+           - sample[74] size=1919
+           - sample[75] size=10650
+           - sample[76] size=1802
+           - sample[77] size=1956
+           - sample[78] size=1866
+           - sample[79] size=9989
+           - sample[80] size=1796
+           - sample[81] size=1745
+           - sample[82] size=1631
+           - sample[83] size=9682
+           - sample[84] size=1608
+           - sample[85] size=1658
+           - sample[86] size=1638
+           - sample[87] size=10902
+           - sample[88] size=1800
+           - sample[89] size=2070
+           - sample[90] size=2205
+           - sample[91] size=11977
+           - sample[92] size=2047
+           - sample[93] size=154
+           - sample[94] size=29
+           - sample[95] size=154
+           - sample[96] size=154
+           - sample[97] size=154
+           - sample[98] size=154
+           - sample[99] size=29
+           - sample[100] size=154
+           - sample[101] size=154
+           - sample[102] size=154
+           - sample[103] size=154
+           - sample[104] size=29
+           - sample[105] size=154
+           - sample[106] size=154
+           - sample[107] size=154
+           - sample[108] size=154
+           - sample[109] size=150491
+           - sample[110] size=13307
+           - sample[111] size=9332
+           - sample[112] size=8323
+           - sample[113] size=27426
+           - sample[114] size=4692
+           - sample[115] size=4786
+           - sample[116] size=4261
+           - sample[117] size=18869
+           - sample[118] size=2370
+           - sample[119] size=2373
+           - sample[120] size=2291
+           - sample[121] size=14042
+           - sample[122] size=2186
+           - sample[123] size=2265
+           - sample[124] size=2058
+           - sample[125] size=12964
+           - sample[126] size=2687
+           - sample[127] size=2316
+           - sample[128] size=1947
+           - sample[129] size=12004
+           - sample[130] size=2530
+           - sample[131] size=2382
+           - sample[132] size=2396
+           - sample[133] size=12523
+           - sample[134] size=2448
+           - sample[135] size=2590
+           - sample[136] size=2497
+           - sample[137] size=14786
+           - sample[138] size=3326
+           - sample[139] size=2695
+           - sample[140] size=2882
+           - sample[141] size=20500
+           - sample[142] size=3245
+           - sample[143] size=2397
+           - sample[144] size=2296
+           - sample[145] size=18232
+           - sample[146] size=2663
+           - sample[147] size=2177
+           - sample[148] size=1958
+           - sample[149] size=7767
+           - sample[150] size=24271
+           - sample[151] size=6706
+           - sample[152] size=2634
+           - sample[153] size=2431
+           - sample[154] size=2012
+           - sample[155] size=10333
+           - sample[156] size=2437
+           - sample[157] size=2234
+           - sample[158] size=1783
+           - sample[159] size=7671
+           - sample[160] size=19534
+           - sample[161] size=14330
+           - sample[162] size=4629
+           - sample[163] size=5115
+           - sample[164] size=4174
+           - sample[165] size=16749
+           - sample[166] size=5115
+           - sample[167] size=5305
+           - sample[168] size=5335
+           - sample[169] size=10182
+           - sample[170] size=2639
+           - sample[171] size=24991
+           - sample[172] size=3381
+           - sample[173] size=1191
+           - sample[174] size=1388
+           - sample[175] size=1454
+           - sample[176] size=7774
+           - sample[177] size=2252
+           - sample[178] size=2319
+           - sample[179] size=2213
+           - sample[180] size=33124
+           - sample[181] size=5652
+           - sample[182] size=1785
+           - sample[183] size=1964
+           - sample[184] size=1783
+           - sample[185] size=9751
+           - sample[186] size=2566
+           - sample[187] size=2800
+           - sample[188] size=2788
+           - sample[189] size=27965
+           - sample[190] size=5868
+           - sample[191] size=1039
+           - sample[192] size=1174
+           - sample[193] size=1266
+           - sample[194] size=7180
+           - sample[195] size=1547
+           - sample[196] size=1787
+           - sample[197] size=1188
+           - sample[198] size=6401
+           - sample[199] size=1359
+           - sample[200] size=1752
+           - sample[201] size=16793
+           - sample[202] size=8036
+           - sample[203] size=1953
+           - sample[204] size=1999
+           - sample[205] size=2188
+           - sample[206] size=11018
+           - sample[207] size=2723
+           - sample[208] size=2840
+           - sample[209] size=2506
+           - sample[210] size=35302
+           - sample[211] size=6009
+           - sample[212] size=4792
+           - sample[213] size=2815
+           - sample[214] size=13440
+           - sample[215] size=2897
+           - sample[216] size=3226
+           - sample[217] size=2709
+           - sample[218] size=13943
+           - sample[219] size=2529
+           - sample[220] size=3006
+           - sample[221] size=2398
+           - sample[222] size=22554
+           - sample[223] size=9577
+           - sample[224] size=5083
+           - sample[225] size=5654
+           - sample[226] size=5499
+           - sample[227] size=12148
+           - sample[228] size=33813
+           - sample[229] size=3565
+           - sample[230] size=4051
+           - sample[231] size=4114
+           - sample[232] size=9217
+           - sample[233] size=22871
+           - sample[234] size=17276
+           - sample[235] size=2329
+           - sample[236] size=2233
+           - sample[237] size=3236
+           - sample[238] size=4023
+           - sample[239] size=19088
+           - sample[240] size=40050
+           - sample[241] size=4883
+           - sample[242] size=5120
+           - sample[243] size=4745
+           - sample[244] size=8250
+           - sample[245] size=18811
+           - sample[246] size=16286
+           - sample[247] size=478
+           - sample[248] size=561
+           - sample[249] size=2276
+           - sample[250] size=8505
+           - sample[251] size=3143
+           - sample[252] size=2769
+           - sample[253] size=21400
+           - sample[254] size=4802
+           - sample[255] size=1332
+           - sample[256] size=1489
+           - sample[257] size=1349
+           - sample[258] size=17852
+           - sample[259] size=1292
+           - sample[260] size=1905
+           - sample[261] size=1579
+           - sample[262] size=15512
+           - sample[263] size=1427
+           - sample[264] size=1681
+           - sample[265] size=1502
+           - sample[266] size=18642
+           - sample[267] size=643
+           - sample[268] size=858
+           - sample[269] size=1267
+           - sample[270] size=7190
+           - sample[271] size=1570
+           - sample[272] size=1525
+           - sample[273] size=1308
+           - sample[274] size=20007
+           - sample[275] size=1305
+           - sample[276] size=1306
+           - sample[277] size=1138
+           - sample[278] size=5847
+           - sample[279] size=1474
+           - sample[280] size=1166
+           - sample[281] size=1120
+           - sample[282] size=5822
+           - sample[283] size=1383
+           - sample[284] size=76127
+           - sample[285] size=21354
+           - sample[286] size=4455
+           - sample[287] size=5421
+           - sample[288] size=4234
+           - sample[289] size=20169
+           - sample[290] size=3686
+           - sample[291] size=3964
+           - sample[292] size=3705
+           - sample[293] size=10765
+           - sample[294] size=2085
+           - sample[295] size=22523
+           - sample[296] size=18798
+           - sample[297] size=3083
+           - sample[298] size=4237
+           - sample[299] size=2965
+           - sample[300] size=8286
+           - sample[301] size=3249
+           - sample[302] size=3598
+           - sample[303] size=3202
+           - sample[304] size=10342
+           - sample[305] size=3619
+           - sample[306] size=3922
+           - sample[307] size=3253
+           - sample[308] size=8076
+           - sample[309] size=1876
+           - sample[310] size=22807
+           - sample[311] size=8960
+           - sample[312] size=2940
+           - sample[313] size=3122
+           - sample[314] size=3258
+           - sample[315] size=9637
+           - sample[316] size=3371
+           - sample[317] size=3312
+           - sample[318] size=3007
+           - sample[319] size=9278
+           - sample[320] size=3204
+           - sample[321] size=2953
+           - sample[322] size=2392
+           - sample[323] size=8726
+           - sample[324] size=2805
+           - sample[325] size=17041
+           - sample[326] size=8190
+           - sample[327] size=1767
+           - sample[328] size=2727
+           - sample[329] size=1910
+           - sample[330] size=10141
+           - sample[331] size=2450
+           - sample[332] size=2719
+           - sample[333] size=1896
+           - sample[334] size=23330
+           - sample[335] size=7937
+           - sample[336] size=6813
+           - sample[337] size=6256
+           - sample[338] size=22758
+           - sample[339] size=5896
+           - sample[340] size=6394
+           - sample[341] size=4884
+           - sample[342] size=19266
+           - sample[343] size=3883
+           - sample[344] size=5361
+           - sample[345] size=4936
+           - sample[346] size=12003
+           - sample[347] size=3092
+           - sample[348] size=30484
+           - sample[349] size=7970
+           - sample[350] size=2186
+           - sample[351] size=2597
+           - sample[352] size=2480
+           - sample[353] size=9564
+           - sample[354] size=2340
+           - sample[355] size=2679
+           - sample[356] size=2743
+           - sample[357] size=8566
+           - sample[358] size=3018
+           - sample[359] size=2963
+           - sample[360] size=40306
+           - sample[361] size=19087
+           - sample[362] size=4298
+           - sample[363] size=5323
+           - sample[364] size=5662
+           - sample[365] size=19714
+           - sample[366] size=4907
+           - sample[367] size=5711
+           - sample[368] size=5393
+           - sample[369] size=15426
+           - sample[370] size=3533
+           - sample[371] size=3725
+           - sample[372] size=2853
+           - sample[373] size=16630
+           - sample[374] size=2811
+           - sample[375] size=3604
+           - sample[376] size=4353
+           - sample[377] size=5748
+           - sample[378] size=1242
+           - sample[379] size=1367
+           - sample[380] size=1747
+           - sample[381] size=18456
+           - sample[382] size=1223
+           - sample[383] size=3552
+           - sample[384] size=2062
+           - sample[385] size=8310
+           - sample[386] size=2823
+           - sample[387] size=2705
+           - sample[388] size=20406
+           - sample[389] size=5802
+           - sample[390] size=2369
+           - sample[391] size=2662
+           - sample[392] size=2369
+           - sample[393] size=8500
+           - sample[394] size=2627
+           - sample[395] size=2109
+           - sample[396] size=1804
+           - sample[397] size=8551
+           - sample[398] size=2144
+           - sample[399] size=2142
+           - sample[400] size=1838
+           - sample[401] size=8324
+           - sample[402] size=2490
+           - sample[403] size=2021
+           - sample[404] size=20560
+           - sample[405] size=6826
+           - sample[406] size=2594
+           - sample[407] size=2943
+           - sample[408] size=2813
+           - sample[409] size=8740
+           - sample[410] size=2822
+           - sample[411] size=3218
+           - sample[412] size=2789
+           - sample[413] size=8080
+           - sample[414] size=2827
+           - sample[415] size=2918
+           - sample[416] size=2470
+           - sample[417] size=6860
+           - sample[418] size=20483
+           - sample[419] size=16776
+           - sample[420] size=5770
+           - sample[421] size=6310
+           - sample[422] size=5604
+           - sample[423] size=10989
+           - sample[424] size=3887
+           - sample[425] size=3522
+           - sample[426] size=3175
+           - sample[427] size=11320
+           - sample[428] size=3927
+           - sample[429] size=3779
+           - sample[430] size=3358
+           - sample[431] size=10366
+           - sample[432] size=23479
+           - sample[433] size=36581
+           - sample[434] size=5881
+           - sample[435] size=5991
+           - sample[436] size=4813
+           - sample[437] size=23834
+           - sample[438] size=4055
+           - sample[439] size=5093
+           - sample[440] size=5102
+           - sample[441] size=12665
+           - sample[442] size=3387
+           - sample[443] size=3782
+           - sample[444] size=15905
+           - sample[445] size=7908
+           - sample[446] size=3105
+           - sample[447] size=3071
+           - sample[448] size=2784
+           - sample[449] size=8486
+           - sample[450] size=2905
+           - sample[451] size=3018
+           - sample[452] size=2571
+           - sample[453] size=21583
+           - sample[454] size=2285
+           - sample[455] size=3172
+           - sample[456] size=2701
+           - sample[457] size=10477
+           - sample[458] size=3235
+           - sample[459] size=3542
+           - sample[460] size=3521
+           - sample[461] size=18402
+           - sample[462] size=8905
+           - sample[463] size=2537
+           - sample[464] size=2728
+           - sample[465] size=2796
+           - sample[466] size=10836
+           - sample[467] size=4544
+           - sample[468] size=4573
+           - sample[469] size=3708
+           - sample[470] size=10105
+           - sample[471] size=2755
+           - sample[472] size=2684
+           - sample[473] size=2471
+           - sample[474] size=10839
+           - sample[475] size=2573
+           - sample[476] size=2638
+           - sample[477] size=2393
+           - sample[478] size=9156
+           - sample[479] size=2949
+           - sample[480] size=23339
           [stco] size=176 version=0
-           -   1 chunkOffset: 5121
-           -   2 chunkOffset: 117686
-           -   3 chunkOffset: 217679
-           -   4 chunkOffset: 283879
-           -   5 chunkOffset: 364512
-           -   6 chunkOffset: 423128
-           -   7 chunkOffset: 470750
-           -   8 chunkOffset: 517052
-           -   9 chunkOffset: 550336
-           -  10 chunkOffset: 702271
-           -  11 chunkOffset: 814343
-           -  12 chunkOffset: 872601
-           -  13 chunkOffset: 950495
-           -  14 chunkOffset: 1018118
-           -  15 chunkOffset: 1118040
-           -  16 chunkOffset: 1206418
-           -  17 chunkOffset: 1267167
-           -  18 chunkOffset: 1319350
-           -  19 chunkOffset: 1409627
-           -  20 chunkOffset: 1529396
-           -  21 chunkOffset: 1662767
-           -  22 chunkOffset: 1755111
-           -  23 chunkOffset: 1806833
-           -  24 chunkOffset: 1863592
-           -  25 chunkOffset: 2012164
-           -  26 chunkOffset: 2099510
-           -  27 chunkOffset: 2175227
-           -  28 chunkOffset: 2244211
-           -  29 chunkOffset: 2320347
-           -  30 chunkOffset: 2447274
-           -  31 chunkOffset: 2545803
-           -  32 chunkOffset: 2638978
-           -  33 chunkOffset: 2693453
-           -  34 chunkOffset: 2756180
-           -  35 chunkOffset: 2819615
-           -  36 chunkOffset: 2900938
-           -  37 chunkOffset: 3020925
-           -  38 chunkOffset: 3119341
-           -  39 chunkOffset: 3185499
-           -  40 chunkOffset: 3254826
+           - entry[1]: chunkOffset=5121
+           - entry[2]: chunkOffset=117686
+           - entry[3]: chunkOffset=217679
+           - entry[4]: chunkOffset=283879
+           - entry[5]: chunkOffset=364512
+           - entry[6]: chunkOffset=423128
+           - entry[7]: chunkOffset=470750
+           - entry[8]: chunkOffset=517052
+           - entry[9]: chunkOffset=550336
+           - entry[10]: chunkOffset=702271
+           - entry[11]: chunkOffset=814343
+           - entry[12]: chunkOffset=872601
+           - entry[13]: chunkOffset=950495
+           - entry[14]: chunkOffset=1018118
+           - entry[15]: chunkOffset=1118040
+           - entry[16]: chunkOffset=1206418
+           - entry[17]: chunkOffset=1267167
+           - entry[18]: chunkOffset=1319350
+           - entry[19]: chunkOffset=1409627
+           - entry[20]: chunkOffset=1529396
+           - entry[21]: chunkOffset=1662767
+           - entry[22]: chunkOffset=1755111
+           - entry[23]: chunkOffset=1806833
+           - entry[24]: chunkOffset=1863592
+           - entry[25]: chunkOffset=2012164
+           - entry[26]: chunkOffset=2099510
+           - entry[27]: chunkOffset=2175227
+           - entry[28]: chunkOffset=2244211
+           - entry[29]: chunkOffset=2320347
+           - entry[30]: chunkOffset=2447274
+           - entry[31]: chunkOffset=2545803
+           - entry[32]: chunkOffset=2638978
+           - entry[33]: chunkOffset=2693453
+           - entry[34]: chunkOffset=2756180
+           - entry[35]: chunkOffset=2819615
+           - entry[36]: chunkOffset=2900938
+           - entry[37]: chunkOffset=3020925
+           - entry[38]: chunkOffset=3119341
+           - entry[39]: chunkOffset=3185499
+           - entry[40]: chunkOffset=3254826
