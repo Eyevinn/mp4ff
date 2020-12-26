@@ -12,7 +12,8 @@ import (
 type TrafBox struct {
 	Tfhd     *TfhdBox
 	Tfdt     *TfdtBox
-	Trun     *TrunBox
+	Trun     *TrunBox // The first TrunBox
+	Truns    []*TrunBox
 	Children []Box
 }
 
@@ -40,10 +41,10 @@ func (t *TrafBox) AddChild(b Box) error {
 	case "tfdt":
 		t.Tfdt = b.(*TfdtBox)
 	case "trun":
-		if t.Trun != nil {
-			return errors.New("There is already one trun box. Multiple trun boxes not supported")
+		if t.Trun == nil {
+			t.Trun = b.(*TrunBox)
 		}
-		t.Trun = b.(*TrunBox)
+		t.Truns = append(t.Truns, b.(*TrunBox))
 	default:
 	}
 	t.Children = append(t.Children, b)
@@ -70,8 +71,8 @@ func (t *TrafBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
 }
 
-func (t *TrafBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(t, w, indent, indentStep)
+func (t *TrafBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(t, w, specificBoxLevels, indent, indentStep)
 }
 
 // OptimizeTfhdTrun - optimize trun by default values in tfhd box

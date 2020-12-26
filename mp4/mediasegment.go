@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -15,6 +14,7 @@ type MediaSegment struct {
 // NewMediaSegment - New empty MediaSegment
 func NewMediaSegment() *MediaSegment {
 	return &MediaSegment{
+		Styp:      CreateStyp(),
 		Fragments: []*Fragment{},
 	}
 }
@@ -52,16 +52,22 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 	return nil
 }
 
-// Dump - write box tree with indent for each level
-func (m *MediaSegment) Dump(w io.Writer, indent string) error {
+// Info - write box tree with indent for each level
+func (m *MediaSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	if m.Styp != nil {
-		err := m.Styp.Dump(w, "", indent)
+		err := m.Styp.Info(w, specificBoxLevels, indent, indentStep)
+		if err != nil {
+			return err
+		}
+	}
+	if m.Sidx != nil {
+		err := m.Sidx.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}
 	}
 	for _, f := range m.Fragments {
-		err := f.Dump(w, indent)
+		err := f.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}
@@ -95,7 +101,7 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 			of.AddFullSample(s)
 			cumDur += s.Dur
 			if cumDur >= duration {
-				fmt.Printf("Wrote fragment with duration %d\n", cumDur)
+				// fmt.Printf("Wrote fragment with duration %d\n", cumDur)
 				cumDur = 0
 			}
 		}

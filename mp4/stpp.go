@@ -3,7 +3,6 @@ package mp4
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -139,13 +138,18 @@ func (s *StppBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StppBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	if err != nil {
-		return err
+func (s *StppBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, s, -1)
+	bd.write(" - dataReferenceIndex: %d", s.DataReferenceIndex)
+	bd.write(" - nameSpace: %s", s.Namespace)
+	bd.write(" - schemaLocation: %s", s.SchemaLocation)
+	bd.write(" - auxiliaryMimeTypes: %s", s.AuxiliaryMimeTypes)
+	if bd.err != nil {
+		return bd.err
 	}
+	var err error
 	for _, child := range s.Children {
-		err = child.Dump(w, indent+indentStep, indent)
+		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err
 		}

@@ -191,7 +191,8 @@ func (t *TfrfData) encode(w io.Writer) error {
 	return err
 }
 
-func (u *UUIDBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, u.Type(), u.Size())
-	return err
+func (u *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, u, -1)
+	bd.write(" - subType: %s", u.SubType)
+	return bd.err
 }

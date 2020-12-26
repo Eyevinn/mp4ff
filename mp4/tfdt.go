@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -91,7 +90,8 @@ func (t *TfdtBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *TfdtBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
-	return err
+func (t *TfdtBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
+	bd := newInfoDumper(w, indent, t, int(t.Version))
+	bd.write(" - baseMediaDecodeTime: %d", t.BaseMediaDecodeTime)
+	return bd.err
 }

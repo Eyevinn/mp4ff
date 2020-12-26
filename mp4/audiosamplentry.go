@@ -150,13 +150,14 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *AudioSampleEntryBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
-	if err != nil {
-		return err
+func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, a, -1)
+	if bd.err != nil {
+		return bd.err
 	}
+	var err error
 	for _, child := range a.Children {
-		err = child.Dump(w, indent+indentStep, indent)
+		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err
 		}

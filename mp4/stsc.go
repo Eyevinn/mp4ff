@@ -80,9 +80,16 @@ func (b *StscBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StscBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.FirstChunk {
+			bd.write(" - entry[%d]: firstChunk=%d samplesPerChunk=%d sampleDescriptionID=%d",
+				i+1, b.FirstChunk[i], b.SamplesPerChunk[i], b.SampleDescriptionID[i])
+		}
+	}
+	return bd.err
 }
 
 // ChunkNrFromSampleNr - get chunk number from sampleNr (1-based)

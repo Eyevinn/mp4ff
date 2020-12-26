@@ -203,9 +203,10 @@ func (s *SencBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *SencBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, s, int(s.Version))
+	//TODO. Add more fields to dump
+	return bd.err
 }
 
 func (s *SencBox) GetPerSampleIVSize() int {

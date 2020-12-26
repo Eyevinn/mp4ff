@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -88,7 +87,7 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 	a.FrameCount = s.ReadUint16() // Should be 1
 	compressorNameLength := s.ReadUint8()
 	if compressorNameLength > 31 {
-		panic("Too long compressor naml length")
+		panic("Too long compressor name length")
 	}
 	a.CompressorName = s.ReadFixedLengthString(int(compressorNameLength))
 	s.SkipBytes(int(31 - compressorNameLength))
@@ -176,7 +175,19 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *VisualSampleEntryBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
-	return err
+func (a *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, a, -1)
+	bd.write(" - compressorName: %q", a.CompressorName)
+	if bd.err != nil {
+		return bd.err
+	}
+	var err error
+	for _, child := range a.Children {
+		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
 }

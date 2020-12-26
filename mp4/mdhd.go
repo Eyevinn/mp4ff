@@ -69,7 +69,7 @@ func (m *MdhdBox) GetLanguage() string {
 
 // SetLanguage - Set three-byte language string
 func (m *MdhdBox) SetLanguage(lang string) {
-	var l uint16 = 0 //TODO. Fix this
+	var l uint16 = 0
 	for i, c := range lang {
 		l += uint16(((c - charOffset) & 0x1f) << (5 * (2 - i)))
 	}
@@ -117,8 +117,9 @@ func (m *MdhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (m *MdhdBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Timescale: %d\n%s - Language: %s\n",
-		indent, m.Type(), m.Size(), indent, m.Timescale, indent, m.GetLanguage())
-	return err
+func (m *MdhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, m, int(m.Version))
+	bd.write(" - timeScale: %d", m.Timescale)
+	bd.write(" - language: %s", m.GetLanguage())
+	return bd.err
 }

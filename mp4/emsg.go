@@ -108,10 +108,18 @@ func (b *EmsgBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *EmsgBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d", indent, b.Type(), b.Size())
-	if err != nil {
-		return err
+func (b *EmsgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd.write(" - timeScale: %d", b.TimeScale)
+	if b.Version > 0 {
+		bd.write(" - presentationTime: %d", b.PresentationTime)
 	}
-	return nil
+	bd.write(" - eventDuration: %d", b.EventDuration)
+	bd.write(" - id: %d", b.Id)
+	bd.write(" - schedIdURI: %s", b.SchemeIdURI)
+	bd.write(" - value: %s", b.Value)
+	if b.Version == 0 {
+		bd.write(" - presentationTimeDelta: %d", b.PresentationTimeDelta)
+	}
+	return bd.err
 }

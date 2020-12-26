@@ -40,6 +40,8 @@ func init() {
 		"esds": DecodeEsds,
 		"edts": DecodeEdts,
 		"elst": DecodeElst,
+		"enca": DecodeAudioSampleEntry,
+		"encv": DecodeVisualSampleEntry,
 		"emsg": DecodeEmsg,
 		"free": DecodeFree,
 		"ftyp": DecodeFtyp,
@@ -47,6 +49,7 @@ func init() {
 		"iden": DecodeIden,
 		"iods": DecodeUnknown,
 		"mdat": DecodeMdat,
+		"mehd": DecodeMehd,
 		"mdhd": DecodeMdhd,
 		"mdia": DecodeMdia,
 		"meta": DecodeUnknown,
@@ -150,12 +153,30 @@ func EncodeHeader(b Box, w io.Writer) error {
 	return err
 }
 
-// Box is the general interface
+// Box is the general interface to any ISOBMFF box or similar
 type Box interface {
+	// Type of box, normally 4 asccii characters, but is uint32 according to spec
 	Type() string
+	// Size of box including header and all children if any
 	Size() uint64
+	// Encode box to writer
 	Encode(w io.Writer) error
-	Dump(w io.Writer, indent, indentStep string) error
+	// Info - write box details
+	//   spedificBoxLevels is a comma-separated list box:level or all:level where level >= 0.
+	//   Higher levels give more details. 0 is default
+	//   indent is indent at this box level.
+	//   indentStep is how much to indent at each level
+	Info(w io.Writer, specificBoxLevels, indent, indentStep string) error
+}
+
+// Informer - write box, segment or file details
+type Informer interface {
+	// Info - write details via Info method
+	//   spedificBoxLevels is a comma-separated list box:level or all:level where level >= 0.
+	//   Higher levels give more details. 0 is default
+	//   indent is indent at this box level.
+	//   indentStep is how much to indent at each level
+	Info(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
 
 // BoxDecoder is function signature of the Box Decode method

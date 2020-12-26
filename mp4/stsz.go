@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -88,7 +87,22 @@ func (b *StszBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StszBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+func (b *StszBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	if b.SampleNumber == 0 { // No samples
+		return bd.err
+	}
+	if len(b.SampleSize) == 0 {
+		bd.write(" - sampleSize: %d", b.SampleUniformSize)
+		bd.write(" - sampleCount: %d", b.SampleNumber)
+	} else {
+		bd.write(" - sampleCount: %d", b.SampleNumber)
+	}
+	level := getInfoLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.SampleSize {
+			bd.write(" - sample[%d] size=%d", i+1, b.SampleSize[i])
+		}
+	}
+	return bd.err
 }

@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -173,7 +172,28 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *TfhdBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
-	return err
+func (t *TfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, t, int(t.Version))
+	bd.write(" - flags: %08x", t.Flags)
+
+	if t.Flags&defaultBaseIsMoof != 0 {
+		bd.write(" - defaultBaseIsMoof: true")
+	}
+
+	if t.HasBaseDataOffset() {
+		bd.write(" - baseDataOffset=%d", t.BaseDataOffset)
+	}
+	if t.HasSampleDescriptionIndex() {
+		bd.write(" - sampleDescriptionIndex: %d", t.SampleDescriptionIndex)
+	}
+	if t.HasDefaultSampleDuration() {
+		bd.write(" - defaultSampleDuration: %d", t.DefaultSampleDuration)
+	}
+	if t.HasDefaultSampleSize() {
+		bd.write(" - defaultSampleSize: %d", t.DefaultSampleSize)
+	}
+	if t.HasDefaultSampleFlags() {
+		bd.write(" - defaultSampleFlags: %08x", t.DefaultSampleFlags)
+	}
+	return bd.err
 }

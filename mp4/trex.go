@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -77,7 +76,12 @@ func (t *TrexBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *TrexBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
-	return err
+func (t *TrexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, t, int(t.Version))
+	bd.write(" - trackID: %d", t.TrackID)
+	bd.write(" - defaultSampleDescriptionIndex: %d", t.DefaultSampleDescriptionIndex)
+	bd.write(" - defaultSampleDuration: %d", t.DefaultSampleDuration)
+	bd.write(" - defaultSampleSize: %d", t.DefaultSampleSize)
+	bd.write(" - defaultSampleFlags: %d", t.DefaultSampleSize)
+	return bd.err
 }

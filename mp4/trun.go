@@ -230,9 +230,37 @@ func (t *TrunBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *TrunBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, t.Type(), t.Size())
-	return err
+// Info - specificBoxLevels trun:1 gives details
+func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, t, int(t.Version))
+	bd.write(" - flags: %08x", t.flags)
+	bd.write(" - sampleCount: %d", t.sampleCount)
+	level := getInfoLevel(t, specificBoxLevels)
+	if level > 0 {
+		if t.HasDataOffset() {
+			bd.write(" - DataOffset: %d", t.DataOffset)
+		}
+		if t.HasFirstSampleFlags() {
+			bd.write(" - firstSampleFlags: %08x", t.firstSampleFlags)
+		}
+		for i := 0; i < int(t.sampleCount); i++ {
+			msg := fmt.Sprintf(" - sample[%d]:", i+1)
+			if t.HasSampleDuration() {
+				msg += fmt.Sprintf(" dur=%d", t.Samples[i].Dur)
+			}
+			if t.HasSampleSize() {
+				msg += fmt.Sprintf(" size=%d", t.Samples[i].Size)
+			}
+			if t.HasSampleFlags() {
+				msg += fmt.Sprintf(" flags=%08x", t.Samples[i].Flags)
+			}
+			if t.HasSampleCTO() {
+				msg += fmt.Sprintf(" cto=%d", t.Samples[i].Cto)
+			}
+			bd.write(msg)
+		}
+	}
+	return bd.err
 }
 
 // GetFullSamples - get all sample data including accumulated time and binary media

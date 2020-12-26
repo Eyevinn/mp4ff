@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"time"
@@ -111,7 +110,14 @@ func (b *SttsBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
-func (s *SttsBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+func (b *SttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.SampleCount {
+			bd.write(" - entry[%d]: sampleCount=%d sampleDelta=%d",
+				i+1, b.SampleCount[i], b.SampleTimeDelta[i])
+		}
+	}
+	return bd.err
 }

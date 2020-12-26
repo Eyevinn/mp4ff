@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"errors"
 	"io"
 )
 
@@ -10,7 +9,8 @@ import (
 // Contains all meta-data. To be able to stream a file, the moov box should be placed before the mdat box.
 type MoofBox struct {
 	Mfhd     *MfhdBox
-	Traf     *TrafBox // A single traf child box
+	Traf     *TrafBox // The first traf child box
+	Trafs    []*TrafBox
 	Children []Box
 	StartPos uint64
 }
@@ -39,11 +39,10 @@ func (m *MoofBox) AddChild(b Box) error {
 	case "mfhd":
 		m.Mfhd = b.(*MfhdBox)
 	case "traf":
-		if m.Traf != nil {
-			// There is already one track
-			return errors.New("Multiple tracks not supported for segmented files")
+		if m.Traf == nil {
+			m.Traf = b.(*TrafBox)
 		}
-		m.Traf = b.(*TrafBox)
+		m.Trafs = append(m.Trafs, b.(*TrafBox))
 	}
 	m.Children = append(m.Children, b)
 	return nil
@@ -89,6 +88,6 @@ func (m *MoofBox) GetChildren() []Box {
 	return m.Children
 }
 
-func (m *MoofBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(m, w, indent, indentStep)
+func (m *MoofBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

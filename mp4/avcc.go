@@ -1,7 +1,7 @@
 package mp4
 
 import (
-	"fmt"
+	"encoding/hex"
 	"io"
 
 	"github.com/edgeware/mp4ff/avc"
@@ -63,7 +63,16 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 	return a.AVCDecConfRec.Encode(w)
 }
 
-func (a *AvcCBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
-	return err
+func (a *AvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, a, -1)
+	bd.write(" - AVCProfileIndication: %d", a.AVCProfileIndication)
+	bd.write(" - profileCompatbility: %02x", a.ProfileCompatibility)
+	bd.write(" - AVCLevelIndication: %d", a.AVCLevelIndication)
+	for _, sps := range a.SPSnalus {
+		bd.write(" - SPS: %s", hex.EncodeToString(sps))
+	}
+	for _, pps := range a.PPSnalus {
+		bd.write(" - PPS: %s", hex.EncodeToString(pps))
+	}
+	return bd.err
 }

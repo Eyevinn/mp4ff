@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -52,8 +51,8 @@ func (b *ElngBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *ElngBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Language: %s\n", indent,
-		b.Type(), b.Size(), indent, b.Language)
-	return err
+func (b *ElngBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1)
+	bd.write(" - language: %s", b.Language)
+	return bd.err
 }

@@ -73,7 +73,7 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	if trun.HasDataOffset() {
 		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 	}
-	mdatDataLength := uint64(len(mdat.Data)) // TODO Make len take 64-bit number
+	mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
 	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
 	if offsetInMdat > mdatDataLength {
 		return nil, errors.New("Offset in mdata beyond size")
@@ -132,10 +132,9 @@ func (f *Fragment) Encode(w io.Writer) error {
 	return nil
 }
 
-// Dump - write box tree with indent for each level
-func (f *Fragment) Dump(w io.Writer, indent string) error {
+func (f *Fragment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	for _, box := range f.Children {
-		err := box.Dump(w, "", indent)
+		err := box.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}

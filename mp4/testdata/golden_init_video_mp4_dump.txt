@@ -1,0 +1,44 @@
+[ftyp] size=24
+ - majorBrand: cmfc
+ - minorVersion: 0
+ - compatibleBrand: dash
+ - compatibleBrand: iso6
+[moov] size=652
+  [mvhd] size=108 version=0
+  [trak] size=496
+    [tkhd] size=92 version=0
+     - trackID: 1
+    [mdia] size=396
+      [mdhd] size=32 version=0
+       - timeScale: 180000
+       - language: und
+      [hdlr] size=55 version=0
+       - handlerType: vide
+       - handlerName: "Edgeware Video Handler"
+      [minf] size=301
+        [vmhd] size=20 version=0
+        [dinf] size=36
+          [dref] size=28 version=0
+            [url ] size=12
+             - location: ""
+        [stbl] size=237
+          [stsd] size=161 version=0
+            [avc3] size=145
+             - compressorName: "Edgeware Video Packager"
+              [avcC] size=59
+               - AVCProfileIndication: 77
+               - profileCompatbility: 40
+               - AVCLevelIndication: 31
+               - SPS: 674d401fe4605017fcb80b4f00000300010000030032e4800753003a9e08200e58e189c0
+               - PPS: 685bdf20
+          [stts] size=16 version=0
+          [stsc] size=16 version=0
+          [stsz] size=20 version=0
+          [stco] size=16 version=0
+  [mvex] size=40
+    [trex] size=32 version=0
+     - trackID: 1
+     - defaultSampleDescriptionIndex: 1
+     - defaultSampleDuration: 0
+     - defaultSampleSize: 0
+     - defaultSampleFlags: 0

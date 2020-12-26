@@ -8,8 +8,9 @@ import "io"
 //
 // Its presence signals a fragmented asset
 type MvexBox struct {
-	//Mehd *TkhdBox
+	Mehd     *MehdBox
 	Trex     *TrexBox
+	Trexs    []*TrexBox
 	Children []Box
 }
 
@@ -22,8 +23,13 @@ func NewMvexBox() *MvexBox {
 func (m *MvexBox) AddChild(box Box) {
 
 	switch box.Type() {
+	case "mehd":
+		m.Mehd = box.(*MehdBox)
 	case "trex":
-		m.Trex = box.(*TrexBox)
+		if m.Trex == nil {
+			m.Trex = box.(*TrexBox)
+		}
+		m.Trexs = append(m.Trexs, box.(*TrexBox))
 	}
 	m.Children = append(m.Children, box)
 }
@@ -61,6 +67,6 @@ func (m *MvexBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
-func (m *MvexBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(m, w, indent, indentStep)
+func (m *MvexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

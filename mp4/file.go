@@ -36,6 +36,36 @@ func NewFile() *File {
 	}
 }
 
+// ReadMP4File - read an mp4 file from path
+func ReadMP4File(path string) (*File, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	mp4Root, err := DecodeFile(f)
+	if err != nil {
+		return nil, err
+	}
+	return mp4Root, nil
+}
+
+// BoxStructure represent a box or similar entity such as a Segment
+type BoxStructure interface {
+	Encode(w io.Writer) error
+}
+
+// WriteToFile - write a box structure to a file at filePath
+func WriteToFile(boxStructure BoxStructure, filePath string) error {
+	ofd, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer ofd.Close()
+	err = boxStructure.Encode(ofd)
+	return err
+}
+
 // AddMediaSegment - add a mediasegment to file f
 func (f *File) AddMediaSegment(m *MediaSegment) {
 	f.Segments = append(f.Segments, m)
@@ -81,7 +111,7 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 		f.Ftyp = box.(*FtypBox)
 	case "moov":
 		f.Moov = box.(*MoovBox)
-		if len(f.Moov.Trak[0].Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+		if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
 			f.isFragmented = true
 			f.Init = NewMP4Init()
 			f.Init.Ftyp = f.Ftyp
@@ -129,10 +159,10 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 }
 
 // DumpWithSampleData - print information about file and its children boxes
-func (f *File) DumpWithSampleData(w io.Writer) error {
+func (f *File) DumpWithSampleData(w io.Writer, specificBoxLevels string) error {
 	if f.isFragmented {
 		fmt.Printf("Init segment\n")
-		err := f.Init.Dump(w, "  ")
+		err := f.Init.Info(w, specificBoxLevels, "", "  ")
 		if err != nil {
 			return err
 		}
@@ -154,11 +184,11 @@ func (f *File) DumpWithSampleData(w io.Writer) error {
 		}
 
 	} else {
-		err := f.Ftyp.Dump(w, "", "  ")
+		err := f.Ftyp.Info(w, specificBoxLevels, "", "  ")
 		if err != nil {
 			return err
 		}
-		err = f.Moov.Dump(w, "", "  ")
+		err = f.Moov.Info(w, specificBoxLevels, "", "  ")
 		if err != nil {
 			return err
 		}
@@ -178,10 +208,10 @@ func (f *File) Encode(w io.Writer) error {
 	return nil
 }
 
-// Dump - write box tree with indent for each level
-func (f *File) Dump(w io.Writer, indent string) error {
+// Info - write box tree with indent for each level
+func (f *File) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	for _, box := range f.Children {
-		err := box.Dump(w, "", indent)
+		err := box.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}

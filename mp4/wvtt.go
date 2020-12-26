@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -125,13 +124,14 @@ func (a *WvttBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *WvttBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, a.Type(), a.Size())
-	if err != nil {
-		return err
+func (a *WvttBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, a, -1)
+	if bd.err != nil {
+		return bd.err
 	}
+	var err error
 	for _, child := range a.Children {
-		err = child.Dump(w, indent+indentStep, indent)
+		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err
 		}
@@ -178,10 +178,10 @@ func (v *VttCBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (v *VttCBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: config=%s\n", indent, v.Type(), v.Size(), v.Config)
-	return err
+func (v *VttCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, v, -1)
+	bd.write(" - config: %s", v.Config)
+	return bd.err
 }
 
 ////////////////////////////// vlab //////////////////////////////
@@ -223,10 +223,10 @@ func (v *VlabBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (v *VlabBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: source_label=%s\n", indent, v.Type(), v.Size(), v.SourceLabel)
-	return err
+func (v *VlabBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, v, -1)
+	bd.write(" - sourceLabel: %s", v.SourceLabel)
+	return bd.err
 }
 
 // wvtt Sample boxes
@@ -258,10 +258,9 @@ func (v *VtteBox) Encode(w io.Writer) error {
 	return EncodeHeader(v, w)
 }
 
-// Dump - write box content with indentation to w
-func (v *VtteBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, v.Type(), v.Size())
-	return err
+func (v *VtteBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, v, -1)
+	return bd.err
 }
 
 ////////////////////////////// vttc //////////////////////////////
@@ -328,8 +327,8 @@ func (v *VttcBox) Encode(w io.Writer) error {
 	return EncodeContainer(v, w)
 }
 
-func (v *VttcBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(v, w, indent, indentStep)
+func (v *VttcBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(v, w, specificBoxLevels, indent, indentStep)
 }
 
 ////////////////////////////// vsid //////////////////////////////
@@ -373,10 +372,10 @@ func (v *VsidBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (i *VsidBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: source_ID=%d\n", indent, i.Type(), i.Size(), i.SourceID)
-	return err
+func (v *VsidBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, v, -1)
+	bd.write(" - sourceID: %d", v.SourceID)
+	return bd.err
 }
 
 ////////////////////////////// ctim //////////////////////////////
@@ -419,10 +418,10 @@ func (c *CtimBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (c *CtimBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: cue_current_time=%s\n", indent, c.Type(), c.Size(), c.CueCurrentTime)
-	return err
+func (c *CtimBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, c, -1)
+	bd.write(" - cueCurrentTime: %s", c.CueCurrentTime)
+	return bd.err
 }
 
 ////////////////////////////// iden //////////////////////////////
@@ -464,10 +463,10 @@ func (i *IdenBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (i *IdenBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: cue_id=%s\n", indent, i.Type(), i.Size(), i.CueID)
-	return err
+func (i *IdenBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, i, -1)
+	bd.write(" - cueID: %s", i.CueID)
+	return bd.err
 }
 
 ////////////////////////////// sttg //////////////////////////////
@@ -509,10 +508,10 @@ func (s *SttgBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (s *SttgBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: settings=%s\n", indent, s.Type(), s.Size(), s.Settings)
-	return err
+func (s *SttgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, s, -1)
+	bd.write(" - settings: %s", s.Settings)
+	return bd.err
 }
 
 ////////////////////////////// payl //////////////////////////////
@@ -554,10 +553,10 @@ func (p *PaylBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (p *PaylBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: cue_text=%s\n", indent, p.Type(), p.Size(), p.CueText)
-	return err
+func (p *PaylBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, p, -1)
+	bd.write(" - cueText: %s", p.CueText)
+	return bd.err
 }
 
 ////////////////////////////// vtta //////////////////////////////
@@ -599,8 +598,8 @@ func (v *VttaBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Dump - write box content with indentation to w
-func (v *VttaBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d: cue_additional_text=%s\n", indent, v.Type(), v.Size(), v.CueAdditionalText)
-	return err
+func (v *VttaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, v, -1)
+	bd.write(" - cueAdditionalText: %s", v.CueAdditionalText)
+	return bd.err
 }

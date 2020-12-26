@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -9,8 +8,9 @@ import (
 // MdatBox - Media Data Box (mdat)
 // The mdat box contains media chunks/samples.
 type MdatBox struct {
-	StartPos uint64
-	Data     []byte
+	StartPos       uint64
+	Data           []byte
+	inHeaderLength int // Set when decoding
 }
 
 // DecodeMdat - box-specific decode
@@ -19,7 +19,7 @@ func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &MdatBox{startPos, data}, nil
+	return &MdatBox{startPos, data, hdr.hdrlen}, nil
 }
 
 // Type - return box type
@@ -29,13 +29,16 @@ func (m *MdatBox) Type() string {
 
 // HeaderLength - length of box header including possible largeSize
 func (m *MdatBox) HeaderLength() uint64 {
+	if m.inHeaderLength != 0 {
+		return uint64(m.inHeaderLength)
+	}
 	return headerLength(uint64(len(m.Data)))
 }
 
 // Size - return calculated size. If bigger 32-bit max, it should be escaped.
 func (m *MdatBox) Size() uint64 {
-	contentSize := uint64(len(m.Data))
-	return headerLength(contentSize) + contentSize
+	headerLen := m.HeaderLength()
+	return headerLen + uint64(len(m.Data))
 }
 
 // AddSampleData -  a sample data to an mdat box
@@ -53,7 +56,7 @@ func (m *MdatBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (m *MdatBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, m.Type(), m.Size())
-	return err
+func (m *MdatBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, m, -1)
+	return bd.err
 }

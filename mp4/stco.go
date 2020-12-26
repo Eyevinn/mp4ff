@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -69,7 +68,13 @@ func (b *StcoBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StcoBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, s.Type(), s.Size())
-	return err
+func (b *StcoBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i := range b.ChunkOffset {
+			bd.write(" - entry[%d]: chunkOffset=%d", i+1, b.ChunkOffset[i])
+		}
+	}
+	return bd.err
 }

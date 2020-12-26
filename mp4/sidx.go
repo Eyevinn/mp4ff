@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -146,7 +145,19 @@ func (b *SidxBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *SidxBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
-	return err
+//Info - more info for level 1
+func (b *SidxBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd.write(" - referenceID: %d", b.ReferenceID)
+	bd.write(" - timeScale: %d", b.Timescale)
+	bd.write(" - earliestPresentationTime: %d", b.EarliestPresentationTime)
+	bd.write(" - firstOffset: %d", b.FirstOffset)
+	level := getInfoLevel(b, specificBoxLevels)
+	if level >= 1 {
+		for i, ref := range b.SidxRefs {
+			bd.write(" - reference[%d]: type=%d size=%d subSegmentDuration=%d startsWithSAP=%d SAPType=%d SAPDeltaTime=%d",
+				i+1, ref.ReferenceType, ref.ReferencedSize, ref.SubSegmentDuration, ref.StartsWithSAP, ref.SAPType, ref.SAPDeltaTime)
+		}
+	}
+	return bd.err
 }

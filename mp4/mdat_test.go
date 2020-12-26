@@ -72,8 +72,7 @@ func TestDecodeLargeSize(t *testing.T) {
 		t.Error(err)
 	}
 
-	expectedSize := uint64(8 + len(sample)) // This is the size that will be written. It is not large.
-	if mdat.Size() != expectedSize {
-		t.Errorf("mdat size after parsing is %d and not expected %d", mdat.Size(), expectedSize)
+	if mdat.Size() != largeSize {
+		t.Errorf("mdat size after parsing is %d and not its read size %d", mdat.Size(), largeSize)
 	}
 }

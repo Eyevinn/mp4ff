@@ -140,7 +140,21 @@ func (b *SubsBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (b *SubsBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n", indent, b.Type(), b.Size())
-	return err
+// Info - specificBoxLevels dump:1 gives details
+func (b *SubsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version))
+	level := getInfoLevel(b, specificBoxLevels)
+	if level < 1 {
+		return bd.err
+	}
+	for _, e := range b.Entries {
+		bd.write(" - sampleDelta: %d", e.SampleDelta)
+		for _, s := range e.SubSamples {
+			msg := fmt.Sprintf("  > subSampleSize=%d", s.SubsampleSize)
+			msg += fmt.Sprintf(" subSamplePriority=%d discardable=%d", s.SubsamplePriority, s.Discardable)
+			msg += fmt.Sprintf(" codecSpecificParameters=%d", s.CodecSpecificParameters)
+			bd.write(msg)
+		}
+	}
+	return bd.err
 }

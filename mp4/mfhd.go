@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -67,8 +66,8 @@ func (m *MfhdBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (m *MfhdBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - Sequence number: %d\n",
-		indent, m.Type(), m.Size(), indent, m.SequenceNumber)
-	return err
+func (m *MfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, m, int(m.Version))
+	bd.write(" - sequenceNumber: %d", m.SequenceNumber)
+	return bd.err
 }

@@ -5,11 +5,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/go-test/deep"
 )
 
-const sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
+const sps1nalu = "674d401fe4605017fcb80b4f00000300010000030032e4800753003a9e08200e58e189c0"
+const pps1nalu = "685bdf20"
 
 func parseInitFile(fileName string) (*File, error) {
 	fd, err := os.Open(fileName)
@@ -30,7 +34,7 @@ func parseInitFile(fileName string) (*File, error) {
 		return nil, fmt.Errorf("No ftyp present")
 	}
 
-	if f.isFragmented && len(f.Init.Moov.Trak) != 1 {
+	if f.isFragmented && len(f.Init.Moov.Traks) != 1 {
 		return nil, fmt.Errorf("Not exactly one track")
 	}
 	return f, nil
@@ -38,33 +42,37 @@ func parseInitFile(fileName string) (*File, error) {
 
 // InitSegmentParsing - Check  to read a file with moov box.
 func TestInitSegmentParsing(t *testing.T) {
-	f, err := parseInitFile("test_data/init1.cmfv")
+	initFile := "testdata/init1.cmfv"
+	f, err := parseInitFile(initFile)
 	if err != nil {
 		t.Error(err)
 	}
-	url := f.Init.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Children[0]
+	url := f.Init.Moov.Trak.Mdia.Minf.Dinf.Dref.Children[0]
 	if url.Type() != "url " {
 		t.Errorf("Could not find url box")
 	}
-	avcC := f.Init.Moov.Trak[0].Mdia.Minf.Stbl.Stsd.AvcX.AvcC
+	avcC := f.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.AvcX.AvcC
 
 	wanted := byte(31)
 	got := avcC.AVCLevelIndication
 	if got != wanted {
 		t.Errorf("Got level %d insted of %d", got, wanted)
 	}
+
 }
 
 func TestMoovParsingWithBtrtParsing(t *testing.T) {
-	f, err := parseInitFile("test_data/init_prog.mp4")
+	initFile := "testdata/init_prog.mp4"
+	initDumpGoldenPath := "testdata/golden_init_prog_mp4_dump.txt"
+	f, err := parseInitFile(initFile)
 	if err != nil {
 		t.Error(err)
 	}
-	url := f.Moov.Trak[0].Mdia.Minf.Dinf.Dref.Children[0]
+	url := f.Moov.Trak.Mdia.Minf.Dinf.Dref.Children[0]
 	if url.Type() != "url " {
 		t.Errorf("Could not find url box")
 	}
-	avcx := f.Moov.Trak[0].Mdia.Minf.Stbl.Stsd.AvcX
+	avcx := f.Moov.Trak.Mdia.Minf.Stbl.Stsd.AvcX
 	avcC := avcx.AvcC
 
 	wanted := byte(31)
@@ -79,24 +87,45 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 		t.Errorf("Got averate bitrate %d instead of %d", btrt.AvgBitrate, 1384000)
 	}
 
+	var buf bytes.Buffer
+	err = f.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	initFileBytes, err := ioutil.ReadFile(initFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if deep.Equal(buf.Bytes(), initFileBytes) != nil {
+		t.Errorf("Encoded output not same as input for %s", initFile)
+	}
+
+	err = writeGolden(t, "testdata/tmp.mp4", buf.Bytes())
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = compareOrUpdateInfo(t, f, initDumpGoldenPath)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-// sps1nalu is already defined in avc_test.go
-const pps1nalu = "68b5df20"
-
 func TestGenerateInitSegment(t *testing.T) {
+	goldenAssetPath := "testdata/golden_init_video.mp4"
+	goldenDumpPath := "testdata/golden_init_video_mp4_dump.txt"
 	sps, _ := hex.DecodeString(sps1nalu)
 	spsData := [][]byte{sps}
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsData := [][]byte{pps}
 
 	init := CreateEmptyMP4Init(180000, "video", "und")
-	trak := init.Moov.Trak[0]
+	trak := init.Moov.Trak
 	trak.SetAVCDescriptor("avc3", spsData, ppsData)
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
-	if width != 1280 || height != 720 {
-		t.Errorf("Did not get righ width and height")
+	if width != 640 || height != 360 {
+		t.Errorf("Got %dx%d instead of 640x360", width, height)
 	}
 	// Write to a buffer so that we can read and check
 	var buf bytes.Buffer
@@ -115,14 +144,31 @@ func TestGenerateInitSegment(t *testing.T) {
 		t.Errorf("Mismatch generated vs read moov size: %d != %d", init.Moov.Size(), initRead.Moov.Size())
 	}
 
-	// Next write to a file
-	ofd, err := os.Create("test_data/out_init.cmfv")
+	// Regenerated buf
+	err = init.Encode(&buf)
 	if err != nil {
 		t.Error(err)
 	}
-	defer ofd.Close()
-	err = init.Encode(ofd)
+
+	err = compareOrUpdateInfo(t, init, goldenDumpPath)
 	if err != nil {
 		t.Error(err)
+	}
+	// Generate or compare with golden files
+	if *update {
+		err = writeGolden(t, goldenAssetPath, buf.Bytes())
+		if err != nil {
+			t.Error(err)
+		}
+		return
+	}
+
+	golden, err := ioutil.ReadFile(goldenAssetPath)
+	if err != nil {
+		t.Error(err)
+	}
+	diff := deep.Equal(golden, buf.Bytes())
+	if diff != nil {
+		t.Errorf("Generated init segment different from %s", goldenAssetPath)
 	}
 }

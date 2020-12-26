@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -79,9 +78,8 @@ func (u *URLBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
-func (u *URLBox) Dump(w io.Writer, indent, indentStep string) error {
-	_, err := fmt.Fprintf(w, "%s%s size=%d\n%s - location: %s",
-		indent, u.Type(), u.Size(),
-		indent, u.Location)
-	return err
+func (u *URLBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, u, -1)
+	bd.write(" - location: %q", u.Location)
+	return bd.err
 }

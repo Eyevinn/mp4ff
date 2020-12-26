@@ -35,7 +35,7 @@ func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
 
 // GetInitSegments - initialized and return init segments for all the tracks
 func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
-	traks := s.inFile.Moov.Trak
+	traks := s.inFile.Moov.Traks
 	var inits []*mp4.InitSegment
 	for _, inTrak := range traks {
 		hdlrType := inTrak.Mdia.Hdlr.HandlerType
@@ -54,7 +54,7 @@ func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
 			track.inTrak = inTrak
 			track.timeScale = inTrak.Mdia.Mdhd.Timescale
 			init := mp4.CreateEmptyMP4Init(track.timeScale, mediaType, lang)
-			outTrack := init.Moov.Trak[0]
+			outTrack := init.Moov.Trak
 			stsd := outTrack.Mdia.Minf.Stbl.Stsd
 			if mediaType == "audio" {
 				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.Mp4a)

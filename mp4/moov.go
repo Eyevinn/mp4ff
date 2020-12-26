@@ -9,7 +9,8 @@ import (
 // Contains all meta-data. To be able to stream a file, the moov box should be placed before the mdat box.
 type MoovBox struct {
 	Mvhd     *MvhdBox
-	Trak     []*TrakBox
+	Trak     *TrakBox // The first trak box
+	Traks    []*TrakBox
 	Mvex     *MvexBox
 	Children []Box
 }
@@ -26,7 +27,10 @@ func (m *MoovBox) AddChild(box Box) {
 	case "mvhd":
 		m.Mvhd = box.(*MvhdBox)
 	case "trak":
-		m.Trak = append(m.Trak, box.(*TrakBox))
+		if m.Trak == nil {
+			m.Trak = box.(*TrakBox)
+		}
+		m.Traks = append(m.Traks, box.(*TrakBox))
 	case "mvex":
 		m.Mvex = box.(*MvexBox)
 	}
@@ -66,6 +70,6 @@ func (m *MoovBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
-func (m *MoovBox) Dump(w io.Writer, indent, indentStep string) error {
-	return DumpContainer(m, w, indent, indentStep)
+func (m *MoovBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }
