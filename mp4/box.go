@@ -67,6 +67,7 @@ func init() {
 		"pssh": DecodePssh,
 		"saio": DecodeSaio,
 		"saiz": DecodeSaiz,
+		"sbgp": DecodeSbgp,
 		"schi": DecodeSchi,
 		"schm": DecodeSchm,
 		"senc": DecodeSenc,
