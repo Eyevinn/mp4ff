@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -166,27 +167,23 @@ func (s *SencBox) Size() uint64 {
 
 // Encode - box-specific encode
 func (s *SencBox) Encode(w io.Writer) error {
-	// First check if UseSubSampleEncryption should be set
+	// First check if subsamplencryption is to be used since it influences the box size
 	for _, subSamples := range s.SubSamples {
 		if len(subSamples) > 0 {
 			s.Flags |= UseSubSampleEncryption
 		}
 	}
-	perSampleIVSize := s.GetPerSampleIVSize()
 	err := EncodeHeader(s, w)
 	if err != nil {
 		return err
 	}
 	buf := makebuf(s)
 	sw := NewSliceWriter(buf)
-	for _, subSamples := range s.SubSamples {
-		if len(subSamples) > 0 {
-			s.Flags |= UseSubSampleEncryption
-		}
-	}
+
 	versionAndFlags := (uint32(s.Version) << 24) + s.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(s.SampleCount)
+	perSampleIVSize := s.GetPerSampleIVSize()
 	for i := 0; i < int(s.SampleCount); i++ {
 		if perSampleIVSize > 0 {
 			sw.WriteBytes(s.IVs[i])
@@ -205,7 +202,30 @@ func (s *SencBox) Encode(w io.Writer) error {
 
 func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, s, int(s.Version))
-	//TODO. Add more fields to dump
+	for _, subSamples := range s.SubSamples {
+		if len(subSamples) > 0 {
+			s.Flags |= UseSubSampleEncryption
+		}
+	}
+	bd.write(" - flags: %06x", s.Flags)
+	perSampleIVSize := s.GetPerSampleIVSize()
+	bd.write(" - perSampleIVSize: %d", perSampleIVSize)
+	level := getInfoLevel(s, specificBoxLevels)
+	if level > 0 {
+		for i := 0; i < int(s.SampleCount); i++ {
+			line := fmt.Sprintf(" - sample[%d]: ", i+1)
+			if perSampleIVSize > 0 {
+				line += fmt.Sprintf(" iv=%s", hex.EncodeToString(s.IVs[i]))
+			}
+			bd.write(line)
+			if s.Flags&UseSubSampleEncryption != 0 {
+				for j, subSample := range s.SubSamples[i] {
+					bd.write("   - subSample[%d]: nrBytesClear=%d nrBytesProtected=%d", j+1,
+						subSample.BytesOfClearData, subSample.BytesOfProtectedData)
+				}
+			}
+		}
+	}
 	return bd.err
 }
 
