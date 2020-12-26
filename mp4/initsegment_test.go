@@ -97,15 +97,50 @@ func TestMoovParsingWithBtrtParsing(t *testing.T) {
 		t.Error(err)
 	}
 	if deep.Equal(buf.Bytes(), initFileBytes) != nil {
-		t.Errorf("Encoded output not same as input for %s", initFile)
+		tmpOutput := "testdata/init_tmp.mp4"
+		err := writeGolden(t, tmpOutput, buf.Bytes())
+		if err == nil {
+			t.Errorf("Encoded output not same as input for %s. Wrote %s", initFile, tmpOutput)
+		} else {
+			t.Errorf("Encoded output not same as input for %s, but error %s when writing  %s", initFile, err, tmpOutput)
+		}
 	}
 
-	err = writeGolden(t, "testdata/tmp.mp4", buf.Bytes())
+	err = compareOrUpdateInfo(t, f, initDumpGoldenPath)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMoovWithCenc(t *testing.T) {
+	initFile := "testdata/init_cenc.cmfv"
+	initDumpGoldenPath := "testdata/golden_init_cenc_cmfv_dump.txt"
+	f, err := parseInitFile(initFile)
 	if err != nil {
 		t.Error(err)
 	}
 
+	var buf bytes.Buffer
+	err = f.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	initFileBytes, err := ioutil.ReadFile(initFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if deep.Equal(buf.Bytes(), initFileBytes) != nil {
+		tmpOutput := "testdata/cenc_tmp.mp4"
+		err := writeGolden(t, tmpOutput, buf.Bytes())
+		if err == nil {
+			t.Errorf("Encoded output not same as input for %s. Wrote %s", initFile, tmpOutput)
+		} else {
+			t.Errorf("Encoded output not same as input for %s, but error %s when writing  %s", initFile, err, tmpOutput)
+		}
+	}
+
 	err = compareOrUpdateInfo(t, f, initDumpGoldenPath)
+
 	if err != nil {
 		t.Error(err)
 	}
