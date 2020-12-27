@@ -1,4 +1,4 @@
-package mp4
+package aac
 
 import (
 	"errors"

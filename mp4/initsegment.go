@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/edgeware/mp4ff/aac"
 	"github.com/edgeware/mp4ff/avc"
 )
 
@@ -179,7 +180,7 @@ func (s *InitSegment) GetMediaType() string {
 // For HEAAC, the samplingFrequency is the base frequency (normally 24000)
 func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
 	stsd := t.Mdia.Minf.Stbl.Stsd
-	asc := &AudioSpecificConfig{
+	asc := &aac.AudioSpecificConfig{
 		ObjectType:           objType,
 		ChannelConfiguration: 2,
 		SamplingFrequency:    samplingFrequency,
@@ -188,10 +189,10 @@ func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
 		PSPresentFlag:        false,
 	}
 	switch objType {
-	case HEAACv1:
+	case aac.HEAACv1:
 		asc.ExtensionFrequency = 2 * samplingFrequency
 		asc.SBRPresentFlag = true
-	case HEAACv2:
+	case aac.HEAACv2:
 		asc.ExtensionFrequency = 2 * samplingFrequency
 		asc.SBRPresentFlag = true
 		asc.ChannelConfiguration = 1
