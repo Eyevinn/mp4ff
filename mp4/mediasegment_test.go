@@ -21,19 +21,14 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 	goldenFragPath := "testdata/golden_1_frag.m4s"
 	goldenFragDumpPath := "testdata/golden_1_frag_m4s_dump.txt"
 	fd, err := os.Open(inFile)
-	//fd, err := os.Open("testdata/1_frag.m4s")
 	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
+		t.Error(err)
 	}
 	defer fd.Close()
 
 	f, err := DecodeFile(fd)
 	if err != io.EOF && err != nil {
-		if err != nil {
-			t.Error(err)
-		}
+		t.Error(err)
 	}
 	if len(f.Segments) != 1 {
 		t.Errorf("Not exactly one mediasegment")
@@ -102,5 +97,48 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		if diff != nil {
 			t.Errorf("Generated dump different from %s", goldenFragPath)
 		}
+	}
+}
+
+func TestMoofEncrypted(t *testing.T) {
+
+	inFile := "testdata/moof_enc.m4s"
+	inFileGoldenDumpPath := "testdata/golden_moof_enc_m4s_dump.txt"
+	fd, err := os.Open(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	defer fd.Close()
+
+	f, err := DecodeFile(fd)
+	if err != io.EOF && err != nil {
+		t.Error(err)
+	}
+
+	var bufOut bytes.Buffer
+	err = f.Encode(&bufOut)
+	if err != nil {
+		t.Error(err)
+	}
+
+	inSeg, err := ioutil.ReadFile(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	diff := deep.Equal(inSeg, bufOut.Bytes())
+	if diff != nil {
+		tmpOutput := "testdata/moof_enc_tmp.mp4"
+		err := writeGolden(t, tmpOutput, bufOut.Bytes())
+		if err == nil {
+			t.Errorf("Encoded output not same as input for %s. Wrote %s", inFile, tmpOutput)
+		} else {
+			t.Errorf("Encoded output not same as input for %s, but error %s when writing  %s", inFile, err, tmpOutput)
+		}
+	}
+
+	err = compareOrUpdateInfo(t, f, inFileGoldenDumpPath)
+	if err != nil {
+		t.Error(err)
 	}
 }

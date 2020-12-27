@@ -183,7 +183,7 @@ func (a *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 	}
 	var err error
 	for _, child := range a.Children {
-		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
+		err = child.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}

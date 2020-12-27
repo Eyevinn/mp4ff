@@ -7,22 +7,31 @@ import (
 	"strings"
 )
 
+type boxLike interface {
+	Type() string
+	Size() uint64
+	Info(w io.Writer, specificBoxLevels, indent, indentStep string) error
+}
+
 // infoDumper - dump box name and size. Allow for more with write.
 type infoDumper struct {
 	w      io.Writer
 	indent string
-	box    Box
+	box    boxLike
 	err    error
 }
 
 // newInfoDumper - make an infoDumper with indent
-// set Version to -1 if not present
-func newInfoDumper(w io.Writer, indent string, b Box, version int) *infoDumper {
+// set Version to -1 if not present for box
+// set Version to -2 for sample group entries
+func newInfoDumper(w io.Writer, indent string, b boxLike, version int) *infoDumper {
 	bd := infoDumper{w, indent, b, nil}
-	if version < 0 {
+	if version == -1 {
 		bd.write("[%s] size=%d", b.Type(), b.Size())
-	} else {
+	} else if version >= 0 {
 		bd.write("[%s] size=%d version=%d", b.Type(), b.Size(), version)
+	} else { // version = -2
+		bd.write("GroupingType %q size=%d", b.Type(), b.Size())
 	}
 	return &bd
 }
@@ -39,8 +48,8 @@ func (b infoDumper) write(format string, p ...interface{}) {
 	_, b.err = fmt.Fprintf(b.w, format+"\n", p...)
 }
 
-// getInfoLevel - get info level for specific box, or from all
-func getInfoLevel(b Box, specificBoxLevels string) (level int) {
+// getInfoLevel - get info level for specific boxLike, or from all
+func getInfoLevel(b boxLike, specificBoxLevels string) (level int) {
 	if len(specificBoxLevels) == 0 {
 		return level
 	}
