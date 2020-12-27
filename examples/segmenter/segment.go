@@ -2,9 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"io"
-	"log"
 
 	"github.com/edgeware/mp4ff/mp4"
 )
@@ -76,7 +73,7 @@ func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
 // GetSamplesUntilTime - get slice of FullSample from statSampleNr to endTimeMs
 // The end point is currently not aligned with sync points as defined by the stss box
 // nextSampleNr is stored in track tr
-func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleNr, endTimeMs int) []*mp4.FullSample {
+func (s *Segmenter) GetSamplesUntilTime(mp4f *mp4.File, tr *Track, startSampleNr, endTimeMs int) []*mp4.FullSample {
 	stbl := tr.inTrak.Mdia.Minf.Stbl
 	nrSamples := stbl.Stsz.SampleNumber
 	var samples []*mp4.FullSample
@@ -99,18 +96,10 @@ func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleN
 		if stbl.Stss != nil {
 			isSync = stbl.Stss.IsSyncSample(uint32(sampleNr))
 		}
-		buf := make([]byte, size)
-		_, err = r.Seek(offset, 0)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		n, err := r.Read(buf)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		if n != int(size) {
-			fmt.Printf("Read %d bytes instead of %d", n, size)
-		}
+		// Next find bytes as slice in mdat
+		mdat := mp4f.Mdat
+		offsetInMdatData := uint64(offset) - mdat.StartPos - mdat.HeaderLength()
+		sampleData := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
 		//presTime := uint64(int64(decTime) + int64(cto))
 		//One can either segment on presentationTime or DecodeTime
 		//presTimeMs := presTime * 1000 / uint64(tr.timeScale)
@@ -130,7 +119,7 @@ func (s *Segmenter) GetSamplesUntilTime(tr *Track, r io.ReadSeeker, startSampleN
 				Cto:   cto,
 			},
 			DecodeTime: decTime,
-			Data:       buf,
+			Data:       sampleData,
 		}
 
 		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)

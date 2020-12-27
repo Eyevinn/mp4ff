@@ -76,7 +76,7 @@ func main() {
 		newSegment := false
 		for _, tr := range segmenter.tracks {
 			mediaType := tr.trackType
-			samples := segmenter.GetSamplesUntilTime(tr, ifd, tr.nextSampleNr, segDurMs*segNr)
+			samples := segmenter.GetSamplesUntilTime(parsedMp4, tr, tr.nextSampleNr, segDurMs*segNr)
 			if len(samples) == 0 {
 				continue
 			}
