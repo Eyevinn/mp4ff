@@ -48,8 +48,8 @@ func (b infoDumper) write(format string, p ...interface{}) {
 	_, b.err = fmt.Fprintf(b.w, format+"\n", p...)
 }
 
-// getInfoLevel - get info level for specific box, or from all
-func getInfoLevel(b Box, specificBoxLevels string) (level int) {
+// getInfoLevel - get info level for specific boxLike, or from all
+func getInfoLevel(b boxLike, specificBoxLevels string) (level int) {
 	if len(specificBoxLevels) == 0 {
 		return level
 	}

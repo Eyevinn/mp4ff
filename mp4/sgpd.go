@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// SgpdBox - Sample Group Description Box, ISO/IEC 14496-12 (2020) 8.9.3
+// SgpdBox - Sample Group Description Box, ISO/IEC 14496-12 6'th edition 2020 Section 8.9.3
 // Version 0 is deprecated
 type SgpdBox struct {
 	Version                      byte
@@ -63,12 +63,20 @@ func (b *SgpdBox) Type() string {
 
 // Size - return calculated size
 func (b *SgpdBox) Size() uint64 {
-	size := uint64(20)
+	// Version + Flags:4
+	// GroupingType: 4
+	// (v>=11) DefaultLength: 4
+	// (v>=2) DefaultGroupDescriptionIndex
+	// EntryCount: 4
+	// SampleCount + GroupDescriptionIndex : 8
+	// DescriptionLength: 4
+	// SampleGroupEntries: default or individual lengthsß
+	size := uint64(boxHeaderSize + 4 + 4 + 4)
 	if b.Version >= 1 {
-		size += 4
+		size += 4 // DefaultLength
 	}
 	if b.Version >= 2 {
-		size += 4
+		size += 4 // DefaultGroupDescriptionIndex
 	}
 	if b.Version >= 1 {
 		entryCount := len(b.SampleGroupEntries)

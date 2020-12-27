@@ -2,10 +2,11 @@ package mp4
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io"
 )
 
-// SampleGroupEntry - like a box, but type and size are not in a header
+// SampleGroupEntry - like a box, but size and type are not in a header
 type SampleGroupEntry interface {
 	// GroupingType SampleGroupEntry (uint32 according to spec)
 	Type() string // actually
@@ -17,14 +18,14 @@ type SampleGroupEntry interface {
 	Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error)
 }
 
-// SampleGroupEntryDecoder is function signature of the Box Decode method
+// SampleGroupEntryDecoder is function signature of the SampleGroupEntry Decode method
 type SampleGroupEntryDecoder func(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error)
 
 var sgeDecoders map[string]SampleGroupEntryDecoder
 
 func init() {
 	sgeDecoders = map[string]SampleGroupEntryDecoder{
-		"seig": DecodeCencSampleGroupEntry,
+		"seig": DecodeSeigSampleGroupEntry,
 	}
 }
 
@@ -36,9 +37,9 @@ func decodeSampleGroupEntry(name string, length uint32, sr *SliceReader) (Sample
 	return DecodeUnknownSampleGroupEntry(name, length, sr)
 }
 
-// CencSampleGroupEntry - CencSampleEncryptionInformationGroupEntry as defined in
-// CEF ISO/IEC 23001-7 2016
-type CencSampleGroupEntry struct {
+// SeigSampleGroupEntry - CencSampleEncryptionInformationGroupEntry as defined in
+// CEF ISO/IEC 23001-7 3rd edition 2016
+type SeigSampleGroupEntry struct {
 	CryptByteBlock  byte
 	SkipByteBlock   byte
 	IsProtected     byte
@@ -48,8 +49,9 @@ type CencSampleGroupEntry struct {
 	ConstantIV []byte
 }
 
-func DecodeCencSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
-	s := &CencSampleGroupEntry{}
+// DecodeSeigSampleGroupEntry - decode Commone Encryption Sample Group Entry
+func DecodeSeigSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+	s := &SeigSampleGroupEntry{}
 	_ = sr.ReadUint8() // Reserved
 	byteTwo := sr.ReadUint8()
 	s.CryptByteBlock = byteTwo >> 4
@@ -61,22 +63,30 @@ func DecodeCencSampleGroupEntry(name string, length uint32, sr *SliceReader) (Sa
 		constantIVSize := int(sr.ReadUint8())
 		s.ConstantIV = sr.ReadBytes(constantIVSize)
 	}
+	if length != uint32(s.Size()) {
+		return nil, fmt.Errorf("seig: given length %d different from calculated size %d", length, s.Size())
+	}
 	return s, nil
 }
 
-func (s *CencSampleGroupEntry) Type() string {
+func (s *SeigSampleGroupEntry) Type() string {
 	return "seig"
 }
 
-func (s *CencSampleGroupEntry) Size() uint64 {
-	size := uint64(20)
+func (s *SeigSampleGroupEntry) Size() uint64 {
+	// reserved: 1
+	// cryptByteBlock + SkipByteBlock : 1
+	// isProtected: 1
+	// perSampleIVSize: 1
+	// KID: 16
+	size := 20
 	if s.IsProtected == 1 && s.PerSampleIVSize == 0 {
-		size += 1 + uint64(len(s.ConstantIV))
+		size += 1 + len(s.ConstantIV)
 	}
-	return size
+	return uint64(size)
 }
 
-func (s *CencSampleGroupEntry) Encode(sw *SliceWriter) {
+func (s *SeigSampleGroupEntry) Encode(sw *SliceWriter) {
 	sw.WriteUint8(0) // Reserved
 	byteTwo := s.CryptByteBlock<<4 | s.SkipByteBlock
 	sw.WriteUint8(byteTwo)
@@ -90,7 +100,7 @@ func (s *CencSampleGroupEntry) Encode(sw *SliceWriter) {
 }
 
 // Info - write box info to w
-func (s *CencSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
+func (s *SeigSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
 	bd := newInfoDumper(w, indent, s, -2)
 	bd.write(" * cryptByteBlock: %d", s.CryptByteBlock)
 	bd.write(" * skipByteBlock: %d", s.SkipByteBlock)
@@ -103,6 +113,7 @@ func (s *CencSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, inde
 	return bd.err
 }
 
+// Unknown or not implemented SampleGroupEntry
 type UnknownSampleGroupEntry struct {
 	Name   string
 	Length uint32
@@ -132,5 +143,9 @@ func (s *UnknownSampleGroupEntry) Encode(sw *SliceWriter) {
 func (s *UnknownSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
 	bd := newInfoDumper(w, indent, s, -2)
 	bd.write(" * Unknown data of length: %d", len(s.Data))
+	level := getInfoLevel(s, specificBoxLevels)
+	if level > 0 {
+		bd.write(" * data: %s", hex.EncodeToString(s.Data))
+	}
 	return bd.err
 }
