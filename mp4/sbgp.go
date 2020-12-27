@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// SbgpBox - Sample To Group Box, ISO/IEC 14496-12 (2015) 8.9.2
+// SbgpBox - Sample To Group Box, ISO/IEC 14496-12 6'th edition 2020 Section 8.9.2
 type SbgpBox struct {
 	Version                 byte
 	Flags                   uint32
@@ -48,11 +48,12 @@ func (b *SbgpBox) Type() string {
 
 // Size - return calculated size
 func (b *SbgpBox) Size() uint64 {
-	size := uint64(20 + 8*len(b.SampleCounts))
-	if b.Version > 0 {
-		size += 4
-	}
-	return size
+	// Version + Flags:4
+	// GroupingType: 4
+	// (v1) GroupingTypeParameter: 4
+	// EntryCount: 4
+	// SampleCount + GroupDescriptionIndex : 8
+	return uint64(boxHeaderSize + 12 + 4*int(b.Version) + 8*len(b.GroupDescriptionIndices))
 }
 
 // Encode - write box to w
@@ -69,7 +70,9 @@ func (b *SbgpBox) Encode(w io.Writer) error {
 	if b.Version == 1 {
 		sw.WriteUint32(b.GroupingTypeParameter)
 	}
-	for i := range b.SampleCounts {
+	entryCount := len(b.SampleCounts)
+	sw.WriteUint32(uint32(entryCount))
+	for i := 0; i < entryCount; i++ {
 		sw.WriteUint32(b.SampleCounts[i])
 		sw.WriteUint32(b.GroupDescriptionIndices[i])
 	}
