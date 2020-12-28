@@ -15,6 +15,7 @@
   [traf] size=2999
     [tfhd] size=20 version=0
      - flags: 00020008
+     - trackID: 1
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 1
     [tfdt] size=16 version=0
