@@ -157,7 +157,7 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 	}
 	var err error
 	for _, child := range a.Children {
-		err = child.Info(w, specificBoxLevels, indent, indentStep)
+		err = child.Info(w, specificBoxLevels, indent+indentStep, indentStep)
 		if err != nil {
 			return err
 		}
