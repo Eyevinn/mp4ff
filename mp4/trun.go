@@ -15,7 +15,7 @@ type TrunBox struct {
 	flags            uint32
 	sampleCount      uint32
 	DataOffset       int32
-	firstSampleFlags uint32
+	firstSampleFlags uint32 // interpreted as SampleFlags
 	Samples          []*Sample
 }
 
@@ -241,7 +241,7 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			bd.write(" - DataOffset: %d", t.DataOffset)
 		}
 		if t.HasFirstSampleFlags() {
-			bd.write(" - firstSampleFlags: %08x", t.firstSampleFlags)
+			bd.write(" - firstSampleFlags: %08x (%s)", t.firstSampleFlags, DecodeSampleFlags(t.firstSampleFlags))
 		}
 		for i := 0; i < int(t.sampleCount); i++ {
 			msg := fmt.Sprintf(" - sample[%d]:", i+1)
@@ -252,7 +252,8 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 				msg += fmt.Sprintf(" size=%d", t.Samples[i].Size)
 			}
 			if t.HasSampleFlags() {
-				msg += fmt.Sprintf(" flags=%08x", t.Samples[i].Flags)
+				sampleFlags := t.Samples[i].Flags
+				msg += fmt.Sprintf(" flags=%08x (%s)", sampleFlags, DecodeSampleFlags(sampleFlags))
 			}
 			if t.HasSampleCTO() {
 				msg += fmt.Sprintf(" cto=%d", t.Samples[i].Cto)

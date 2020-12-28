@@ -41,4 +41,4 @@
      - defaultSampleDescriptionIndex: 1
      - defaultSampleDuration: 0
      - defaultSampleSize: 0
-     - defaultSampleFlags: 0
+     - defaultSampleFlags: 00000000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0)

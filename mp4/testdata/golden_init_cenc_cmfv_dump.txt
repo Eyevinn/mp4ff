@@ -53,7 +53,7 @@
      - defaultSampleDescriptionIndex: 1
      - defaultSampleDuration: 0
      - defaultSampleSize: 0
-     - defaultSampleFlags: 0
+     - defaultSampleFlags: 00000000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0)
   [pssh] size=101 version=0
    - systemID: edef8ba9-79d6-4ace-a3c8-27dcd51d21ed (Widevine)
    - data: 08011210f057639d928733158bf550999c4945f71a08636173746c616273221c65794a6863334e6c64456c6b496a6f696448597958325a3562694a39320764656661756c74

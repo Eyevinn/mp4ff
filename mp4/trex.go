@@ -42,7 +42,7 @@ func DecodeTrex(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		DefaultSampleDescriptionIndex: s.ReadUint32(),
 		DefaultSampleDuration:         s.ReadUint32(),
 		DefaultSampleSize:             s.ReadUint32(),
-		DefaultSampleFlags:            s.ReadUint32(),
+		DefaultSampleFlags:            s.ReadUint32(), // interpreted as SampleFlags
 	}
 	return b, nil
 }
@@ -82,6 +82,6 @@ func (t *TrexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - defaultSampleDescriptionIndex: %d", t.DefaultSampleDescriptionIndex)
 	bd.write(" - defaultSampleDuration: %d", t.DefaultSampleDuration)
 	bd.write(" - defaultSampleSize: %d", t.DefaultSampleSize)
-	bd.write(" - defaultSampleFlags: %d", t.DefaultSampleSize)
+	bd.write(" - defaultSampleFlags: %08x (%s)", t.DefaultSampleFlags, DecodeSampleFlags(t.DefaultSampleFlags))
 	return bd.err
 }

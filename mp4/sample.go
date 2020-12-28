@@ -4,7 +4,7 @@ import "encoding/binary"
 
 // Sample - sample as used in trun box (mdhd timescale)
 type Sample struct {
-	Flags uint32 // Flag sync sample etc
+	Flags uint32 // interpreted as SampleFlags
 	Dur   uint32 // Sample duration in mdhd timescale
 	Size  uint32 // Size of sample data
 	Cto   int32  // Signed composition time offset

@@ -18,7 +18,7 @@
      - flags: 00000a05
      - sampleCount: 15
      - DataOffset: 224
-     - firstSampleFlags: 02000000
+     - firstSampleFlags: 02000000 (isLeading=0 dependsOn=2 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0)
      - sample[1]: size=3130 cto=6000
      - sample[2]: size=183 cto=6000
      - sample[3]: size=168 cto=6000
@@ -81,7 +81,7 @@
      - flags: 00000a05
      - sampleCount: 15
      - DataOffset: 224
-     - firstSampleFlags: 02000000
+     - firstSampleFlags: 02000000 (isLeading=0 dependsOn=2 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0)
      - sample[1]: size=3893 cto=6000
      - sample[2]: size=995 cto=15000
      - sample[3]: size=213 cto=6000
