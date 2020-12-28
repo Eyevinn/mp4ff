@@ -14,16 +14,6 @@ const (
 	flagsMask     = 0x00ffffff // Flags for masks from full header
 )
 
-// headerLength - header length including potential largesize
-func headerLength(contentSize uint64) uint64 {
-	hdrlen := boxHeaderSize
-
-	if contentSize > 429496729-8 { // 2**32 - 8
-		hdrlen += largeSizeLen
-	}
-	return uint64(hdrlen)
-}
-
 var decoders map[string]BoxDecoder
 
 func init() {
@@ -134,30 +124,47 @@ func decodeHeader(r io.Reader) (*boxHeader, error) {
 			return nil, err
 		}
 		if n != largeSizeLen {
-			return nil, errors.New("Could not read largeSize")
+			return nil, fmt.Errorf("Could not read largeSize length field")
 		}
 		size = binary.BigEndian.Uint64(buf)
 		headerLen += largeSizeLen
 	} else if size == 0 {
-		return nil, errors.New("Size 0, meaning to end of file, not supported")
+		return nil, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
 	return &boxHeader{string(buf[4:8]), size, headerLen}, nil
 }
 
-// EncodeHeader encodes a box header to a writer
+// EncodeHeader - encode a box header to a writer
 func EncodeHeader(b Box, w io.Writer) error {
 	boxType, boxSize := b.Type(), b.Size()
+	if boxSize >= 1<<32 {
+		return fmt.Errorf("Box size %d is too big for normal 4-byte size field", boxSize)
+	}
 	buf := make([]byte, boxHeaderSize)
-	largeSize := false
-	if boxSize < 1<<32 {
+	binary.BigEndian.PutUint32(buf, uint32(boxSize))
+	strtobuf(buf[4:], boxType, 4)
+	_, err := w.Write(buf)
+	return err
+}
+
+// EncodeHeaderWithSize - encode a box header to a writer and allow for largeSize
+func EncodeHeaderWithSize(boxType string, boxSize uint64, largeSize bool, w io.Writer) error {
+	if !largeSize && boxSize >= 1<<32 {
+		return fmt.Errorf("Box size %d is too big for normal 4-byte size field", boxSize)
+	}
+	headerSize := boxHeaderSize
+	if largeSize {
+		headerSize += 8
+	}
+	buf := make([]byte, headerSize)
+	if !largeSize {
 		binary.BigEndian.PutUint32(buf, uint32(boxSize))
 	} else {
-		largeSize = true
 		binary.BigEndian.PutUint32(buf, 1)
 	}
 	strtobuf(buf[4:], boxType, 4)
 	if largeSize {
-		binary.BigEndian.PutUint64(buf, boxSize)
+		binary.BigEndian.PutUint64(buf[8:], boxSize)
 	}
 	_, err := w.Write(buf)
 	return err

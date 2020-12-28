@@ -70,9 +70,10 @@ func (m *MoofBox) Encode(w io.Writer) error {
 		// This is the media data start with respect to start of moof.
 		// We store the media at the beginning
 		// of a single mdat box placed directly after moof.
-		// With any reasonable mdat size, the header is 8 bytes.
 		trun.DataOffset = int32(m.Size() + 8)
-		// TODO Optimize so that m.Size() is not called in both EncodeHeader and here
+		// TODO Fix possible handling of largeSize mdat.
+		// TODO more general trun offset setting to handle multiple truns/tracks
+		// Move this to fragment level to control both moof and mdat
 	}
 	for _, b := range m.Children {
 		err = b.Encode(w)
