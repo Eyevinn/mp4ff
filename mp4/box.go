@@ -44,7 +44,7 @@ func init() {
 		"mehd": DecodeMehd,
 		"mdhd": DecodeMdhd,
 		"mdia": DecodeMdia,
-		"meta": DecodeUnknown,
+		"meta": DecodeMeta,
 		"mfhd": DecodeMfhd,
 		"minf": DecodeMinf,
 		"moof": DecodeMoof,

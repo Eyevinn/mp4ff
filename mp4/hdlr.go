@@ -58,13 +58,16 @@ func DecodeHdlr(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	return &HdlrBox{
+	h := &HdlrBox{
 		Version:     byte(versionAndFlags >> 24),
 		Flags:       versionAndFlags & flagsMask,
 		PreDefined:  binary.BigEndian.Uint32(data[4:8]),
 		HandlerType: string(data[8:12]),
-		Name:        string(data[24 : len(data)-1]),
-	}, nil
+	}
+	if len(data) > 24 {
+		h.Name = string(data[24:])
+	}
+	return h, nil
 }
 
 // Type - box type
@@ -74,7 +77,7 @@ func (b *HdlrBox) Type() string {
 
 // Size - calculated size of box
 func (b *HdlrBox) Size() uint64 {
-	return uint64(boxHeaderSize + 24 + len(b.Name) + 1)
+	return uint64(boxHeaderSize + 24 + len(b.Name))
 }
 
 // Encode - write box to w
