@@ -118,5 +118,7 @@ func (b *MvhdBox) Encode(w io.Writer) error {
 
 func (b *MvhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd.write(" - timeScale: %d", b.Timescale)
+	bd.write(" - duration: %d", b.Duration)
 	return bd.err
 }

@@ -5,6 +5,8 @@
  - compatibleBrand: dash
 [moov] size=1659
   [mvhd] size=108 version=0
+   - timeScale: 90000
+   - duration: 0
   [trak] size=584
     [tkhd] size=92 version=0
      - trackID: 1
@@ -25,24 +27,24 @@
           [stsd] size=243 version=0
             [encv] size=227
              - compressorName: ""
-            [avcC] size=61
-             - AVCProfileIndication: 100
-             - profileCompatbility: 00
-             - AVCLevelIndication: 30
-             - SPS: 2764001eac72100a02ff9701100000030010000003032e02000f4240005b8def7b80f8442289
-             - PPS: 28fbaf2c
-            [sinf] size=80
-              [frma] size=12
-               - dataFormat: avc3
-              [schm] size=20 version=0
-               - flags: 000000
-               - schemeType: cenc
-               - schemeVersion: 65536
-              [schi] size=40
-                [tenc] size=32 version=0
-                 - defaultIsProtected: 1
-                 - defaultPerSampleIVSize: 8
-                 - defaultKID: f057639d-9287-3315-8bf5-50999c4945f7
+              [avcC] size=61
+               - AVCProfileIndication: 100
+               - profileCompatbility: 00
+               - AVCLevelIndication: 30
+               - SPS: 2764001eac72100a02ff9701100000030010000003032e02000f4240005b8def7b80f8442289
+               - PPS: 28fbaf2c
+              [sinf] size=80
+                [frma] size=12
+                 - dataFormat: avc3
+                [schm] size=20 version=0
+                 - flags: 000000
+                 - schemeType: cenc
+                 - schemeVersion: 65536
+                [schi] size=40
+                  [tenc] size=32 version=0
+                   - defaultIsProtected: 1
+                   - defaultPerSampleIVSize: 8
+                   - defaultKID: f057639d-9287-3315-8bf5-50999c4945f7
           [stts] size=16 version=0
           [stsc] size=16 version=0
           [stsz] size=20 version=0

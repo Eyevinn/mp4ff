@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/hex"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -200,5 +201,9 @@ func (e *EsdsBox) Encode(w io.Writer) error {
 
 func (e *EsdsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, e, int(e.Version))
+	bd.write(" - maxBitrate: %d", e.MaxBitrate)
+	bd.write(" - avgBitrate: %d", e.AvgBitrate)
+	bd.write(" - decConfig: %s", hex.EncodeToString(e.DecConfig))
+
 	return bd.err
 }
