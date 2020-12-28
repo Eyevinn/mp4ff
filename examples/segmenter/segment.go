@@ -77,6 +77,8 @@ func (s *Segmenter) GetSamplesUntilTime(mp4f *mp4.File, tr *Track, startSampleNr
 	stbl := tr.inTrak.Mdia.Minf.Stbl
 	nrSamples := stbl.Stsz.SampleNumber
 	var samples []*mp4.FullSample
+	mdat := mp4f.Mdat
+	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 	for sampleNr := startSampleNr; sampleNr <= int(nrSamples); sampleNr++ {
 		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(sampleNr)
 		if err != nil {
@@ -97,8 +99,7 @@ func (s *Segmenter) GetSamplesUntilTime(mp4f *mp4.File, tr *Track, startSampleNr
 			isSync = stbl.Stss.IsSyncSample(uint32(sampleNr))
 		}
 		// Next find bytes as slice in mdat
-		mdat := mp4f.Mdat
-		offsetInMdatData := uint64(offset) - mdat.StartPos - mdat.HeaderLength()
+		offsetInMdatData := uint64(offset) - mdatPayloadStart
 		sampleData := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
 		//presTime := uint64(int64(decTime) + int64(cto))
 		//One can either segment on presentationTime or DecodeTime

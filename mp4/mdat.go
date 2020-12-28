@@ -8,10 +8,12 @@ import (
 // MdatBox - Media Data Box (mdat)
 // The mdat box contains media chunks/samples.
 type MdatBox struct {
-	StartPos       uint64
-	Data           []byte
-	inHeaderLength int // Set when decoding
+	StartPos  uint64
+	Data      []byte
+	LargeSize bool
 }
+
+const maxNormalPayloadSize = (1 << 32) - 1 - 8
 
 // DecodeMdat - box-specific decode
 func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
@@ -19,7 +21,8 @@ func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &MdatBox{startPos, data, hdr.hdrlen}, nil
+	largeSize := hdr.hdrlen > boxHeaderSize
+	return &MdatBox{startPos, data, largeSize}, nil
 }
 
 // Type - return box type
@@ -27,18 +30,16 @@ func (m *MdatBox) Type() string {
 	return "mdat"
 }
 
-// HeaderLength - length of box header including possible largeSize
-func (m *MdatBox) HeaderLength() uint64 {
-	if m.inHeaderLength != 0 {
-		return uint64(m.inHeaderLength)
-	}
-	return headerLength(uint64(len(m.Data)))
-}
-
-// Size - return calculated size. If bigger 32-bit max, it should be escaped.
+// Size - return calculated size, depending on largeSize set or not
 func (m *MdatBox) Size() uint64 {
-	headerLen := m.HeaderLength()
-	return headerLen + uint64(len(m.Data))
+	if len(m.Data) > maxNormalPayloadSize {
+		m.LargeSize = true
+	}
+	size := boxHeaderSize + len(m.Data)
+	if m.LargeSize {
+		size += 8
+	}
+	return uint64(size)
 }
 
 // AddSampleData -  a sample data to an mdat box
@@ -48,7 +49,7 @@ func (m *MdatBox) AddSampleData(s []byte) {
 
 // Encode - write box to w
 func (m *MdatBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
+	err := EncodeHeaderWithSize("mdat", m.Size(), m.LargeSize, w)
 	if err != nil {
 		return err
 	}
@@ -59,4 +60,17 @@ func (m *MdatBox) Encode(w io.Writer) error {
 func (m *MdatBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, m, -1)
 	return bd.err
+}
+
+func (m *MdatBox) HeaderSize() uint64 {
+	hSize := boxHeaderSize
+	if m.LargeSize {
+		hSize += largeSizeLen
+	}
+	return uint64(hSize)
+}
+
+// PayloadAbsoluteOffset - position of mdat payload start (works after header)
+func (m *MdatBox) PayloadAbsoluteOffset() uint64 {
+	return m.StartPos + m.HeaderSize()
 }

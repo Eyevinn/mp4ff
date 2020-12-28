@@ -62,7 +62,6 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	baseTime := moof.Traf.Tfdt.BaseMediaDecodeTime
 	trun := moof.Traf.Trun
 	moofStartPos := moof.StartPos
-	mdatStartPos := mdat.StartPos
 	trun.AddSampleDefaultValues(tfhd, trex)
 	var baseOffset uint64
 	if tfhd.HasBaseDataOffset() {
@@ -74,7 +73,7 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 	}
 	mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
-	offsetInMdat := baseOffset - mdatStartPos - headerLength(mdatDataLength)
+	offsetInMdat := baseOffset - mdat.PayloadAbsoluteOffset()
 	if offsetInMdat > mdatDataLength {
 		return nil, errors.New("Offset in mdata beyond size")
 	}
@@ -84,6 +83,9 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 
 // AddFullSample - add a full sample to a fragment
 func (f *Fragment) AddFullSample(s *FullSample) {
+	//TODO. Handle multiple tracks and truns
+	//Need to decide limits, like working on one Track/Trun at a time
+	//Then need to set the offset finally
 	trun := f.Moof.Traf.Trun
 	if trun.SampleCount() == 0 {
 		tfdt := f.Moof.Traf.Tfdt

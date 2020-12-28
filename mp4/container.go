@@ -18,7 +18,7 @@ func containerSize(boxes []Box) uint64 {
 	for _, box := range boxes {
 		contentSize += box.Size()
 	}
-	return headerLength(contentSize) + contentSize
+	return boxHeaderSize + contentSize
 }
 
 // DecodeContainerChildren decodes a container box
