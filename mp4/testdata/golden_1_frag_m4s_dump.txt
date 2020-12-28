@@ -9,6 +9,7 @@
   [traf] size=192
     [tfhd] size=24 version=0
      - flags: 00020028
+     - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
      - defaultSampleFlags: 01010000
@@ -41,6 +42,7 @@
   [traf] size=188
     [tfhd] size=24 version=0
      - flags: 00020028
+     - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
      - defaultSampleFlags: 01010000
@@ -72,6 +74,7 @@
   [traf] size=192
     [tfhd] size=24 version=0
      - flags: 00020028
+     - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
      - defaultSampleFlags: 01010000
@@ -104,6 +107,7 @@
   [traf] size=188
     [tfhd] size=24 version=0
      - flags: 00020028
+     - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
      - defaultSampleFlags: 01010000

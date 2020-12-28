@@ -9,6 +9,7 @@
   [traf] size=1020
     [tfhd] size=16 version=0
      - flags: 00020000
+     - trackID: 2
      - defaultBaseIsMoof: true
     [tfdt] size=16 version=0
      - baseMediaDecodeTime: 0
