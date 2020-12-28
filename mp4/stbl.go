@@ -10,6 +10,7 @@ import (
 //
 // The table contains all information relevant to data samples (times, chunks, sizes, ...)
 type StblBox struct {
+	Sdtp     *SdtpBox
 	Stsd     *StsdBox
 	Stts     *SttsBox
 	Stss     *StssBox
@@ -29,6 +30,8 @@ func NewStblBox() *StblBox {
 func (s *StblBox) AddChild(box Box) {
 
 	switch box.Type() {
+	case "sdtp":
+		s.Sdtp = box.(*SdtpBox)
 	case "stsd":
 		s.Stsd = box.(*StsdBox)
 	case "stts":
