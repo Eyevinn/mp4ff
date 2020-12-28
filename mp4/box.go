@@ -87,6 +87,7 @@ func init() {
 		"trak": DecodeTrak,
 		"trex": DecodeTrex,
 		"trun": DecodeTrun,
+		"udta": DecodeUdta,
 		"url ": DecodeURLBox,
 		"uuid": DecodeUUID,
 		"vlab": DecodeVlab,
