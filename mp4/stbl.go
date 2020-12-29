@@ -10,14 +10,23 @@ import (
 //
 // The table contains all information relevant to data samples (times, chunks, sizes, ...)
 type StblBox struct {
-	Sdtp     *SdtpBox
-	Stsd     *StsdBox
-	Stts     *SttsBox
-	Stss     *StssBox
-	Stsc     *StscBox
-	Stsz     *StszBox
-	Stco     *StcoBox
-	Ctts     *CttsBox
+	// Same order as in Table 1 in ISO/IEC 14496-12 Ed.6 2020
+	Stsd  *StsdBox
+	Stts  *SttsBox
+	Ctts  *CttsBox
+	Stsc  *StscBox
+	Stsz  *StszBox
+	Stss  *StssBox
+	Stco  *StcoBox
+	Sdtp  *SdtpBox
+	Sbgp  *SbgpBox   // The first
+	Sbgps []*SbgpBox // All
+	Sgpd  *SgpdBox   // The first
+	Sgpds []*SgpdBox // All
+	Subs  *SubsBox
+	Saiz  *SaizBox
+	Saio  *SaioBox
+
 	Children []Box
 }
 
@@ -28,24 +37,38 @@ func NewStblBox() *StblBox {
 
 // AddChild - Add a child box
 func (s *StblBox) AddChild(box Box) {
-
+	// Same order as in Table 1 in ISO/IEC 14496-12 Ed.6 2020
 	switch box.Type() {
-	case "sdtp":
-		s.Sdtp = box.(*SdtpBox)
 	case "stsd":
 		s.Stsd = box.(*StsdBox)
 	case "stts":
 		s.Stts = box.(*SttsBox)
-	case "stsc":
-		s.Stsc = box.(*StscBox)
-	case "stss":
-		s.Stss = box.(*StssBox)
-	case "stsz":
-		s.Stsz = box.(*StszBox)
-	case "stco":
-		s.Stco = box.(*StcoBox)
 	case "ctts":
 		s.Ctts = box.(*CttsBox)
+	case "stsc":
+		s.Stsc = box.(*StscBox)
+	case "stsz":
+		s.Stsz = box.(*StszBox)
+	case "stss":
+		s.Stss = box.(*StssBox)
+	case "stco":
+		s.Stco = box.(*StcoBox)
+	case "sbgp":
+		if s.Sbgp == nil {
+			s.Sbgp = box.(*SbgpBox)
+		}
+		s.Sbgps = append(s.Sbgps, box.(*SbgpBox))
+	case "sgpd":
+		if s.Sgpd == nil {
+			s.Sgpd = box.(*SgpdBox)
+		}
+		s.Sgpds = append(s.Sgpds, box.(*SgpdBox))
+	case "subs":
+		s.Subs = box.(*SubsBox)
+	case "saiz":
+		s.Saiz = box.(*SaizBox)
+	case "saio":
+		s.Saio = box.(*SaioBox)
 	}
 	s.Children = append(s.Children, box)
 }
