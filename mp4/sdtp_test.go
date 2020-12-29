@@ -3,10 +3,13 @@ package mp4
 import "testing"
 
 func TestSdtp(t *testing.T) {
-	entries := []*SdtpEntry{
-		{IsLeading: 0, SampleDependsOn: 2, SampleIsDependedOn: 0, SampleHasRedundancy: 0},
-		{IsLeading: 0, SampleDependsOn: 1, SampleIsDependedOn: 2, SampleHasRedundancy: 0},
-		{IsLeading: 1, SampleDependsOn: 2, SampleIsDependedOn: 1, SampleHasRedundancy: 1},
+	entries := []SdtpEntry{
+		SdtpEntry(32),
+		SdtpEntry(16),
+		SdtpEntry(24),
+	}
+	for _, entry := range entries {
+		entry.Info()
 	}
 
 	boxDiffAfterEncodeAndDecode(t, CreateSdtpBox(entries))
