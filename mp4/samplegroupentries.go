@@ -26,6 +26,9 @@ var sgeDecoders map[string]SampleGroupEntryDecoder
 func init() {
 	sgeDecoders = map[string]SampleGroupEntryDecoder{
 		"seig": DecodeSeigSampleGroupEntry,
+		"roll": DecodeRollSampleGroupEntry,
+		"rap ": DecodeRapSampleGroupEntry,
+		"alst": DecodeAlstSampleGroupEntry,
 	}
 }
 
@@ -146,6 +149,158 @@ func (s *UnknownSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, i
 	level := getInfoLevel(s, specificBoxLevels)
 	if level > 0 {
 		bd.write(" * data: %s", hex.EncodeToString(s.Data))
+	}
+	return bd.err
+}
+
+// RollSampleGroupEntry - Gradual Decoding Refresh "roll"
+//
+// ISO/IEC 14496-12 Ed. 6 2020 Section 10.1
+//
+// VisualRollRecoveryEntry / AudioRollRecoveryEntry / AudioPreRollEntry
+type RollSampleGroupEntry struct {
+	RollDistance int16
+}
+
+func DecodeRollSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+	entry := &RollSampleGroupEntry{}
+	entry.RollDistance = sr.ReadInt16()
+	return entry, nil
+}
+
+func (s *RollSampleGroupEntry) Type() string {
+	return "roll"
+}
+
+func (s *RollSampleGroupEntry) Size() uint64 {
+	return 2
+}
+
+func (s *RollSampleGroupEntry) Encode(sw *SliceWriter) {
+	sw.WriteInt16(s.RollDistance)
+}
+
+// Info - write box info to w
+func (s *RollSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
+	bd := newInfoDumper(w, indent, s, -2)
+	bd.write(" * rollDistance: %d", s.RollDistance)
+	return bd.err
+}
+
+// RapSampleGroupEntry - Random Access Point "rap "
+//
+// ISO/IEC 14496-12 Ed. 6 2020 Section 10.4 - VisualRandomAccessEntry
+type RapSampleGroupEntry struct {
+	NumLeadingSamplesKnown uint8
+	NumLeadingSamples      uint8
+}
+
+func DecodeRapSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+	entry := &RapSampleGroupEntry{}
+	byt := sr.ReadUint8()
+	entry.NumLeadingSamplesKnown = byt >> 7
+	entry.NumLeadingSamples = byt & 0x7F
+	return entry, nil
+}
+
+func (s *RapSampleGroupEntry) Type() string {
+	return "rap "
+}
+
+func (s *RapSampleGroupEntry) Size() uint64 {
+	return 1
+}
+
+func (s *RapSampleGroupEntry) Encode(sw *SliceWriter) {
+	var byt uint8
+	byt |= (s.NumLeadingSamplesKnown << 7)
+	byt |= (s.NumLeadingSamples)
+	sw.WriteUint8(byt)
+}
+
+// Info - write box info to w
+func (s *RapSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
+	bd := newInfoDumper(w, indent, s, -2)
+	bd.write(" * numLeadingSamplesKnown: %d", s.NumLeadingSamplesKnown)
+	bd.write(" * numLeadingSamples: %d", s.NumLeadingSamples)
+	return bd.err
+}
+
+// AlstSampleGroupEntry - Alternative Startup Entry "alst"
+//
+// ISO/IEC 14496-12 Ed. 6 2020 Section 10.3 - AlternativeStartupEntry
+type AlstSampleGroupEntry struct {
+	RollCount         uint16
+	FirstOutputSample uint16
+	SampleOffset      []uint32
+	NumOutputSamples  []uint16
+	NumTotalSamples   []uint16
+}
+
+func (s *AlstSampleGroupEntry) Type() string {
+	return "alst "
+}
+
+func (s *AlstSampleGroupEntry) Size() uint64 {
+	// RollCount: 2
+	// FirstOutputSample: 2
+	// SampleOffset: 4 * count
+	// NumOutputSamples: 2 * count
+	// NumTotalSamples: 2 * count
+	return uint64(4 + 4*len(s.SampleOffset) + 2*len(s.NumOutputSamples) + 2*len(s.NumTotalSamples))
+}
+
+func DecodeAlstSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+	entry := &AlstSampleGroupEntry{}
+	entry.RollCount = sr.ReadUint16()
+	entry.FirstOutputSample = sr.ReadUint16()
+	entry.SampleOffset = make([]uint32, int(entry.RollCount))
+	for i := 0; i < int(entry.RollCount); i++ {
+		entry.SampleOffset[i] = sr.ReadUint32()
+	}
+
+	remaining := int(length-uint32(entry.Size())) / 4
+	if remaining <= 0 {
+		return entry, nil
+	}
+
+	// Optional
+	entry.NumOutputSamples = make([]uint16, remaining)
+	entry.NumTotalSamples = make([]uint16, remaining)
+	for i := 0; i < remaining; i++ {
+		entry.NumOutputSamples[i] = sr.ReadUint16()
+		entry.NumTotalSamples[i] = sr.ReadUint16()
+	}
+
+	return entry, nil
+}
+
+func (s *AlstSampleGroupEntry) Encode(sw *SliceWriter) {
+	sw.WriteUint16(s.RollCount)
+	sw.WriteUint16(s.FirstOutputSample)
+	for _, offset := range s.SampleOffset {
+		sw.WriteUint32(offset)
+	}
+	for i := range s.NumOutputSamples {
+		sw.WriteUint16(s.NumOutputSamples[i])
+		sw.WriteUint16(s.NumTotalSamples[i])
+	}
+}
+
+// Info - write box info to w
+func (s *AlstSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
+	bd := newInfoDumper(w, indent, s, -2)
+	bd.write(" * rollDistance: %d", s.RollCount)
+	bd.write(" * firstOutputSample: %d", s.FirstOutputSample)
+	level := getInfoLevel(s, specificBoxLevels)
+	if level > 0 {
+		for i, offset := range s.SampleOffset {
+			bd.write(" * sampleOffset[%d]: %d", i+1, offset)
+		}
+		for i := range s.NumOutputSamples {
+			bd.write(" * numOutputSamples[%d]: %d", i+1, s.NumOutputSamples[i])
+			bd.write(" * numTotalSamples[%d]: %d", i+1, s.NumTotalSamples[i])
+		}
 	}
 	return bd.err
 }
