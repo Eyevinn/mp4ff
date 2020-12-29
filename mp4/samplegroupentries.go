@@ -153,7 +153,11 @@ func (s *UnknownSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, i
 	return bd.err
 }
 
-// RollSampleGroupEntry - Grouping Type "roll"
+// RollSampleGroupEntry - Gradual Decoding Refresh "roll"
+//
+// ISO/IEC 14496-12 Ed. 6 2020 Section 10.1
+//
+// VisualRollRecoveryEntry / AudioRollRecoveryEntry / AudioPreRollEntry
 type RollSampleGroupEntry struct {
 	RollDistance int16
 }
@@ -183,7 +187,9 @@ func (s *RollSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, inde
 	return bd.err
 }
 
-// RapSampleGroupEntry - Grouping Type "rap "
+// RapSampleGroupEntry - Random Access Point "rap "
+//
+// ISO/IEC 14496-12 Ed. 6 2020 Section 10.4 - VisualRandomAccessEntry
 type RapSampleGroupEntry struct {
 	NumLeadingSamplesKnown uint8
 	NumLeadingSamples      uint8
@@ -220,7 +226,9 @@ func (s *RapSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, inden
 	return bd.err
 }
 
-// AlstSampleGroupEntry - Alternative Startup Entry - Grouping Type "alst"
+// AlstSampleGroupEntry - Alternative Startup Entry "alst"
+//
+// ISO/IEC 14496-12 Ed. 6 2020 Section 10.3 - AlternativeStartupEntry
 type AlstSampleGroupEntry struct {
 	RollCount         uint16
 	FirstOutputSample uint16
@@ -287,11 +295,11 @@ func (s *AlstSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, inde
 	level := getInfoLevel(s, specificBoxLevels)
 	if level > 0 {
 		for i, offset := range s.SampleOffset {
-			bd.write(" * sampleOffset[%d]: %d", i, offset)
+			bd.write(" * sampleOffset[%d]: %d", i+1, offset)
 		}
 		for i := range s.NumOutputSamples {
-			bd.write(" * numOutputSamples[%d]: %d", i, s.NumOutputSamples[i])
-			bd.write(" * numTotalSamples[%d]: %d", i, s.NumTotalSamples[i])
+			bd.write(" * numOutputSamples[%d]: %d", i+1, s.NumOutputSamples[i])
+			bd.write(" * numTotalSamples[%d]: %d", i+1, s.NumTotalSamples[i])
 		}
 	}
 	return bd.err
