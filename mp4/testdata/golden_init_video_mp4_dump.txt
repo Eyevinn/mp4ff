@@ -5,6 +5,8 @@
  - compatibleBrand: iso6
 [moov] size=652
   [mvhd] size=108 version=0
+   - timeScale: 90000
+   - duration: 0
   [trak] size=496
     [tkhd] size=92 version=0
      - trackID: 1
@@ -25,12 +27,12 @@
           [stsd] size=161 version=0
             [avc3] size=145
              - compressorName: "Edgeware Video Packager"
-            [avcC] size=59
-             - AVCProfileIndication: 77
-             - profileCompatbility: 40
-             - AVCLevelIndication: 31
-             - SPS: 674d401fe4605017fcb80b4f00000300010000030032e4800753003a9e08200e58e189c0
-             - PPS: 685bdf20
+              [avcC] size=59
+               - AVCProfileIndication: 77
+               - profileCompatbility: 40
+               - AVCLevelIndication: 31
+               - SPS: 674d401fe4605017fcb80b4f00000300010000030032e4800753003a9e08200e58e189c0
+               - PPS: 685bdf20
           [stts] size=16 version=0
           [stsc] size=16 version=0
           [stsz] size=20 version=0
