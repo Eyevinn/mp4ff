@@ -22,6 +22,11 @@ type SdtpBox struct {
 // ISO/IEC 14496-12 Ed. 6 2020 Section 8.6.4.2
 type SdtpEntry uint8
 
+// NewSdtpEntry - make new SdtpEntry from 2-bit parameters
+func NewSdtpEntry(isLeading, sampleDependsOn, sampleDependedOn, hasRedundancy uint8) SdtpEntry {
+	return SdtpEntry(isLeading<<6 | sampleDependedOn<<4 | sampleDependedOn<<2 | hasRedundancy)
+}
+
 // IsLeading (bits 0-1)
 // 0: Leading unknown
 // 1: Has dependency before referenced I-picture (not decodable)
@@ -77,7 +82,7 @@ func DecodeSdtp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	flags := versionAndFlags & flagsMask
 
 	// Supposed to get count from stsz
-	entries := make([]SdtpEntry, len(data)-s.pos)
+	entries := make([]SdtpEntry, s.NrRemainingBytes())
 	for i := range entries {
 		b := s.ReadUint8()
 		entries[i] = SdtpEntry(b)
