@@ -60,6 +60,7 @@ func init() {
 		"sbgp": DecodeSbgp,
 		"schi": DecodeSchi,
 		"schm": DecodeSchm,
+		"sdtp": DecodeSdtp,
 		"senc": DecodeSenc,
 		"sgpd": DecodeSgpd,
 		"sidx": DecodeSidx,
