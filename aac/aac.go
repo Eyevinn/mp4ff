@@ -2,6 +2,7 @@ package aac
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -16,7 +17,7 @@ const (
 	HEAACv2 = 29
 )
 
-// AudioSpecificConfig according to ISO/IES 14496-3
+// AudioSpecificConfig according to ISO/IEC 14496-3
 // Syntax specified in Table 1.15
 type AudioSpecificConfig struct {
 	ObjectType           byte
@@ -59,57 +60,61 @@ var reverseFrequencies = map[int]byte{
 	7350:  12,
 }
 
-// DecodeAudioSpecificConfig -
-func DecodeAudioSpecificConfig(r io.Reader) (AudioSpecificConfig, error) {
-	rb := bits.NewReader(r)
+/* Channel configurations according to table 1.19 in ISO/IEC 14496-3
+0: Defined in AOT Specific Config
+1: 1 channel: front-center
+2: 2 channels: front-left, front-right
+3: 3 channels: front-center, front-left, front-right
+4: 4 channels: front-center, front-left, front-right, back-center
+5: 5 channels: front-center, front-left, front-right, back-left, back-right
+6: 6 channels: front-center, front-left, front-right, back-left, back-right, LFE-channel
+7: 8 channels: front-center, front-left, front-right, side-left, side-right, back-left, back-right, LFE-channel
+8-15: Reserved
+*/
 
-	asf := AudioSpecificConfig{}
-	audioObjectType := byte(rb.MustRead(5))
-	switch audioObjectType {
-	case AAClc, HEAACv1, HEAACv2:
-		// All fine
-	default:
-		return asf, errors.New("Only LC, HE-AACv1, and HE-AACv2 supported")
-	}
-	asf.ObjectType = audioObjectType
-	frequency, ok := getFrequency(rb)
-	if !ok {
-		return asf, errors.New("Strange frequency index")
-	}
-	asf.SamplingFrequency = frequency
-	asf.ChannelConfiguration = byte(rb.MustRead(4))
-	switch audioObjectType {
-	case HEAACv1, HEAACv2:
-		frequency, ok := getFrequency(rb)
-		if !ok {
-			return asf, errors.New("Strange frequency index")
-		}
-		asf.ExtensionFrequency = frequency
-		audioObjectType = byte(rb.MustRead(4))
-		if audioObjectType == 22 {
-			return asf, errors.New("ExtensionChannelConfiguration not supported")
-		}
-	}
+// DecodeAudioSpecificConfig -
+func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
+	br := bits.NewAccErrReader(r)
+
+	asc := &AudioSpecificConfig{}
+	audioObjectType := byte(br.Read(5))
+	asc.ObjectType = audioObjectType
 	switch audioObjectType {
 	case AAClc:
-		// Read GASpecificConfig - Table 4.1 in ISO/IEC 14496-3 part 4
-		frameLengthFlag := rb.MustReadFlag()
-		if !frameLengthFlag {
-			return asf, errors.New("Does not support frameLengthFlag = 1")
-		}
-		dependsOnCoreCoder := rb.MustReadFlag()
-		if dependsOnCoreCoder {
-			return asf, errors.New("Does not support dependsOnCoreCoder")
-		}
-		extensionFlag := rb.MustReadFlag()
-		if extensionFlag {
-			return asf, errors.New("Does not support dependsOnCoreCoder")
-		}
+		// do nothing
+	case HEAACv1:
+		asc.SBRPresentFlag = true
+	case HEAACv2:
+		asc.SBRPresentFlag = true
+		asc.PSPresentFlag = true
 	default:
-		panic("Cannot handle audioObjectType")
+		return asc, errors.New("Only LC, HE-AACv1, and HE-AACv2 supported")
 	}
+	frequency, ok := getFrequency(br)
+	if !ok {
+		return asc, fmt.Errorf("Strange frequency index")
+	}
+	asc.SamplingFrequency = frequency
+	asc.ChannelConfiguration = byte(br.Read(4))
+	switch audioObjectType {
+	case HEAACv1, HEAACv2:
+		frequency, ok := getFrequency(br)
+		if !ok {
+			return asc, errors.New("Strange frequency index")
+		}
+		asc.ExtensionFrequency = frequency
+		audioObjectType = byte(br.Read(5)) // Shall be set to AAC-LC here again
+		if audioObjectType == 22 {
+			return asc, errors.New("ExtensionChannelConfiguration not supported")
+		}
+	}
+	if audioObjectType != AAClc {
+		return nil, fmt.Errorf("Base audioObjectType is %d instead of AAC-LC (2)", audioObjectType)
+	}
+	//GASpecificConfig()
+	_ = br.Read(3) //GASpecificConfig
 	// Done (there may be trailing bits)
-	return asf, nil
+	return asc, nil
 }
 
 // Encode - write AudioSpecificConfig to w for AAC-LC and HE-AAC
@@ -118,7 +123,7 @@ func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 	case AAClc, HEAACv1, HEAACv2:
 		// fine
 	default:
-		return errors.New("Unsupported audio object type")
+		return fmt.Errorf("audioObjectType %d not supported", a.ObjectType)
 	}
 	bw := bits.NewWriter(w)
 	bw.Write(uint(a.ObjectType), 5)
@@ -139,7 +144,7 @@ func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 			bw.Write(0x0f, 4)
 			bw.Write(uint(a.ExtensionFrequency), 24)
 		}
-		bw.Write(AAClc, 5) // audioObjectType
+		bw.Write(AAClc, 5) // base audioObjectType
 	}
 	bw.Write(0x00, 3) // GASpecificConfig
 	bw.Flush()
@@ -147,17 +152,17 @@ func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 }
 
 // getFrequency - either from 4-bit index or 24-bit value
-func getFrequency(rb *bits.Reader) (frequency int, ok bool) {
-	frequencyIndex, err := rb.Read(4)
-	if err != nil {
-		return 0, false
-	}
+func getFrequency(br *bits.AccErrReader) (frequency int, ok bool) {
+	frequencyIndex := br.Read(4)
 	if frequencyIndex == 0x0f {
-		f, err := rb.Read(24)
-		if err != nil {
+		f := br.Read(24)
+		if br.AccError() != nil {
 			return 0, false
 		}
 		return int(f), true
+	}
+	if br.AccError() != nil {
+		return 0, false
 	}
 	frequency, ok = frequencyTable[byte(frequencyIndex)]
 	return frequency, ok
