@@ -300,7 +300,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		case 3: //This lacks one extra check?
 			cropUnitX, cropUnitY = 1, 1*(2-frameMbsOnly)
 		default:
-			panic("Non-vaild chroma_format_idc value")
+			return nil, fmt.Errorf("Non-vaild chroma_format_idc value: %d", sps.ChromaFormatIDC)
 		}
 
 		sps.FrameCropLeftOffset, err = reader.ReadExpGolomb()

@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -87,7 +88,7 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 	a.FrameCount = s.ReadUint16() // Should be 1
 	compressorNameLength := s.ReadUint8()
 	if compressorNameLength > 31 {
-		panic("Too long compressor name length")
+		return nil, fmt.Errorf("Too long compressor name length")
 	}
 	a.CompressorName = s.ReadFixedLengthString(int(compressorNameLength))
 	s.SkipBytes(int(31 - compressorNameLength))
@@ -105,7 +106,7 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			panic("Error in avcx box")
+			return nil, fmt.Errorf("Error decoding childBox of VisualSampleEntry: %w", err)
 		}
 		if box != nil {
 			a.AddChild(box)
@@ -114,7 +115,7 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 		if pos == startPos+hdr.size {
 			break
 		} else if pos > startPos+hdr.size {
-			panic("Non-matching box sizes")
+			return nil, fmt.Errorf("Too far when decoding VisualSampleEntry")
 		}
 	}
 	return a, nil

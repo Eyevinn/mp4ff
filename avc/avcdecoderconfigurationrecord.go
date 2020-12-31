@@ -3,9 +3,9 @@ package avc
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 )
 
 var ErrCannotParseAVCExtension = errors.New("Cannot parse SPS extensions")
@@ -26,14 +26,14 @@ type AVCDecConfRec struct {
 }
 
 // CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
-func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) AVCDecConfRec {
+func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*AVCDecConfRec, error) {
 
 	sps, err := ParseSPSNALUnit(spsNALUs[0], false) // false -> parse only start of VUI
 	if err != nil {
-		panic("Could not parse SPS")
+		return nil, err
 	}
 
-	return AVCDecConfRec{
+	return &AVCDecConfRec{
 		AVCProfileIndication: byte(sps.Profile),
 		ProfileCompatibility: byte(sps.ProfileCompatibility),
 		AVCLevelIndication:   byte(sps.Level),
@@ -44,7 +44,7 @@ func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) AVCDecConfRec {
 		BitDepthChromaMinus1: 0,
 		NumSPSExt:            0,
 		NoTrailingInfo:       false,
-	}
+	}, nil
 }
 
 // DecodeAVCDecConfRec - decode an AVCDecConfRec
@@ -54,7 +54,11 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 	if err != nil {
 		return AVCDecConfRec{}, err
 	}
-	//configurationVersion := data[0]   // Should be 1
+	configurationVersion := data[0] // Should be 1
+	if configurationVersion != 1 {
+		return AVCDecConfRec{}, fmt.Errorf("AVC decoder configuration record version %d unknown",
+			configurationVersion)
+	}
 	AVCProfileIndication := data[1]
 	ProfileCompatibility := data[2]
 	AVCLevelIndication := data[3]
@@ -87,12 +91,17 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		SPSnalus:             spsNALUs,
 		PPSnalus:             ppsNALUs,
 	}
+	// The rest of this structure may vary
+	// ISO/IEC 14496-15 2017 says that
+	// Compatible extensions to this record will extend it and
+	// will not change the configuration version code.
+	//Readers should be prepared to ignore unrecognized
+	// data beyond the definition of the data they understand
+	//(e.g. after the parameter sets in this specification).
+
 	switch AVCProfileIndication {
-	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
-		// No more bytes
-	default:
+	case 100, 110, 122, 144: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
 		if pos == len(data) { // Not according to standard, but have been seen
-			log.Printf("No ChromaFormat info for AVCProfileIndication %d", AVCProfileIndication)
 			adcr.NoTrailingInfo = true
 			return adcr, nil
 		}
@@ -103,6 +112,8 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		if adcr.NumSPSExt != 0 {
 			return adcr, ErrCannotParseAVCExtension
 		}
+	default:
+		// No more data to read
 	}
 
 	return adcr, nil
@@ -152,9 +163,7 @@ func (a *AVCDecConfRec) Encode(w io.Writer) error {
 		writeSlice(pps)
 	}
 	switch a.AVCProfileIndication {
-	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
-		// No extra data according to standard
-	default:
+	case 100, 110, 122, 144: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
 		if a.NoTrailingInfo { // Strange content, but consistent with Size()
 			return errWrite
 		}
@@ -162,6 +171,8 @@ func (a *AVCDecConfRec) Encode(w io.Writer) error {
 		writeByte(0xf8 | a.BitDepthLumaMinus1)
 		writeByte(0xf8 | a.BitDepthChromaMinus1)
 		writeByte(a.NumSPSExt)
+	default:
+		//Nothing more to write
 	}
 
 	return errWrite

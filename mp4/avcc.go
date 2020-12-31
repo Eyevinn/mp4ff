@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/avc"
@@ -14,10 +15,13 @@ type AvcCBox struct {
 }
 
 // CreateAvcC - Create an avcC box based on SPS and PPS
-func CreateAvcC(spsNALUs [][]byte, ppsNALUs [][]byte) *AvcCBox {
-	avcDecConfRec := avc.CreateAVCDecConfRec(spsNALUs, ppsNALUs)
+func CreateAvcC(spsNALUs [][]byte, ppsNALUs [][]byte) (*AvcCBox, error) {
+	avcDecConfRec, err := avc.CreateAVCDecConfRec(spsNALUs, ppsNALUs)
+	if err != nil {
+		return nil, fmt.Errorf("CreateAvcDecDecConfRec: %w", err)
+	}
 
-	return &AvcCBox{avcDecConfRec}
+	return &AvcCBox{*avcDecConfRec}, nil
 }
 
 // DecodeAvcC - box-specific decode
