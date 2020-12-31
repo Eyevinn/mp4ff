@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/edgeware/mp4ff/aac"
 	"github.com/edgeware/mp4ff/mp4"
 )
 
@@ -47,7 +48,7 @@ func writeAudioAACInitSegment() error {
 	audioTimeScale := 48000
 	init := mp4.CreateEmptyMP4Init(uint32(audioTimeScale), "audio", "en")
 	trak := init.Moov.Trak
-	err := trak.SetAACDescriptor(mp4.AAClc, audioTimeScale)
+	err := trak.SetAACDescriptor(aac.AAClc, audioTimeScale)
 	if err != nil {
 		return err
 	}
