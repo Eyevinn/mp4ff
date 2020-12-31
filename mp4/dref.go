@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -59,7 +60,7 @@ func DecodeDref(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		dref.AddChild(b)
 	}
 	if int(entryCount) != dref.EntryCount {
-		panic("Inconsistent entry count in Dref")
+		return nil, fmt.Errorf("Inconsistent entry count in Dref")
 	}
 	return dref, nil
 }

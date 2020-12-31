@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -38,7 +39,7 @@ func DecodeContainerChildren(hdr *boxHeader, startPos, endPos uint64, r io.Reade
 		if pos == endPos {
 			return l, nil
 		} else if pos > endPos {
-			panic("Non-matching box sizes in container")
+			return nil, fmt.Errorf("Non-matching children box sizes")
 		}
 	}
 }

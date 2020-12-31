@@ -2,7 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"io"
 )
 
@@ -62,7 +62,7 @@ func (s *StsdBox) ReplaceChild(box Box) {
 // GetSampleDescription - get one of multiple descriptions
 func (s *StsdBox) GetSampleDescription(index int) (Box, error) {
 	if index >= len(s.Children) {
-		return nil, errors.New("Beyond limit of sample descriptors")
+		return nil, fmt.Errorf("Beyond limit of sample descriptors")
 	}
 	return s.Children[index], nil
 }
@@ -84,7 +84,7 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	if len(children) != int(sampleCount) {
-		return nil, errors.New("Stsd: sampleCount mismatch")
+		return nil, fmt.Errorf("Stsd sample count  mismatch")
 	}
 	stsd := &StsdBox{
 		Version:     byte(versionAndFlags >> 24),
@@ -95,7 +95,7 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		stsd.AddChild(box)
 	}
 	if stsd.SampleCount != sampleCount {
-		panic("Stsd sample count mismatch")
+		return nil, fmt.Errorf("Stsd sample count mismatch")
 	}
 	return stsd, nil
 }
