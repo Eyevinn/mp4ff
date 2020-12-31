@@ -26,14 +26,14 @@ type AVCDecConfRec struct {
 }
 
 // CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
-func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) AVCDecConfRec {
+func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*AVCDecConfRec, error) {
 
 	sps, err := ParseSPSNALUnit(spsNALUs[0], false) // false -> parse only start of VUI
 	if err != nil {
-		panic("Could not parse SPS")
+		return nil, err
 	}
 
-	return AVCDecConfRec{
+	return &AVCDecConfRec{
 		AVCProfileIndication: byte(sps.Profile),
 		ProfileCompatibility: byte(sps.ProfileCompatibility),
 		AVCLevelIndication:   byte(sps.Level),
@@ -44,7 +44,7 @@ func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) AVCDecConfRec {
 		BitDepthChromaMinus1: 0,
 		NumSPSExt:            0,
 		NoTrailingInfo:       false,
-	}
+	}, nil
 }
 
 // DecodeAVCDecConfRec - decode an AVCDecConfRec

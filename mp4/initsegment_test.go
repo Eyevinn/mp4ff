@@ -156,7 +156,10 @@ func TestGenerateInitSegment(t *testing.T) {
 
 	init := CreateEmptyMP4Init(180000, "video", "und")
 	trak := init.Moov.Trak
-	trak.SetAVCDescriptor("avc3", spsData, ppsData)
+	err := trak.SetAVCDescriptor("avc3", spsData, ppsData)
+	if err != nil {
+		t.Error(err)
+	}
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
 	if width != 640 || height != 360 {
@@ -164,7 +167,7 @@ func TestGenerateInitSegment(t *testing.T) {
 	}
 	// Write to a buffer so that we can read and check
 	var buf bytes.Buffer
-	err := init.Encode(&buf)
+	err = init.Encode(&buf)
 	if err != nil {
 		t.Error(err)
 	}

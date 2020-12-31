@@ -146,21 +146,25 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 
 // SetAVCDescriptor - Modify a TrakBox by adding AVC SampleDescriptor from one SPS and multiple PPS
 // Get width and height from SPS and fill into tkhd box.
-func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs [][]byte, ppsNALUs [][]byte) {
+func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs [][]byte, ppsNALUs [][]byte) error {
 	avcSPS, err := avc.ParseSPSNALUnit(spsNALUs[0], false)
 	if err != nil {
-		panic("Cannot handle SPS parsing errors")
+		return fmt.Errorf("Could not parse SPS NALU: %w", err)
 	}
 	t.Tkhd.Width = Fixed32(avcSPS.Width << 16)   // This is display width
 	t.Tkhd.Height = Fixed32(avcSPS.Height << 16) // This is display height
 	stsd := t.Mdia.Minf.Stbl.Stsd
 	if sampleDescriptorType != "avc1" && sampleDescriptorType != "avc3" {
-		panic(fmt.Sprintf("sampleDescriptorType %s not allowed", sampleDescriptorType))
+		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
 	}
-	avcC := CreateAvcC(spsNALUs, ppsNALUs)
+	avcC, err := CreateAvcC(spsNALUs, ppsNALUs)
+	if err != nil {
+		return err
+	}
 	width, height := uint16(avcSPS.Width), uint16(avcSPS.Height)
 	avcx := CreateVisualSampleEntryBox(sampleDescriptorType, width, height, avcC)
 	stsd.AddChild(avcx)
+	return nil
 }
 
 // GetMediaType - should return video or audio (at present)
