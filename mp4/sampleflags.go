@@ -30,10 +30,10 @@ func (sf SampleFlags) Encode() uint32 {
 }
 
 // SyncSampleFlags - flags for I-frame or other sync sample
-const SyncSampleFlags uint32 = 0x02010000
+const SyncSampleFlags uint32 = 0x02000000
 
 // NonSyncSampleFlags - flags for non-sync sample
-const NonSyncSampleFlags uint32 = 0x01000000
+const NonSyncSampleFlags uint32 = 0x00010000
 
 // IsSyncSampleFlags - flags is set correctly for sync sample
 func IsSyncSampleFlags(flags uint32) bool {
