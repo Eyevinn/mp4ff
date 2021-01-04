@@ -108,7 +108,7 @@ Since this will change the size of boxes, it is important that this function is 
 before `Encode` on any parent box of `Traf`. In particular, this method is called automatically
 when running `Fragment.Encode`.
 
-Another value which is automatically set by `Moof.Encode` is `MoofBox.Traf.Trun.DataOffset`. 
+Another value which is automatically set by `Moof.Encode` is `MoofBox.Traf.Trun.DataOffset`.
 This value is the address of the first media sample relative to the start of the `MoofBox` start.
 It therefore depends on the size of `MoofBox` and is unknown until all values are in place so that
 it can be calculated. It is set to `MoofBox.Size()+8`.
@@ -121,7 +121,7 @@ Some simple command line tools are available in `cmd`.
 2. `mp4ff-info` prints a tree of the box hierarchy of an mp4 file with information
     of the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes or `-l trun:1,stss:1` for specific boxes.
 
-You can install them by going to their respective directory and run `go install`.
+You can install them by going to their respective directory and run `go install .`.
 
 ## Example code
 
