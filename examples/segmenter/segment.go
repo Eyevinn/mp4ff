@@ -94,9 +94,20 @@ func (s *Segmenter) GetSamplesUntilTime(mp4f *mp4.File, tr *Track, startSampleNr
 		if stbl.Ctts != nil {
 			cto = stbl.Ctts.GetCompositionTimeOffset(uint32(sampleNr))
 		}
-		isSync := true
+		var sampleFlags mp4.SampleFlags
 		if stbl.Stss != nil {
-			isSync = stbl.Stss.IsSyncSample(uint32(sampleNr))
+			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr - 1))
+			sampleFlags.SampleIsNonSync = !isSync
+			if isSync {
+				sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
+			}
+		}
+		if stbl.Sdtp != nil {
+			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1]
+			sampleFlags.IsLeading = entry.IsLeading()
+			sampleFlags.SampleDependsOn = entry.SampleDependsOn()
+			sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
+			sampleFlags.SampleIsDependedOn = entry.SampleIsDependedOn()
 		}
 		// Next find bytes as slice in mdat
 		offsetInMdatData := uint64(offset) - mdatPayloadStart
@@ -108,13 +119,9 @@ func (s *Segmenter) GetSamplesUntilTime(mp4f *mp4.File, tr *Track, startSampleNr
 		if decTimeMs > uint64(endTimeMs) {
 			break
 		}
-		var flags uint32 = mp4.NonSyncSampleFlags
-		if isSync {
-			flags = mp4.SyncSampleFlags
-		}
 		sc := &mp4.FullSample{
 			Sample: mp4.Sample{
-				Flags: flags,
+				Flags: sampleFlags.Encode(),
 				Size:  size,
 				Dur:   dur,
 				Cto:   cto,
