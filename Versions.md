@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.16.2 | fix: Minor fixes to sampleNumber and tfhd Info |
 | 0.16.1 | fix: isNonSync flag declaration and use sdtp values in segmenter example |
 | 0.16.0 | New mp4ff-info tool. Many new boxes incl. encryption boxes and sdtp. ADTS support. Test improvements with golden files |
 | 0.15.0 | Support for multiple SPS and more explicit NALU types for AVC |
