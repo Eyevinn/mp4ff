@@ -113,6 +113,11 @@ This value is the address of the first media sample relative to the start of the
 It therefore depends on the size of `MoofBox` and is unknown until all values are in place so that
 it can be calculated. It is set to `MoofBox.Size()+8`.
 
+## Sample Number Offset
+Following the ISOBMFF standard, sample numbers and other numbers start at 1 (one-based).
+This applies to arguments of functions. The actual storage in slices are zero-based, so
+sample nr 1 has index 0 in the corresponding slice.
+
 ## Command Line Tools
 
 Some simple command line tools are available in `cmd`.
@@ -135,6 +140,11 @@ These are
 
 ## Stability
 The APIs should be fairly stable, but minor non-backwards-compatible tweaks may happen until version 1.
+
+## Specifications
+The main specification for the MP4 file format is the ISO Base Media File Format (ISOBMFF) standard
+ISO/IEC 14496-12 6'th ed 2020. Some boxes are specified in other standards, as should be commented
+in the code.
 
 ## LICENSE
 

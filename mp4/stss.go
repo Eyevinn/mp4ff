@@ -48,7 +48,7 @@ func (b *StssBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.SampleNumber)*4)
 }
 
-// IsSyncSample - check if a sample is a sync sample
+// IsSyncSample - check if sample (one-based) sampleNr is a sync sample
 func (b *StssBox) IsSyncSample(sampleNr uint32) (isSync bool) {
 	if b.lookUp == nil {
 		b.lookUp = make(map[uint32]bool)

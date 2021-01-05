@@ -12,7 +12,7 @@
      - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
-     - defaultSampleFlags: 01010000
+     - defaultSampleFlags: 01010000 (isLeading=0 dependsOn=1 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0)
     [tfdt] size=16 version=0
      - baseMediaDecodeTime: 0
     [trun] size=144 version=1
@@ -45,7 +45,7 @@
      - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
-     - defaultSampleFlags: 01010000
+     - defaultSampleFlags: 01010000 (isLeading=0 dependsOn=1 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0)
     [tfdt] size=16 version=0
      - baseMediaDecodeTime: 45000
     [trun] size=140 version=1
@@ -77,7 +77,7 @@
      - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
-     - defaultSampleFlags: 01010000
+     - defaultSampleFlags: 01010000 (isLeading=0 dependsOn=1 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0)
     [tfdt] size=16 version=0
      - baseMediaDecodeTime: 90000
     [trun] size=144 version=1
@@ -110,7 +110,7 @@
      - trackID: 2
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 3000
-     - defaultSampleFlags: 01010000
+     - defaultSampleFlags: 01010000 (isLeading=0 dependsOn=1 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0)
     [tfdt] size=16 version=0
      - baseMediaDecodeTime: 135000
     [trun] size=140 version=1

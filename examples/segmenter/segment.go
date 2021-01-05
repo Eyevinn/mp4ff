@@ -96,14 +96,14 @@ func (s *Segmenter) GetSamplesUntilTime(mp4f *mp4.File, tr *Track, startSampleNr
 		}
 		var sampleFlags mp4.SampleFlags
 		if stbl.Stss != nil {
-			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr - 1))
+			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr))
 			sampleFlags.SampleIsNonSync = !isSync
 			if isSync {
 				sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
 			}
 		}
 		if stbl.Sdtp != nil {
-			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1]
+			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
 			sampleFlags.IsLeading = entry.IsLeading()
 			sampleFlags.SampleDependsOn = entry.SampleDependsOn()
 			sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
