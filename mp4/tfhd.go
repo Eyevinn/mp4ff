@@ -194,7 +194,8 @@ func (t *TfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		bd.write(" - defaultSampleSize: %d", t.DefaultSampleSize)
 	}
 	if t.HasDefaultSampleFlags() {
-		bd.write(" - defaultSampleFlags: %08x", t.DefaultSampleFlags)
+		bd.write(" - defaultSampleFlags: %08x (%s)", t.DefaultSampleFlags, DecodeSampleFlags(t.DefaultSampleFlags))
+
 	}
 	return bd.err
 }
