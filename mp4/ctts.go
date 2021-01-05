@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
+	"log"
 )
 
 // CttsBox - Composition Time to Sample Box (ctts - optional)
@@ -69,9 +70,14 @@ func (b *CttsBox) Encode(w io.Writer) error {
 	return err
 }
 
-// GetCompositionTimeOffset - composition time offset for sampleNr in track timescale
+// GetCompositionTimeOffset - composition time offset for (one-based) sampleNr in track timescale
 func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
-	sampleNr-- // 1-based
+	if sampleNr == 0 {
+		// This is bad index input. Should not happen
+		log.Print("ERROR: CttsBox.GetCompositionTimeOffset called with sampleNr == 0, although one-based")
+		return 0
+	}
+	sampleNr-- // one-based
 	for i := range b.SampleCount {
 		if sampleNr >= b.SampleCount[i] {
 			sampleNr -= b.SampleCount[i]

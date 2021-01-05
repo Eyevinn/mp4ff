@@ -92,7 +92,7 @@ func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// ChunkNrFromSampleNr - get chunk number from sampleNr (1-based)
+// ChunkNrFromSampleNr - get chunk number from sampleNr (one-based)
 func (b *StscBox) ChunkNrFromSampleNr(sampleNr int) (chunkNr, firstSampleInChunk int, err error) {
 	nrEntries := len(b.FirstChunk) // Nr entries in stsc box
 	firstSampleInChunk = 1

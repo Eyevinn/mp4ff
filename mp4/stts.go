@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
+	"log"
 	"time"
 )
 
@@ -72,9 +73,14 @@ func (b *SttsBox) GetTimeCode(sample, timescale uint32) time.Duration {
 	return time.Second * time.Duration(units) / time.Duration(timescale)
 }
 
-// GetDecodeTime - decode time and duration for sampleNr in track timescale
+// GetDecodeTime - decode time and duration for (one-based) sampleNr in track timescale
 func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
-	sampleNr-- // 1-based
+	if sampleNr == 0 {
+		// This is bad index input. Should not happen
+		log.Print("ERROR: SttsBox.GetDecodeTime called with sampleNr == 0, although one-based")
+		return 0, 1
+	}
+	sampleNr-- // one-based
 	decTime = 0
 	i := 0
 	for sampleNr > 0 && i < len(b.SampleCount) {
@@ -89,7 +95,7 @@ func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
 		}
 		i++
 	}
-	return
+	return decTime, dur
 }
 
 // Encode - write box to w
