@@ -31,18 +31,20 @@ const (
 
 func (a NalType) String() string {
 	switch a {
+	case NALU_NON_IDR:
+		return "NonIDR_1"
 	case NALU_IDR:
-		return "IDR"
+		return "IDR_5"
 	case NALU_SEI:
-		return "SEI"
+		return "SEI_6"
 	case NALU_SPS:
-		return "SPS"
+		return "SPS_7"
 	case NALU_PPS:
-		return "PPS"
+		return "PPS_8"
 	case NALU_AUD:
-		return "AUD"
+		return "AUD_9"
 	default:
-		return fmt.Sprintf("Other %d", a)
+		return fmt.Sprintf("Other_%d", a)
 	}
 }
 

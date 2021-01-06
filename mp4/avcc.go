@@ -70,7 +70,7 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 func (a *AvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, a, -1)
 	bd.write(" - AVCProfileIndication: %d", a.AVCProfileIndication)
-	bd.write(" - profileCompatbility: %02x", a.ProfileCompatibility)
+	bd.write(" - profileCompatibility: %02x", a.ProfileCompatibility)
 	bd.write(" - AVCLevelIndication: %d", a.AVCLevelIndication)
 	for _, sps := range a.SPSnalus {
 		bd.write(" - SPS: %s", hex.EncodeToString(sps))

@@ -1,14 +1,6 @@
 // mp4ff-pslister lists parameter sets for H.264/AVC video in mp4 files.
 //
-// It prints them as hex and with verbose mode it also  interprets them.
-//
-//   Usage:
-//
-//    mp4ff-pslister -f <mp4file> [-v]
-//      -f: Required: Path to mp4 file to read
-//      -vui: Parse full VUI
-//      -v:	Verbose output
-//
+// It prints them as hex and with verbose mode it also interprets them.
 package main
 
 import (
@@ -17,24 +9,40 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/edgeware/mp4ff/avc"
 	"github.com/edgeware/mp4ff/mp4"
 )
 
+var usg = `Usage of mp4ff-pslister:
+
+mp4ff-pslister lists parameter sets for H.264/AVC video in mp4 (ISOBMFF) files.
+
+It prints them as hex and with verbose mode it also interprets them.
+`
+
+var Usage = func() {
+	parts := strings.Split(os.Args[0], "/")
+	name := parts[len(parts)-1]
+	fmt.Fprintln(os.Stderr, usg)
+	fmt.Fprintf(os.Stderr, "%s [-vui] [-v] <mp4File>\n", name)
+	flag.PrintDefaults()
+}
+
 func main() {
-	fileName := flag.String("f", "", "Required: Path to mp4 file to read")
 	fullVUI := flag.Bool("vui", false, "Parse full VUI")
 	verbose := flag.Bool("v", false, "Verbose output")
 
 	flag.Parse()
 
-	if *fileName == "" {
-		flag.Usage()
-		return
+	var inFilePath = flag.Arg(0)
+	if inFilePath == "" {
+		Usage()
+		os.Exit(1)
 	}
 
-	ifd, err := os.Open(*fileName)
+	ifd, err := os.Open(inFilePath)
 	if err != nil {
 		log.Fatalln(err)
 	}

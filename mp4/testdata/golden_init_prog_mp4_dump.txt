@@ -34,7 +34,7 @@
              - compressorName: ""
               [avcC] size=61
                - AVCProfileIndication: 77
-               - profileCompatbility: 40
+               - profileCompatibility: 40
                - AVCLevelIndication: 31
                - SPS: 674d401fe4607808bf780b4f00000300010000030032e020005b8d00016e3782080396386270
                - PPS: 68efbc80
