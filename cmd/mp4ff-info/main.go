@@ -23,7 +23,7 @@ var Usage = func() {
 	parts := strings.Split(os.Args[0], "/")
 	name := parts[len(parts)-1]
 	fmt.Fprintln(os.Stderr, usg)
-	fmt.Fprintf(os.Stderr, "%s mp4File [-l string]\n", name)
+	fmt.Fprintf(os.Stderr, "%s [-l string] <mp4File> \n", name)
 	flag.PrintDefaults()
 }
 
