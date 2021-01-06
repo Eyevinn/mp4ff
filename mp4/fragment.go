@@ -19,7 +19,7 @@ func NewFragment() *Fragment {
 	return &Fragment{}
 }
 
-// CreateFragment - create emtpy fragment with one single track for output
+// CreateFragment - create single track empty fragment
 func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	f := NewFragment()
 	moof := &MoofBox{}
@@ -34,6 +34,29 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	_ = traf.AddChild(tfdt)
 	trun := CreateTrun()
 	_ = traf.AddChild(trun)
+	mdat := &MdatBox{}
+	f.AddChild(mdat)
+
+	return f, nil
+}
+
+// CreateFragment - create multi-track empty fragment
+func CreateMultiTrackFragment(seqNumber uint32, trackIDs []uint32) (*Fragment, error) {
+	f := NewFragment()
+	moof := &MoofBox{}
+	f.AddChild(moof)
+	mfhd := CreateMfhd(seqNumber)
+	_ = moof.AddChild(mfhd)
+	for _, trackID := range trackIDs {
+		traf := &TrafBox{}
+		_ = moof.AddChild(traf) // Can only have error when adding second track
+		tfhd := CreateTfhd(trackID)
+		_ = traf.AddChild(tfhd)
+		tfdt := &TfdtBox{} // Data will be provided by first sample
+		_ = traf.AddChild(tfdt)
+		trun := CreateTrun()
+		_ = traf.AddChild(trun)
+	}
 	mdat := &MdatBox{}
 	f.AddChild(mdat)
 
@@ -58,26 +81,45 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	moof := f.Moof
 	mdat := f.Mdat
 	//seqNr := moof.Mfhd.SequenceNumber
-	tfhd := moof.Traf.Tfhd
-	baseTime := moof.Traf.Tfdt.BaseMediaDecodeTime
-	trun := moof.Traf.Trun
+	var traf *TrafBox
+	foundTrak := false
+	if trex != nil {
+		for _, traf = range moof.Trafs {
+			if traf.Tfhd.TrackID == trex.TrackID {
+				foundTrak = true
+				break
+			}
+		}
+		if !foundTrak {
+			return nil, nil // This trackID may not exist for this fragment
+		}
+	} else {
+		traf = moof.Traf // The first one
+	}
+	tfhd := traf.Tfhd
+	baseTime := traf.Tfdt.BaseMediaDecodeTime
 	moofStartPos := moof.StartPos
-	trun.AddSampleDefaultValues(tfhd, trex)
-	var baseOffset uint64
-	if tfhd.HasBaseDataOffset() {
-		baseOffset = tfhd.BaseDataOffset
-	} else if tfhd.DefaultBaseIfMoof() {
-		baseOffset = moofStartPos
+	var samples []*FullSample
+	for _, trun := range traf.Truns {
+		totalDur := trun.AddSampleDefaultValues(tfhd, trex)
+		var baseOffset uint64
+		if tfhd.HasBaseDataOffset() {
+			baseOffset = tfhd.BaseDataOffset
+		} else if tfhd.DefaultBaseIfMoof() {
+			baseOffset = moofStartPos
+		}
+		if trun.HasDataOffset() {
+			baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
+		}
+		mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
+		offsetInMdat := baseOffset - mdat.PayloadAbsoluteOffset()
+		if offsetInMdat > mdatDataLength {
+			return nil, errors.New("Offset in mdata beyond size")
+		}
+		samples = append(samples, trun.GetFullSamples(uint32(offsetInMdat), baseTime, mdat)...)
+		baseTime += totalDur // Next trun start after this
 	}
-	if trun.HasDataOffset() {
-		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
-	}
-	mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
-	offsetInMdat := baseOffset - mdat.PayloadAbsoluteOffset()
-	if offsetInMdat > mdatDataLength {
-		return nil, errors.New("Offset in mdata beyond size")
-	}
-	samples := trun.GetFullSamples(uint32(offsetInMdat), baseTime, f.Mdat)
+
 	return samples, nil
 }
 
@@ -94,6 +136,24 @@ func (f *Fragment) AddFullSample(s *FullSample) {
 	trun.AddSample(&s.Sample)
 	mdat := f.Mdat
 	mdat.AddSampleData(s.Data)
+}
+
+// AddFullSampleToTrack - allows for adding samples to any track
+// New trun boxes will be created if needed. Best is to write one track
+// at a time
+func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
+	var traf *TrafBox
+	for _, traf = range f.Moof.Trafs {
+		if traf.Tfhd.TrackID == trackID {
+			break
+		}
+	}
+	if traf == nil {
+		return fmt.Errorf("No track with trackID=%d", trackID)
+	}
+	// TODO. Add samples and create truns if necessary
+
+	return nil
 }
 
 // DumpSampleData - Get Sample data and print out

@@ -87,7 +87,8 @@ func CreateTrun() *TrunBox {
 }
 
 // AddSampleDefaultValues - add values from tfhd and trex boxes if needed
-func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) {
+// Return total durationß
+func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) (totalDur uint64) {
 
 	var defaultSampleDuration uint32
 	var defaultSampleSize uint32
@@ -109,10 +110,12 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) {
 		defaultSampleFlags = trex.DefaultSampleFlags
 	}
 	var i uint32
+	totalDur = 0
 	for i = 0; i < t.sampleCount; i++ {
 		if !t.HasSampleDuration() {
 			t.Samples[i].Dur = defaultSampleDuration
 		}
+		totalDur += uint64(t.Samples[i].Dur)
 		if !t.HasSampleSize() {
 			t.Samples[i].Size = defaultSampleSize
 		}
@@ -122,6 +125,7 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) {
 			}
 		}
 	}
+	return totalDur
 }
 
 // SampleCount - return how many samples are defined
