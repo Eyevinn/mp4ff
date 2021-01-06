@@ -61,3 +61,14 @@ func (r *AccErrReader) ReadFlag() bool {
 	}
 	return bit == 1
 }
+
+// ReadFlag - Read i(v) which is 2-complement of n bits
+func (r *AccErrReader) ReadVInt(n int) int {
+	uval := r.Read(n)
+	var ival int
+
+	if uval >= 1<<(n/2) {
+		ival = int(uval) - (1 << n)
+	}
+	return ival
+}

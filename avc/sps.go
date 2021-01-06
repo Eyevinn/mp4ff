@@ -348,6 +348,23 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	return sps, nil
 }
 
+// CpbDbpDelaysPresent signals if Cpb and Dbp can be found in Picture Timing SEI
+func (s *SPS) CpbDpbDelaysPresent() bool {
+	if s.VUI == nil {
+		return false
+	}
+	return (s.VUI.NalHrdParametersPresentFlag ||
+		s.VUI.VclHrdParametersPresentFlag)
+}
+
+// PicStructPresent signals if pic struct can be found in Picture Timing SEI
+func (s *SPS) PicStructPresent() bool {
+	if s.VUI == nil {
+		return false
+	}
+	return s.VUI.PicStructPresentFlag
+}
+
 // parseVUI - parse VUI (Visual Usability Information)
 // if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
 func parseVUI(reader *bits.EBSPReader, parseVUIBeyondAspectRatio bool) (*VUIParameters, error) {
