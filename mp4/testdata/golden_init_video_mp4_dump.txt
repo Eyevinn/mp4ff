@@ -29,7 +29,7 @@
              - compressorName: "Edgeware Video Packager"
               [avcC] size=59
                - AVCProfileIndication: 77
-               - profileCompatbility: 40
+               - profileCompatibility: 40
                - AVCLevelIndication: 31
                - SPS: 674d401fe4605017fcb80b4f00000300010000030032e4800753003a9e08200e58e189c0
                - PPS: 685bdf20
