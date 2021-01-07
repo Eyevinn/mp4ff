@@ -17,6 +17,7 @@ type TrunBox struct {
 	DataOffset       int32
 	firstSampleFlags uint32 // interpreted as SampleFlags
 	Samples          []*Sample
+	writeOrderNr     uint32 // Used for multi trun offsets
 }
 
 const dataOffsetPresentFlag uint32 = 0x01

@@ -57,42 +57,54 @@ func (i *InitSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep st
 	return nil
 }
 
-// CreateEmptyMP4Init - Create a one-track MP4 init segment with empty stsd box
-// The trak has trackID = 1. The irrelevant mdhd timescale is set to 90000 and duration = 0
-func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegment {
-	/* Build tree like
-	   moov
-	   - mvhd  (Nothing interesting)
-	   - trak
-	     + tkhd (trakID, flags, width, height)
-	     + mdia
-	       - mdhd (track Timescale, language (3letters))
-		   - hdlr (hdlr showing mediaType)
-		   - elng (only if language is not 3 letters)
-	       - minf
-	         + vmhd/smhd etc (media header box)
-			 + dinf
-			   - dref
-			     + url
-	         + stbl
-	           - stsd
-	             + empty on purpose
-	           - stts
-	           - stsc
-	           - stsz
-	           - stco
-	   - mvex
-	     + trex
-	*/
+// CreateEmptyInit - create an init segment for fragmented files
+func CreateEmptyInit() *InitSegment {
 	initSeg := NewMP4Init()
 	initSeg.AddChild(CreateFtyp())
 	moov := NewMoovBox()
 	initSeg.AddChild(moov)
 	mvhd := CreateMvhd()
 	moov.AddChild(mvhd)
+	mvex := NewMvexBox()
+	moov.AddChild(mvex)
+	return initSeg
+}
+
+// AddEmptyTrack - add trak + trex box with appropriate trackID value
+func (i *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string) {
+	moov := i.Moov
+	trackID := uint32(len(moov.Traks) + 1)
+	moov.Mvhd.NextTrackID = int32(trackID + 1)
+	newTrak := CreateEmptyTrak(trackID, timeScale, mediaType, language)
+	moov.AddChild(newTrak)
+	moov.Mvex.AddChild(CreateTrex(trackID))
+}
+
+// Create a full Trak tree for an empty (fragmented) track with no samples or stsd content
+func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *TrakBox {
+	/*  Built tree like
+	- trak
+	+ tkhd (trakID, flags, width, height)
+	+ mdia
+	  - mdhd (track Timescale, language (3letters))
+	  - hdlr (hdlr showing mediaType)
+	  - elng (only if language is not 3 letters)
+	  - minf
+		+ vmhd/smhd etc (media header box)
+		+ dinf
+		  - dref
+			+ url
+		+ stbl
+		  - stsd
+			+ empty on purpose
+		  - stts
+		  - stsc
+		  - stsz
+		  - stco
+	*/
 	trak := &TrakBox{}
-	moov.AddChild(trak)
 	tkhd := CreateTkhd()
+	tkhd.TrackID = trackID
 	if mediaType == "audio" {
 		tkhd.Volume = 0x0100 // Fixed 16 value 1.0
 	}
@@ -136,12 +148,7 @@ func CreateEmptyMP4Init(timeScale uint32, mediaType, language string) *InitSegme
 	stbl.AddChild(&StscBox{})
 	stbl.AddChild(&StszBox{})
 	stbl.AddChild(&StcoBox{})
-	mvex := NewMvexBox()
-	moov.AddChild(mvex)
-	trex := CreateTrex()
-	mvex.AddChild(trex)
-
-	return initSeg
+	return trak
 }
 
 // SetAVCDescriptor - Modify a TrakBox by adding AVC SampleDescriptor from one SPS and multiple PPS

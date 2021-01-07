@@ -8,10 +8,11 @@ import (
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
 type Fragment struct {
-	Prft     *PrftBox
-	Moof     *MoofBox
-	Mdat     *MdatBox
-	Children []Box // All top-level boxes in order
+	Prft       *PrftBox
+	Moof       *MoofBox
+	Mdat       *MdatBox
+	Children   []Box  // All top-level boxes in order
+	nextTrunNr uint32 // To handle multi-trun cases
 }
 
 // NewFragment - New emtpy one-track MP4 Fragment
@@ -139,8 +140,7 @@ func (f *Fragment) AddFullSample(s *FullSample) {
 }
 
 // AddFullSampleToTrack - allows for adding samples to any track
-// New trun boxes will be created if needed. Best is to write one track
-// at a time
+// New trun boxes will be created if latest trun of fragment is not in this track
 func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
 	var traf *TrafBox
 	for _, traf = range f.Moof.Trafs {
@@ -151,8 +151,33 @@ func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
 	if traf == nil {
 		return fmt.Errorf("No track with trackID=%d", trackID)
 	}
-	// TODO. Add samples and create truns if necessary
-
+	if len(traf.Truns) == 0 { // Create first trun if needed
+		trun := CreateTrun()
+		trun.writeOrderNr = f.nextTrunNr
+		f.nextTrunNr++
+		err := traf.AddChild(trun)
+		if err != nil {
+			return err
+		}
+	}
+	if len(traf.Truns) == 1 && traf.Trun.SampleCount() == 0 {
+		tfdt := f.Moof.Traf.Tfdt
+		tfdt.SetBaseMediaDecodeTime(s.DecodeTime)
+	}
+	trun := traf.Truns[len(traf.Truns)-1] // latest of this track
+	if trun.writeOrderNr != f.nextTrunNr-1 {
+		// We are not in the latest trun. Must make a new one
+		trun = CreateTrun()
+		trun.writeOrderNr = f.nextTrunNr
+		f.nextTrunNr++
+		err := traf.AddChild(trun)
+		if err != nil {
+			return err
+		}
+	}
+	trun.AddSample(&s.Sample)
+	mdat := f.Mdat
+	mdat.AddSampleData(s.Data)
 	return nil
 }
 

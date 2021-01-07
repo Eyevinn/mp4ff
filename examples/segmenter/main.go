@@ -30,6 +30,7 @@ func main() {
 	inFilePath := flag.String("i", "", "Required: Path to input mp4 file")
 	outFilePath := flag.String("o", "", "Required: Output filepath (without extension)")
 	segDur := flag.Int("d", 0, "Required: chunk duration (milliseconds)")
+	//muxed := flag.Bool("m", false, "Output multiplexed segments")
 
 	flag.Parse()
 
@@ -52,18 +53,13 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	inits, err := segmenter.GetInitSegments()
+	inits, err := segmenter.MakeInitSegments()
 	if err != nil {
 		log.Fatalln(err)
 	}
 	for _, init := range inits {
 		outPath := fmt.Sprintf("%s%s.mp4", *outFilePath, fileNameMap[init.GetMediaType()])
-		ofd, err := os.Create(outPath)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		defer ofd.Close()
-		err = init.Encode(ofd)
+		err = mp4.WriteToFile(init, outPath)
 		if err != nil {
 			log.Fatalln(err)
 		}

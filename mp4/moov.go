@@ -27,10 +27,20 @@ func (m *MoovBox) AddChild(box Box) {
 	case "mvhd":
 		m.Mvhd = box.(*MvhdBox)
 	case "trak":
+		trak := box.(*TrakBox)
 		if m.Trak == nil {
-			m.Trak = box.(*TrakBox)
+			m.Trak = trak
 		}
-		m.Traks = append(m.Traks, box.(*TrakBox))
+		m.Traks = append(m.Traks, trak)
+		if m.Mvex != nil { // Need to insert before mvex box
+			for i, child := range m.Children {
+				if child == m.Mvex {
+					m.Children = append(m.Children[:i+1], m.Children[i:]...)
+					m.Children[i] = trak
+					return
+				}
+			}
+		}
 	case "mvex":
 		m.Mvex = box.(*MvexBox)
 	}

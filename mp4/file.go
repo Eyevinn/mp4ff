@@ -8,22 +8,23 @@ import (
 
 // File - an MPEG-4 file asset
 //
-// A MPEG-4 media contains three main boxes if progressive :
+// A progressive MPEG-4 file contains three main boxes:
 //
 //   ftyp : the file type box
 //   moov : the movie box (meta-data)
-//   mdat : the media data (chunks and samples)
+//   mdat : the media data (chunks and samples). Only used for pror
 //
-// If fragmented, the data is instead in Init and/or Segments.
-//
-// segments.
+// where mdat may come before moov.
+// If fragmented, there are many more boxes and they are collected
+// in the InitSegment, Segment and Segments structures.
+// In all cases, Children contain all top-level boxes
 type File struct {
-	Ftyp         *FtypBox        // Only used for non-fragmented files
-	Moov         *MoovBox        // Only used for non-fragmented files
+	Ftyp         *FtypBox
+	Moov         *MoovBox
 	Mdat         *MdatBox        // Only used for non-fragmented files
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Sidx         *SidxBox        // SidxBox for a DASH OnDemand file
-	Segments     []*MediaSegment // Media segment
+	Segments     []*MediaSegment // Media segments
 	Children     []Box           // All top-level boxes in order
 	isFragmented bool
 }
