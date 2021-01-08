@@ -1,5 +1,4 @@
-// mp4ff-nallister lists NAL units and slice types of AVC tracks of an mp4 (ISOBMFF) file.
-// Takes first video track in a progressive file and the first track in a fragmented file.
+// mp4ff-nallister lists NAL units and slice types of first AVC track of an mp4 (ISOBMFF) file.
 package main
 
 import (
