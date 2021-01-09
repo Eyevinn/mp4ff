@@ -74,7 +74,7 @@ func CreateEmptyInit() *InitSegment {
 func (i *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string) {
 	moov := i.Moov
 	trackID := uint32(len(moov.Traks) + 1)
-	moov.Mvhd.NextTrackID = int32(trackID + 1)
+	moov.Mvhd.NextTrackID = trackID + 1
 	newTrak := CreateEmptyTrak(trackID, timeScale, mediaType, language)
 	moov.AddChild(newTrak)
 	moov.Mvex.AddChild(CreateTrex(trackID))

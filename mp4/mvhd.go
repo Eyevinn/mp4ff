@@ -20,7 +20,7 @@ type MvhdBox struct {
 	ModificationTime uint64
 	Timescale        uint32
 	Duration         uint64
-	NextTrackID      int32
+	NextTrackID      uint32
 	Rate             Fixed32
 	Volume           Fixed16
 }
@@ -66,7 +66,7 @@ func DecodeMvhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	s.SkipBytes(10) // Reserved bytes
 	s.SkipBytes(36) // Matrix patterndata
 	s.SkipBytes(24) // Predefined 0
-	m.NextTrackID = s.ReadInt32()
+	m.NextTrackID = s.ReadUint32()
 	return m, nil
 }
 
@@ -110,7 +110,7 @@ func (b *MvhdBox) Encode(w io.Writer) error {
 	sw.WriteZeroBytes(10) // Reserved bytes
 	sw.WriteUnityMatrix() // unity matrix according to 8.2.2.2
 	sw.WriteZeroBytes(24) // Predefined 0
-	sw.WriteInt32(b.NextTrackID)
+	sw.WriteUint32(b.NextTrackID)
 
 	_, err = w.Write(buf)
 	return err
