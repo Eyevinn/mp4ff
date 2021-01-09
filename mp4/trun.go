@@ -75,7 +75,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // CreateTrun - create a TrunBox for filling up with samples
-func CreateTrun() *TrunBox {
+func CreateTrun(writeOrderNr uint32) *TrunBox {
 	trun := &TrunBox{
 		Version:          1,     // Signed composition_time_offset
 		flags:            0xf01, // Data offset and all sample data present
@@ -83,6 +83,7 @@ func CreateTrun() *TrunBox {
 		DataOffset:       0,
 		firstSampleFlags: 0,
 		Samples:          nil,
+		writeOrderNr:     writeOrderNr,
 	}
 	return trun
 }
@@ -320,4 +321,12 @@ func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 		total += uint64(s.Dur)
 	}
 	return total
+}
+
+// SizeOfData - size of mediasamples in bytes
+func (t *TrunBox) SizeOfData() (totalSize uint64) {
+	for _, sample := range t.Samples {
+		totalSize += uint64(sample.Size)
+	}
+	return totalSize
 }

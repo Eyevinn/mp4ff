@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 )
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
@@ -33,7 +34,8 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	_ = traf.AddChild(tfhd)
 	tfdt := &TfdtBox{} // Data will be provided by first sample
 	_ = traf.AddChild(tfdt)
-	trun := CreateTrun()
+	trun := CreateTrun(f.nextTrunNr)
+	f.nextTrunNr++
 	_ = traf.AddChild(trun)
 	mdat := &MdatBox{}
 	f.AddChild(mdat)
@@ -41,7 +43,7 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	return f, nil
 }
 
-// CreateFragment - create multi-track empty fragment
+// CreateFragment - create multi-track empty fragment without trun
 func CreateMultiTrackFragment(seqNumber uint32, trackIDs []uint32) (*Fragment, error) {
 	f := NewFragment()
 	moof := &MoofBox{}
@@ -55,8 +57,7 @@ func CreateMultiTrackFragment(seqNumber uint32, trackIDs []uint32) (*Fragment, e
 		_ = traf.AddChild(tfhd)
 		tfdt := &TfdtBox{} // Data will be provided by first sample
 		_ = traf.AddChild(tfdt)
-		trun := CreateTrun()
-		_ = traf.AddChild(trun)
+		// Don't add trun, but let that happen in write order
 	}
 	mdat := &MdatBox{}
 	f.AddChild(mdat)
@@ -124,11 +125,9 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	return samples, nil
 }
 
-// AddFullSample - add a full sample to a fragment
+// AddFullSample - add a full sample to first (and only) trun of a track
+// AddFullSampleToTrack is the more general function
 func (f *Fragment) AddFullSample(s *FullSample) {
-	//TODO. Handle multiple tracks and truns
-	//Need to decide limits, like working on one Track/Trun at a time
-	//Then need to set the offset finally
 	trun := f.Moof.Traf.Trun
 	if trun.SampleCount() == 0 {
 		tfdt := f.Moof.Traf.Tfdt
@@ -152,8 +151,7 @@ func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
 		return fmt.Errorf("No track with trackID=%d", trackID)
 	}
 	if len(traf.Truns) == 0 { // Create first trun if needed
-		trun := CreateTrun()
-		trun.writeOrderNr = f.nextTrunNr
+		trun := CreateTrun(f.nextTrunNr)
 		f.nextTrunNr++
 		err := traf.AddChild(trun)
 		if err != nil {
@@ -161,14 +159,13 @@ func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
 		}
 	}
 	if len(traf.Truns) == 1 && traf.Trun.SampleCount() == 0 {
-		tfdt := f.Moof.Traf.Tfdt
+		tfdt := traf.Tfdt
 		tfdt.SetBaseMediaDecodeTime(s.DecodeTime)
 	}
 	trun := traf.Truns[len(traf.Truns)-1] // latest of this track
 	if trun.writeOrderNr != f.nextTrunNr-1 {
 		// We are not in the latest trun. Must make a new one
-		trun = CreateTrun()
-		trun.writeOrderNr = f.nextTrunNr
+		trun = CreateTrun(f.nextTrunNr)
 		f.nextTrunNr++
 		err := traf.AddChild(trun)
 		if err != nil {
@@ -210,6 +207,7 @@ func (f *Fragment) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
+	f.SetTrunDataOffsets()
 	for _, b := range f.Children {
 		err := b.Encode(w)
 		if err != nil {
@@ -232,4 +230,20 @@ func (f *Fragment) Info(w io.Writer, specificBoxLevels, indent, indentStep strin
 // GetChildren - return children boxes
 func (f *Fragment) GetChildren() []Box {
 	return f.Children
+}
+
+// SetTrunDataOffsets - set DataOffset in trun depending on size and writeOrder
+func (f *Fragment) SetTrunDataOffsets() {
+	var truns []*TrunBox
+	for _, traf := range f.Moof.Trafs {
+		truns = append(truns, traf.Truns...)
+	}
+	sort.Slice(truns, func(i, j int) bool {
+		return truns[i].writeOrderNr < truns[j].writeOrderNr
+	})
+	dataOffset := f.Moof.Size() + f.Mdat.HeaderSize()
+	for _, trun := range truns {
+		trun.DataOffset = int32(dataOffset)
+		dataOffset += trun.SizeOfData()
+	}
 }

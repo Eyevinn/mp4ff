@@ -10,7 +10,7 @@ func createTestTrafBox() *TrafBox {
 	traf := &TrafBox{}
 	tfhd := &TfhdBox{}
 	_ = traf.AddChild(tfhd)
-	trun := CreateTrun()
+	trun := CreateTrun(0)
 	_ = traf.AddChild(trun)
 	return traf
 }

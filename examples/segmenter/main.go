@@ -30,7 +30,7 @@ func main() {
 	inFilePath := flag.String("i", "", "Required: Path to input mp4 file")
 	outFilePath := flag.String("o", "", "Required: Output filepath (without extension)")
 	segDur := flag.Int("d", 0, "Required: chunk duration (milliseconds)")
-	//muxed := flag.Bool("m", false, "Output multiplexed segments")
+	muxed := flag.Bool("m", false, "Output multiplexed segments")
 
 	flag.Parse()
 
@@ -39,7 +39,6 @@ func main() {
 		return
 	}
 
-	fileNameMap := map[string]string{"video": "_v", "audio": "_a"}
 	ifd, err := os.Open(*inFilePath)
 	if err != nil {
 		log.Fatalln(err)
@@ -53,12 +52,21 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	if *muxed {
+		makeMultiTrackSegments(segmenter, parsedMp4, *segDur, *outFilePath)
+	} else {
+		makeSingleTrackSegments(segmenter, parsedMp4, *segDur, *outFilePath)
+	}
+}
+
+func makeSingleTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, segDurMs int, outFilePath string) {
+	fileNameMap := map[string]string{"video": "_v", "audio": "_a"}
 	inits, err := segmenter.MakeInitSegments()
 	if err != nil {
 		log.Fatalln(err)
 	}
 	for _, init := range inits {
-		outPath := fmt.Sprintf("%s%s.mp4", *outFilePath, fileNameMap[init.GetMediaType()])
+		outPath := fmt.Sprintf("%s%s.mp4", outFilePath, fileNameMap[init.GetMediaType()])
 		err = mp4.WriteToFile(init, outPath)
 		if err != nil {
 			log.Fatalln(err)
@@ -66,7 +74,6 @@ func main() {
 		fmt.Printf("Generated %s\n", outPath)
 	}
 
-	segDurMs := *segDur
 	segNr := 1
 	for {
 		newSegment := false
@@ -84,15 +91,13 @@ func main() {
 			}
 			seg.AddFragment(frag)
 			for _, sample := range samples {
-				frag.AddFullSample(sample)
+				err = frag.AddFullSampleToTrack(sample, mp4.DefaultTrakID)
+				if err != nil {
+					log.Fatalln(err)
+				}
 			}
-			outPath := fmt.Sprintf("%s%s_%d.m4s", *outFilePath, fileNameMap[mediaType], segNr)
-			ofd, err := os.Create(outPath)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			defer ofd.Close()
-			err = seg.Encode(ofd)
+			outPath := fmt.Sprintf("%s%s_%d.m4s", outFilePath, fileNameMap[mediaType], segNr)
+			err = mp4.WriteToFile(seg, outPath)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -101,6 +106,60 @@ func main() {
 		if !newSegment {
 			break
 		}
+		segNr++
+	}
+}
+
+func makeMultiTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, segDurMs int, outFilePath string) {
+	init, err := segmenter.MakeMuxedInitSegment()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	outPath := fmt.Sprintf("%sinit.mp4", outFilePath)
+	err = mp4.WriteToFile(init, outPath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Printf("Generated %s\n", outPath)
+	var trackIDs []uint32
+	for _, trak := range init.Moov.Traks {
+		trackIDs = append(trackIDs, trak.Tkhd.TrackID)
+	}
+	segNr := 1
+	for {
+		someSamples := false
+		seg := mp4.NewMediaSegment()
+		frag, err := mp4.CreateMultiTrackFragment(uint32(segNr), trackIDs)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		seg.AddFragment(frag)
+
+		for _, tr := range segmenter.tracks {
+			samples := segmenter.GetSamplesUntilTime(parsedMp4, tr, tr.nextSampleNr, segDurMs*segNr)
+			if len(samples) == 0 {
+				continue
+			}
+			for _, sample := range samples {
+				err = frag.AddFullSampleToTrack(sample, tr.trackID)
+				if err != nil {
+					log.Fatalln(err)
+				}
+			}
+			someSamples = true
+		}
+		if !someSamples {
+			break
+		}
+		outPath := fmt.Sprintf("%smedia_%d.m4s", outFilePath, segNr)
+		err = mp4.WriteToFile(seg, outPath)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if err != nil {
+			log.Fatalln(err)
+		}
+		fmt.Printf("Generated %s\n", outPath)
 		segNr++
 	}
 }

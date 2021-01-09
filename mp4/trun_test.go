@@ -7,7 +7,7 @@ import (
 // TestTrunDump versus golden file. Can be regenerated with -update
 func TestTrunInfo(t *testing.T) {
 	goldenDumpPath := "testdata/golden_trun_dump.txt"
-	trun := CreateTrun()
+	trun := CreateTrun(0)
 	trun.DataOffset = 314159
 	fs := FullSample{
 		Sample: Sample{

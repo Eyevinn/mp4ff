@@ -84,6 +84,7 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 	var cumDur uint32 = 0
 
 	for _, inFrag := range inFragments {
+		trackID := inFrag.Moof.Traf.Tfhd.TrackID
 
 		samples, err := inFrag.GetFullSamples(trex)
 		if err != nil {
@@ -92,13 +93,17 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 		for _, s := range samples {
 			if cumDur == 0 {
 				var err error
-				of, err = CreateFragment(inFrag.Moof.Mfhd.SequenceNumber, inFrag.Moof.Traf.Tfhd.TrackID)
+				of, err = CreateFragment(inFrag.Moof.Mfhd.SequenceNumber, trackID)
 				if err != nil {
 					return nil, err
 				}
 				outFragments = append(outFragments, of)
 			}
-			of.AddFullSample(s)
+			//of.AddFullSample(s)
+			err = of.AddFullSampleToTrack(s, trackID)
+			if err != nil {
+				return nil, err
+			}
 			cumDur += s.Dur
 			if cumDur >= duration {
 				// fmt.Printf("Wrote fragment with duration %d\n", cumDur)
