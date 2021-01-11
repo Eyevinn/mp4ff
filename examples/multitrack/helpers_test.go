@@ -19,20 +19,6 @@ var (
 	update = flag.Bool("update", false, "update the golden files of this test")
 )
 
-func assertNoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Errorf("Got error %s but expected none", err)
-	}
-}
-
-func assertError(t *testing.T, err error, msg string) {
-	t.Helper()
-	if err == nil {
-		t.Errorf(msg)
-	}
-}
-
 // writeGolden - write golden file that to be used for later tests
 func writeGolden(t *testing.T, goldenAssetPath string, data []byte) error {
 	t.Helper()
