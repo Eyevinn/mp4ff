@@ -139,6 +139,7 @@ These are
 2. `resegmenter` which reads a segmented file (CMAF track) and resegments it with other
     segment durations.
 3. `segmenter` which takes a progressive mp4 file and creates init and media segments from it.
+4. `multitrack` parses a fragmented file with multiple tracks
 
 ## Stability
 The APIs should be fairly stable, but minor non-backwards-compatible tweaks may happen until version 1.
