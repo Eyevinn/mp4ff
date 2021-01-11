@@ -24,20 +24,28 @@ type HdlrBox struct {
 }
 
 // CreateHdlr - create mediaType-specific hdlr box
-func CreateHdlr(mediaType string) (*HdlrBox, error) {
+func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 	hdlr := &HdlrBox{}
-	switch mediaType {
-	case "video":
+	switch mediaOrHdlrType {
+	case "video", "vide":
 		hdlr.HandlerType = "vide"
-		hdlr.Name = "Edgeware Video Handler"
-	case "audio":
+		hdlr.Name = "mp4ff video handler"
+	case "audio", "soun":
 		hdlr.HandlerType = "soun"
-		hdlr.Name = "Edgeware Audio Handler"
-	case "subtitle":
+		hdlr.Name = "mp4ff audio handler"
+	case "subtitle", "subt":
 		hdlr.HandlerType = "subt"
-		hdlr.Name = "Edgeware Subtitle Handler"
+		hdlr.Name = "mp4ff subtitle handler"
+	case "clcp":
+		hdlr.HandlerType = "subt"
+		hdlr.Name = "mp4ff closed captions handler"
 	default:
-		return nil, fmt.Errorf("Unkown mediaType %s", mediaType)
+		if len(mediaOrHdlrType) != 4 {
+			return nil, fmt.Errorf("Unkown media or hdlr type %s", mediaOrHdlrType)
+		}
+		hdlr.HandlerType = mediaOrHdlrType
+		hdlr.Name = fmt.Sprintf("mp4ff %s handler", mediaOrHdlrType)
+
 	}
 	return hdlr, nil
 }

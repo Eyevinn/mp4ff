@@ -22,6 +22,7 @@ func init() {
 		"avc3": DecodeVisualSampleEntry,
 		"avcC": DecodeAvcC,
 		"btrt": DecodeBtrt,
+		"cdat": DecodeCdat,
 		"ctim": DecodeCtim,
 		"ctts": DecodeCtts,
 		"dinf": DecodeDinf,

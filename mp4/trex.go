@@ -18,10 +18,10 @@ type TrexBox struct {
 	DefaultSampleFlags            uint32
 }
 
-// CreateTrex - create trex box with good default parameters
-func CreateTrex() *TrexBox {
+// CreateTrex - create trex box with trackID
+func CreateTrex(trackID uint32) *TrexBox {
 	return &TrexBox{
-		TrackID:                       1,
+		TrackID:                       trackID,
 		DefaultSampleDescriptionIndex: 1,
 	}
 }

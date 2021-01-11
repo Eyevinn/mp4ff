@@ -76,6 +76,7 @@ func (t *TrafBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 }
 
 // OptimizeTfhdTrun - optimize trun by default values in tfhd box
+// Only look at first trun, even if there is more than one
 func (t *TrafBox) OptimizeTfhdTrun() error {
 	tfhd := t.Tfhd
 	trun := t.Trun

@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -60,20 +61,14 @@ func (m *MoofBox) Size() uint64 {
 
 // Encode - write moof after updating trun dataoffset
 func (m *MoofBox) Encode(w io.Writer) error {
+	for _, trun := range m.Traf.Truns {
+		if trun.HasDataOffset() && trun.DataOffset == 0 {
+			return fmt.Errorf("Dataoffset in trun not set")
+		}
+	}
 	err := EncodeHeader(m, w)
 	if err != nil {
 		return err
-	}
-	trun := m.Traf.Trun
-	if trun.HasDataOffset() {
-		// Need to set dataOffset in trun
-		// This is the media data start with respect to start of moof.
-		// We store the media at the beginning
-		// of a single mdat box placed directly after moof.
-		trun.DataOffset = int32(m.Size() + 8)
-		// TODO Fix possible handling of largeSize mdat.
-		// TODO more general trun offset setting to handle multiple truns/tracks
-		// Move this to fragment level to control both moof and mdat
 	}
 	for _, b := range m.Children {
 		err = b.Encode(w)

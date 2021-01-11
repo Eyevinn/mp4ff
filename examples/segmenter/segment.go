@@ -17,6 +17,7 @@ type Track struct {
 	trackType    string
 	inTrak       *mp4.TrakBox
 	timeScale    uint32
+	trackID      uint32
 	nextSampleNr int
 }
 
@@ -30,8 +31,8 @@ func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
 	}, nil
 }
 
-// GetInitSegments - initialized and return init segments for all the tracks
-func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
+// MakeInitSegments - initialized and return init segments for all the tracks
+func (s *Segmenter) MakeInitSegments() ([]*mp4.InitSegment, error) {
 	traks := s.inFile.Moov.Traks
 	var inits []*mp4.InitSegment
 	for _, inTrak := range traks {
@@ -50,8 +51,10 @@ func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
 			}
 			track.inTrak = inTrak
 			track.timeScale = inTrak.Mdia.Mdhd.Timescale
-			init := mp4.CreateEmptyMP4Init(track.timeScale, mediaType, lang)
+			init := mp4.CreateEmptyInit()
+			init.AddEmptyTrack(track.timeScale, mediaType, lang)
 			outTrack := init.Moov.Trak
+			track.trackID = outTrack.Tkhd.TrackID
 			stsd := outTrack.Mdia.Minf.Stbl.Stsd
 			if mediaType == "audio" {
 				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.Mp4a)
@@ -68,6 +71,46 @@ func (s *Segmenter) GetInitSegments() ([]*mp4.InitSegment, error) {
 	}
 
 	return inits, nil
+}
+
+// MakeMuxedInitSegment - initialized and return one init segments for all the tracks
+func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
+	traks := s.inFile.Moov.Traks
+	init := mp4.CreateEmptyInit()
+	for _, inTrak := range traks {
+		hdlrType := inTrak.Mdia.Hdlr.HandlerType
+		track := &Track{nextSampleNr: 1}
+		switch hdlrType {
+		case "soun", "vide":
+			mediaType := "video"
+			lang := "und"
+			if hdlrType == "soun" {
+				mediaType = "audio"
+				lang = inTrak.Mdia.Mdhd.GetLanguage()
+				if inTrak.Mdia.Elng != nil {
+					lang = inTrak.Mdia.Elng.Language
+				}
+			}
+			track.inTrak = inTrak
+			track.timeScale = inTrak.Mdia.Mdhd.Timescale
+			init.AddEmptyTrack(track.timeScale, mediaType, lang)
+			outTrack := init.Moov.Traks[len(init.Moov.Traks)-1]
+			stsd := outTrack.Mdia.Minf.Stbl.Stsd
+			if mediaType == "audio" {
+				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.Mp4a)
+				track.trackType = "audio"
+			} else {
+				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.AvcX)
+				track.trackType = "video"
+			}
+			track.trackID = outTrack.Tkhd.TrackID
+			s.tracks = append(s.tracks, track)
+		default:
+			return nil, errors.New("Unsupported handler type")
+		}
+	}
+
+	return init, nil
 }
 
 // GetSamplesUntilTime - get slice of FullSample from statSampleNr to endTimeMs

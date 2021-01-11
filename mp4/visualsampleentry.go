@@ -39,7 +39,7 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, avcC *AvcCBox
 		Horizresolution:    0x00480000, // 72dpi
 		Vertresolution:     0x00480000, // 72dpi
 		FrameCount:         1,
-		CompressorName:     "Edgeware Video Packager",
+		CompressorName:     "mp4ff video packager",
 		Children:           []Box{},
 	}
 	if avcC != nil {

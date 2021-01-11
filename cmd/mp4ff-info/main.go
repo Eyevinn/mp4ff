@@ -1,3 +1,4 @@
+//mp4ff-info prints the box tree of input mp4 (ISOBMFF) file.
 package main
 
 import (
