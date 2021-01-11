@@ -14,6 +14,7 @@ type StsdBox struct {
 	Flags       uint32
 	SampleCount uint32
 	AvcX        *VisualSampleEntryBox
+	HvcX        *VisualSampleEntryBox
 	Mp4a        *AudioSampleEntryBox
 	Children    []Box
 }
@@ -28,6 +29,8 @@ func (s *StsdBox) AddChild(box Box) {
 	switch box.Type() {
 	case "avc1", "avc3":
 		s.AvcX = box.(*VisualSampleEntryBox)
+	case "hvc1", "hev1":
+		s.HvcX = box.(*VisualSampleEntryBox)
 	case "mp4a":
 		s.Mp4a = box.(*AudioSampleEntryBox)
 	}
