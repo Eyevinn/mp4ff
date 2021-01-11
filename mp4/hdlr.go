@@ -65,7 +65,7 @@ func DecodeHdlr(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		HandlerType: string(data[8:12]),
 	}
 	if len(data) > 24 {
-		h.Name = string(data[24:])
+		h.Name = string(data[24 : len(data)-1])
 	}
 	return h, nil
 }
@@ -77,7 +77,7 @@ func (b *HdlrBox) Type() string {
 
 // Size - calculated size of box
 func (b *HdlrBox) Size() uint64 {
-	return uint64(boxHeaderSize + 24 + len(b.Name))
+	return uint64(boxHeaderSize + 24 + len(b.Name) + 1)
 }
 
 // Encode - write box to w
