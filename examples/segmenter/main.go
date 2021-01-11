@@ -1,19 +1,14 @@
-// segmenter segments a progressive mp4 file into audio and video segments
+// segmenter segments a progressive mp4 file into init and media segments
 //
+// The output is either single-track segments, or muxed multi-track segments.
 // There should be at most one audio and one video track in the input.
 // The output files will be named as
 // init segments: <output>_a.mp4 and <output>_v.mp4
 // media segments: <output>_a_<n>.m4s and <output>_v_<n>.m4s where n >= 1
 //
-//   Usage:
+// or
 //
-//    segmenter -i <input.mp4> -o <output> -d <chunk_dur>
-//    -i string
-//         Required: Path to input mp4 file
-//    -o string
-//         Required: Output filepath (without extension)
-//    -d int
-//         Required: chunk duration (milliseconds)
+// init.mp4 and media_<n>.m4s
 package main
 
 import (

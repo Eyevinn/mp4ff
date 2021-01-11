@@ -3,20 +3,20 @@
  - minorVersion: 0
  - compatibleBrand: dash
  - compatibleBrand: iso6
-[moov] size=652
+[moov] size=649
   [mvhd] size=108 version=0
    - timeScale: 90000
    - duration: 0
-  [trak] size=496
+  [trak] size=493
     [tkhd] size=92 version=0
      - trackID: 1
-    [mdia] size=396
+    [mdia] size=393
       [mdhd] size=32 version=0
        - timeScale: 180000
        - language: und
-      [hdlr] size=55 version=0
+      [hdlr] size=52 version=0
        - handlerType: vide
-       - handlerName: "Edgeware Video Handler"
+       - handlerName: "mp4ff video handler"
       [minf] size=301
         [vmhd] size=20 version=0
         [dinf] size=36
@@ -26,7 +26,7 @@
         [stbl] size=237
           [stsd] size=161 version=0
             [avc3] size=145
-             - compressorName: "Edgeware Video Packager"
+             - compressorName: "mp4ff video packager"
               [avcC] size=59
                - AVCProfileIndication: 77
                - profileCompatibility: 40
