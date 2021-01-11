@@ -34,20 +34,9 @@ func TestDecodeEncodeMultiTrack(t *testing.T) {
 		t.Error(err)
 	}
 
-	if *update {
-		err = writeGolden(t, goldenSampleList, buf.Bytes())
-		if err != nil {
-			t.Error(err)
-		}
-	} else {
-		goldenRef, err := ioutil.ReadFile(goldenSampleList)
-		if err != nil {
-			t.Error(err)
-		}
-		diff := deep.Equal(buf.Bytes(), goldenRef)
-		if diff != nil {
-			t.Errorf("Diff in golden sample list: %s\n", diff)
-		}
+	err = compareOrUpdateGolden(t, buf.Bytes(), goldenSampleList)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -70,20 +59,9 @@ func TestDecodeClcp(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			if *update {
-				err = writeGolden(t, goldenScenarist, buf.Bytes())
-				if err != nil {
-					t.Error(err)
-				}
-			} else {
-				goldenRef, err := ioutil.ReadFile(goldenScenarist)
-				if err != nil {
-					t.Error(err)
-				}
-				diff := deep.Equal(buf.Bytes(), goldenRef)
-				if diff != nil {
-					t.Errorf("Diff in golden scenarist file: %s\n", diff)
-				}
+			err = compareOrUpdateGolden(t, buf.Bytes(), goldenScenarist)
+			if err != nil {
+				t.Error(err)
 			}
 		}
 	}
