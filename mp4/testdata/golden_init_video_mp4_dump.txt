@@ -10,6 +10,7 @@
   [trak] size=493
     [tkhd] size=92 version=0
      - trackID: 1
+     - Width: 640.0, Height: 360.0
     [mdia] size=393
       [mdhd] size=32 version=0
        - timeScale: 180000
