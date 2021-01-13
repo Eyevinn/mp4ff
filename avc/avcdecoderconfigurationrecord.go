@@ -119,6 +119,25 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 	return adcr, nil
 }
 
+func (a *AVCDecConfRec) Size() uint64 {
+	totalSize := 7
+	for _, nal := range a.SPSnalus {
+		totalSize += 2 + len(nal)
+	}
+	for _, nal := range a.PPSnalus {
+		totalSize += 2 + len(nal)
+	}
+	switch a.AVCProfileIndication {
+	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
+		// No extra bytes
+	default:
+		if !a.NoTrailingInfo {
+			totalSize += 4
+		}
+	}
+	return uint64(totalSize)
+}
+
 // Encode - write an AVCDecConfRec to w
 func (a *AVCDecConfRec) Encode(w io.Writer) error {
 	var errWrite error
