@@ -5,46 +5,46 @@ import (
 	"io"
 )
 
-// AccErrWriter - writer that wraps an io.Writer and accumulater error
-type AccErrWriter struct {
+// AccErrByteWriter - writer that wraps an io.Writer and accumulater error
+type AccErrByteWriter struct {
 	w   io.Writer
 	err error
 }
 
-// NewAccErrWriter - create accumulated error writer around io.Writer
-func NewAccErrWriter(w io.Writer) *AccErrWriter {
-	return &AccErrWriter{
+// NewAccErrByteWriter - create accumulated error writer around io.Writer
+func NewAccErrByteWriter(w io.Writer) *AccErrByteWriter {
+	return &AccErrByteWriter{
 		w: w,
 	}
 }
 
 // AccError - return accumulated error
-func (a *AccErrWriter) AccError() error {
+func (a *AccErrByteWriter) AccError() error {
 	return a.err
 }
 
-func (a *AccErrWriter) WriteUint8(b byte) {
+func (a *AccErrByteWriter) WriteUint8(b byte) {
 	if a.err != nil {
 		return
 	}
 	a.err = binary.Write(a.w, binary.BigEndian, b)
 }
 
-func (a *AccErrWriter) WriteUint16(u uint16) {
+func (a *AccErrByteWriter) WriteUint16(u uint16) {
 	if a.err != nil {
 		return
 	}
 	a.err = binary.Write(a.w, binary.BigEndian, u)
 }
 
-func (a *AccErrWriter) WriteUint32(u uint32) {
+func (a *AccErrByteWriter) WriteUint32(u uint32) {
 	if a.err != nil {
 		return
 	}
 	a.err = binary.Write(a.w, binary.BigEndian, u)
 }
 
-func (a *AccErrWriter) WriteUint48(u uint64) {
+func (a *AccErrByteWriter) WriteUint48(u uint64) {
 	if a.err != nil {
 		return
 	}
@@ -57,14 +57,14 @@ func (a *AccErrWriter) WriteUint48(u uint64) {
 	a.err = binary.Write(a.w, binary.BigEndian, lsb)
 }
 
-func (a *AccErrWriter) WriteUint64(u uint64) {
+func (a *AccErrByteWriter) WriteUint64(u uint64) {
 	if a.err != nil {
 		return
 	}
 	a.err = binary.Write(a.w, binary.BigEndian, u)
 }
 
-func (a *AccErrWriter) WriteSlice(s []byte) {
+func (a *AccErrByteWriter) WriteSlice(s []byte) {
 	if a.err != nil {
 		return
 	}
