@@ -120,7 +120,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	if err != nil {
 		return nil, err
 	}
-	nalType := GetNalType(byte(nalHdr))
+	nalType := GetNaluType(byte(nalHdr))
 	if nalType != NALU_SPS {
 		return nil, ErrNotSPS
 	}

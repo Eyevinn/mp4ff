@@ -52,12 +52,12 @@ func ParsePPSNALUnit(data []byte, sps *SPS) (*PPS, error) {
 	reader := bits.NewEBSPReader(rd)
 	// Note! First byte is NAL Header
 
-	nalHdr, err := reader.Read(8)
+	naluHdr, err := reader.Read(8)
 	if err != nil {
 		return nil, err
 	}
-	nalType := GetNalType(byte(nalHdr))
-	if nalType != NALU_PPS {
+	naluType := GetNaluType(byte(naluHdr))
+	if naluType != NALU_PPS {
 		return nil, ErrNotPPS
 	}
 

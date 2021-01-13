@@ -145,16 +145,16 @@ func printAVCNalus(sample []byte, nr int, pts uint64) error {
 		if i > 0 {
 			msg += ","
 		}
-		nalType := avc.GetNalType(nalu[0])
+		naluType := avc.GetNaluType(nalu[0])
 		imgType := ""
-		switch nalType {
+		switch naluType {
 		case avc.NALU_NON_IDR, avc.NALU_IDR:
-			sliceType, err := avc.GetSliceTypeFromNAL(nalu)
+			sliceType, err := avc.GetSliceTypeFromNALU(nalu)
 			if err == nil {
 				imgType = fmt.Sprintf("[%s] ", sliceType)
 			}
 		}
-		msg += fmt.Sprintf(" %s %s(%dB)", nalType, imgType, len(nalu))
+		msg += fmt.Sprintf(" %s %s(%dB)", naluType, imgType, len(nalu))
 	}
 	fmt.Printf("Sample %d, pts=%d (%dB):%s\n", nr, pts, len(sample), msg)
 	return nil
