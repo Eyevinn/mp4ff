@@ -5,5 +5,9 @@ Install like
 
 	go install ./...
 
+or remotely as
+
+	go get -u github.com/edgeware/mp4ff/cmd/mp4ff-info
+
 */
 package cmd

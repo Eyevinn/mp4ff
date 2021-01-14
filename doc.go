@@ -1,5 +1,5 @@
 /*
-Package mp4ff implements MP4 media file parser and writer for AVC video, AAC audio and stpp/wvtt subtitles.
+Package mp4ff - MP4 media file parser and writer for AVC/HEVC video, AAC audio and stpp/wvtt subtitles.
 Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 
 MP4 library

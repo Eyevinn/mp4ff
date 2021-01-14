@@ -1,16 +1,4 @@
-// resegmenter resegments mp4 files into concatenated segments with new duration.
-//
-// The input file must be a CMAF track with init segment and media segments.
-//
-//   Usage:
-//
-//    resegmenter -f <input.mp4> -o <output.mp4> -b <chunk_dur>
-//    -b int
-//         Required: chunk duration (ticks)
-//    -f string
-//         Required: Path to input file
-//    -o string
-//         Required: Output file
+// resegmenter - resegment mp4 files into concatenated segments with new duration.
 package main
 
 import (

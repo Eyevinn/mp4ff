@@ -1,6 +1,6 @@
-// mp4ff-pslister lists parameter sets for AVC(H.264) and HEVC(H.265) video in mp4 files.
+// mp4ff-pslister - list parameter sets for AVC(H.264) and HEVC(H.265) video in mp4 files.
 //
-// It prints them as hex and with verbose mode it also interprets them.
+// Print them as hex and with verbose mode provided details in JSON format.
 package main
 
 import (

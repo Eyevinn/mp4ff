@@ -1,3 +1,4 @@
+// initcreator - create init segments for AVC video and AAC audio.
 package main
 
 import (
