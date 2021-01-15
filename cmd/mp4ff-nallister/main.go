@@ -1,4 +1,4 @@
-// mp4ff-nallister lists NAL units and slice types of first AVC or HEVC track of an mp4 (ISOBMFF) file.
+// mp4ff-nallister - list NAL units and slice types of first AVC or HEVC track of an mp4 (ISOBMFF) file.
 package main
 
 import (
@@ -24,7 +24,7 @@ var Usage = func() {
 	parts := strings.Split(os.Args[0], "/")
 	name := parts[len(parts)-1]
 	fmt.Fprintln(os.Stderr, usg)
-	fmt.Fprintf(os.Stderr, "%s [-m <max>] <mp4File>\n", name)
+	fmt.Fprintf(os.Stderr, "%s [-m <max>] [-c codec] <mp4File>\n", name)
 	flag.PrintDefaults()
 }
 
@@ -78,10 +78,15 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
 		break
 	}
 	if videoTrak == nil {
-		return fmt.Errorf("New video track found")
+		return fmt.Errorf("No video track found")
 	}
 
 	stbl := videoTrak.Mdia.Minf.Stbl
+	if stbl.Stsd.AvcX != nil {
+		codec = "avc"
+	} else if stbl.Stsd.HvcX != nil {
+		codec = "hevc"
+	}
 	nrSamples := stbl.Stsz.SampleNumber
 	mdat := f.Mdat
 	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
@@ -103,7 +108,6 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
 		// Next find sample bytes as slice in mdat
 		offsetInMdatData := uint64(offset) - mdatPayloadStart
 		sample := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
-		err = printAVCNalus(sample, sampleNr, decTime+uint64(cto))
 		switch codec {
 		case "avc", "h.264", "h264":
 			err = printAVCNalus(sample, sampleNr, decTime+uint64(cto))
@@ -123,6 +127,27 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
 }
 
 func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string) error {
+	if f.Init != nil { // Auto-detect codec if moov box is there
+		moov := f.Init.Moov
+		var videoTrak *mp4.TrakBox
+		for _, inTrak := range moov.Traks {
+			hdlrType := inTrak.Mdia.Hdlr.HandlerType
+			if hdlrType != "vide" {
+				continue
+			}
+			videoTrak = inTrak
+			break
+		}
+		if videoTrak == nil {
+			return fmt.Errorf("No video track found")
+		}
+		stbl := videoTrak.Mdia.Minf.Stbl
+		if stbl.Stsd.AvcX != nil {
+			codec = "avc"
+		} else if stbl.Stsd.HvcX != nil {
+			codec = "hevc"
+		}
+	}
 	iSamples := make([]*mp4.FullSample, 0)
 	for _, iSeg := range f.Segments {
 		for _, iFrag := range iSeg.Fragments {
