@@ -18,6 +18,7 @@ type VisualSampleEntryBox struct {
 	FrameCount         uint16
 	CompressorName     string
 	AvcC               *AvcCBox
+	HvcC               *HvcCBox
 	Btrt               *BtrtBox
 	Clap               *ClapBox
 	Pasp               *PaspBox
@@ -55,6 +56,8 @@ func (a *VisualSampleEntryBox) AddChild(b Box) {
 	switch b.Type() {
 	case "avcC":
 		a.AvcC = b.(*AvcCBox)
+	case "hvcC":
+		a.HvcC = b.(*HvcCBox)
 	case "btrt":
 		a.Btrt = b.(*BtrtBox)
 	case "clap":

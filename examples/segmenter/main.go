@@ -1,4 +1,4 @@
-// segmenter segments a progressive mp4 file into init and media segments
+// segmenter  - segments a progressive mp4 file into init and media segments
 //
 // The output is either single-track segments, or muxed multi-track segments.
 // There should be at most one audio and one video track in the input.

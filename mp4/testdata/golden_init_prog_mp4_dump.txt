@@ -12,6 +12,7 @@
   [trak] size=4952
     [tkhd] size=92 version=0
      - trackID: 1
+     - Width: 960.0, Height: 540.0
     [edts] size=36
       [elst] size=28 version=0
       - entry[1]: segmentDuration=11520 mediaTime=4, mediaRateInteger=1 mediaRateFraction=0

@@ -34,16 +34,16 @@ const (
 	SLICE_SI = SliceType(4)
 )
 
-// GetSliceTypeFromNAL - parse slice header to get slice type in interval 0 to 4
-func GetSliceTypeFromNAL(data []byte) (sliceType SliceType, err error) {
+// GetSliceTypeFromNALU - parse slice header to get slice type in interval 0 to 4
+func GetSliceTypeFromNALU(data []byte) (sliceType SliceType, err error) {
 
 	if len(data) <= 1 {
 		err = ErrTooFewBytesToParse
 		return
 	}
 
-	nalType := GetNalType(data[0])
-	switch nalType {
+	naluType := GetNaluType(data[0])
+	switch naluType {
 	case 1, 2, 5, 19:
 		// slice_layer_without_partitioning_rbsp
 		// slice_data_partition_a_layer_rbsp

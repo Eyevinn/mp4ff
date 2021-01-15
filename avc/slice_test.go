@@ -10,7 +10,7 @@ const videoNaluStart = "25888040ffde08e47a7bff05ab"
 func TestSliceTypeParser(t *testing.T) {
 	byteData, _ := hex.DecodeString(videoNaluStart)
 	want := SLICE_I
-	got, err := GetSliceTypeFromNAL(byteData)
+	got, err := GetSliceTypeFromNALU(byteData)
 	if err != nil {
 		t.Error(err)
 	}

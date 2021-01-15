@@ -6,26 +6,26 @@ import (
 	"github.com/go-test/deep"
 )
 
-func TestGetNalTypes(t *testing.T) {
+func TestGetNaluTypes(t *testing.T) {
 	testCases := []struct {
 		name   string
 		input  []byte
-		wanted []NalType
+		wanted []NaluType
 	}{
 		{
 			"IDR",
 			[]byte{0, 0, 0, 2, 5},
-			[]NalType{NALU_IDR},
+			[]NaluType{NALU_IDR},
 		},
 		{
 			"AUD and SPS",
 			[]byte{0, 0, 0, 2, 9, 2, 0, 0, 0, 3, 7, 5, 4},
-			[]NalType{NALU_AUD, NALU_SPS},
+			[]NaluType{NALU_AUD, NALU_SPS},
 		},
 	}
 
 	for _, tc := range testCases {
-		got := FindNalTypes(tc.input)
+		got := FindNaluTypes(tc.input)
 		if diff := deep.Equal(got, tc.wanted); diff != nil {
 			t.Errorf("%s: %v", tc.name, diff)
 		}

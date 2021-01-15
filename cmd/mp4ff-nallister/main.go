@@ -1,4 +1,4 @@
-// mp4ff-nallister lists NAL units and slice types of first AVC track of an mp4 (ISOBMFF) file.
+// mp4ff-nallister lists NAL units and slice types of first AVC or HEVC track of an mp4 (ISOBMFF) file.
 package main
 
 import (
@@ -9,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/edgeware/mp4ff/avc"
+	"github.com/edgeware/mp4ff/hevc"
 	"github.com/edgeware/mp4ff/mp4"
 )
 
 var usg = `Usage of mp4ff-nallister:
 
-mp4ff-nallister lists NAL units and slice types of AVC tracks of an mp4 (ISOBMFF) file.
+mp4ff-nallister lists NAL units and slice types of AVC or HEVC tracks of an mp4 (ISOBMFF) file.
 Takes first video track in a progressive file and the first track in
 a fragmented file.
 `
@@ -29,6 +30,7 @@ var Usage = func() {
 
 func main() {
 	maxNrSamples := flag.Int("m", -1, "Max nr of samples to parse")
+	codec := flag.String("c", "avc", "Codec to parse (avc or hevc)")
 
 	flag.Parse()
 
@@ -51,21 +53,21 @@ func main() {
 	// Need to handle progressive files as well as fragmented files
 
 	if !parsedMp4.IsFragmented() {
-		err = parseProgressiveMp4(parsedMp4, *maxNrSamples)
+		err = parseProgressiveMp4(parsedMp4, *maxNrSamples, *codec)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err)
 			os.Exit(1)
 		}
 		return
 	}
-	err = parseFragmentedMp4(parsedMp4, *maxNrSamples)
+	err = parseFragmentedMp4(parsedMp4, *maxNrSamples, *codec)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func parseProgressiveMp4(f *mp4.File, maxNrSamples int) error {
+func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
 	var videoTrak *mp4.TrakBox
 	for _, inTrak := range f.Moov.Traks {
 		hdlrType := inTrak.Mdia.Hdlr.HandlerType
@@ -102,6 +104,14 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int) error {
 		offsetInMdatData := uint64(offset) - mdatPayloadStart
 		sample := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
 		err = printAVCNalus(sample, sampleNr, decTime+uint64(cto))
+		switch codec {
+		case "avc", "h.264", "h264":
+			err = printAVCNalus(sample, sampleNr, decTime+uint64(cto))
+		case "hevc", "h.265", "h265":
+			err = printHEVCNalus(sample, sampleNr, decTime+uint64(cto))
+		default:
+			return fmt.Errorf("Unknown codec: %s", codec)
+		}
 		if err != nil {
 			return err
 		}
@@ -112,7 +122,7 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int) error {
 	return nil
 }
 
-func parseFragmentedMp4(f *mp4.File, maxNrSamples int) error {
+func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string) error {
 	iSamples := make([]*mp4.FullSample, 0)
 	for _, iSeg := range f.Segments {
 		for _, iFrag := range iSeg.Fragments {
@@ -123,8 +133,17 @@ func parseFragmentedMp4(f *mp4.File, maxNrSamples int) error {
 			iSamples = append(iSamples, fSamples...)
 		}
 	}
+	var err error
 	for i, s := range iSamples {
-		err := printAVCNalus(s.Data, i+1, s.PresentationTime())
+		switch codec {
+		case "avc", "h.264", "h264":
+			err = printAVCNalus(s.Data, i+1, s.PresentationTime())
+		case "hevc", "h.265", "h265":
+			err = printHEVCNalus(s.Data, i+1, s.PresentationTime())
+		default:
+			return fmt.Errorf("Unknown codec: %s", codec)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -145,16 +164,33 @@ func printAVCNalus(sample []byte, nr int, pts uint64) error {
 		if i > 0 {
 			msg += ","
 		}
-		nalType := avc.GetNalType(nalu[0])
+		naluType := avc.GetNaluType(nalu[0])
 		imgType := ""
-		switch nalType {
+		switch naluType {
 		case avc.NALU_NON_IDR, avc.NALU_IDR:
-			sliceType, err := avc.GetSliceTypeFromNAL(nalu)
+			sliceType, err := avc.GetSliceTypeFromNALU(nalu)
 			if err == nil {
 				imgType = fmt.Sprintf("[%s] ", sliceType)
 			}
 		}
-		msg += fmt.Sprintf(" %s %s(%dB)", nalType, imgType, len(nalu))
+		msg += fmt.Sprintf(" %s %s(%dB)", naluType, imgType, len(nalu))
+	}
+	fmt.Printf("Sample %d, pts=%d (%dB):%s\n", nr, pts, len(sample), msg)
+	return nil
+}
+
+func printHEVCNalus(sample []byte, nr int, pts uint64) error {
+	nalus, err := avc.GetNalusFromSample(sample)
+	if err != nil {
+		return err
+	}
+	msg := ""
+	for i, nalu := range nalus {
+		if i > 0 {
+			msg += ","
+		}
+		naluType := hevc.GetNaluType(nalu[0])
+		msg += fmt.Sprintf(" %s (%dB)", naluType, len(nalu))
 	}
 	fmt.Printf("Sample %d, pts=%d (%dB):%s\n", nr, pts, len(sample), msg)
 	return nil

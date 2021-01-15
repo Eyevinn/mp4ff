@@ -70,19 +70,19 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 	pos := 6
 	spsNALUs := make([][]byte, 0, 1)
 	for i := 0; i < int(numSPS); i++ {
-		nalLength := int(binary.BigEndian.Uint16(data[pos : pos+2]))
+		naluLength := int(binary.BigEndian.Uint16(data[pos : pos+2]))
 		pos += 2
-		spsNALUs = append(spsNALUs, data[pos:pos+nalLength])
-		pos += nalLength
+		spsNALUs = append(spsNALUs, data[pos:pos+naluLength])
+		pos += naluLength
 	}
 	ppsNALUs := make([][]byte, 0, 1)
 	numPPS := data[pos]
 	pos++
 	for i := 0; i < int(numPPS); i++ {
-		nalLength := int(binary.BigEndian.Uint16(data[pos : pos+2]))
+		naluLength := int(binary.BigEndian.Uint16(data[pos : pos+2]))
 		pos += 2
-		ppsNALUs = append(ppsNALUs, data[pos:pos+nalLength])
-		pos += nalLength
+		ppsNALUs = append(ppsNALUs, data[pos:pos+naluLength])
+		pos += naluLength
 	}
 	adcr := AVCDecConfRec{
 		AVCProfileIndication: AVCProfileIndication,
@@ -117,6 +117,25 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 	}
 
 	return adcr, nil
+}
+
+func (a *AVCDecConfRec) Size() uint64 {
+	totalSize := 7
+	for _, nalu := range a.SPSnalus {
+		totalSize += 2 + len(nalu)
+	}
+	for _, nalu := range a.PPSnalus {
+		totalSize += 2 + len(nalu)
+	}
+	switch a.AVCProfileIndication {
+	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
+		// No extra bytes
+	default:
+		if !a.NoTrailingInfo {
+			totalSize += 4
+		}
+	}
+	return uint64(totalSize)
 }
 
 // Encode - write an AVCDecConfRec to w

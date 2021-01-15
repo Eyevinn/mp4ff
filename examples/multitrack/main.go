@@ -1,4 +1,4 @@
-// Decode and encode example multitrack fragmented file with video and closed caption tracks
+// multitrack - decode and encode example multitrack fragmented file with video and closed caption tracks
 package main
 
 import (
@@ -99,7 +99,7 @@ func writeTrackInfo(w io.Writer, tracks []*Track) error {
 		case "vide":
 			for i, sample := range track.samples {
 				fmt.Fprintf(w, "%d %d (%dB) %v\n", i+1, sample.PresentationTime(), len(sample.Data),
-					avc.FindNalTypes(sample.Data))
+					avc.FindNaluTypes(sample.Data))
 			}
 		case "clcp": // Should contain cdat boxes with CEA-608 byte pairs
 			for i, sample := range track.samples {

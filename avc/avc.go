@@ -5,31 +5,31 @@ import (
 	"fmt"
 )
 
-// NalType - AVC nal type
-type NalType uint16
+// NaluType - AVC NAL unit type
+type NaluType uint16
 
 const (
 	// NALU_NON_IDR - Non-IDR Slice NAL unit
-	NALU_NON_IDR = NalType(1)
+	NALU_NON_IDR = NaluType(1)
 	// NALU_IDR - IDR Random Access Slice NAL Unit
-	NALU_IDR = NalType(5)
+	NALU_IDR = NaluType(5)
 	// NALU_SEI - Supplementary Enhancement Information NAL Unit
-	NALU_SEI = NalType(6)
+	NALU_SEI = NaluType(6)
 	// NALU_SSP - SequenceParameterSet NAL Unit
-	NALU_SPS = NalType(7)
+	NALU_SPS = NaluType(7)
 	// NALU_PPS - PictureParameterSet NAL Unit
-	NALU_PPS = NalType(8)
+	NALU_PPS = NaluType(8)
 	// NALU_AUD - AccessUnitDelimiter NAL Unit
-	NALU_AUD = NalType(9)
+	NALU_AUD = NaluType(9)
 	// NALU_EO_SEQ - End of Sequence NAL Unit
-	NALU_EO_SEQ = NalType(10)
+	NALU_EO_SEQ = NaluType(10)
 	// NALU_EO_STREAM - End of Stream NAL Unit
-	NALU_EO_STREAM = NalType(11)
+	NALU_EO_STREAM = NaluType(11)
 	// NALU_FILL - Filler NAL Unit
-	NALU_FILL = NalType(12)
+	NALU_FILL = NaluType(12)
 )
 
-func (a NalType) String() string {
+func (a NaluType) String() string {
 	switch a {
 	case NALU_NON_IDR:
 		return "NonIDR_1"
@@ -48,60 +48,60 @@ func (a NalType) String() string {
 	}
 }
 
-// Get NalType from NAL Header byte
-func GetNalType(nalHeader byte) NalType {
-	return NalType(nalHeader & 0x1f)
+// Get NaluType from NAL Unit Header byte
+func GetNaluType(naluHeader byte) NaluType {
+	return NaluType(naluHeader & 0x1f)
 }
 
-// FindNalTypes - find list of nal types in sample
-func FindNalTypes(sample []byte) []NalType {
-	nalList := make([]NalType, 0)
+// FindNaluTypes - find list of NAL unit types in sample
+func FindNaluTypes(sample []byte) []NaluType {
+	naluList := make([]NaluType, 0)
 	length := len(sample)
 	if length < 4 {
-		return nalList
+		return naluList
 	}
-	var pos uint32 = 0
-	for pos < uint32(length-4) {
-		nalLength := binary.BigEndian.Uint32(sample[pos : pos+4])
-		pos += 4
-		nalType := NalType(sample[pos] & 0x1f)
-		nalList = append(nalList, nalType)
-		pos += nalLength
+	var naluLength uint32 = 0
+	for naluLength < uint32(length-4) {
+		nalLength := binary.BigEndian.Uint32(sample[naluLength : naluLength+4])
+		naluLength += 4
+		nalType := NaluType(sample[naluLength] & 0x1f)
+		naluList = append(naluList, nalType)
+		naluLength += nalLength
 	}
-	return nalList
+	return naluList
 }
 
 // IsIDRSample - does sample contain IDR NALU
 func IsIDRSample(sample []byte) bool {
-	return ContainsNalType(sample, NALU_IDR)
+	return ContainsNaluType(sample, NALU_IDR)
 }
 
-// ContainsNalType - is specificNalType present in sample
-func ContainsNalType(sample []byte, specificNalType NalType) bool {
+// ContainsNaluType - is specific NaluType present in sample
+func ContainsNaluType(sample []byte, specificNalType NaluType) bool {
 	var pos uint32 = 0
 	length := len(sample)
 	for pos < uint32(length-4) {
-		nalLength := binary.BigEndian.Uint32(sample[pos : pos+4])
+		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
-		nalType := NalType(sample[pos] & 0x1f)
-		if nalType == specificNalType {
+		naluType := NaluType(sample[pos] & 0x1f)
+		if naluType == specificNalType {
 			return true
 		}
-		pos += nalLength
+		pos += naluLength
 	}
 	return false
 }
 
 // HasParameterSets - Check if H.264 SPS and PPS are present
 func HasParameterSets(b []byte) bool {
-	nalTypeList := FindNalTypes(b)
+	naluTypeList := FindNaluTypes(b)
 	hasSPS := false
 	hasPPS := false
-	for _, nalType := range nalTypeList {
-		if nalType == NALU_SPS {
+	for _, naluType := range naluTypeList {
+		if naluType == NALU_SPS {
 			hasSPS = true
 		}
-		if nalType == NALU_PPS {
+		if naluType == NALU_PPS {
 			hasPPS = true
 		}
 		if hasSPS && hasPPS {
@@ -119,16 +119,16 @@ func GetParameterSets(sample []byte) (sps [][]byte, pps [][]byte) {
 		if pos >= sampleLength {
 			break
 		}
-		nalLength := binary.BigEndian.Uint32(sample[pos : pos+4])
+		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
-		nalHdr := sample[pos]
-		switch GetNalType(nalHdr) {
+		naluHdr := sample[pos]
+		switch GetNaluType(naluHdr) {
 		case NALU_SPS:
-			sps = append(sps, sample[pos:pos+nalLength])
+			sps = append(sps, sample[pos:pos+naluLength])
 		case NALU_PPS:
-			pps = append(pps, sample[pos:pos+nalLength])
+			pps = append(pps, sample[pos:pos+naluLength])
 		}
-		pos += nalLength
+		pos += naluLength
 	}
 	return sps, pps
 }
