@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/hevc"
@@ -11,6 +12,17 @@ import (
 // Contains one HEVCDecoderConfigurationRecord
 type HvcCBox struct {
 	hevc.HEVCDecConfRec
+}
+
+// CreateHvcC- Create an hvcC box based on VPS, SPS and PPS and signal completeness
+func CreateHvcC(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete, ppsComplete bool) (*HvcCBox, error) {
+	hevcDecConfRec, err := hevc.CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus,
+		vpsComplete, spsComplete, ppsComplete)
+	if err != nil {
+		return nil, fmt.Errorf("CreateHEVCDecConfRec: %w", err)
+	}
+
+	return &HvcCBox{hevcDecConfRec}, nil
 }
 
 // DecodeHvcC - box-specific decode

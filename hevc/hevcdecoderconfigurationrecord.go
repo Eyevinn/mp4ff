@@ -16,7 +16,7 @@ var ErrLengthSize = errors.New("Can only handle 4byte NALU length size")
 type HEVCDecConfRec struct {
 	ConfigurationVersion             byte
 	GeneralProfileSpace              byte
-	GeneralTierFlag                  byte
+	GeneralTierFlag                  bool
 	GeneralProfileIDC                byte
 	GeneralProfileCompatibilityFlags uint32
 	GeneralConstraintIndicatorFlags  uint64
@@ -39,9 +39,13 @@ type NaluArray struct {
 	Nalus           [][]byte
 }
 
-func (n *NaluArray) NewNaluArray(complete byte, naluType NaluType, nalus [][]byte) *NaluArray {
+func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
+	var completeBit byte
+	if complete {
+		completeBit = 0x80
+	}
 	return &NaluArray{
-		completeAndType: complete<<7 | byte(naluType),
+		completeAndType: completeBit | byte(naluType),
 		Nalus:           nalus,
 	}
 }
@@ -54,9 +58,41 @@ func (n *NaluArray) Complete() byte {
 	return n.completeAndType >> 7
 }
 
+// CreateHEVCDecConfRec - extract information from vps, sps, pps and fill HEVCDecConfRec with that
+func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete, ppsComplete bool) (HEVCDecConfRec, error) {
+	sps, err := ParseSPSNALUnit(spsNalus[0])
+	if err != nil {
+		return HEVCDecConfRec{}, err
+	}
+	var naluArrays []NaluArray
+	naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
+	naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
+	naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, spsNalus))
+	ptf := sps.ProfileTierLevel
+	return HEVCDecConfRec{
+		ConfigurationVersion:             1,
+		GeneralProfileSpace:              ptf.GeneralProfileSpace,
+		GeneralTierFlag:                  ptf.GeneralTierFlag,
+		GeneralProfileIDC:                ptf.GeneralProfileIDC,
+		GeneralProfileCompatibilityFlags: ptf.GeneralProfileCompatibilityFlags,
+		GeneralConstraintIndicatorFlags:  ptf.GeneralConstraintIndicatorFlags,
+		GeneralLevelIDC:                  ptf.GeneralLevelIDC,
+		MinSpatialSegmentationIDC:        0, // Set as default value
+		ParallellismType:                 0, // Set as default value
+		ChromaFormatIDC:                  sps.ChromaFormatIDC,
+		BitDepthLumaMinus8:               sps.BitDepthLumaMinus8,
+		BitDepthChromaMinus8:             sps.BitDepthChromaMinus8,
+		AvgFrameRate:                     0,          // Set as default value
+		ConstantFrameRate:                0,          // Set as default value
+		NumTemporalLayers:                0,          // Set as default value
+		TemporalIDNested:                 0,          // Set as default value
+		LengthSizeMinusOne:               3,          // only support 4-byte length
+		NaluArrays:                       naluArrays, // VPS, SPS, PPS nalus with complete flag
+	}, nil
+}
+
 // DecodeHEVCDecConfRec - decode an HEVCDecConfRec
 func DecodeHEVCDecConfRec(r io.Reader) (HEVCDecConfRec, error) {
-
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return HEVCDecConfRec{}, err
@@ -70,7 +106,7 @@ func DecodeHEVCDecConfRec(r io.Reader) (HEVCDecConfRec, error) {
 	}
 	aByte := sr.ReadUint8()
 	hdcr.GeneralProfileSpace = (aByte >> 6) & 0x3
-	hdcr.GeneralTierFlag = (aByte >> 5) & 0x1
+	hdcr.GeneralTierFlag = (aByte>>5)&0x1 == 0x1
 	hdcr.GeneralProfileIDC = aByte & 0x1f
 	hdcr.GeneralProfileCompatibilityFlags = sr.ReadUint32()
 	hdcr.GeneralConstraintIndicatorFlags = (uint64(sr.ReadUint32()) << 16) | uint64(sr.ReadUint16())
@@ -121,7 +157,11 @@ func (h *HEVCDecConfRec) Size() uint64 {
 func (h *HEVCDecConfRec) Encode(w io.Writer) error {
 	aw := bits.NewAccErrByteWriter(w)
 	aw.WriteUint8(h.ConfigurationVersion)
-	aw.WriteUint8(h.GeneralProfileSpace<<6 | h.GeneralTierFlag<<5 | h.GeneralProfileIDC)
+	var generalTierFlagBit byte
+	if h.GeneralTierFlag {
+		generalTierFlagBit = 1 << 5
+	}
+	aw.WriteUint8(h.GeneralProfileSpace<<6 | generalTierFlagBit | h.GeneralProfileIDC)
 	aw.WriteUint32(h.GeneralProfileCompatibilityFlags)
 	aw.WriteUint48(h.GeneralConstraintIndicatorFlags)
 	aw.WriteUint8(h.GeneralLevelIDC)

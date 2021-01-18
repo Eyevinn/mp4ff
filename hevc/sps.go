@@ -50,6 +50,7 @@ type ProfileTierLevel struct {
 	GeneralTierFlag                  bool
 	GeneralProfileIDC                byte
 	GeneralProfileCompatibilityFlags uint32
+	GeneralConstraintIndicatorFlags  uint64 // 48 bits
 	GeneralProgressiveSourceFlag     bool
 	GeneralInterlacedSourceFlag      bool
 	GeneralNonPackedConstraintFlag   bool
@@ -94,11 +95,7 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps.ProfileTierLevel.GeneralTierFlag = r.ReadFlag()
 	sps.ProfileTierLevel.GeneralProfileIDC = byte(r.Read(5))
 	sps.ProfileTierLevel.GeneralProfileCompatibilityFlags = uint32(r.Read(32))
-	sps.ProfileTierLevel.GeneralProgressiveSourceFlag = r.ReadFlag()
-	sps.ProfileTierLevel.GeneralInterlacedSourceFlag = r.ReadFlag()
-	sps.ProfileTierLevel.GeneralNonPackedConstraintFlag = r.ReadFlag()
-	sps.ProfileTierLevel.GeneralFrameOnlyConstraintFlag = r.ReadFlag()
-	_ = r.Read(44) // constraint flags + general_inbld_flag/reserved bit
+	sps.ProfileTierLevel.GeneralConstraintIndicatorFlags = uint64(r.Read(48))
 	sps.ProfileTierLevel.GeneralLevelIDC = byte(r.Read(8))
 	if sps.MaxSubLayersMinus1 != 0 {
 		return sps, nil // Cannot parse any further
