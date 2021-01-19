@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-var SliceReadError = fmt.Errorf("Read too far in SliceReaderß")
+var SliceReadError = fmt.Errorf("Read too far in SliceReader")
 
 // SliceReader - read integers and other data from a slice.
 // Accumulates error, and the first error can be retrived.
