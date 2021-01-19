@@ -17,7 +17,8 @@ type VmhdBox struct {
 
 // CreateVmhd - Create Video Media Header Box
 func CreateVmhd() *VmhdBox {
-	return &VmhdBox{Flags: 0x00000001}
+	// Flags should be 0x000001 according to ISO/IEC 14496-12 Sec.12.1.2.1
+	return &VmhdBox{Flags: 0x000001}
 }
 
 // DecodeVmhd - box-specific decode
