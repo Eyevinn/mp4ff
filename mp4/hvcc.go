@@ -58,7 +58,7 @@ func (b *HvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd := newInfoDumper(w, indent, b, -1)
 	hdcr := b.HEVCDecConfRec
 	bd.write(" - GeneralProfileSpace: %d", hdcr.GeneralProfileSpace)
-	bd.write(" - GeneralTierFlag: %d", hdcr.GeneralTierFlag)
+	bd.write(" - GeneralTierFlag: %t", hdcr.GeneralTierFlag)
 	bd.write(" - GeneralProfileIDC: %d", hdcr.GeneralProfileIDC)
 	bd.write(" - GeneralProfileCompatibilityFlags: %08x", hdcr.GeneralProfileCompatibilityFlags)
 	bd.write(" - GeneralConstraintIndicatorFlags: %012x", hdcr.GeneralConstraintIndicatorFlags)
