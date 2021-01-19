@@ -94,7 +94,7 @@ func (b *SaioBox) Encode(w io.Writer) error {
 
 // Info - write SaioBox details. Get offset list with level >= 1
 func (b *SaioBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if b.Flags&0x01 != 0 {
 		bd.write(" - auxInfoType: %s", b.AuxInfoType)
 		bd.write(" - auxInfoTypeParameter: %d", b.AuxInfoTypeParameter)

@@ -55,7 +55,7 @@ func (b *HvcCBox) Encode(w io.Writer) error {
 
 // Info - box-specific Info
 func (b *HvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, -1)
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	hdcr := b.HEVCDecConfRec
 	bd.write(" - GeneralProfileSpace: %d", hdcr.GeneralProfileSpace)
 	bd.write(" - GeneralTierFlag: %t", hdcr.GeneralTierFlag)

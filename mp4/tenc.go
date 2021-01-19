@@ -95,7 +95,7 @@ func (b *TencBox) Encode(w io.Writer) error {
 
 // Info - write box info to w
 func (b *TencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if b.Version > 0 {
 		bd.write(" - defaultCryptByteBlock: %d", b.DefaultCryptByteBlock)
 		bd.write(" - defaultSkipByteBlock: %d", b.DefaultSkipByteBlock)

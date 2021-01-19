@@ -60,7 +60,7 @@ func EncodeContainer(c ContainerBox, w io.Writer) error {
 }
 
 func ContainerInfo(c ContainerBox, w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, c, -1)
+	bd := newInfoDumper(w, indent, c, -1, 0)
 	if bd.err != nil {
 		return bd.err
 	}

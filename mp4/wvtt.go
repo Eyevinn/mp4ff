@@ -125,7 +125,7 @@ func (a *WvttBox) Encode(w io.Writer) error {
 }
 
 func (a *WvttBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, a, -1)
+	bd := newInfoDumper(w, indent, a, -1, 0)
 	if bd.err != nil {
 		return bd.err
 	}
@@ -179,7 +179,7 @@ func (v *VttCBox) Encode(w io.Writer) error {
 }
 
 func (v *VttCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1)
+	bd := newInfoDumper(w, indent, v, -1, 0)
 	bd.write(" - config: %s", v.Config)
 	return bd.err
 }
@@ -224,7 +224,7 @@ func (v *VlabBox) Encode(w io.Writer) error {
 }
 
 func (v *VlabBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1)
+	bd := newInfoDumper(w, indent, v, -1, 0)
 	bd.write(" - sourceLabel: %s", v.SourceLabel)
 	return bd.err
 }
@@ -259,7 +259,7 @@ func (v *VtteBox) Encode(w io.Writer) error {
 }
 
 func (v *VtteBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1)
+	bd := newInfoDumper(w, indent, v, -1, 0)
 	return bd.err
 }
 
@@ -373,7 +373,7 @@ func (v *VsidBox) Encode(w io.Writer) error {
 }
 
 func (v *VsidBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1)
+	bd := newInfoDumper(w, indent, v, -1, 0)
 	bd.write(" - sourceID: %d", v.SourceID)
 	return bd.err
 }
@@ -419,7 +419,7 @@ func (c *CtimBox) Encode(w io.Writer) error {
 }
 
 func (c *CtimBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, c, -1)
+	bd := newInfoDumper(w, indent, c, -1, 0)
 	bd.write(" - cueCurrentTime: %s", c.CueCurrentTime)
 	return bd.err
 }
@@ -464,7 +464,7 @@ func (i *IdenBox) Encode(w io.Writer) error {
 }
 
 func (i *IdenBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, i, -1)
+	bd := newInfoDumper(w, indent, i, -1, 0)
 	bd.write(" - cueID: %s", i.CueID)
 	return bd.err
 }
@@ -509,7 +509,7 @@ func (s *SttgBox) Encode(w io.Writer) error {
 }
 
 func (s *SttgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, s, -1)
+	bd := newInfoDumper(w, indent, s, -1, 0)
 	bd.write(" - settings: %s", s.Settings)
 	return bd.err
 }
@@ -554,7 +554,7 @@ func (p *PaylBox) Encode(w io.Writer) error {
 }
 
 func (p *PaylBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, p, -1)
+	bd := newInfoDumper(w, indent, p, -1, 0)
 	bd.write(" - cueText: %s", p.CueText)
 	return bd.err
 }
@@ -599,7 +599,7 @@ func (v *VttaBox) Encode(w io.Writer) error {
 }
 
 func (v *VttaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1)
+	bd := newInfoDumper(w, indent, v, -1, 0)
 	bd.write(" - cueAdditionalText: %s", v.CueAdditionalText)
 	return bd.err
 }

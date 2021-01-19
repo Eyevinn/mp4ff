@@ -45,7 +45,7 @@ func (b *FrmaBox) Encode(w io.Writer) error {
 
 // Info - write box info to w
 func (b *FrmaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, b, -1)
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - dataFormat: %s", b.DataFormat)
 	return bd.err
 }

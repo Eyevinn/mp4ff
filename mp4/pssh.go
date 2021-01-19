@@ -117,7 +117,7 @@ func (b *PsshBox) Encode(w io.Writer) error {
 
 // Info - write box info to w
 func (b *PsshBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - systemID: %s (%s)", b.SystemID, systemName(b.SystemID))
 	if b.Version > 0 {
 		for i, kid := range b.KIDs {

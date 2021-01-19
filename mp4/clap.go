@@ -67,7 +67,7 @@ func (b *ClapBox) Encode(w io.Writer) error {
 }
 
 func (b *ClapBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, -1)
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - cleanAperturWidth: %d/%d", b.CleanApertureWidthN, b.CleanApertureWidthD)
 	bd.write(" - cleanApertureHeight: %d/%d", b.CleanApertureHeightN, b.CleanApertureHeightD)
 	bd.write(" - horizOff: %d/%d", b.HorizOffN, b.HorizOffD)

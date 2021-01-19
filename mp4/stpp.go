@@ -139,7 +139,7 @@ func (s *StppBox) Encode(w io.Writer) error {
 }
 
 func (s *StppBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, s, -1)
+	bd := newInfoDumper(w, indent, s, -1, 0)
 	bd.write(" - dataReferenceIndex: %d", s.DataReferenceIndex)
 	bd.write(" - nameSpace: %s", s.Namespace)
 	bd.write(" - schemaLocation: %s", s.SchemaLocation)

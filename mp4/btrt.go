@@ -62,7 +62,7 @@ func (b *BtrtBox) Encode(w io.Writer) error {
 }
 
 func (b *BtrtBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, -1)
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - bufferSizeDB: %d", b.BufferSizeDB)
 	bd.write(" - maxBitrate: %d", b.MaxBitrate)
 	bd.write(" - AvgBitrate: %d", b.AvgBitrate)

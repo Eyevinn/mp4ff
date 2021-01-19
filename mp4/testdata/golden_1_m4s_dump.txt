@@ -4,17 +4,15 @@
  - compatibleBrand: msdh
  - compatibleBrand: dash
 [moof] size=1044
-  [mfhd] size=16 version=0
+  [mfhd] size=16 version=0 flags=000000
    - sequenceNumber: 1
   [traf] size=1020
-    [tfhd] size=16 version=0
-     - flags: 00020000
+    [tfhd] size=16 version=0 flags=020000
      - trackID: 2
      - defaultBaseIsMoof: true
-    [tfdt] size=16 version=0
+    [tfdt] size=16 version=0 flags=000000
      - baseMediaDecodeTime: 0
-    [trun] size=980 version=0
-     - flags: 00000f01
+    [trun] size=980 version=0 flags=000f01
      - sampleCount: 60
      - DataOffset: 1052
      - sample[1]: dur=3000 size=3130 flags=02000000 (isLeading=0 dependsOn=2 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0) cto=6000

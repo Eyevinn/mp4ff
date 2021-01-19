@@ -62,6 +62,6 @@ func (b *SmhdBox) Encode(w io.Writer) error {
 }
 
 func (b *SmhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	return bd.err
 }

@@ -127,7 +127,7 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 }
 
 func (b *TkhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - trackID: %d", b.TrackID)
 	if b.Width != 0 && b.Height != 0 { // These are Fixed32 values
 		bd.write(" - Width: %s, Height: %s", b.Width, b.Height)

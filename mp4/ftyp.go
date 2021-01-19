@@ -68,7 +68,7 @@ func (b *FtypBox) Encode(w io.Writer) error {
 }
 
 func (b *FtypBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, -1)
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - majorBrand: %s", b.MajorBrand)
 	bd.write(" - minorVersion: %d", b.MinorVersion)
 	for _, cb := range b.CompatibleBrands {

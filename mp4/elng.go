@@ -52,7 +52,7 @@ func (b *ElngBox) Encode(w io.Writer) error {
 }
 
 func (b *ElngBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, -1)
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - language: %s", b.Language)
 	return bd.err
 }

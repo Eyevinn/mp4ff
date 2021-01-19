@@ -98,7 +98,7 @@ func (b *HdlrBox) Encode(w io.Writer) error {
 }
 
 func (b *HdlrBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - handlerType: %s", b.HandlerType)
 	bd.write(" - handlerName: %q", b.Name)
 	return bd.err

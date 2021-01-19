@@ -24,12 +24,12 @@ type infoDumper struct {
 // newInfoDumper - make an infoDumper with indent
 // set Version to -1 if not present for box
 // set Version to -2 for sample group entries
-func newInfoDumper(w io.Writer, indent string, b boxLike, version int) *infoDumper {
+func newInfoDumper(w io.Writer, indent string, b boxLike, version int, flags uint32) *infoDumper {
 	bd := infoDumper{w, indent, b, nil}
 	if version == -1 {
 		bd.write("[%s] size=%d", b.Type(), b.Size())
 	} else if version >= 0 {
-		bd.write("[%s] size=%d version=%d", b.Type(), b.Size(), version)
+		bd.write("[%s] size=%d version=%d flags=%06x", b.Type(), b.Size(), version, flags)
 	} else { // version = -2
 		bd.write("GroupingType %q size=%d", b.Type(), b.Size())
 	}
