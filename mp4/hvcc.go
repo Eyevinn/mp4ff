@@ -53,6 +53,7 @@ func (b *HvcCBox) Encode(w io.Writer) error {
 	return b.HEVCDecConfRec.Encode(w)
 }
 
+// Info - box-specific Info
 func (b *HvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1)
 	hdcr := b.HEVCDecConfRec

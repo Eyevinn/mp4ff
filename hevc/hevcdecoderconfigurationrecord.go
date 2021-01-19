@@ -34,11 +34,13 @@ type HEVCDecConfRec struct {
 	NaluArrays                       []NaluArray
 }
 
+// NaluArray - HEVC NALU array including complete bit and type
 type NaluArray struct {
 	completeAndType byte
 	Nalus           [][]byte
 }
 
+// NewNaluArray - create an HEVC NaluArray
 func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
 	var completeBit byte
 	if complete {
@@ -50,10 +52,12 @@ func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
 	}
 }
 
+// NaluType - return NaluType for NaluArray
 func (n *NaluArray) NaluType() NaluType {
 	return NaluType(n.completeAndType & 0x3f)
 }
 
+// Complete - return 0x1 if complete
 func (n *NaluArray) Complete() byte {
 	return n.completeAndType >> 7
 }
