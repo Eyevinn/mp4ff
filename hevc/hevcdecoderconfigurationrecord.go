@@ -108,8 +108,9 @@ func DecodeHEVCDecConfRec(r io.Reader) (HEVCDecConfRec, error) {
 func (h *HEVCDecConfRec) Size() uint64 {
 	totalSize := 23 // Up to and including numArrays
 	for _, array := range h.NaluArrays {
-		totalSize += 1 // complete + nalu type
+		totalSize += 3 // complete + nalu type + num nalus
 		for _, nalu := range array.Nalus {
+			totalSize += 2 // nal unit length
 			totalSize += len(nalu)
 		}
 	}
