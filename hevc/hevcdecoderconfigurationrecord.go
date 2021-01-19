@@ -67,7 +67,7 @@ func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, sp
 	var naluArrays []NaluArray
 	naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
 	naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
-	naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, spsNalus))
+	naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
 	ptf := sps.ProfileTierLevel
 	return HEVCDecConfRec{
 		ConfigurationVersion:             1,
@@ -99,10 +99,10 @@ func DecodeHEVCDecConfRec(r io.Reader) (HEVCDecConfRec, error) {
 	}
 	hdcr := HEVCDecConfRec{}
 	sr := bits.NewSliceReader(data)
-	configurationVersion := sr.ReadUint8()
-	if configurationVersion != 1 {
+	hdcr.ConfigurationVersion = sr.ReadUint8()
+	if hdcr.ConfigurationVersion != 1 {
 		return HEVCDecConfRec{}, fmt.Errorf("HEVC decoder configuration record version %d unknown",
-			configurationVersion)
+			hdcr.ConfigurationVersion)
 	}
 	aByte := sr.ReadUint8()
 	hdcr.GeneralProfileSpace = (aByte >> 6) & 0x3
@@ -177,6 +177,7 @@ func (h *HEVCDecConfRec) Encode(w io.Writer) error {
 		aw.WriteUint8(array.completeAndType)
 		aw.WriteUint16(uint16(len(array.Nalus)))
 		for _, nalu := range array.Nalus {
+			aw.WriteUint16(uint16(len(nalu)))
 			aw.WriteSlice(nalu)
 		}
 	}
