@@ -32,8 +32,8 @@ func NewVisualSampleEntryBox(name string) *VisualSampleEntryBox {
 	return b
 }
 
-// CreateVisualSampleEntryBox - Create new VisualSampleEntry box such as avc1, avc3
-func CreateVisualSampleEntryBox(name string, width, height uint16, avcC *AvcCBox) *VisualSampleEntryBox {
+// CreateVisualSampleEntryBox - Create new VisualSampleEntry such as avc1, avc3, hev1, hvc1
+func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry Box) *VisualSampleEntryBox {
 	a := &VisualSampleEntryBox{
 		name:               name,
 		DataReferenceIndex: 1,
@@ -45,8 +45,8 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, avcC *AvcCBox
 		CompressorName:     "mp4ff video packager",
 		Children:           []Box{},
 	}
-	if avcC != nil {
-		a.AddChild(avcC)
+	if sampleEntry != nil {
+		a.AddChild(sampleEntry)
 	}
 	return a
 }
