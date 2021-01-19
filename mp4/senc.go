@@ -201,13 +201,12 @@ func (s *SencBox) Encode(w io.Writer) error {
 }
 
 func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, s, int(s.Version))
+	bd := newInfoDumper(w, indent, s, int(s.Version), s.Flags)
 	for _, subSamples := range s.SubSamples {
 		if len(subSamples) > 0 {
 			s.Flags |= UseSubSampleEncryption
 		}
 	}
-	bd.write(" - flags: %06x", s.Flags)
 	perSampleIVSize := s.GetPerSampleIVSize()
 	bd.write(" - perSampleIVSize: %d", perSampleIVSize)
 	level := getInfoLevel(s, specificBoxLevels)

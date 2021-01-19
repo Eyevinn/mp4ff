@@ -82,7 +82,7 @@ func (b *SbgpBox) Encode(w io.Writer) error {
 
 // Info - write box info to w
 func (b *SbgpBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - groupingType: %s", b.GroupingType)
 	if b.Version == 1 {
 		bd.write(" - groupingTypeParameter: %d", b.GroupingTypeParameter)

@@ -3,24 +3,23 @@
  - minorVersion: 0
  - compatibleBrand: msdh
  - compatibleBrand: msix
-[sidx] size=44 version=0
+[sidx] size=44 version=0 flags=000000
  - referenceID: 1
  - timeScale: 24
  - earliestPresentationTime: 0
  - firstOffset: 0
  - reference[1]: type=0 size=93848 subSegmentDuration=96 startsWithSAP=1 SAPType=1 SAPDeltaTime=0
 [moof] size=3023
-  [mfhd] size=16 version=0
+  [mfhd] size=16 version=0 flags=000000
    - sequenceNumber: 1
   [traf] size=2999
-    [tfhd] size=20 version=0
-     - flags: 00020008
+    [tfhd] size=20 version=0 flags=020008
      - trackID: 1
      - defaultBaseIsMoof: true
      - defaultSampleDuration: 1
-    [tfdt] size=16 version=0
+    [tfdt] size=16 version=0 flags=000000
      - baseMediaDecodeTime: 0
-    [sgpd] size=44 version=1
+    [sgpd] size=44 version=1 flags=000000
        groupingType: seig
      - defaultLength: 20
      - entryCount: 1
@@ -30,11 +29,11 @@
      -  * isProtected: 1
      -  * perSampleIVSize: 8
      -  * KID: 914e69f4-0ab3-4534-9e9f-9853615e26f6
-    [sbgp] size=28 version=0
+    [sbgp] size=28 version=0 flags=000000
      - groupingType: seig
      - entryCount: 1
      - entry[1] sampleCount=96 groupDescriptionIndex=65537
-    [saiz] size=121 version=0
+    [saiz] size=121 version=0 flags=000001
      - auxInfoType: cenc
      - auxInfoTypeParameter: 0
      - defaultSampleInfoSize: 0
@@ -135,13 +134,12 @@
      - sampleInfo[94]=16
      - sampleInfo[95]=16
      - sampleInfo[96]=16
-    [saio] size=32 version=1
+    [saio] size=32 version=1 flags=000001
      - auxInfoType: cenc
      - auxInfoTypeParameter: 0
      - sampleCount: 1
      - offset[1]=1481
-    [trun] size=1172 version=0
-     - flags: 00000e01
+    [trun] size=1172 version=0 flags=000e01
      - sampleCount: 96
      - DataOffset: 3031
      - sample[1]: size=16279 flags=02000000 (isLeading=0 dependsOn=2 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0) cto=2
@@ -240,8 +238,7 @@
      - sample[94]: size=280 flags=00010000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0) cto=4
      - sample[95]: size=369 flags=00010000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0) cto=1
      - sample[96]: size=378 flags=00010000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0) cto=1
-    [senc] size=1558 version=0
-     - flags: 000002
+    [senc] size=1558 version=0 flags=000002
      - perSampleIVSize: 8
      - sample[1]:  iv=89d2843aeaa409b6
        - subSample[1]: nrBytesClear=5 nrBytesProtected=758

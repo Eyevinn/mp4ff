@@ -142,7 +142,7 @@ func (b *SubsBox) Encode(w io.Writer) error {
 
 // Info - specificBoxLevels dump:1 gives details
 func (b *SubsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	level := getInfoLevel(b, specificBoxLevels)
 	if level < 1 {
 		return bd.err

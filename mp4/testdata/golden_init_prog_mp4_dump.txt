@@ -4,33 +4,33 @@
  - compatibleBrand: isom
  - compatibleBrand: avc1
 [moov] size=5089
-  [mvhd] size=108 version=0
+  [mvhd] size=108 version=0 flags=000000
    - timeScale: 600
    - duration: 11520
   [iods] size=21
    - not implemented or unknown box
   [trak] size=4952
-    [tkhd] size=92 version=0
+    [tkhd] size=92 version=0 flags=000001
      - trackID: 1
      - Width: 960.0, Height: 540.0
     [edts] size=36
-      [elst] size=28 version=0
+      [elst] size=28 version=0 flags=000000
       - entry[1]: segmentDuration=11520 mediaTime=4, mediaRateInteger=1 mediaRateFraction=0
     [mdia] size=4816
-      [mdhd] size=32 version=0
+      [mdhd] size=32 version=0 flags=000000
        - timeScale: 100
        - language: und
-      [hdlr] size=57 version=0
+      [hdlr] size=57 version=0 flags=000000
        - handlerType: vide
        - handlerName: "264@GPAC0.8.0-revrelease"
       [minf] size=4719
-        [vmhd] size=20 version=0
+        [vmhd] size=20 version=0 flags=000001
         [dinf] size=36
-          [dref] size=28 version=0
+          [dref] size=28 version=0 flags=000000
             [url ] size=12
              - location: ""
         [stbl] size=4655
-          [stsd] size=183 version=0
+          [stsd] size=183 version=0 flags=000000
             [avc1] size=167
              - compressorName: ""
               [avcC] size=61
@@ -43,9 +43,9 @@
                - bufferSizeDB: 150491
                - maxBitrate: 2450912
                - AvgBitrate: 1384000
-          [stts] size=24 version=0
+          [stts] size=24 version=0 flags=000000
            - entry[1]: sampleCount=480 sampleDelta=4
-          [ctts] size=2128 version=0
+          [ctts] size=2128 version=0 flags=000000
            - sampleCount: 264
            - entry[1]: sampleCount=1 sampleOffset=4
            - entry[2]: sampleCount=1 sampleOffset=16
@@ -311,7 +311,7 @@
            - entry[262]: sampleCount=1 sampleOffset=8
            - entry[263]: sampleCount=1 sampleOffset=0
            - entry[264]: sampleCount=1 sampleOffset=4
-          [stss] size=144 version=0
+          [stss] size=144 version=0 flags=000000
            - syncSample[1]: sampleNumber=1
            - syncSample[2]: sampleNumber=16
            - syncSample[3]: sampleNumber=38
@@ -344,11 +344,11 @@
            - syncSample[30]: sampleNumber=444
            - syncSample[31]: sampleNumber=461
            - syncSample[32]: sampleNumber=480
-          [stsc] size=52 version=0
+          [stsc] size=52 version=0 flags=000000
            - entry[1]: firstChunk=1 samplesPerChunk=13 sampleDescriptionID=1
            - entry[2]: firstChunk=2 samplesPerChunk=12 sampleDescriptionID=1
            - entry[3]: firstChunk=40 samplesPerChunk=11 sampleDescriptionID=1
-          [stsz] size=1940 version=0
+          [stsz] size=1940 version=0 flags=000000
            - sampleCount: 480
            - sample[1] size=61577
            - sample[2] size=8722
@@ -830,7 +830,7 @@
            - sample[478] size=9156
            - sample[479] size=2949
            - sample[480] size=23339
-          [stco] size=176 version=0
+          [stco] size=176 version=0 flags=000000
            - entry[1]: chunkOffset=5121
            - entry[2]: chunkOffset=117686
            - entry[3]: chunkOffset=217679

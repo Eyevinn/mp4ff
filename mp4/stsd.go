@@ -138,7 +138,7 @@ func (s *StsdBox) Encode(w io.Writer) error {
 }
 
 func (s *StsdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, s, int(s.Version))
+	bd := newInfoDumper(w, indent, s, int(s.Version), s.Flags)
 	if bd.err != nil {
 		return bd.err
 	}

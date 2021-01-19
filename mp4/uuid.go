@@ -192,7 +192,7 @@ func (t *TfrfData) encode(w io.Writer) error {
 }
 
 func (u *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, u, -1)
+	bd := newInfoDumper(w, indent, u, -1, 0)
 	bd.write(" - subType: %s", u.SubType)
 	return bd.err
 }

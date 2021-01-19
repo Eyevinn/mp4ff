@@ -88,7 +88,7 @@ func (b *StszBox) Encode(w io.Writer) error {
 }
 
 func (b *StszBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if b.SampleNumber == 0 { // No samples
 		return bd.err
 	}

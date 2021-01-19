@@ -91,7 +91,7 @@ func (b *MetaBox) Encode(w io.Writer) error {
 }
 
 func (b *MetaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if bd.err != nil {
 		return bd.err
 	}

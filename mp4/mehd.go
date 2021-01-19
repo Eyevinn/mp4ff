@@ -72,7 +72,7 @@ func (b *MehdBox) Encode(w io.Writer) error {
 
 // Dump - write MehBox details.
 func (b *MehdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - fragmentDuration: %d", b.FragmentDuration)
 	return bd.err
 }

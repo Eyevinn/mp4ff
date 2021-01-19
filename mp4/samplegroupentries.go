@@ -104,7 +104,7 @@ func (s *SeigSampleGroupEntry) Encode(sw *SliceWriter) {
 
 // Info - write box info to w
 func (s *SeigSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, s, -2)
+	bd := newInfoDumper(w, indent, s, -2, 0)
 	bd.write(" * cryptByteBlock: %d", s.CryptByteBlock)
 	bd.write(" * skipByteBlock: %d", s.SkipByteBlock)
 	bd.write(" * isProtected: %d", s.IsProtected)
@@ -144,7 +144,7 @@ func (s *UnknownSampleGroupEntry) Encode(sw *SliceWriter) {
 
 // Info - write box info to w
 func (s *UnknownSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, s, -2)
+	bd := newInfoDumper(w, indent, s, -2, 0)
 	bd.write(" * Unknown data of length: %d", len(s.Data))
 	level := getInfoLevel(s, specificBoxLevels)
 	if level > 0 {
@@ -182,7 +182,7 @@ func (s *RollSampleGroupEntry) Encode(sw *SliceWriter) {
 
 // Info - write box info to w
 func (s *RollSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, s, -2)
+	bd := newInfoDumper(w, indent, s, -2, 0)
 	bd.write(" * rollDistance: %d", s.RollDistance)
 	return bd.err
 }
@@ -220,7 +220,7 @@ func (s *RapSampleGroupEntry) Encode(sw *SliceWriter) {
 
 // Info - write box info to w
 func (s *RapSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, s, -2)
+	bd := newInfoDumper(w, indent, s, -2, 0)
 	bd.write(" * numLeadingSamplesKnown: %d", s.NumLeadingSamplesKnown)
 	bd.write(" * numLeadingSamples: %d", s.NumLeadingSamples)
 	return bd.err
@@ -289,7 +289,7 @@ func (s *AlstSampleGroupEntry) Encode(sw *SliceWriter) {
 
 // Info - write box info to w
 func (s *AlstSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, s, -2)
+	bd := newInfoDumper(w, indent, s, -2, 0)
 	bd.write(" * rollDistance: %d", s.RollCount)
 	bd.write(" * firstOutputSample: %d", s.FirstOutputSample)
 	level := getInfoLevel(s, specificBoxLevels)

@@ -87,7 +87,7 @@ func (b *SaizBox) Encode(w io.Writer) error {
 
 // Info - write SaizBox details. Get sampleInfo list with level >= 1
 func (b *SaizBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if b.Flags&0x01 != 0 {
 		bd.write(" - auxInfoType: %s", b.AuxInfoType)
 		bd.write(" - auxInfoTypeParameter: %d", b.AuxInfoTypeParameter)

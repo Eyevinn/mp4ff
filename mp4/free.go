@@ -40,6 +40,6 @@ func (b *FreeBox) Encode(w io.Writer) error {
 }
 
 func (b *FreeBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, -1)
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	return bd.err
 }

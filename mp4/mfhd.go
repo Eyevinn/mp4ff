@@ -67,7 +67,7 @@ func (m *MfhdBox) Encode(w io.Writer) error {
 }
 
 func (m *MfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, m, int(m.Version))
+	bd := newInfoDumper(w, indent, m, int(m.Version), m.Flags)
 	bd.write(" - sequenceNumber: %d", m.SequenceNumber)
 	return bd.err
 }

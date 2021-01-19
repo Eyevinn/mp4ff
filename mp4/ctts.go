@@ -90,7 +90,7 @@ func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
 
 // Info - get all info with specificBoxLevels ctts:1 or higher
 func (b *CttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, int(b.Version))
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - sampleCount: %d", len(b.SampleCount))
 	if getInfoLevel(b, specificBoxLevels) > 0 {
 		for i := range b.SampleCount {

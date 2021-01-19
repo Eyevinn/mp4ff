@@ -91,7 +91,7 @@ func (t *TfdtBox) Encode(w io.Writer) error {
 }
 
 func (t *TfdtBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
-	bd := newInfoDumper(w, indent, t, int(t.Version))
+	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
 	bd.write(" - baseMediaDecodeTime: %d", t.BaseMediaDecodeTime)
 	return bd.err
 }

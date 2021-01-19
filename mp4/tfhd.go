@@ -173,8 +173,7 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 }
 
 func (t *TfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, t, int(t.Version))
-	bd.write(" - flags: %08x", t.Flags)
+	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
 	bd.write(" - trackID: %d", t.TrackID)
 
 	if t.Flags&defaultBaseIsMoof != 0 {

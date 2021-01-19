@@ -100,7 +100,7 @@ func (d *DrefBox) Encode(w io.Writer) error {
 }
 
 func (d *DrefBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, d, int(d.Version))
+	bd := newInfoDumper(w, indent, d, int(d.Version), d.Flags)
 	if bd.err != nil {
 		return bd.err
 	}
