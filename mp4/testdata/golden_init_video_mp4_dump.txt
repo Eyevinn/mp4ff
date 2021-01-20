@@ -27,6 +27,8 @@
         [stbl] size=237
           [stsd] size=161 version=0 flags=000000
             [avc3] size=145
+             - width: 640
+             - height: 360
              - compressorName: "mp4ff video packager"
               [avcC] size=59
                - AVCProfileIndication: 77

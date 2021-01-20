@@ -187,6 +187,8 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 
 func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - width: %d", b.Width)
+	bd.write(" - height: %d", b.Height)
 	bd.write(" - compressorName: %q", b.CompressorName)
 	if bd.err != nil {
 		return bd.err

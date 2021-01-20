@@ -27,6 +27,8 @@
         [stbl] size=319
           [stsd] size=243 version=0 flags=000000
             [encv] size=227
+             - width: 640
+             - height: 360
              - compressorName: ""
               [avcC] size=61
                - AVCProfileIndication: 100
