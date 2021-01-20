@@ -6,14 +6,14 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/edgeware/mp4ff)](https://goreportcard.com/report/github.com/edgeware/mp4ff)
 [![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.md)
 
-Package mp4ff implements MP4 media file parser and writer for AVC video, AAC audio and stpp/wvtt subtitles.
+Package mp4ff implements MP4 media file parser and writer for AVC and HEVC video, AAC audio and stpp/wvtt subtitles.
 Focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4.
 
 ## Library
 
 The library has functions for parsing (called Decode) and writing (Encode) in the package `mp4ff/mp4`.
 It also contains codec specific parsing of of AVC/H.264 including complete parsing of
-SPS and PPS in the package `mp4ff.avc`.
+SPS and PPS in the package `mp4ff.avc`. HEVC/H.265 parsing is less complete, and available as `mp4ff.hevc`.
 
 Traditional multiplexed non-fragmented mp4 files can also be parsed and decoded, see `examples/segment`.
 
