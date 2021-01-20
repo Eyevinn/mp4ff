@@ -7,6 +7,7 @@ import (
 
 	"github.com/edgeware/mp4ff/aac"
 	"github.com/edgeware/mp4ff/avc"
+	"github.com/edgeware/mp4ff/hevc"
 )
 
 // InitSegment - MP4/CMAF init segment
@@ -153,9 +154,11 @@ func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *Tra
 	return trak
 }
 
-// SetAVCDescriptor - Modify a TrakBox by adding AVC SampleDescriptor from one SPS and multiple PPS
-// Get width and height from SPS and fill into tkhd box.
-func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs [][]byte, ppsNALUs [][]byte) error {
+// SetAVCDescriptor - Set AVC SampleDescriptor based on SPS and PPS
+func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs, ppsNALUs [][]byte) error {
+	if sampleDescriptorType != "avc1" && sampleDescriptorType != "avc3" {
+		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
+	}
 	avcSPS, err := avc.ParseSPSNALUnit(spsNALUs[0], false)
 	if err != nil {
 		return fmt.Errorf("Could not parse SPS NALU: %w", err)
@@ -163,15 +166,36 @@ func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs [][]byt
 	t.Tkhd.Width = Fixed32(avcSPS.Width << 16)   // This is display width
 	t.Tkhd.Height = Fixed32(avcSPS.Height << 16) // This is display height
 	stsd := t.Mdia.Minf.Stbl.Stsd
-	if sampleDescriptorType != "avc1" && sampleDescriptorType != "avc3" {
-		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
-	}
+
 	avcC, err := CreateAvcC(spsNALUs, ppsNALUs)
 	if err != nil {
 		return err
 	}
 	width, height := uint16(avcSPS.Width), uint16(avcSPS.Height)
 	avcx := CreateVisualSampleEntryBox(sampleDescriptorType, width, height, avcC)
+	stsd.AddChild(avcx)
+	return nil
+}
+
+// SetHEVCDescriptor - Set HEVC SampleDescriptor based on VPS, SPS, and PPS
+func (t *TrakBox) SetHEVCDescriptor(sampleDescriptorType string, vpsNALUs, spsNALUs, ppsNALUs [][]byte) error {
+	if sampleDescriptorType != "hvc1" && sampleDescriptorType != "hev1" {
+		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
+	}
+	hevcSPS, err := hevc.ParseSPSNALUnit(spsNALUs[0])
+	if err != nil {
+		return fmt.Errorf("Could not parse SPS NALU: %w", err)
+	}
+	width, height := hevcSPS.ImageSize()
+	t.Tkhd.Width = Fixed32(width << 16)   // This is display width
+	t.Tkhd.Height = Fixed32(height << 16) // This is display height
+	stsd := t.Mdia.Minf.Stbl.Stsd
+
+	hvcC, err := CreateHvcC(vpsNALUs, spsNALUs, ppsNALUs, true, true, true)
+	if err != nil {
+		return err
+	}
+	avcx := CreateVisualSampleEntryBox(sampleDescriptorType, uint16(width), uint16(height), hvcC)
 	stsd.AddChild(avcx)
 	return nil
 }
