@@ -1,4 +1,5 @@
 // resegmenter - resegment mp4 files into concatenated segments with new duration.
+// Works even without init segment, since chunkDur is in ticks.
 package main
 
 import (
@@ -11,7 +12,7 @@ import (
 
 func main() {
 
-	inFilePath := flag.String("f", "", "Required: Path to input file")
+	inFilePath := flag.String("i", "", "Required: Path to input file")
 	outFilePath := flag.String("o", "", "Required: Output file")
 	chunkDur := flag.Int("b", 0, "Required: chunk duration (ticks)")
 

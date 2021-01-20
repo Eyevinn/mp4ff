@@ -55,12 +55,18 @@ func (s *Segmenter) MakeInitSegments() ([]*mp4.InitSegment, error) {
 			init.AddEmptyTrack(track.timeScale, mediaType, lang)
 			outTrack := init.Moov.Trak
 			track.trackID = outTrack.Tkhd.TrackID
-			stsd := outTrack.Mdia.Minf.Stbl.Stsd
+			inStsd := inTrak.Mdia.Minf.Stbl.Stsd
+			outStsd := outTrack.Mdia.Minf.Stbl.Stsd
 			if mediaType == "audio" {
-				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.Mp4a)
+				outStsd.AddChild(inStsd.Mp4a)
 				track.trackType = "audio"
 			} else {
-				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.AvcX)
+				if inStsd.AvcX != nil {
+					outStsd.AddChild(inStsd.AvcX)
+				}
+				if inStsd.HvcX != nil {
+					outStsd.AddChild(inStsd.HvcX)
+				}
 				track.trackType = "video"
 			}
 			inits = append(inits, init)
@@ -95,12 +101,18 @@ func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 			track.timeScale = inTrak.Mdia.Mdhd.Timescale
 			init.AddEmptyTrack(track.timeScale, mediaType, lang)
 			outTrack := init.Moov.Traks[len(init.Moov.Traks)-1]
-			stsd := outTrack.Mdia.Minf.Stbl.Stsd
+			inStsd := inTrak.Mdia.Minf.Stbl.Stsd
+			outStsd := outTrack.Mdia.Minf.Stbl.Stsd
 			if mediaType == "audio" {
-				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.Mp4a)
+				outStsd.AddChild(inStsd.Mp4a)
 				track.trackType = "audio"
 			} else {
-				stsd.AddChild(inTrak.Mdia.Minf.Stbl.Stsd.AvcX)
+				if inStsd.AvcX != nil {
+					outStsd.AddChild(inStsd.AvcX)
+				}
+				if inStsd.HvcX != nil {
+					outStsd.AddChild(inStsd.HvcX)
+				}
 				track.trackType = "video"
 			}
 			track.trackID = outTrack.Tkhd.TrackID

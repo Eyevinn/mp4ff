@@ -166,3 +166,18 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 
 	return sps, r.AccError()
 }
+
+// ImageSize - calculated width and height using ConformanceWindow
+func (s *SPS) ImageSize() (width, height uint32) {
+	encWidth, encHeight := s.PicWidthInLumaSamples, s.PicHeightInLumaSamples
+	var subWidthC, subHeightC uint32 = 1, 1
+	switch s.ChromaFormatIDC {
+	case 1: // 4:2:0
+		subWidthC, subHeightC = 2, 2
+	case 2: // 4:2:2
+		subWidthC = 2
+	}
+	width = encWidth - (s.ConformanceWindow.LeftOffset+s.ConformanceWindow.RightOffset)*subWidthC
+	height = encHeight - (s.ConformanceWindow.TopOffset+s.ConformanceWindow.BottomOffset)*subHeightC
+	return width, height
+}

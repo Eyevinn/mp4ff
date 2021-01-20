@@ -17,16 +17,20 @@ import (
 // where mdat may come before moov.
 // If fragmented, there are many more boxes and they are collected
 // in the InitSegment, Segment and Segments structures.
+// The sample metadata in thefragments in the Segments will be
+// optimized unless EncodeVerbatim is set.
+// To Encode the same data as Decoded, this flag must therefore be set.
 // In all cases, Children contain all top-level boxes
 type File struct {
-	Ftyp         *FtypBox
-	Moov         *MoovBox
-	Mdat         *MdatBox        // Only used for non-fragmented files
-	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
-	Sidx         *SidxBox        // SidxBox for a DASH OnDemand file
-	Segments     []*MediaSegment // Media segments
-	Children     []Box           // All top-level boxes in order
-	isFragmented bool
+	Ftyp           *FtypBox
+	Moov           *MoovBox
+	Mdat           *MdatBox        // Only used for non-fragmented files
+	Init           *InitSegment    // Init data (ftyp + moov for fragmented file)
+	Sidx           *SidxBox        // SidxBox for a DASH OnDemand file
+	Segments       []*MediaSegment // Media segments
+	Children       []Box           // All top-level boxes in order
+	EncodeVerbatim bool            // Set to encode box by box without fragment optimizations
+	isFragmented   bool
 }
 
 // NewFile - create MP4 file
@@ -115,8 +119,8 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 		if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
 			f.isFragmented = true
 			f.Init = NewMP4Init()
-			f.Init.Ftyp = f.Ftyp
-			f.Init.Moov = f.Moov
+			f.Init.AddChild(f.Ftyp)
+			f.Init.AddChild(f.Moov)
 		}
 	case "sidx":
 		if len(f.Segments) == 0 { // sidx before first styp
@@ -199,7 +203,30 @@ func (f *File) DumpWithSampleData(w io.Writer, specificBoxLevels string) error {
 }
 
 // Encode - encode a file to a Writer
+// Fragmented files are encoded based on InitSegment and MediaSegments, unless EncodeVerbatim is set.
 func (f *File) Encode(w io.Writer) error {
+	if f.isFragmented && !f.EncodeVerbatim {
+		if f.Init != nil {
+			err := f.Init.Encode(w)
+			if err != nil {
+				return err
+			}
+		}
+		if f.Sidx != nil {
+			err := f.Sidx.Encode(w)
+			if err != nil {
+				return err
+			}
+		}
+		for _, seg := range f.Segments {
+			err := seg.Encode(w)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	// Progressive file
 	for _, b := range f.Children {
 		err := b.Encode(w)
 		if err != nil {

@@ -35,6 +35,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 	}
 
 	var bufInSeg bytes.Buffer
+	f.EncodeVerbatim = true
 	err = f.Encode(&bufInSeg)
 	if err != nil {
 		t.Error(err)
@@ -116,6 +117,7 @@ func TestMoofEncrypted(t *testing.T) {
 	}
 
 	var bufOut bytes.Buffer
+	f.EncodeVerbatim = true
 	err = f.Encode(&bufOut)
 	if err != nil {
 		t.Error(err)
