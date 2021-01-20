@@ -34,7 +34,7 @@ func NewVisualSampleEntryBox(name string) *VisualSampleEntryBox {
 
 // CreateVisualSampleEntryBox - Create new VisualSampleEntry such as avc1, avc3, hev1, hvc1
 func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry Box) *VisualSampleEntryBox {
-	a := &VisualSampleEntryBox{
+	b := &VisualSampleEntryBox{
 		name:               name,
 		DataReferenceIndex: 1,
 		Width:              width,
@@ -46,27 +46,27 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry B
 		Children:           []Box{},
 	}
 	if sampleEntry != nil {
-		a.AddChild(sampleEntry)
+		b.AddChild(sampleEntry)
 	}
-	return a
+	return b
 }
 
 // AddChild - add a child box (avcC normally, but clap and pasp could be part of visual entry)
-func (a *VisualSampleEntryBox) AddChild(b Box) {
-	switch b.Type() {
+func (b *VisualSampleEntryBox) AddChild(child Box) {
+	switch child.Type() {
 	case "avcC":
-		a.AvcC = b.(*AvcCBox)
+		b.AvcC = child.(*AvcCBox)
 	case "hvcC":
-		a.HvcC = b.(*HvcCBox)
+		b.HvcC = child.(*HvcCBox)
 	case "btrt":
-		a.Btrt = b.(*BtrtBox)
+		b.Btrt = child.(*BtrtBox)
 	case "clap":
-		a.Clap = b.(*ClapBox)
+		b.Clap = child.(*ClapBox)
 	case "pasp":
-		a.Pasp = b.(*PaspBox)
+		b.Pasp = child.(*PaspBox)
 	}
 
-	a.Children = append(a.Children, b)
+	b.Children = append(b.Children, child)
 }
 
 // DecodeVisualSampleEntry - decode avc1/avc3/... box
@@ -77,29 +77,29 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 	}
 	s := NewSliceReader(data)
 
-	a := &VisualSampleEntryBox{name: hdr.name}
+	b := &VisualSampleEntryBox{name: hdr.name}
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	s.SkipBytes(6) // Skip 6 reserved bytes
-	a.DataReferenceIndex = s.ReadUint16()
+	b.DataReferenceIndex = s.ReadUint16()
 
 	// 14496-12 12.1.3.2 Visual Sample entry (70 bytes)
 
 	s.SkipBytes(4)  // pre_defined and reserved == 0
 	s.SkipBytes(12) // 3 x 32 bits pre_defined == 0
-	a.Width = s.ReadUint16()
-	a.Height = s.ReadUint16()
+	b.Width = s.ReadUint16()
+	b.Height = s.ReadUint16()
 
-	a.Horizresolution = s.ReadUint32()
-	a.Vertresolution = s.ReadUint32()
+	b.Horizresolution = s.ReadUint32()
+	b.Vertresolution = s.ReadUint32()
 
 	s.ReadUint32()                // reserved
-	a.FrameCount = s.ReadUint16() // Should be 1
+	b.FrameCount = s.ReadUint16() // Should be 1
 	compressorNameLength := s.ReadUint8()
 	if compressorNameLength > 31 {
 		return nil, fmt.Errorf("Too long compressor name length")
 	}
-	a.CompressorName = s.ReadFixedLengthString(int(compressorNameLength))
+	b.CompressorName = s.ReadFixedLengthString(int(compressorNameLength))
 	s.SkipBytes(int(31 - compressorNameLength))
 	s.ReadUint16() // depth == 0x0018
 	s.ReadUint16() // pre_defined == -1
@@ -118,7 +118,7 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 			return nil, fmt.Errorf("Error decoding childBox of VisualSampleEntry: %w", err)
 		}
 		if box != nil {
-			a.AddChild(box)
+			b.AddChild(box)
 			pos += box.Size()
 		}
 		if pos == startPos+hdr.size {
@@ -127,45 +127,45 @@ func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box,
 			return nil, fmt.Errorf("Too far when decoding VisualSampleEntry")
 		}
 	}
-	return a, nil
+	return b, nil
 }
 
 // Type - return box type
-func (a *VisualSampleEntryBox) Type() string {
-	return a.name
+func (b *VisualSampleEntryBox) Type() string {
+	return b.name
 }
 
 // Size - return calculated size
-func (a *VisualSampleEntryBox) Size() uint64 {
+func (b *VisualSampleEntryBox) Size() uint64 {
 	totalSize := uint64(boxHeaderSize + 78)
-	for _, child := range a.Children {
+	for _, child := range b.Children {
 		totalSize += child.Size()
 	}
 	return totalSize
 }
 
 // Encode - write box to w
-func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
-	err := EncodeHeader(a, w)
+func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(a)
+	buf := makebuf(b)
 	sw := NewSliceWriter(buf)
 	sw.WriteZeroBytes(6)
-	sw.WriteUint16(a.DataReferenceIndex)
+	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteZeroBytes(16) // pre_defined and reserved
-	sw.WriteUint16(a.Width)
-	sw.WriteUint16(a.Height) //36 bytes
+	sw.WriteUint16(b.Width)
+	sw.WriteUint16(b.Height) //36 bytes
 
-	sw.WriteUint32(a.Horizresolution)
-	sw.WriteUint32(a.Vertresolution)
+	sw.WriteUint32(b.Horizresolution)
+	sw.WriteUint32(b.Vertresolution)
 	sw.WriteZeroBytes(4)
-	sw.WriteUint16(a.FrameCount) //50 bytes
+	sw.WriteUint16(b.FrameCount) //50 bytes
 
-	compressorNameLength := byte(len(a.CompressorName))
+	compressorNameLength := byte(len(b.CompressorName))
 	sw.WriteUint8(compressorNameLength)
-	sw.WriteString(a.CompressorName, false)
+	sw.WriteString(b.CompressorName, false)
 	sw.WriteZeroBytes(int(31 - compressorNameLength))
 	sw.WriteUint16(0x0018) // depth == 0x0018
 	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
@@ -176,7 +176,7 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 	}
 
 	// Next output child boxes in order
-	for _, child := range a.Children {
+	for _, child := range b.Children {
 		err = child.Encode(w)
 		if err != nil {
 			return err
@@ -185,19 +185,18 @@ func (a *VisualSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, a, -1, 0)
-	bd.write(" - compressorName: %q", a.CompressorName)
+func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - compressorName: %q", b.CompressorName)
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
-	for _, child := range a.Children {
+	for _, child := range b.Children {
 		err = child.Info(w, specificBoxLevels, indent+indentStep, indentStep)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
-
 }
