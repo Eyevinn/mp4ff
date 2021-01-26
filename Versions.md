@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.18.0 | feat: new mp4ff-wvttlister tool and fuller HEVC support |
 | 0.17.1 | fix: HEVC box decode and encode with test |
 | 0.17.0 | HEVC support and new tool mp4ff-nallister |
 | 0.16.2 | fix: Minor fixes to sampleNumber and tfhd Info |
