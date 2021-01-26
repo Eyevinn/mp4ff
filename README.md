@@ -126,11 +126,11 @@ sample nr 1 has index 0 in the corresponding slice.
 
 Some useful command line tools are available in `cmd`.
 
-
 1. `mp4ff-info` prints a tree of the box hierarchy of an mp4 file with information
     of the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes or `-l trun:1,stss:1` for specific boxes.
 2. `mp4ff-pslister` extracts and displays pps and sps for AVC in an mp4 file.
 3. `mp4ff-nallister` lists NALus and picture types for video in progressive or fragmented file
+4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
 
 You can install them by going to their respective directory and run `go install .`.
 
