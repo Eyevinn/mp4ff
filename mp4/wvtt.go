@@ -265,6 +265,7 @@ func (v *VtteBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 
 ////////////////////////////// vttc //////////////////////////////
 
+// VttcBox - VTTCueBox (vttc)
 type VttcBox struct {
 	Vsid     *VsidBox
 	Iden     *IdenBox
@@ -333,7 +334,7 @@ func (v *VttcBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 
 ////////////////////////////// vsid //////////////////////////////
 
-// VsidBox - CueSourceIDBox (iden)
+// VsidBox - CueSourceIDBox (vsid)
 type VsidBox struct {
 	SourceID uint32
 }
