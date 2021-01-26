@@ -1,4 +1,4 @@
-// multitrack - decode and encode example multitrack fragmented file with video and closed caption tracks
+// multitrack - decode example multitrack fragmented file with video and closed caption tracks
 package main
 
 import (

@@ -9,6 +9,7 @@ import (
 // StsdBox - Sample Description Box (stsd - manatory)
 // See ISO/IEC 14496-12 Section 8.5.2.2
 // Full Box + SampleCount
+// All Children are sampleEntries
 type StsdBox struct {
 	Version     byte
 	Flags       uint32
@@ -16,6 +17,7 @@ type StsdBox struct {
 	AvcX        *VisualSampleEntryBox
 	HvcX        *VisualSampleEntryBox
 	Mp4a        *AudioSampleEntryBox
+	Wvtt        *WvttBox
 	Children    []Box
 }
 
@@ -33,6 +35,8 @@ func (s *StsdBox) AddChild(box Box) {
 		s.HvcX = box.(*VisualSampleEntryBox)
 	case "mp4a":
 		s.Mp4a = box.(*AudioSampleEntryBox)
+	case "wvtt":
+		s.Wvtt = box.(*WvttBox)
 	}
 	s.Children = append(s.Children, box)
 	s.SampleCount++

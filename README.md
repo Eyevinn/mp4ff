@@ -45,11 +45,15 @@ The codec currently supported are AVC/H.264 and AAC.
 
 A typical use case is to produce an init segment and followed by a series of media segments.
 
-The first step is to create an init segment. This is done in two steps and can be seen in
+The first step is to create an init segment. This is done in three steps and can be seen in
 `examples/initcreator:
 
-1. A call to `CreateEmptyInitSegment(timecale, mediatype, language)`
-2. Fill in the SampleDescriptor based on video parameter sets, or audio codec information
+1. `init := mp4.CreateEmptyInit()`
+2. `init.AddEmptyTrack(timescale, mediatype, language)`
+3. `init.Moov.Trak.SetHEVCDescriptor("hvc1", vpsNALUs, spsNALUs, ppsNALUs)`
+
+where the 3'rd step fills in codec-specific parameters into the sample descriptor of the first track.
+Multiple tracks are also available as via the slice variable `Traks` instead of `Trak`. 
 
 The second step is to start producing media segments. They should use the timescale that
 was set when creating the init segments. The timescales should be chosen so that the
@@ -122,11 +126,11 @@ sample nr 1 has index 0 in the corresponding slice.
 
 Some useful command line tools are available in `cmd`.
 
-
 1. `mp4ff-info` prints a tree of the box hierarchy of an mp4 file with information
     of the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes or `-l trun:1,stss:1` for specific boxes.
 2. `mp4ff-pslister` extracts and displays pps and sps for AVC in an mp4 file.
 3. `mp4ff-nallister` lists NALus and picture types for video in progressive or fragmented file
+4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
 
 You can install them by going to their respective directory and run `go install .`.
 

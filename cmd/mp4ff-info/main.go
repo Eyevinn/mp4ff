@@ -17,7 +17,7 @@ mp4ff-info prints the box tree of input mp4 (ISOBMFF) file.
 For some boxes, more details are available by using -l with a comma-separated list:
   all:1  - level 1 for all boxes
   trun:1 - level 1 only for trun box
-  all:1,trun:2 - level 2 for trun, and level 1 for others
+  all:1,trun:0 - level 1 for all boxes but trun
 `
 
 var Usage = func() {

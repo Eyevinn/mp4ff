@@ -180,7 +180,7 @@ func (v *VttCBox) Encode(w io.Writer) error {
 
 func (v *VttCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, v, -1, 0)
-	bd.write(" - config: %s", v.Config)
+	bd.write(" - config: %q", v.Config)
 	return bd.err
 }
 
@@ -265,6 +265,7 @@ func (v *VtteBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 
 ////////////////////////////// vttc //////////////////////////////
 
+// VttcBox - VTTCueBox (vttc)
 type VttcBox struct {
 	Vsid     *VsidBox
 	Iden     *IdenBox
@@ -333,7 +334,7 @@ func (v *VttcBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 
 ////////////////////////////// vsid //////////////////////////////
 
-// VsidBox - CueSourceIDBox (iden)
+// VsidBox - CueSourceIDBox (vsid)
 type VsidBox struct {
 	SourceID uint32
 }
@@ -555,7 +556,7 @@ func (p *PaylBox) Encode(w io.Writer) error {
 
 func (p *PaylBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, p, -1, 0)
-	bd.write(" - cueText: %s", p.CueText)
+	bd.write(" - cueText: %q", p.CueText)
 	return bd.err
 }
 
@@ -600,6 +601,6 @@ func (v *VttaBox) Encode(w io.Writer) error {
 
 func (v *VttaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, v, -1, 0)
-	bd.write(" - cueAdditionalText: %s", v.CueAdditionalText)
+	bd.write(" - cueAdditionalText: %q", v.CueAdditionalText)
 	return bd.err
 }
