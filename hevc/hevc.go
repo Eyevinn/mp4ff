@@ -102,6 +102,22 @@ func FindNaluTypes(sample []byte) []NaluType {
 	return naluList
 }
 
+// ContainsNaluType - is specific NaluType present in sample
+func ContainsNaluType(sample []byte, specificNalType NaluType) bool {
+	var pos uint32 = 0
+	length := len(sample)
+	for pos < uint32(length-4) {
+		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
+		pos += 4
+		naluType := GetNaluType(sample[pos])
+		if naluType == specificNalType {
+			return true
+		}
+		pos += naluLength
+	}
+	return false
+}
+
 // IsRAPSample - is Random Access Sample (NALU 16-23)
 func IsRAPSample(sample []byte) bool {
 	for _, naluType := range FindNaluTypes(sample) {
