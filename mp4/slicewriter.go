@@ -36,6 +36,12 @@ func (b *SliceWriter) WriteInt16(n int16) {
 	b.pos += 2
 }
 
+// WriteUint24 - write uint24 to slice
+func (b *SliceWriter) WriteUint24(n uint32) {
+	b.WriteUint8(byte(n >> 16))
+	b.WriteUint16(uint16(n & 0xffff))
+}
+
 // WriteUint32 - write uint32 to slice
 func (b *SliceWriter) WriteUint32(n uint32) {
 	binary.BigEndian.PutUint32(b.buf[b.pos:], n)

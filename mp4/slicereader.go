@@ -40,6 +40,13 @@ func (s *SliceReader) ReadInt16() int16 {
 	return int16(res)
 }
 
+// ReadUint24 - read uint24 from slice
+func (s *SliceReader) ReadUint24() uint32 {
+	p1 := s.ReadUint8()
+	p2 := s.ReadUint16()
+	return (uint32(p1) << 16) + uint32(p2)
+}
+
 // ReadUint32 - read uint32 from slice
 func (s *SliceReader) ReadUint32() uint32 {
 	res := binary.BigEndian.Uint32(s.slice[s.pos : s.pos+4])
