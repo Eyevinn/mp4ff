@@ -44,6 +44,7 @@ func init() {
 		"hvc1": DecodeVisualSampleEntry,
 		"iden": DecodeIden,
 		"iods": DecodeUnknown,
+		"kind": DecodeKind,
 		"mdat": DecodeMdat,
 		"mehd": DecodeMehd,
 		"mdhd": DecodeMdhd,
