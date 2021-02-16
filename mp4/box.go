@@ -74,6 +74,7 @@ func init() {
 		"sgpd": DecodeSgpd,
 		"sidx": DecodeSidx,
 		"sinf": DecodeSinf,
+		"skip": DecodeFree,
 		"smhd": DecodeSmhd,
 		"sthd": DecodeSthd,
 		"stbl": DecodeStbl,
