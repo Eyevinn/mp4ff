@@ -43,6 +43,7 @@ func init() {
 		"hvcC": DecodeHvcC,
 		"hvc1": DecodeVisualSampleEntry,
 		"iden": DecodeIden,
+		"ilst": DecodeIlst,
 		"iods": DecodeUnknown,
 		"kind": DecodeKind,
 		"mdat": DecodeMdat,
