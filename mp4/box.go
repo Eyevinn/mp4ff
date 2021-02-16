@@ -94,6 +94,7 @@ func init() {
 		"tkhd": DecodeTkhd,
 		"traf": DecodeTraf,
 		"trak": DecodeTrak,
+		"trep": DecodeTrep,
 		"trex": DecodeTrex,
 		"trun": DecodeTrun,
 		"udta": DecodeUdta,
