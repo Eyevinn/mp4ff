@@ -5,8 +5,9 @@ import (
 	"io/ioutil"
 )
 
-// FreeBox - Free Box
+// FreeBox - Free Space Box (free or skip)
 type FreeBox struct {
+	Name       string
 	notDecoded []byte
 }
 
@@ -16,12 +17,12 @@ func DecodeFree(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FreeBox{data}, nil
+	return &FreeBox{Name: hdr.name, notDecoded: data}, nil
 }
 
 // Type - box type
 func (b *FreeBox) Type() string {
-	return "free"
+	return b.Name
 }
 
 // Size - calculated size of box

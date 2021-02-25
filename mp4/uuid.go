@@ -1,7 +1,7 @@
 package mp4
 
 import (
-	"fmt"
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 )
@@ -63,8 +63,8 @@ func DecodeUUID(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		}
 		u.Tfrf = tfrf
 	default:
-		err := fmt.Errorf("Unknown uuid=%s", u.UUID)
-		return nil, err
+		// err := fmt.Errorf("Unknown uuid=%s", u.UUID)
+		// return nil, err
 	}
 
 	return u, err
@@ -193,6 +193,18 @@ func (t *TfrfData) encode(w io.Writer) error {
 
 func (u *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, u, -1, 0)
+	bd.write(" - uuid: %s", hex.EncodeToString([]byte(u.UUID)))
 	bd.write(" - subType: %s", u.SubType)
+	level := getInfoLevel(u, specificBoxLevels)
+	if level > 0 {
+		switch u.SubType {
+		case "tfxd":
+			bd.write(" - absTime=%d absDur=%d", u.Tfxd.FragmentAbsoluteTime, u.Tfxd.FragmentAbsoluteDuration)
+		case "tfrf":
+			for i := 0; i < int(u.Tfrf.FragmentCount); i++ {
+				bd.write(" - [%d]: absTime=%d absDur=%d", i+1, u.Tfrf.FragmentAbsoluteTimes[i], u.Tfrf.FragmentAbsoluteDurations[i])
+			}
+		}
+	}
 	return bd.err
 }

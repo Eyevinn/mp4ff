@@ -202,10 +202,16 @@ func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
 
 // Encode - write fragment via writer
 func (f *Fragment) Encode(w io.Writer) error {
+	if f.Moof == nil {
+		return fmt.Errorf("moof not set in fragment")
+	}
 	traf := f.Moof.Traf
 	err := traf.OptimizeTfhdTrun()
 	if err != nil {
 		return err
+	}
+	if f.Mdat == nil {
+		return fmt.Errorf("mdat not set in fragment")
 	}
 	f.SetTrunDataOffsets()
 	for _, b := range f.Children {
