@@ -77,6 +77,7 @@ func (t *TrafBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 
 // OptimizeTfhdTrun - optimize trun by default values in tfhd box
 // Only look at first trun, even if there is more than one
+// Don't optimize again, if already done so that no data is present
 func (t *TrafBox) OptimizeTfhdTrun() error {
 	tfhd := t.Tfhd
 	trun := t.Trun
@@ -86,53 +87,75 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 	if len(trun.Samples) == 1 {
 		return nil // No need to optimize
 	}
-	allZeroCTO := true
-	hasCommonDur := true
-	commonDur := trun.Samples[0].Dur
-	firstSampleFlags := trun.Samples[0].Flags
-	hasCommonFlags := true
-	commonSampleFlags := trun.Samples[1].Flags
-	hasCommonSize := true
-	commonSize := trun.Samples[0].Size
-	for i, s := range trun.Samples {
-		if s.Cto != 0 {
-			allZeroCTO = false
-		}
-		if s.Dur != commonDur {
-			hasCommonDur = false
-		}
-		if i >= 1 {
-			if s.Flags != commonSampleFlags {
-				hasCommonFlags = false
+
+	if trun.HasSampleDuration() {
+		hasCommonDur := true
+		commonDur := trun.Samples[0].Dur
+		for _, s := range trun.Samples {
+			if s.Dur != commonDur {
+				hasCommonDur = false
+				break
 			}
 		}
-		if s.Size != commonSize {
-			hasCommonSize = false
+		if hasCommonDur {
+			// Set defaultSampleDuration in tfhd and remove from trun
+			tfhd.Flags = tfhd.Flags | defaultSampleDurationPresent
+			tfhd.DefaultSampleDuration = commonDur
+			trun.flags = trun.flags & ^sampleDurationPresentFlag
 		}
 	}
-	if allZeroCTO {
-		trun.flags = trun.flags & ^sampleCTOPresentFlag
-	}
-	if hasCommonDur {
-		// Set defaultSampleDuration in tfhd and remove from trun
-		tfhd.Flags = tfhd.Flags | defaultSampleDurationPresent
-		tfhd.DefaultSampleDuration = commonDur
-		trun.flags = trun.flags & ^sampleDurationPresentFlag
-	}
-	if hasCommonFlags {
-		if firstSampleFlags != commonSampleFlags {
-			trun.firstSampleFlags = firstSampleFlags
-			trun.flags |= firstSampleFlagsPresentFlag
+
+	if trun.HasSampleSize() {
+		hasCommonSize := true
+		commonSize := trun.Samples[0].Size
+		for _, s := range trun.Samples {
+			if s.Size != commonSize {
+				hasCommonSize = false
+				break
+			}
 		}
-		tfhd.Flags = tfhd.Flags | defaultSampleFlagsPresent
-		tfhd.DefaultSampleFlags = commonSampleFlags
-		trun.flags = trun.flags & ^sampleFlagsPresentFlag
+		if hasCommonSize {
+			// Set defaultSampleSize in tfhd and remove from trun
+			tfhd.Flags = tfhd.Flags | defaultSampleSizePresent
+			tfhd.DefaultSampleSize = commonSize
+			trun.flags = trun.flags & ^sampleSizePresentFlag
+		}
 	}
-	if hasCommonSize {
-		// Set defaultSampleSize in tfhd and remove from trun
-		tfhd.Flags = tfhd.Flags | defaultSampleSizePresent
-		tfhd.DefaultSampleSize = commonSize
-		trun.flags = trun.flags & ^sampleSizePresentFlag
+
+	if trun.HasSampleFlags() {
+		firstSampleFlags := trun.Samples[0].Flags
+		hasCommonFlags := true
+		commonSampleFlags := trun.Samples[1].Flags
+		for i, s := range trun.Samples {
+			if i >= 1 {
+				if s.Flags != commonSampleFlags {
+					hasCommonFlags = false
+					break
+				}
+			}
+		}
+		if hasCommonFlags {
+			if firstSampleFlags != commonSampleFlags {
+				trun.firstSampleFlags = firstSampleFlags
+				trun.flags |= firstSampleFlagsPresentFlag
+			}
+			tfhd.Flags = tfhd.Flags | defaultSampleFlagsPresent
+			tfhd.DefaultSampleFlags = commonSampleFlags
+			trun.flags = trun.flags & ^sampleFlagsPresentFlag
+		}
+	}
+
+	if trun.HasSampleCTO() {
+		allZeroCTO := true
+		for _, s := range trun.Samples {
+			if s.Cto != 0 {
+				allZeroCTO = false
+				break
+			}
+		}
+		if allZeroCTO {
+			trun.flags = trun.flags & ^sampleCTOPresentFlag
+		}
 	}
 	return nil
 }

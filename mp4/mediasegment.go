@@ -113,3 +113,26 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 	}
 	return outFragments, nil
 }
+
+// EncodeVerbatim - Write MediaSegment via writer with verbatim Fragments
+func (s *MediaSegment) EncodeVerbatim(w io.Writer) error {
+	if s.Styp != nil {
+		err := s.Styp.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	if s.Sidx != nil {
+		err := s.Sidx.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	for _, f := range s.Fragments {
+		err := f.EncodeVerbatim(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

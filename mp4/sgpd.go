@@ -70,7 +70,7 @@ func (b *SgpdBox) Size() uint64 {
 	// EntryCount: 4
 	// SampleCount + GroupDescriptionIndex : 8
 	// DescriptionLength: 4
-	// SampleGroupEntries: default or individual lengthsß
+	// SampleGroupEntries: default or individual lengths
 	size := uint64(boxHeaderSize + 4 + 4 + 4)
 	if b.Version >= 1 {
 		size += 4 // DefaultLength
