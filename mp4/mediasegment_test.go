@@ -101,6 +101,59 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 	}
 }
 
+func TestDoubleDecodeEncodeOptimize(t *testing.T) {
+	encodeVerbatim := false
+	inFile := "testdata/1.m4s"
+
+	fd, err := os.Open(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	defer fd.Close()
+
+	enc1 := decodeEncode(t, fd, encodeVerbatim)
+	buf1 := bytes.NewBuffer(enc1)
+	enc2 := decodeEncode(t, buf1, encodeVerbatim)
+	diff := deep.Equal(enc2, enc1)
+	if diff != nil {
+		t.Errorf("Second write gives diff %s", diff)
+	}
+}
+
+func TestDoubleDecodeEncodeNoOptimize(t *testing.T) {
+	encodeVerbatim := true
+	inFile := "testdata/1.m4s"
+
+	fd, err := os.Open(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	defer fd.Close()
+
+	enc1 := decodeEncode(t, fd, encodeVerbatim)
+	buf1 := bytes.NewBuffer(enc1)
+	enc2 := decodeEncode(t, buf1, encodeVerbatim)
+	diff := deep.Equal(enc2, enc1)
+	if diff != nil {
+		t.Errorf("Second write gives diff %s", diff)
+	}
+}
+
+func decodeEncode(t *testing.T, r io.Reader, encodeVerbatim bool) []byte {
+	f, err := DecodeFile(r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	buf := bytes.Buffer{}
+	f.EncodeVerbatim = encodeVerbatim
+	err = f.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	return buf.Bytes()
+}
+
 func TestMoofEncrypted(t *testing.T) {
 
 	inFile := "testdata/moof_enc.m4s"
