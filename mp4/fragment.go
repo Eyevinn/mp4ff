@@ -254,7 +254,7 @@ func (f *Fragment) SetTrunDataOffsets() {
 	}
 }
 
-// EncodeVerbatim - write fragment without trun optimiztion via writer
+// EncodeVerbatim - write fragment without trun optimization via writer
 func (f *Fragment) EncodeVerbatim(w io.Writer) error {
 	if f.Moof == nil {
 		return fmt.Errorf("moof not set in fragment")

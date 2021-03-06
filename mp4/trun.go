@@ -89,7 +89,7 @@ func CreateTrun(writeOrderNr uint32) *TrunBox {
 }
 
 // AddSampleDefaultValues - add values from tfhd and trex boxes if needed
-// Return total durationß
+// Return total duration
 func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) (totalDur uint64) {
 
 	var defaultSampleDuration uint32
