@@ -36,7 +36,7 @@ var Usage = func(msg string) {
 }
 
 func main() {
-	verbose := flag.Bool("v", false, "Verbose output")
+	verbose := flag.Bool("v", false, "Verbose output -> details. On for hex input")
 	inFile := flag.String("i", "", "mp4 for bytestream file")
 	vpsHex := flag.String("vps", "", "VPS in hex format (HEVC only)")
 	spsHex := flag.String("sps", "", "SPS in hex format")
@@ -59,6 +59,15 @@ func main() {
 		*codec = "hevc"
 	}
 
+	if *spsHex != "" {
+		// Don't just print hex again
+		*verbose = true
+	}
+
+	var vpsNalus [][]byte
+	var spsNalus [][]byte
+	var ppsNalus [][]byte
+
 	if *inFile != "" {
 		ifd, err := os.Open(*inFile)
 		if err != nil {
@@ -78,8 +87,6 @@ func main() {
 			log.Fatalln(err)
 		}
 		if *codec == "avc" {
-			var spsNalus [][]byte
-			var ppsNalus [][]byte
 			for _, nalu := range nalus {
 				switch avc.NaluType(nalu[0]) {
 				case avc.NALU_SPS:
@@ -94,10 +101,8 @@ func main() {
 			printAvcPS(spsNalus, ppsNalus, *verbose)
 			return
 		}
+
 		// hevc
-		var vpsNalus [][]byte
-		var spsNalus [][]byte
-		var ppsNalus [][]byte
 		for _, nalu := range nalus {
 			switch hevc.NaluType(nalu[0]) {
 			case hevc.NALU_VPS:
@@ -111,7 +116,6 @@ func main() {
 				ppsNalus = append(ppsNalus, nalu)
 			}
 		}
-		printAvcPS(spsNalus, ppsNalus, *verbose)
 		printHevcPS(vpsNalus, spsNalus, ppsNalus, *verbose)
 		return
 	}
@@ -122,25 +126,36 @@ func main() {
 		if err != nil {
 			log.Fatalln("Could not parse sps")
 		}
-		ppsNalu, err := hex.DecodeString(*ppsHex)
-		if err != nil {
-			log.Fatalln("Could not parse pps")
+		spsNalus = append(spsNalus, spsNalu)
+		if *ppsHex != "" {
+			ppsNalu, err := hex.DecodeString(*ppsHex)
+			if err != nil {
+				log.Fatalln("Could not parse pps")
+			}
+			ppsNalus = append(ppsNalus, ppsNalu)
 		}
-		printAvcPS([][]byte{spsNalu}, [][]byte{ppsNalu}, *verbose)
+		printAvcPS(spsNalus, ppsNalus, *verbose)
 	case "hevc":
 		vpsNalu, err := hex.DecodeString(*vpsHex)
 		if err != nil {
 			log.Fatalln("Could not parse vps")
 		}
+		vpsNalus = append(vpsNalus, vpsNalu)
 		spsNalu, err := hex.DecodeString(*spsHex)
 		if err != nil {
 			log.Fatalln("Could not parse sps")
+		}
+		if len(spsNalu) > 0 {
+			spsNalus = append(spsNalus, spsNalu)
 		}
 		ppsNalu, err := hex.DecodeString(*ppsHex)
 		if err != nil {
 			log.Fatalln("Could not parse pps")
 		}
-		printHevcPS([][]byte{vpsNalu}, [][]byte{spsNalu}, [][]byte{ppsNalu}, *verbose)
+		if len(ppsNalu) > 0 {
+			ppsNalus = append(ppsNalus, ppsNalu)
+		}
+		printHevcPS(vpsNalus, spsNalus, ppsNalus, *verbose)
 	default:
 		log.Fatalln("Unknown codec ", *codec)
 	}

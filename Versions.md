@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.20.0 | feat: mp4ff-pslister better for hex SPS input |
 | 0.19.0 | fix: trun optimization, feat: mfra-related boxes |
 | 0.18.0 | feat: new mp4ff-wvttlister tool and fuller HEVC support |
 | 0.17.1 | fix: HEVC box decode and encode with test |
