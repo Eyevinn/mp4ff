@@ -36,7 +36,7 @@ var Usage = func(msg string) {
 }
 
 func main() {
-	verbose := flag.Bool("v", false, "Verbose output")
+	verbose := flag.Bool("v", false, "Verbose output -> details. On for hex input")
 	inFile := flag.String("i", "", "mp4 for bytestream file")
 	vpsHex := flag.String("vps", "", "VPS in hex format (HEVC only)")
 	spsHex := flag.String("sps", "", "SPS in hex format")
@@ -57,6 +57,11 @@ func main() {
 
 	if *vpsHex != "" {
 		*codec = "hevc"
+	}
+
+	if *spsHex != "" {
+		// Don't just print hex again
+		*verbose = true
 	}
 
 	var vpsNalus [][]byte
