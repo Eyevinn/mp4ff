@@ -1,7 +1,6 @@
 package bits
 
 import (
-	"encoding/binary"
 	"io"
 )
 
@@ -10,10 +9,11 @@ import (
 // Stops writing at first error.
 // Errors that have occured can later be checked with Error().
 type EBSPWriter struct {
-	n   int   // current number of bits
-	v   uint  // current accumulated value
-	err error // The first error caused by any write operation
-	nr0 int   // Number preceeding zero bytes
+	n   int    // current number of bits
+	v   uint   // current accumulated value
+	err error  // The first error caused by any write operation
+	nr0 int    // Number preceeding zero bytes
+	out []byte // Slice of length 1 to avoid allocation at output
 
 	wr io.Writer
 }
@@ -21,7 +21,8 @@ type EBSPWriter struct {
 // NewWriter - returns a new Writer
 func NewEBSPWriter(w io.Writer) *EBSPWriter {
 	return &EBSPWriter{
-		wr: w,
+		wr:  w,
+		out: make([]byte, 1),
 	}
 }
 
@@ -36,13 +37,17 @@ func (w *EBSPWriter) Write(bits uint, n int) {
 	for w.n >= 8 {
 		b := (w.v >> (uint(w.n) - 8)) & mask(8)
 		if w.nr0 == 2 && b <= 3 {
-			if err := binary.Write(w.wr, binary.BigEndian, uint8(3)); err != nil {
+			w.out[0] = 0x3
+			_, err := w.wr.Write(w.out)
+			if err != nil {
 				w.err = err
 				return
 			}
 			w.nr0 = 0
 		}
-		if err := binary.Write(w.wr, binary.BigEndian, uint8(b)); err != nil {
+		w.out[0] = uint8(b)
+		_, err := w.wr.Write(w.out)
+		if err != nil {
 			w.err = err
 			return
 		}
