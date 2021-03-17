@@ -29,8 +29,14 @@ var Usage = func() {
 func main() {
 	maxNrSamples := flag.Int("m", -1, "Max nr of samples to parse")
 	trackID := flag.Int("t", 0, "trackID to extract (0 is unspecified)")
+	version := flag.Bool("version", false, "Get mp4ff version")
 
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("mp4ff-wvttlister %s\n", mp4.GetVersion())
+		os.Exit(0)
+	}
 
 	var inFilePath = flag.Arg(0)
 	if inFilePath == "" {

@@ -42,8 +42,14 @@ func main() {
 	spsHex := flag.String("sps", "", "SPS in hex format")
 	ppsHex := flag.String("pps", "", "PPS in hex format")
 	codec := flag.String("c", "avc", "Codec to parse (avc or hevc or auto)")
+	version := flag.Bool("version", false, "Get mp4ff version")
 
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("mp4ff-pslister %s\n", mp4.GetVersion())
+		os.Exit(0)
+	}
 
 	if *inFile == "" && *spsHex == "" {
 		Usage("Must specify infile or sps")
