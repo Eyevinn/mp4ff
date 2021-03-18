@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	commitVersion string
-	commitDate    string
+	commitVersion string = "v0.21.0" // Updated when building using Makefile
+	commitDate    string             // commitDate in Epoch seconds (inserted from Makefile)
 )
 
-// GetVersion - get version and also commitHash and commitDate if inserted
+// GetVersion - get version and also commitHash and commitDate if inserted via Makefile
 func GetVersion() string {
 	seconds, _ := strconv.Atoi(commitDate)
 	if commitDate != "" {
