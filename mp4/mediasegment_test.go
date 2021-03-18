@@ -197,3 +197,16 @@ func TestMoofEncrypted(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func BenchmarkDecodeEncode(b *testing.B) {
+	inFile := "testdata/1.m4s"
+	raw, _ := ioutil.ReadFile(inFile)
+
+	for i := 0; i < b.N; i++ {
+		buf := bytes.NewBuffer(raw)
+		f, _ := DecodeFile(buf)
+		var bufInSeg bytes.Buffer
+		f.EncodeVerbatim = true
+		_ = f.Encode(&bufInSeg)
+	}
+}

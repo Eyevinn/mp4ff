@@ -16,3 +16,11 @@ func BenchmarkWrite(b *testing.B) {
 		b.Fatal(err)
 	}
 }
+
+func BenchmarkEbspWrite(b *testing.B) {
+	writer := NewEBSPWriter(ioutil.Discard)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		writer.Write(0xff, 8)
+	}
+}

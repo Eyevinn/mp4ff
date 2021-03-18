@@ -8,9 +8,10 @@ import (
 // Writer writes bits into underlying io.Writer. Stops writing at first error.
 // Errors that have occured can later be checked with Error().
 type Writer struct {
-	n   int   // current number of bits
-	v   uint  // current accumulated value
-	err error // The first error caused by any write operation
+	n   int    // current number of bits
+	v   uint   // current accumulated value
+	err error  // The first error caused by any write operation
+	out []byte // Slice of length 1 to avoid allocation at output
 
 	wr io.Writer
 }
@@ -18,7 +19,8 @@ type Writer struct {
 // NewWriter - returns a new Writer
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
-		wr: w,
+		wr:  w,
+		out: make([]byte, 1),
 	}
 }
 
@@ -32,7 +34,9 @@ func (w *Writer) Write(bits uint, n int) {
 	w.n += n
 	for w.n >= 8 {
 		b := (w.v >> (uint(w.n) - 8)) & mask(8)
-		if err := binary.Write(w.wr, binary.BigEndian, uint8(b)); err != nil {
+		w.out[0] = uint8(b)
+		_, err := w.wr.Write(w.out)
+		if err != nil {
 			w.err = err
 			return
 		}
