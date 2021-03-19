@@ -18,6 +18,7 @@ type StblBox struct {
 	Stsz  *StszBox
 	Stss  *StssBox
 	Stco  *StcoBox
+	Co64  *Co64Box
 	Sdtp  *SdtpBox
 	Sbgp  *SbgpBox   // The first
 	Sbgps []*SbgpBox // All
@@ -53,6 +54,8 @@ func (s *StblBox) AddChild(box Box) {
 		s.Stss = box.(*StssBox)
 	case "stco":
 		s.Stco = box.(*StcoBox)
+	case "co64":
+		s.Co64 = box.(*Co64Box)
 	case "sbgp":
 		if s.Sbgp == nil {
 			s.Sbgp = box.(*SbgpBox)

@@ -139,7 +139,13 @@ func (s *Segmenter) GetSamplesUntilTime(mp4f *mp4.File, tr *Track, startSampleNr
 		if err != nil {
 			return nil
 		}
-		offset := int64(stbl.Stco.ChunkOffset[chunkNr-1])
+		var offset int64
+		if stbl.Stco != nil {
+			offset = int64(stbl.Stco.ChunkOffset[chunkNr-1])
+		} else if stbl.Co64 != nil {
+			offset = int64(stbl.Co64.ChunkOffset[chunkNr-1])
+		}
+
 		for sNr := sampleNrAtChunkStart; sNr < sampleNr; sNr++ {
 			offset += int64(stbl.Stsz.SampleSize[sNr-1])
 		}
