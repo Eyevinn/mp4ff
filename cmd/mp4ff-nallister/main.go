@@ -101,7 +101,12 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
 		if err != nil {
 			return err
 		}
-		offset := int64(stbl.Stco.ChunkOffset[chunkNr-1])
+		var offset int64
+		if stbl.Stco != nil {
+			offset = int64(stbl.Stco.ChunkOffset[chunkNr-1])
+		} else if stbl.Co64 != nil {
+			offset = int64(stbl.Co64.ChunkOffset[chunkNr-1])
+		}
 		for sNr := sampleNrAtChunkStart; sNr < sampleNr; sNr++ {
 			offset += int64(stbl.Stsz.SampleSize[sNr-1])
 		}
