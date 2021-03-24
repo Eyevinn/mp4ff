@@ -12,6 +12,7 @@ import (
 // Not used in mp4 files, but in MPEG-2 TS.
 // Defined in ISO/IEC 13818-7
 type ADTSHeader struct {
+	ID                     byte // 0 is MPEG-4, 1 is MPEG-2
 	ObjectType             byte
 	SamplingFrequencyIndex byte
 	ChannelConfig          byte
@@ -59,10 +60,7 @@ func DecodedAdtsHeader(r io.Reader) (*ADTSHeader, error) {
 	if sync != 0xfff {
 		return nil, fmt.Errorf("Bad sync")
 	}
-	mpegID := br.Read(1)
-	if mpegID != 0 {
-		return nil, fmt.Errorf("ID not 0 (MPEG-4)")
-	}
+	mpegID := byte(br.Read(1))
 	layer := br.Read(2)
 	if layer != 0 {
 		return nil, fmt.Errorf("Non-permitted layer value %d", layer)
@@ -71,7 +69,7 @@ func DecodedAdtsHeader(r io.Reader) (*ADTSHeader, error) {
 	if protectionAbsent != 1 {
 		return nil, fmt.Errorf("protection_absent not set. Not supported")
 	}
-	ah := &ADTSHeader{}
+	ah := &ADTSHeader{ID: mpegID}
 	profile := br.Read(2)
 	ah.ObjectType = byte(profile + 1)
 	ah.SamplingFrequencyIndex = byte(br.Read(4))

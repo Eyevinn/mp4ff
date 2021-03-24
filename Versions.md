@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.21.1 | fix: allow MPEG-2 ADTS |
 | 0.21.0 | feat: version number in apps and mp4 package |
 | 0.20.0 | feat: mp4ff-pslister better for hex SPS input |
 | 0.19.0 | fix: trun optimization, feat: mfra-related boxes |
