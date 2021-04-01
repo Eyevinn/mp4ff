@@ -147,9 +147,9 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		sps.ChromaFormatIDC = 0
 	}
 
-	// The following table is from 14496-10:2014 Section 7.3.2.1.1
+	// The following table is from 14496-10:2020 Section 7.3.2.1.1
 	switch sps.Profile {
-	case 100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134:
+	case 100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135:
 		sps.ChromaFormatIDC, err = reader.ReadExpGolomb()
 		if err != nil {
 			return nil, err
