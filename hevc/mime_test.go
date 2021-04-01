@@ -1,0 +1,35 @@
+package hevc
+
+import (
+	"encoding/hex"
+	"testing"
+)
+
+const ()
+
+func TestCodec(t *testing.T) {
+	testCases := []struct {
+		hexSPS string
+		codec  string
+	}{
+		{
+			"420101016000000300b0000003000003007ba003c08010e59447924525ac041400000300040000030067c36bdcf50007a12000f42640",
+			"hev1.1.6.L123.B0",
+		},
+	}
+	for _, tc := range testCases {
+		spsBytes, err := hex.DecodeString(tc.hexSPS)
+		if err != nil {
+			t.Error(err)
+		}
+		sps, err := ParseSPSNALUnit(spsBytes)
+		if err != nil {
+			t.Error(err)
+		}
+		got := Codecs("hev1", sps)
+		if got != tc.codec {
+			t.Errorf("Got %q wanted %q", got, tc.codec)
+		}
+	}
+
+}
