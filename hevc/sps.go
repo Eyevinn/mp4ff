@@ -2,7 +2,9 @@ package hevc
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"strings"
 
 	"github.com/edgeware/mp4ff/bits"
 )
@@ -180,4 +182,74 @@ func (s *SPS) ImageSize() (width, height uint32) {
 	width = encWidth - (s.ConformanceWindow.LeftOffset+s.ConformanceWindow.RightOffset)*subWidthC
 	height = encHeight - (s.ConformanceWindow.TopOffset+s.ConformanceWindow.BottomOffset)*subHeightC
 	return width, height
+}
+
+// CodecString returns string based on SPS fields.
+// ISO/IEC 14496-15:2014 Annex E.
+func (s *SPS) CodecString() string {
+
+	fields := []string{"hvc1"}
+	generalProfileSpace := ""
+	switch s.ProfileTierLevel.GeneralProfileSpace {
+	case 1:
+		generalProfileSpace = "A"
+	case 2:
+		generalProfileSpace = "B"
+	case 3:
+		generalProfileSpace = "C"
+	}
+
+	fields = append(fields, fmt.Sprintf("%s%d", generalProfileSpace, s.ProfileTierLevel.GeneralProfileIDC))
+
+	profileCompatibilityFlags := reverseBitsAndHexEncode(s.ProfileTierLevel.GeneralProfileCompatibilityFlags)
+	fields = append(fields, profileCompatibilityFlags)
+
+	profileGeneralTier := "L"
+	if s.ProfileTierLevel.GeneralTierFlag {
+		profileGeneralTier = "H"
+	}
+
+	fields = append(fields, fmt.Sprintf("%s%d", profileGeneralTier, s.ProfileTierLevel.GeneralLevelIDC))
+
+	constraints := make([]byte, 8)
+	binary.BigEndian.PutUint64(constraints, s.ProfileTierLevel.GeneralConstraintIndicatorFlags)
+	end := 8
+	for {
+		if constraints[end-1] != 0 {
+			break
+		}
+		end--
+	}
+	fields = append(fields, trimLeadingZero(fmt.Sprintf("%x", constraints[0:end])))
+
+	return strings.Join(fields, ".")
+
+}
+
+// reverseBitsAndHexEncode encodes the 32 bits input, but in reverse bit order
+// ISO/IEC 23008‐2
+func reverseBitsAndHexEncode(x uint32) string {
+
+	x = ((x & 0x55555555) << 1) | ((x & 0xAAAAAAAA) >> 1)
+	x = ((x & 0x33333333) << 2) | ((x & 0xCCCCCCCC) >> 2)
+	x = ((x & 0x0F0F0F0F) << 4) | ((x & 0xF0F0F0F0) >> 4)
+
+	bs := []byte{
+		uint8(x & 0xFF),
+		uint8((x >> 8) & 0xFF),
+		uint8((x >> 16) & 0xFF),
+		uint8((x >> 24) & 0xFF),
+	}
+
+	return trimLeadingZero(fmt.Sprintf("%02x", bs))
+}
+
+// trimLeadingZero trims leading zero in hex string
+func trimLeadingZero(in string) string {
+	for i, c := range in {
+		if c != '0' {
+			return in[i:]
+		}
+	}
+	return "0"
 }

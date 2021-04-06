@@ -83,3 +83,15 @@ func TestSPSParser1(t *testing.T) {
 		t.Errorf("Got %dx%d instead of %dx%d", gotWidth, gotHeight, expWidth, expHeight)
 	}
 }
+
+func TestCodecString(t *testing.T) {
+	expected := "hvc1.1.6.L120.90"
+	byteData, _ := hex.DecodeString("420101016000000300900000030000030078a0021c801e0596566924caf01680800001f480003a9804")
+	sps, err := ParseSPSNALUnit(byteData)
+	if err != nil {
+		t.Error(err)
+	}
+	if sps.CodecString() != expected {
+		t.Errorf("expected %s, got %s", expected, sps.CodecString())
+	}
+}
