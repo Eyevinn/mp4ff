@@ -14,7 +14,11 @@ func TestCodec(t *testing.T) {
 	}{
 		{
 			"420101016000000300b0000003000003007ba003c08010e59447924525ac041400000300040000030067c36bdcf50007a12000f42640",
-			"hev1.1.6.L123.B0",
+			"hvc1.1.6.L123.B0",
+		},
+		{
+			"420101016000000300900000030000030078a0021c801e0596566924caf01680800001f480003a9804",
+			"hvc1.1.6.L120.90",
 		},
 	}
 	for _, tc := range testCases {
@@ -26,7 +30,7 @@ func TestCodec(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		got := Codecs("hev1", sps)
+		got := Codecs("hvc1", sps)
 		if got != tc.codec {
 			t.Errorf("Got %q wanted %q", got, tc.codec)
 		}
