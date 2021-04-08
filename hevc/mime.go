@@ -5,9 +5,8 @@ import (
 	"math/bits"
 )
 
-//CodecString - MIME subtype like hev1.1.6.L93.B0 where hev1 is sampleEntry string.
-//
-// Following ISO/IEC 14496-15 2017 Annex E
+// CodecString - sub-parameter for MIME type "codecs" parameter like hev1.1.6.L93.B0 where hev1 is sampleEntry.
+// Defined in ISO/IEC 14496-15 2017 Annex E.
 func CodecString(sampleEntry string, sps *SPS) string {
 	profilePart := ""
 	ptl := sps.ProfileTierLevel
