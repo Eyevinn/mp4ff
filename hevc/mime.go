@@ -2,12 +2,13 @@ package hevc
 
 import (
 	"fmt"
+	"math/bits"
 )
 
-//Codecs - MIME subtype like hev1.1.6.L93.B0 where hev1 is sampleEntry string.
+//CodecString - MIME subtype like hev1.1.6.L93.B0 where hev1 is sampleEntry string.
 //
 // Following ISO/IEC 14496-15 2017 Annex E
-func Codecs(sampleEntry string, sps *SPS) string {
+func CodecString(sampleEntry string, sps *SPS) string {
 	profilePart := ""
 	ptl := sps.ProfileTierLevel
 	switch ptl.GeneralProfileSpace {
@@ -22,7 +23,7 @@ func Codecs(sampleEntry string, sps *SPS) string {
 	}
 	profilePart += fmt.Sprintf("%d", ptl.GeneralProfileIDC)
 
-	flagsPart := fmt.Sprintf("%X", reverseFlags(ptl.GeneralProfileCompatibilityFlags))
+	flagsPart := fmt.Sprintf("%X", bits.Reverse32(ptl.GeneralProfileCompatibilityFlags))
 	var levelPart string
 	if ptl.GeneralTierFlag {
 		levelPart = "H"
@@ -47,14 +48,4 @@ func Codecs(sampleEntry string, sps *SPS) string {
 	}
 
 	return fmt.Sprintf("%s.%s.%s.%s%s", sampleEntry, profilePart, flagsPart, levelPart, constraintBytes)
-}
-
-func reverseFlags(flags uint32) uint32 {
-	var rf uint32 = 0
-	for i := 0; i < 32; i++ {
-		if flags&(1<<(31-i)) != 0 {
-			rf |= 1 << i
-		}
-	}
-	return rf
 }

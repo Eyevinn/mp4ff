@@ -7,10 +7,10 @@ import (
 
 const ()
 
-func TestCodec(t *testing.T) {
+func TestCodecString(t *testing.T) {
 	testCases := []struct {
-		hexSPS string
-		codec  string
+		hexSPS      string
+		codecString string
 	}{
 		{
 			"420101016000000300b0000003000003007ba003c08010e59447924525ac041400000300040000030067c36bdcf50007a12000f42640",
@@ -30,9 +30,9 @@ func TestCodec(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		got := Codecs("hvc1", sps)
-		if got != tc.codec {
-			t.Errorf("Got %q wanted %q", got, tc.codec)
+		got := CodecString("hvc1", sps)
+		if got != tc.codecString {
+			t.Errorf("Got %q wanted %q", got, tc.codecString)
 		}
 	}
 
