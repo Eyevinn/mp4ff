@@ -242,6 +242,40 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// DecodeBox decodes a box but don't read mdat into memoryß
+func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
+	var err error
+	var b Box
+
+	h, err := decodeHeader(r)
+	if err != nil {
+		return nil, err
+	}
+
+	d, ok := decoders[h.name]
+
+	remainingLength := int64(h.size) - int64(h.hdrlen)
+
+	if !ok {
+		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
+	} else {
+		switch h.name {
+		case "mdat":
+			b, err = DecodeMdatLazily(h, startPos)
+			if err == nil {
+				_, err = r.Seek(remainingLength, io.SeekCurrent)
+			}
+		default:
+			b, err = d(h, startPos, io.LimitReader(r, remainingLength))
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("decode %s: %w", h.name, err)
+	}
+
+	return b, nil
+}
+
 // Fixed16 - An 8.8 fixed point number
 type Fixed16 uint16
 

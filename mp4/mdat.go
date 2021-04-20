@@ -8,9 +8,10 @@ import (
 // MdatBox - Media Data Box (mdat)
 // The mdat box contains media chunks/samples.
 type MdatBox struct {
-	StartPos  uint64
-	Data      []byte
-	LargeSize bool
+	StartPos        uint64
+	Data            []byte
+	decLazyDataSize uint64
+	LargeSize       bool
 }
 
 const maxNormalPayloadSize = (1 << 32) - 1 - 8
@@ -22,7 +23,13 @@ func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	largeSize := hdr.hdrlen > boxHeaderSize
-	return &MdatBox{startPos, data, largeSize}, nil
+	return &MdatBox{startPos, data, uint64(len(data)), largeSize}, nil
+}
+
+func DecodeMdatLazily(hdr *boxHeader, startPos uint64) (Box, error) {
+	largeSize := hdr.hdrlen > boxHeaderSize
+	decLazyDataSize := hdr.size - uint64(hdr.hdrlen)
+	return &MdatBox{startPos, nil, decLazyDataSize, largeSize}, nil
 }
 
 // Type - return box type
@@ -32,6 +39,9 @@ func (m *MdatBox) Type() string {
 
 // Size - return calculated size, depending on largeSize set or not
 func (m *MdatBox) Size() uint64 {
+	if m.decLazyDataSize > 0 {
+		return uint64(boxHeaderSize + m.decLazyDataSize)
+	}
 	if len(m.Data) > maxNormalPayloadSize {
 		m.LargeSize = true
 	}
