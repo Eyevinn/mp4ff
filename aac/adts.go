@@ -54,20 +54,40 @@ func (a ADTSHeader) Encode() []byte {
 	return buf.Bytes()
 }
 
-func DecodedAdtsHeader(r io.Reader) (*ADTSHeader, error) {
+// DecodeADTSHeader by first looking for sync word
+func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	br := bits.NewAccErrReader(r)
-	sync := br.Read(12)
-	if sync != 0xfff {
-		return nil, fmt.Errorf("Bad sync")
+	tsPacketSize := 188 // Find sync 0xfff in first 188 bytes (MPEG-TS related)
+	syncFound := false
+	offset = 0
+	for i := 0; i < tsPacketSize; i++ {
+		sync1 := br.Read(8)
+		if sync1 == 0xff {
+			sync2 := br.Read(4)
+			if sync2 == 0x0f {
+				syncFound = true
+				break
+			}
+			_ = br.Read(4) // Byte-align
+			offset++
+		}
+		offset++
+	}
+	if br.AccError() != nil {
+		return nil, 0, fmt.Errorf("Could not find sync: %w", br.AccError())
+	}
+
+	if !syncFound {
+		return nil, 0, fmt.Errorf("No 0xfff sync found")
 	}
 	mpegID := byte(br.Read(1))
 	layer := br.Read(2)
 	if layer != 0 {
-		return nil, fmt.Errorf("Non-permitted layer value %d", layer)
+		return nil, 0, fmt.Errorf("Non-permitted layer value %d", layer)
 	}
 	protectionAbsent := br.Read(1)
 	if protectionAbsent != 1 {
-		return nil, fmt.Errorf("protection_absent not set. Not supported")
+		return nil, 0, fmt.Errorf("protection_absent not set. Not supported")
 	}
 	ah := &ADTSHeader{ID: mpegID}
 	profile := br.Read(2)
@@ -81,11 +101,11 @@ func DecodedAdtsHeader(r io.Reader) (*ADTSHeader, error) {
 	ah.BufferFullness = uint16(br.Read(11))
 	nrRawBlocksMinus1 := br.Read(2)
 	if nrRawBlocksMinus1 != 0 {
-		return nil, fmt.Errorf("only 1 raw block supported")
+		return nil, 0, fmt.Errorf("only 1 raw block supported")
 	}
 	if br.AccError() != nil {
-		return nil, br.AccError()
+		return nil, 0, br.AccError()
 	}
 
-	return ah, nil
+	return ah, offset, nil
 }

@@ -16,16 +16,36 @@ func TestADTS(t *testing.T) {
 
 	adtsBytes := adtsHdrStart.Encode()
 
-	buf := bytes.NewBuffer(adtsBytes)
-
-	adtsHdrEnd, err := DecodedAdtsHeader(buf)
-	if err != nil {
-		t.Error(err)
+	testCases := []struct {
+		adtsBytes    []byte
+		wantedHdr    *ADTSHeader
+		wantedOffset int
+		wantedError  error
+	}{
+		{
+			adtsBytes:    adtsBytes,
+			wantedHdr:    adtsHdrStart,
+			wantedOffset: 0,
+			wantedError:  nil,
+		},
+		{
+			adtsBytes:    append([]byte{0xfe}, adtsBytes...),
+			wantedHdr:    adtsHdrStart,
+			wantedOffset: 1,
+			wantedError:  nil,
+		},
 	}
 
-	diff := deep.Equal(adtsHdrEnd, adtsHdrStart)
-	if diff != nil {
-		t.Error(diff)
+	for _, tc := range testCases {
+		gotHdr, gotOffset, gotErr := DecodeADTSHeader(bytes.NewBuffer(tc.adtsBytes))
+		if gotErr != tc.wantedError {
+			t.Errorf("Got error %s instead of %s", gotErr, tc.wantedError)
+		}
+		if gotOffset != tc.wantedOffset {
+			t.Errorf("Got offset %d instead of %d", gotOffset, tc.wantedOffset)
+		}
+		if diff := deep.Equal(gotHdr, tc.wantedHdr); diff != nil {
+			t.Error(diff)
+		}
 	}
-
 }
