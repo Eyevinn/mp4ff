@@ -205,7 +205,7 @@ func (f *File) DumpWithSampleData(w io.Writer, specificBoxLevels string) error {
 // Encode - encode a file to a Writer
 // Fragmented files are encoded based on InitSegment and MediaSegments, unless EncodeVerbatim is set.
 func (f *File) Encode(w io.Writer) error {
-	if f.isFragmented && !f.EncodeVerbatim {
+	if f.isFragmented {
 		if f.Init != nil {
 			err := f.Init.Encode(w)
 			if err != nil {
@@ -226,22 +226,27 @@ func (f *File) Encode(w io.Writer) error {
 				}
 			}
 			return nil
+		} else {
+			// Fragmented and Verbatim. Don't optimize trun
+			for _, seg := range f.Segments {
+
+				err := seg.EncodeVerbatim(w)
+				if err != nil {
+					return err
+				}
+			}
 		}
-		// Fragmented and Verbatim. Don't optimize trun
-		for _, seg := range f.Segments {
-			err := seg.EncodeVerbatim(w)
+	} else {
+		// Progressive file
+		for _, b := range f.Children {
+
+			err := b.Encode(w)
 			if err != nil {
 				return err
 			}
 		}
 	}
-	// Progressive file
-	for _, b := range f.Children {
-		err := b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
+
 	return nil
 }
 
