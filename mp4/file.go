@@ -218,24 +218,15 @@ func (f *File) Encode(w io.Writer) error {
 				return err
 			}
 		}
-		if !f.EncodeVerbatim {
-			for _, seg := range f.Segments {
-				err := seg.Encode(w)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		// Fragmented and Verbatim. Don't optimize trun
 		for _, seg := range f.Segments {
-			err := seg.EncodeVerbatim(w)
+			err := seg.Encode(w)
 			if err != nil {
 				return err
 			}
 		}
+		return nil
 	}
-	// Progressive file
+	// Progressive file or verbatim
 	for _, b := range f.Children {
 		err := b.Encode(w)
 		if err != nil {
