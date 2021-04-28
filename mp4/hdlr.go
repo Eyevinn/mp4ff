@@ -16,11 +16,12 @@ import (
 // Other types are: "hint" (hint track), "meta" (timed Metadata track), "auxv" (auxiliary video track).
 // clcp (Closed Captions (QuickTime))
 type HdlrBox struct {
-	Version     byte
-	Flags       uint32
-	PreDefined  uint32
-	HandlerType string
-	Name        string
+	Version              byte
+	Flags                uint32
+	PreDefined           uint32
+	HandlerType          string
+	Name                 string // Null-terminated UTF-8 string according to ISO/IEC 14496-12 Sec. 8.4.3.3
+	LacksNullTermination bool   // This should be true, but we allow false as well
 }
 
 // CreateHdlr - create mediaType-specific hdlr box
@@ -65,7 +66,15 @@ func DecodeHdlr(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		HandlerType: string(data[8:12]),
 	}
 	if len(data) > 24 {
-		h.Name = string(data[24 : len(data)-1])
+		endPoint := len(data) - 1
+		lastChar := data[endPoint]
+		if lastChar != 0 {
+			endPoint++
+			h.LacksNullTermination = true
+		}
+		h.Name = string(data[24:endPoint])
+	} else {
+		h.LacksNullTermination = true
 	}
 	return h, nil
 }
@@ -77,7 +86,11 @@ func (b *HdlrBox) Type() string {
 
 // Size - calculated size of box
 func (b *HdlrBox) Size() uint64 {
-	return uint64(boxHeaderSize + 24 + len(b.Name) + 1)
+	size := uint64(boxHeaderSize + 24 + len(b.Name) + 1)
+	if b.LacksNullTermination {
+		size--
+	}
+	return size
 }
 
 // Encode - write box to w
@@ -92,7 +105,9 @@ func (b *HdlrBox) Encode(w io.Writer) error {
 	binary.BigEndian.PutUint32(buf[4:], b.PreDefined)
 	strtobuf(buf[8:], b.HandlerType, 4)
 	strtobuf(buf[24:], b.Name, len(b.Name))
-	buf[len(buf)-1] = 0 // null-termination of string
+	if !b.LacksNullTermination {
+		buf[len(buf)-1] = 0 // null-termination of string
+	}
 	_, err = w.Write(buf)
 	return err
 }
