@@ -22,15 +22,37 @@ import (
 // To Encode the same data as Decoded, this flag must therefore be set.
 // In all cases, Children contain all top-level boxes
 type File struct {
-	Ftyp           *FtypBox
-	Moov           *MoovBox
-	Mdat           *MdatBox        // Only used for non-fragmented files
-	Init           *InitSegment    // Init data (ftyp + moov for fragmented file)
-	Sidx           *SidxBox        // SidxBox for a DASH OnDemand file
-	Segments       []*MediaSegment // Media segments
-	Children       []Box           // All top-level boxes in order
-	EncodeVerbatim bool            // Set to encode box by box without fragment optimizations
-	isFragmented   bool
+	Ftyp         *FtypBox
+	Moov         *MoovBox
+	Mdat         *MdatBox           // Only used for non-fragmented files
+	Init         *InitSegment       // Init data (ftyp + moov for fragmented file)
+	Sidx         *SidxBox           // SidxBox for a DASH OnDemand file
+	Segments     []*MediaSegment    // Media segments
+	Children     []Box              // All top-level boxes in order
+	EncodeMode   FragFileEncodeMode // Determines optimizations and what boxes are included
+	isFragmented bool
+}
+
+type FragFileEncodeMode byte
+
+const (
+	EncodeModeTrunOptimize    = FragFileEncodeMode(0) // Optimize trun for size
+	EncodeModeSegmentVerbatim = FragFileEncodeMode(1) // Encode boxes that are part of Init and MediaSegments
+	EncodeModeFileVerbatim    = FragFileEncodeMode(2) // Encode all boxes in file tree
+
+)
+
+func (f FragFileEncodeMode) String() string {
+	switch f {
+	case EncodeModeTrunOptimize:
+		return "TrunOptimize"
+	case EncodeModeSegmentVerbatim:
+		return "SegmentVerbatim"
+	case EncodeModeFileVerbatim:
+		return "FileVerbatim"
+	default:
+		return fmt.Sprintf("Unknown mode: %d", f)
+	}
 }
 
 // NewFile - create MP4 file
@@ -205,35 +227,45 @@ func (f *File) DumpWithSampleData(w io.Writer, specificBoxLevels string) error {
 // Encode - encode a file to a Writer
 // Fragmented files are encoded based on InitSegment and MediaSegments, unless EncodeVerbatim is set.
 func (f *File) Encode(w io.Writer) error {
-	if f.isFragmented && !f.EncodeVerbatim {
-		if f.Init != nil {
-			err := f.Init.Encode(w)
-			if err != nil {
-				return err
-			}
-		}
-		if f.Sidx != nil {
-			err := f.Sidx.Encode(w)
-			if err != nil {
-				return err
-			}
-		}
-		if !f.EncodeVerbatim {
-			for _, seg := range f.Segments {
-				err := seg.Encode(w)
+	if f.isFragmented {
+		switch f.EncodeMode {
+		case EncodeModeTrunOptimize, EncodeModeSegmentVerbatim:
+			if f.Init != nil {
+				err := f.Init.Encode(w)
 				if err != nil {
 					return err
 				}
 			}
-			return nil
-		}
-		// Fragmented and Verbatim. Don't optimize trun
-		for _, seg := range f.Segments {
-			err := seg.EncodeVerbatim(w)
-			if err != nil {
-				return err
+			if f.Sidx != nil {
+				err := f.Sidx.Encode(w)
+				if err != nil {
+					return err
+				}
+			}
+			if f.EncodeMode == EncodeModeTrunOptimize {
+				for _, seg := range f.Segments {
+					err := seg.Encode(w)
+					if err != nil {
+						return err
+					}
+				}
+			} else { // EncodeModeSegmentVerbatim
+				for _, seg := range f.Segments {
+					err := seg.EncodeVerbatim(w)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		case EncodeModeFileVerbatim:
+			for _, b := range f.Children {
+				err := b.Encode(w)
+				if err != nil {
+					return err
+				}
 			}
 		}
+		return nil
 	}
 	// Progressive file
 	for _, b := range f.Children {
