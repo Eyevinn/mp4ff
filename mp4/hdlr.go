@@ -77,7 +77,7 @@ func (b *HdlrBox) Type() string {
 
 // Size - calculated size of box
 func (b *HdlrBox) Size() uint64 {
-	return uint64(boxHeaderSize + 24 + len(b.Name) + 1)
+	return uint64(boxHeaderSize + 24 + len(b.Name))
 }
 
 // Encode - write box to w
