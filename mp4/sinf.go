@@ -19,7 +19,7 @@ func (b *SinfBox) AddChild(box Box) {
 		b.Frma = box.(*FrmaBox)
 	case "schm":
 		b.Schm = box.(*SchmBox)
-	case "dinf":
+	case "schi":
 		b.Schi = box.(*SchiBox)
 	}
 	b.Children = append(b.Children, box)
