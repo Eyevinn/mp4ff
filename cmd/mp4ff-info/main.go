@@ -52,7 +52,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer ifd.Close()
-	parsedMp4, err := mp4.DecodeFile(ifd)
+	parsedMp4, err := mp4.DecodeFileLazily(ifd)
 	if err != nil {
 		log.Fatal(err)
 	}
