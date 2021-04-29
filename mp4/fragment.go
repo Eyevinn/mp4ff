@@ -9,11 +9,12 @@ import (
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
 type Fragment struct {
-	Prft       *PrftBox
-	Moof       *MoofBox
-	Mdat       *MdatBox
-	Children   []Box  // All top-level boxes in order
-	nextTrunNr uint32 // To handle multi-trun cases
+	Prft        *PrftBox
+	Moof        *MoofBox
+	Mdat        *MdatBox
+	Children    []Box       // All top-level boxes in order
+	nextTrunNr  uint32      // To handle multi-trun cases
+	EncOptimize EncOptimize // Bit field with optimizations being done at encoding
 }
 
 // NewFragment - New emtpy one-track MP4 Fragment
@@ -206,9 +207,11 @@ func (f *Fragment) Encode(w io.Writer) error {
 		return fmt.Errorf("moof not set in fragment")
 	}
 	traf := f.Moof.Traf
-	err := traf.OptimizeTfhdTrun()
-	if err != nil {
-		return err
+	if f.EncOptimize&OptimizeTrun != 0 {
+		err := traf.OptimizeTfhdTrun()
+		if err != nil {
+			return err
+		}
 	}
 	if f.Mdat == nil {
 		return fmt.Errorf("mdat not set in fragment")
@@ -252,22 +255,4 @@ func (f *Fragment) SetTrunDataOffsets() {
 		trun.DataOffset = int32(dataOffset)
 		dataOffset += trun.SizeOfData()
 	}
-}
-
-// EncodeVerbatim - write fragment without trun optimization via writer
-func (f *Fragment) EncodeVerbatim(w io.Writer) error {
-	if f.Moof == nil {
-		return fmt.Errorf("moof not set in fragment")
-	}
-	if f.Mdat == nil {
-		return fmt.Errorf("mdat not set in fragment")
-	}
-	f.SetTrunDataOffsets()
-	for _, b := range f.Children {
-		err := b.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

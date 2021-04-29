@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // File - an MPEG-4 file asset
@@ -24,42 +25,47 @@ import (
 type File struct {
 	Ftyp         *FtypBox
 	Moov         *MoovBox
-	Mdat         *MdatBox           // Only used for non-fragmented files
-	Init         *InitSegment       // Init data (ftyp + moov for fragmented file)
-	Sidx         *SidxBox           // SidxBox for a DASH OnDemand file
-	Segments     []*MediaSegment    // Media segments
-	Children     []Box              // All top-level boxes in order
-	EncodeMode   FragFileEncodeMode // Determines optimizations and what boxes are included
+	Mdat         *MdatBox        // Only used for non-fragmented files
+	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
+	Sidx         *SidxBox        // SidxBox for a DASH OnDemand file
+	Segments     []*MediaSegment // Media segments
+	Children     []Box           // All top-level boxes in order
+	FragEncMode  EncFragFileMode // Determine how fragmented files are encoded
+	EncOptimize  EncOptimize     // Bit field with optimizations being done at encoding
 	isFragmented bool
 }
 
-type FragFileEncodeMode byte
+type EncFragFileMode byte
 
 const (
-	EncodeModeTrunOptimize    = FragFileEncodeMode(0) // Optimize trun for size
-	EncodeModeSegmentVerbatim = FragFileEncodeMode(1) // Encode boxes that are part of Init and MediaSegments
-	EncodeModeFileVerbatim    = FragFileEncodeMode(2) // Encode all boxes in file tree
-
+	EncModeSegment = EncFragFileMode(0) // Only encode boxes that are part of Init and MediaSegments
+	EncModeBoxTree = EncFragFileMode(1) // Encode all boxes in file tree
 )
 
-func (f FragFileEncodeMode) String() string {
-	switch f {
-	case EncodeModeTrunOptimize:
-		return "TrunOptimize"
-	case EncodeModeSegmentVerbatim:
-		return "SegmentVerbatim"
-	case EncodeModeFileVerbatim:
-		return "FileVerbatim"
-	default:
-		return fmt.Sprintf("Unknown mode: %d", f)
+type EncOptimize uint32
+
+const (
+	OptimizeNone = EncOptimize(0)
+	OptimizeTrun = EncOptimize(1 << 0)
+)
+
+func (eo EncOptimize) String() string {
+	var optList []string
+	msg := "OptimizeNone"
+	if eo&OptimizeTrun != 0 {
+		optList = append(optList, "OptimizeTrun")
 	}
+	if len(optList) > 0 {
+		msg = strings.Join(optList, " | ")
+	}
+	return msg
 }
 
 // NewFile - create MP4 file
 func NewFile() *File {
 	return &File{
-		Children: []Box{},
-		Segments: []*MediaSegment{},
+		FragEncMode: EncModeSegment,
+		EncOptimize: OptimizeNone,
 	}
 }
 
@@ -228,8 +234,8 @@ func (f *File) DumpWithSampleData(w io.Writer, specificBoxLevels string) error {
 // Fragmented files are encoded based on InitSegment and MediaSegments, unless EncodeVerbatim is set.
 func (f *File) Encode(w io.Writer) error {
 	if f.isFragmented {
-		switch f.EncodeMode {
-		case EncodeModeTrunOptimize, EncodeModeSegmentVerbatim:
+		switch f.FragEncMode {
+		case EncModeSegment:
 			if f.Init != nil {
 				err := f.Init.Encode(w)
 				if err != nil {
@@ -242,28 +248,24 @@ func (f *File) Encode(w io.Writer) error {
 					return err
 				}
 			}
-			if f.EncodeMode == EncodeModeTrunOptimize {
+			if f.EncOptimize&OptimizeTrun != 0 {
 				for _, seg := range f.Segments {
+					seg.EncOptimize = f.EncOptimize
 					err := seg.Encode(w)
 					if err != nil {
 						return err
 					}
 				}
-			} else { // EncodeModeSegmentVerbatim
-				for _, seg := range f.Segments {
-					err := seg.EncodeVerbatim(w)
-					if err != nil {
-						return err
-					}
-				}
 			}
-		case EncodeModeFileVerbatim:
+		case EncModeBoxTree:
 			for _, b := range f.Children {
 				err := b.Encode(w)
 				if err != nil {
 					return err
 				}
 			}
+		default:
+			return fmt.Errorf("Unknown FragEncMode=%d", f.FragEncMode)
 		}
 		return nil
 	}
