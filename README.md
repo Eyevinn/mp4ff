@@ -25,7 +25,7 @@ In the non-fragmented files, the members Ftyp, Moov, and Mdat are used.
 A fragmented `mp4.File` file can be a single init segment, one or more media segments, or a a
 combination of both like a CMAF track which renders into a playable one-track asset.
 
-The following high-level structures are used:
+For fragmented files, following high-level structures are used:
 
 * `InitSegment` contains an `ftyp` and `moov` box and provides the metadata for a fragmented files.
    It corresponds to a CMAF header
@@ -39,7 +39,7 @@ The typical child boxes are exported so that one can write paths such as
 
 to access the (only) trun box in a fragment.
 
-The codec currently supported are AVC/H.264 and AAC.
+The codecs currently supported are AVC/H.264, HEVC/H.265 and AAC.
 
 ## Usage for creating new fragmented files
 
@@ -104,18 +104,15 @@ adds a box to its slice of children boxes `Children`, but also sets a specific
 member reference such as `Tfdt`  to point to that box. If `Children` is manipulated
 directly, that link will not be valid.
 
-## Automatic settings of values on Fragment.Encode
-It is possible to optimize the `TrunBox` size by writing default values in `TfhdBox`.
-To do this, one must analyze if, for example, the duration of all samples is the same.
-This is done by the method `TrafBox.OptimizeTfhdTrun` which changes its children `Tfhd`and `Trun`.
-Since this will change the size of boxes, it is important that this function is called
-before `Encode` on any parent box of `Traf`. In particular, this method is called automatically
-when running `Fragment.Encode`.
-
-Another value which is automatically set by `Moof.Encode` is `MoofBox.Traf.Trun.DataOffset`.
-This value is the address of the first media sample relative to the start of the `MoofBox` start.
-It therefore depends on the size of `MoofBox` and is unknown until all values are in place so that
-it can be calculated. It is set to `MoofBox.Size()+8`.
+## Encoding modes and optimizations
+For fragmented files, one can choose to either encode all boxes in a file, or only code
+the ones which are inclueded in the init and media segments. The attribute that controls that
+is called `FragEncMode`.
+Another attribute `EncOptimize` controls possible optimizations of the file encoding process.
+Currently there is only one possible optimization called `OptimizeTrun`.
+It can reduce the size of the `TrunBox` by finding and writing default
+values in the `TfhdBox` and omitting the corresponding values from the `TrunBox`.
+Note that this may change the size of all ancestor boxes of `trun`.
 
 ## Sample Number Offset
 Following the ISOBMFF standard, sample numbers and other numbers start at 1 (one-based).
