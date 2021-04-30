@@ -35,7 +35,8 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 	}
 
 	var bufInSeg bytes.Buffer
-	f.EncodeVerbatim = true
+	f.EncOptimize = OptimizeNone // Avoid trun optimization
+	f.FragEncMode = EncModeBoxTree
 	err = f.Encode(&bufInSeg)
 	if err != nil {
 		t.Error(err)
@@ -71,6 +72,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 
 	var bufFrag bytes.Buffer
 	fragmentedSegment := NewMediaSegment()
+	fragmentedSegment.EncOptimize = OptimizeTrun
 	fragmentedSegment.Styp = f.Segments[0].Styp
 	fragmentedSegment.Fragments = fragments
 
@@ -102,7 +104,6 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 }
 
 func TestDoubleDecodeEncodeOptimize(t *testing.T) {
-	encodeVerbatim := false
 	inFile := "testdata/1.m4s"
 
 	fd, err := os.Open(inFile)
@@ -111,9 +112,9 @@ func TestDoubleDecodeEncodeOptimize(t *testing.T) {
 	}
 	defer fd.Close()
 
-	enc1 := decodeEncode(t, fd, encodeVerbatim)
+	enc1 := decodeEncode(t, fd, OptimizeTrun)
 	buf1 := bytes.NewBuffer(enc1)
-	enc2 := decodeEncode(t, buf1, encodeVerbatim)
+	enc2 := decodeEncode(t, buf1, OptimizeTrun)
 	diff := deep.Equal(enc2, enc1)
 	if diff != nil {
 		t.Errorf("Second write gives diff %s", diff)
@@ -121,7 +122,7 @@ func TestDoubleDecodeEncodeOptimize(t *testing.T) {
 }
 
 func TestDoubleDecodeEncodeNoOptimize(t *testing.T) {
-	encodeVerbatim := true
+
 	inFile := "testdata/1.m4s"
 
 	fd, err := os.Open(inFile)
@@ -130,23 +131,23 @@ func TestDoubleDecodeEncodeNoOptimize(t *testing.T) {
 	}
 	defer fd.Close()
 
-	enc1 := decodeEncode(t, fd, encodeVerbatim)
+	enc1 := decodeEncode(t, fd, OptimizeNone)
 	buf1 := bytes.NewBuffer(enc1)
-	enc2 := decodeEncode(t, buf1, encodeVerbatim)
+	enc2 := decodeEncode(t, buf1, OptimizeNone)
 	diff := deep.Equal(enc2, enc1)
 	if diff != nil {
 		t.Errorf("Second write gives diff %s", diff)
 	}
 }
 
-func decodeEncode(t *testing.T, r io.Reader, encodeVerbatim bool) []byte {
+func decodeEncode(t *testing.T, r io.Reader, optimize EncOptimize) []byte {
 	f, err := DecodeFile(r)
 	if err != nil {
 		t.Error(err)
 	}
 
 	buf := bytes.Buffer{}
-	f.EncodeVerbatim = encodeVerbatim
+	f.EncOptimize = optimize
 	err = f.Encode(&buf)
 	if err != nil {
 		t.Error(err)
@@ -170,7 +171,7 @@ func TestMoofEncrypted(t *testing.T) {
 	}
 
 	var bufOut bytes.Buffer
-	f.EncodeVerbatim = true
+	f.FragEncMode = EncModeBoxTree
 	err = f.Encode(&bufOut)
 	if err != nil {
 		t.Error(err)
@@ -206,7 +207,7 @@ func BenchmarkDecodeEncode(b *testing.B) {
 		buf := bytes.NewBuffer(raw)
 		f, _ := DecodeFile(buf)
 		var bufInSeg bytes.Buffer
-		f.EncodeVerbatim = true
+		f.FragEncMode = EncModeBoxTree
 		_ = f.Encode(&bufInSeg)
 	}
 }

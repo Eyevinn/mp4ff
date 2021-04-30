@@ -80,7 +80,8 @@ func TestGetMultiTrackSamples(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	parsedMp4.EncodeVerbatim = true
+	parsedMp4.FragEncMode = mp4.EncModeBoxTree
+	parsedMp4.EncOptimize = mp4.OptimizeNone
 	err = parsedMp4.Encode(&buf)
 	if err != nil {
 		t.Error(err)
