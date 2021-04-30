@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	commitVersion string = "v0.22.0" // Updated when building using Makefile
+	commitVersion string = "v0.23.0" // Updated when building using Makefile
 	commitDate    string             // commitDate in Epoch seconds (inserted from Makefile)
 )
 
