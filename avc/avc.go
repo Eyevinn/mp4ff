@@ -43,6 +43,12 @@ func (a NaluType) String() string {
 		return "PPS_8"
 	case NALU_AUD:
 		return "AUD_9"
+	case NALU_EO_SEQ:
+		return "EndOfSequence_10"
+	case NALU_EO_STREAM:
+		return "EndOfStream_11"
+	case NALU_FILL:
+		return "FILL_12"
 	default:
 		return fmt.Sprintf("Other_%d", a)
 	}
