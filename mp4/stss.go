@@ -15,7 +15,6 @@ type StssBox struct {
 	Version      byte
 	Flags        uint32
 	SampleNumber []uint32
-	lookUp       map[uint32]bool // Used for optimization
 }
 
 // DecodeStss - box-specific decode
@@ -50,14 +49,21 @@ func (b *StssBox) Size() uint64 {
 
 // IsSyncSample - check if sample (one-based) sampleNr is a sync sample
 func (b *StssBox) IsSyncSample(sampleNr uint32) (isSync bool) {
-	if b.lookUp == nil {
-		b.lookUp = make(map[uint32]bool)
-		for _, i := range b.SampleNumber {
-			b.lookUp[i] = true
+	// Based on a binary search algorithm from the Go standard library code.
+	// i will be the lowest index such that b.SampleNumber[i] >= sampleNr
+	// or len(b.SampleNumber) if not possible.
+	nrSamples := len(b.SampleNumber)
+	i, j := 0, nrSamples
+	for i < j {
+		h := (i + j) >> 1
+		// i ≤ h < j
+		if b.SampleNumber[h] < sampleNr {
+			i = h + 1
+		} else {
+			j = h
 		}
 	}
-	_, isSync = b.lookUp[sampleNr]
-	return
+	return i < nrSamples && b.SampleNumber[i] == sampleNr
 }
 
 // Encode - box-specific encode
