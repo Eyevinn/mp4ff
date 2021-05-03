@@ -1,6 +1,8 @@
 package mp4
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -12,6 +14,7 @@ type MdatBox struct {
 	Data            []byte
 	decLazyDataSize uint64
 	LargeSize       bool
+	readSeeker      io.ReadSeeker
 }
 
 const maxNormalPayloadSize = (1 << 32) - 1 - 8
@@ -23,13 +26,13 @@ func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	largeSize := hdr.hdrlen > boxHeaderSize
-	return &MdatBox{startPos, data, uint64(len(data)), largeSize}, nil
+	return &MdatBox{startPos, data, uint64(len(data)), largeSize, nil}, nil
 }
 
 func DecodeMdatLazily(hdr *boxHeader, startPos uint64) (Box, error) {
 	largeSize := hdr.hdrlen > boxHeaderSize
 	decLazyDataSize := hdr.size - uint64(hdr.hdrlen)
-	return &MdatBox{startPos, nil, decLazyDataSize, largeSize}, nil
+	return &MdatBox{startPos, nil, decLazyDataSize, largeSize, nil}, nil
 }
 
 // Type - return box type
@@ -83,4 +86,43 @@ func (m *MdatBox) HeaderSize() uint64 {
 // PayloadAbsoluteOffset - position of mdat payload start (works after header)
 func (m *MdatBox) PayloadAbsoluteOffset() uint64 {
 	return m.StartPos + m.HeaderSize()
+}
+
+// AddReadSeeker - add readseeker to Mdat box.
+// When a file is decoded lazily, the Mdat Data byte slice is nil
+// and this readseeker is to read data whenever the data is needed.
+func (m *MdatBox) AddReadSeeker(rs io.ReadSeeker) {
+	m.readSeeker = rs
+}
+
+// ReadData reads Mdat data specified by the start and size.
+// Input argument start is the postion relative to the start of a file.
+func (m *MdatBox) ReadData(start, size int64) ([]byte, error) {
+	// The Mdat box was decoded lazily
+	if m.decLazyDataSize > 0 {
+		if m.readSeeker == nil {
+			return nil, errors.New("lazy mdat mode expects readseeker to read data")
+		}
+		_, err := m.readSeeker.Seek(start, io.SeekStart)
+		if err != nil {
+			return nil, fmt.Errorf("unable to seek to %d", start)
+		}
+
+		buf := make([]byte, size)
+		n, err := m.readSeeker.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		if int64(n) != size {
+			return nil, fmt.Errorf("expect to read %d bytes, but only read %d bytes", size, n)
+		}
+		return buf, nil
+	}
+
+	// All Mdat Data is in memory
+	mdatPayloadStart := m.PayloadAbsoluteOffset()
+	offsetInMdatData := uint64(start) - mdatPayloadStart
+
+	return m.Data[offsetInMdatData : offsetInMdatData+uint64(size)], nil
+
 }
