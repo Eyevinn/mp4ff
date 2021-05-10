@@ -2,6 +2,9 @@ package mp4
 
 import (
 	"bytes"
+	"encoding/hex"
+	"log"
+	"sync"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -78,4 +81,62 @@ func TestEncodeAndDecodeMdatLargeSize(t *testing.T) {
 	if diff := deep.Equal(mdatDec.Data, sample); diff != nil {
 		t.Error(diff)
 	}
+}
+
+func TestReadData_NormalMode(t *testing.T) {
+
+	mdat := &MdatBox{
+		StartPos: 0,
+		Data:     []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+	}
+
+	data, err := mdat.ReadData(9, 5)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := mdat.Data[1:6]
+
+	if !bytes.Equal(data, expected) {
+		t.Errorf("expected %v, got %v", expected, data)
+	}
+
+}
+
+func TestReadData_LazyMdatMode(t *testing.T) {
+
+	// prepare encoded mdat box before testing read
+	mdat := &MdatBox{
+		StartPos: 4000,
+	}
+	sample := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
+	mdat.AddSampleData(sample)
+	var buf bytes.Buffer
+	err := mdat.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// test ReadData
+	lazyMdat := &MdatBox{
+		StartPos:        0,
+		decLazyDataSize: 7,
+		mu:              &sync.Mutex{},
+	}
+
+	log.Println(hex.Dump(buf.Bytes()))
+
+	readSeeker := bytes.NewReader(buf.Bytes())
+	lazyMdat.setReadSeeker(readSeeker)
+	data, err := lazyMdat.ReadData(9, 5)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := sample[1:6]
+
+	if !bytes.Equal(data, expected) {
+		t.Errorf("expected %v, got %v", expected, data)
+	}
+
 }

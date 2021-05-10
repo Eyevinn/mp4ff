@@ -106,7 +106,7 @@ func (m *MdatBox) ReadData(start, size int64) ([]byte, error) {
 	// The Mdat box was decoded lazily
 	if m.decLazyDataSize > 0 {
 		if m.readSeeker == nil {
-			return nil, errors.New("[lazy mdat mode] expects non-nil readseeker to read data")
+			return nil, errors.New("lazy mdat mode - expects non-nil readseeker to read data")
 		}
 
 		m.mu.Lock()
@@ -114,7 +114,7 @@ func (m *MdatBox) ReadData(start, size int64) ([]byte, error) {
 
 		_, err := m.readSeeker.Seek(start, io.SeekStart)
 		if err != nil {
-			return nil, fmt.Errorf("[lazy mdat mode] unable to seek to %d", start)
+			return nil, fmt.Errorf("lazy mdat mode - unable to seek to %d", start)
 		}
 
 		buf := make([]byte, size)
@@ -123,7 +123,7 @@ func (m *MdatBox) ReadData(start, size int64) ([]byte, error) {
 			return nil, err
 		}
 		if int64(n) != size {
-			return nil, fmt.Errorf("[lazy mdat mode] expects to read %d bytes, but only read %d bytes", size, n)
+			return nil, fmt.Errorf("lazy mdat mode - expects to read %d bytes, but only read %d bytes", size, n)
 		}
 		return buf, nil
 	}
@@ -131,7 +131,12 @@ func (m *MdatBox) ReadData(start, size int64) ([]byte, error) {
 	// Otherwise, all Mdat data is in memory
 	mdatPayloadStart := m.PayloadAbsoluteOffset()
 	offsetInMdatData := uint64(start) - mdatPayloadStart
+	endIndexInMdatData := offsetInMdatData + uint64(size)
 
+	// validate if indexes are valid to avoid panics
+	if offsetInMdatData >= uint64(len(m.Data)) || endIndexInMdatData >= uint64(len(m.Data)) {
+		return nil, fmt.Errorf("normal mdat mode - invalid range provided")
+	}
 	return m.Data[offsetInMdatData : offsetInMdatData+uint64(size)], nil
 
 }
