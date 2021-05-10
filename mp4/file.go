@@ -33,6 +33,7 @@ type File struct {
 	FragEncMode  EncFragFileMode // Determine how fragmented files are encoded
 	EncOptimize  EncOptimize     // Bit field with optimizations being done at encoding
 	isFragmented bool
+	fileDecMode  DecFileMode
 }
 
 type EncFragFileMode byte
@@ -40,6 +41,16 @@ type EncFragFileMode byte
 const (
 	EncModeSegment = EncFragFileMode(0) // Only encode boxes that are part of Init and MediaSegments
 	EncModeBoxTree = EncFragFileMode(1) // Encode all boxes in file tree
+)
+
+type DecFileMode byte
+
+const (
+	// DecModeNormal reads Mdat data into memory during file decoding.
+	DecModeNormal DecFileMode = iota
+	// DecModeLazyMdat doesn't not read Mdat data into memory,
+	// which means the decoding process requires less memory and faster.
+	DecModeLazyMdat
 )
 
 type EncOptimize uint32
@@ -66,6 +77,7 @@ func NewFile() *File {
 	return &File{
 		FragEncMode: EncModeSegment,
 		EncOptimize: OptimizeNone,
+		fileDecMode: DecModeNormal,
 	}
 }
 
@@ -104,15 +116,35 @@ func (f *File) AddMediaSegment(m *MediaSegment) {
 	f.Segments = append(f.Segments, m)
 }
 
-// DecodeFile - parse and decode a file from reader r
-func DecodeFile(r io.Reader) (*File, error) {
+// DecodeFile - parse and decode a file from reader r with optional file options.
+// For example, the file options overwrite the default decode or encode mode.
+func DecodeFile(r io.Reader, options ...Option) (*File, error) {
 	f := NewFile()
+
+	// apply options to change the default decode or encode mode
+	f.ApplyOptions(options...)
+
 	var boxStartPos uint64 = 0
 	lastBoxType := ""
 
+	var rs io.ReadSeeker
+	if f.fileDecMode == DecModeLazyMdat {
+		ok := false
+		rs, ok = r.(io.ReadSeeker)
+		if !ok {
+			return nil, fmt.Errorf("expecting readseeker when decoding file lazily, but got %T", r)
+		}
+	}
+
 LoopBoxes:
 	for {
-		box, err := DecodeBox(boxStartPos, r)
+		var box Box
+		var err error
+		if f.fileDecMode == DecModeLazyMdat {
+			box, err = DecodeBoxLazyMdat(boxStartPos, rs)
+		} else {
+			box, err = DecodeBox(boxStartPos, r)
+		}
 		if err == io.EOF {
 			break LoopBoxes
 		}
@@ -298,4 +330,25 @@ func (f *File) LastSegment() *MediaSegment {
 // IsFragmented - is file made of multiple segments (Mp4 fragments)
 func (f *File) IsFragmented() bool {
 	return f.isFragmented
+}
+
+// ApplyOptions - applies options for decoding or encoding a file
+func (f *File) ApplyOptions(opts ...Option) {
+	for _, opt := range opts {
+		opt(f)
+	}
+}
+
+// Option is function signature of file options.
+// The design follows functional options pattern.
+type Option func(f *File)
+
+// WithEncodeMode sets up EncFragFileMode
+func WithEncodeMode(mode EncFragFileMode) Option {
+	return func(f *File) { f.FragEncMode = mode }
+}
+
+// WithDecodeMode sets up DecFileMode
+func WithDecodeMode(mode DecFileMode) Option {
+	return func(f *File) { f.fileDecMode = mode }
 }
