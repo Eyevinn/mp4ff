@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 )
 
 const (
@@ -226,8 +227,8 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	d, ok := decoders[h.name]
-
 	remainingLength := int64(h.size) - int64(h.hdrlen)
+	log.Println(h.name, remainingLength, h.size, h.hdrlen)
 
 	if !ok {
 		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
