@@ -2,8 +2,6 @@ package mp4
 
 import (
 	"bytes"
-	"encoding/hex"
-	"log"
 	"sync"
 	"testing"
 
@@ -117,14 +115,12 @@ func TestReadData_LazyMdatMode(t *testing.T) {
 		t.Error(err)
 	}
 
-	// test ReadData
+	// test ReadData with provided ReadSeeker
 	lazyMdat := &MdatBox{
 		StartPos:        0,
 		decLazyDataSize: 7,
 		mu:              &sync.Mutex{},
 	}
-
-	log.Println(hex.Dump(buf.Bytes()))
 
 	readSeeker := bytes.NewReader(buf.Bytes())
 	lazyMdat.setReadSeeker(readSeeker)
