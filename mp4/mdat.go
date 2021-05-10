@@ -30,7 +30,7 @@ func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	largeSize := hdr.hdrlen > boxHeaderSize
-	return &MdatBox{startPos, data, uint64(len(data)), largeSize, nil, nil}, nil
+	return &MdatBox{startPos, data, 0, largeSize, nil, nil}, nil
 }
 
 // DecodeMdatLazily - box-specific decode but Data is not in memory
@@ -105,11 +105,13 @@ func (m *MdatBox) setReadSeeker(rs io.ReadSeeker) {
 func (m *MdatBox) ReadData(start, size int64) ([]byte, error) {
 	// The Mdat box was decoded lazily
 	if m.decLazyDataSize > 0 {
-		m.mu.Lock()
-		defer m.mu.Unlock()
 		if m.readSeeker == nil {
 			return nil, errors.New("[lazy mdat mode] expects non-nil readseeker to read data")
 		}
+
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
 		_, err := m.readSeeker.Seek(start, io.SeekStart)
 		if err != nil {
 			return nil, fmt.Errorf("[lazy mdat mode] unable to seek to %d", start)
