@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"bytes"
-	"sync"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -88,7 +87,7 @@ func TestReadData_NormalMode(t *testing.T) {
 		Data:     []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 	}
 
-	data, err := mdat.ReadData(9, 5)
+	data, err := mdat.ReadData(9, 5, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -115,16 +114,14 @@ func TestReadData_LazyMdatMode(t *testing.T) {
 		t.Error(err)
 	}
 
-	// test ReadData with provided ReadSeeker
 	lazyMdat := &MdatBox{
 		StartPos:        0,
-		decLazyDataSize: 7,
-		mu:              &sync.Mutex{},
+		decLazyDataSize: 6,
 	}
 
+	// test ReadData with provided ReadSeeker
 	readSeeker := bytes.NewReader(buf.Bytes())
-	lazyMdat.setReadSeeker(readSeeker)
-	data, err := lazyMdat.ReadData(9, 5)
+	data, err := lazyMdat.ReadData(9, 5, readSeeker)
 	if err != nil {
 		t.Error(err)
 	}
