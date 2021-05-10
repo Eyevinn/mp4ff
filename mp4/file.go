@@ -161,9 +161,6 @@ LoopBoxes:
 					return nil, fmt.Errorf("Does not support %v between moof and mdat", lastBoxType)
 				}
 			}
-			if f.fileDecMode == DecModeLazyMdat {
-				box.(*MdatBox).setReadSeeker(rs)
-			}
 		}
 		f.AddChild(box, boxStartPos)
 		lastBoxType = boxType
