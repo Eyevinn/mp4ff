@@ -127,11 +127,11 @@ func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) 
 
 }
 
-// SeekAndCopyData - seek data in mdat and copy to w.
+// CopyData - copy data range from mdat to w.
 // The ReadSeeker is used for lazily loaded mdat case.
-func (m *MdatBox) SeekAndCopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nrWritten int64, err error) {
+func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nrWritten int64, err error) {
 	// The Mdat box was decoded lazily
-	if m.decLazyDataSize == 0 {
+	if m.decLazyDataSize > 0 {
 		if rs == nil {
 			return 0, errors.New("lazy mdat mode - expects non-nil readseeker to read data")
 		}
