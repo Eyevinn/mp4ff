@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"bytes"
-	"sync"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -88,7 +87,7 @@ func TestReadData_NormalMode(t *testing.T) {
 		Data:     []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 	}
 
-	data, err := mdat.ReadData(9, 5)
+	data, err := mdat.ReadData(9, 5, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -115,16 +114,14 @@ func TestReadData_LazyMdatMode(t *testing.T) {
 		t.Error(err)
 	}
 
-	// test ReadData with provided ReadSeeker
 	lazyMdat := &MdatBox{
 		StartPos:        0,
-		decLazyDataSize: 7,
-		mu:              &sync.Mutex{},
+		decLazyDataSize: 6,
 	}
 
+	// test ReadData with provided ReadSeeker
 	readSeeker := bytes.NewReader(buf.Bytes())
-	lazyMdat.setReadSeeker(readSeeker)
-	data, err := lazyMdat.ReadData(9, 5)
+	data, err := lazyMdat.ReadData(9, 5, readSeeker)
 	if err != nil {
 		t.Error(err)
 	}
@@ -135,4 +132,64 @@ func TestReadData_LazyMdatMode(t *testing.T) {
 		t.Errorf("expected %v, got %v", expected, data)
 	}
 
+}
+
+func TestCopyData_NormalMode(t *testing.T) {
+
+	mdat := &MdatBox{
+		StartPos: 0,
+		Data:     []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+	}
+
+	var outBuffer bytes.Buffer
+	n, err := mdat.CopyData(9, 5, nil, &outBuffer)
+	if n != 5 {
+		t.Errorf("did get %d bytes instead of 5", n)
+	}
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := mdat.Data[1:6]
+
+	if !bytes.Equal(outBuffer.Bytes(), expected) {
+		t.Errorf("expected %v, got %v", expected, outBuffer.Bytes())
+	}
+}
+
+func TestCopyData_LazyMdatMode(t *testing.T) {
+
+	// prepare encoded mdat box before testing read
+	mdat := &MdatBox{
+		StartPos: 4000,
+	}
+	sample := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
+	mdat.AddSampleData(sample)
+	var buf bytes.Buffer
+	err := mdat.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	lazyMdat := &MdatBox{
+		StartPos:        0,
+		decLazyDataSize: 6,
+	}
+
+	// test ReadData with provided ReadSeeker
+	readSeeker := bytes.NewReader(buf.Bytes())
+	var outBuffer bytes.Buffer
+	n, err := lazyMdat.CopyData(9, 5, readSeeker, &outBuffer)
+	if n != 5 {
+		t.Errorf("did get %d bytes instead of 5", n)
+	}
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := sample[1:6]
+
+	if !bytes.Equal(outBuffer.Bytes(), expected) {
+		t.Errorf("expected %v, got %v", expected, outBuffer.Bytes())
+	}
 }
