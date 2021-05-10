@@ -226,6 +226,7 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	d, ok := decoders[h.name]
+
 	remainingLength := int64(h.size) - int64(h.hdrlen)
 
 	if !ok {
