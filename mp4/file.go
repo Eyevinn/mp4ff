@@ -46,11 +46,11 @@ const (
 type DecFileMode byte
 
 const (
+	// DecModeNormal reads Mdat data into memory during file decoding.
+	DecModeNormal DecFileMode = iota
 	// DecModeLazyMdat doesn't not read Mdat data into memory,
 	// which means the decoding process requires less memory and faster.
-	DecModeLazyMdat DecFileMode = iota
-	// DecModeNormal read Mdat data into memory during file decoding.
-	DecModeNormal
+	DecModeLazyMdat
 )
 
 type EncOptimize uint32
@@ -77,6 +77,7 @@ func NewFile() *File {
 	return &File{
 		FragEncMode: EncModeSegment,
 		EncOptimize: OptimizeNone,
+		fileDecMode: DecModeNormal,
 	}
 }
 
@@ -115,11 +116,12 @@ func (f *File) AddMediaSegment(m *MediaSegment) {
 	f.Segments = append(f.Segments, m)
 }
 
-// DecodeFile - parse and decode a file from reader r
+// DecodeFile - parse and decode a file from reader r with optional file options.
+// For example, the file options overwrite the default decode or encode mode.
 func DecodeFile(r io.Reader, options ...Option) (*File, error) {
 	f := NewFile()
 
-	// apply options
+	// apply options to change the default decode or encode mode
 	f.ApplyOptions(options...)
 
 	var boxStartPos uint64 = 0
@@ -138,10 +140,9 @@ LoopBoxes:
 	for {
 		var box Box
 		var err error
-		switch f.fileDecMode {
-		case DecModeLazyMdat:
+		if f.fileDecMode == DecModeLazyMdat {
 			box, err = DecodeBoxLazyMdat(boxStartPos, rs)
-		default:
+		} else {
 			box, err = DecodeBox(boxStartPos, r)
 		}
 		if err == io.EOF {
@@ -159,6 +160,9 @@ LoopBoxes:
 				if lastBoxType != "moof" {
 					return nil, fmt.Errorf("Does not support %v between moof and mdat", lastBoxType)
 				}
+			}
+			if f.fileDecMode == DecModeLazyMdat {
+				box.(*MdatBox).setReadSeeker(rs)
 			}
 		}
 		f.AddChild(box, boxStartPos)
