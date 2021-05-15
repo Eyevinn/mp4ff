@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -56,14 +57,6 @@ func (b *StszBox) Size() uint64 {
 	return uint64(boxHeaderSize + 12 + len(b.SampleSize)*4)
 }
 
-// GetSampleSize returns the size (in bytes) of a sample
-func (b *StszBox) GetSampleSize(i int) uint32 {
-	if i > len(b.SampleSize) {
-		return b.SampleUniformSize
-	}
-	return b.SampleSize[i-1]
-}
-
 // Encode - write box to w
 func (b *StszBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -105,4 +98,39 @@ func (b *StszBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		}
 	}
 	return bd.err
+}
+
+// GetNrSamples - get number of sampples
+func (b *StszBox) GetNrSamples() uint32 {
+	if len(b.SampleSize) == 0 {
+		return b.SampleNumber
+	}
+	return uint32(len(b.SampleSize))
+}
+
+// GetSampleSize returns the size (in bytes) of a sample
+func (b *StszBox) GetSampleSize(i int) uint32 {
+	if i > len(b.SampleSize) { // One-based
+		return b.SampleUniformSize
+	}
+	return b.SampleSize[i-1]
+}
+
+// GetTotalSize - get total size of a range [startNr, endNr] of samples
+func (b *StszBox) GetTotalSampleSize(startNr, endNr uint32) (uint64, error) {
+	if startNr <= 0 || endNr > b.SampleNumber {
+		return 0, fmt.Errorf("startNr or calculated endNr outside range 1-%d", b.SampleNumber)
+	}
+	if endNr < startNr {
+		return 0, nil
+	}
+	if b.SampleUniformSize != 0 {
+		nrSamples := uint64(endNr - startNr + 1)
+		return nrSamples * uint64(b.SampleUniformSize), nil
+	}
+	size := uint64(0)
+	for nr := startNr; nr <= endNr; nr++ {
+		size += uint64(b.SampleSize[nr-1]) // 1-based numbers
+	}
+	return size, nil
 }

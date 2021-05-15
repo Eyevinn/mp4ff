@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -9,8 +10,6 @@ import (
 // StcoBox - Chunk Offset Box (stco - mandatory)
 //
 // Contained in : Sample Table box (stbl)
-//
-// This is the 32bits version of the box, the 64bits version (co64) is not decoded.
 //
 // The table contains the offsets (starting at the beginning of the file) for each chunk of data for the current track.
 // A chunk contains samples, the table defining the allocation of samples to each chunk is stsc.
@@ -77,4 +76,12 @@ func (b *StcoBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		}
 	}
 	return bd.err
+}
+
+// GetOffset - get offset for 1-based chunkNr.
+func (b *StcoBox) GetOffset(chunkNr int) (uint64, error) {
+	if chunkNr <= 0 || chunkNr > len(b.ChunkOffset) {
+		return 0, fmt.Errorf("Non-valid chunkNr: %d", chunkNr)
+	}
+	return uint64(b.ChunkOffset[chunkNr-1]), nil
 }

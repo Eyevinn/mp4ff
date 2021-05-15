@@ -37,6 +37,11 @@ func DecodeStss(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// EntryCount - number of sync samples
+func (b *StssBox) EntryCount() uint32 {
+	return uint32(len(b.SampleNumber))
+}
+
 // Type - box-specfic type
 func (b *StssBox) Type() string {
 	return "stss"

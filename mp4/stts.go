@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -98,6 +99,28 @@ func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
 	return decTime, dur
 }
 
+// GetDur - get dur for a specific sample
+func (b *SttsBox) GetDur(sampleNr uint32) (dur uint32) {
+	if sampleNr == 0 {
+		// This is bad index input. Should not happen
+		log.Print("ERROR: SttsBox.GetDur called with sampleNr == 0, although one-based")
+		return 0
+	}
+	sampleNr-- // one-based -> zero-based
+	i := 0
+	for i < len(b.SampleCount) {
+		dur = b.SampleTimeDelta[i]
+
+		if sampleNr >= b.SampleCount[i] {
+			sampleNr -= b.SampleCount[i]
+		} else {
+			return dur
+		}
+		i++
+	}
+	return dur
+}
+
 // Encode - write box to w
 func (b *SttsBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
@@ -116,6 +139,7 @@ func (b *SttsBox) Encode(w io.Writer) error {
 	_, err = w.Write(buf)
 	return err
 }
+
 func (b *SttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	level := getInfoLevel(b, specificBoxLevels)
@@ -126,4 +150,18 @@ func (b *SttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		}
 	}
 	return bd.err
+}
+
+// GetSampleNrAtTime - get sample number at or as soon as possible after time
+// Time is calculated by summing up durations of previous samples
+func (b *SttsBox) GetSampleNrAtTime(sampleStartTime uint64) (sampleNr uint32, err error) {
+	accTime := uint64(0)
+	accNr := uint32(0)
+	for i := 0; i < len(b.SampleCount); i++ {
+		timeDelta := uint64(b.SampleTimeDelta[i])
+		if sampleStartTime < accTime+uint64(b.SampleCount[i])*timeDelta {
+			return accNr + uint32((sampleStartTime-accTime)/timeDelta) + 1, nil
+		}
+	}
+	return 0, fmt.Errorf("no matching sample found")
 }
