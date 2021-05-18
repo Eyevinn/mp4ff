@@ -25,6 +25,7 @@ func init() {
 		"cdat": DecodeCdat,
 		"clap": DecodeClap,
 		"co64": DecodeCo64,
+		"cslg": DecodeCslg,
 		"ctim": DecodeCtim,
 		"ctts": DecodeCtts,
 		"dinf": DecodeDinf,
