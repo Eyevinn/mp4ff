@@ -125,16 +125,19 @@ func TestDoubleDecodeEncodeNoOptimize(t *testing.T) {
 
 	inFile := "testdata/1.m4s"
 
-	fd, err := os.Open(inFile)
+	data, err := ioutil.ReadFile(inFile)
 	if err != nil {
 		t.Error(err)
 	}
-	defer fd.Close()
-
-	enc1 := decodeEncode(t, fd, OptimizeNone)
+	buf0 := bytes.NewBuffer(data)
+	enc1 := decodeEncode(t, buf0, OptimizeNone)
+	diff := deep.Equal(enc1, data)
+	if diff != nil {
+		t.Errorf("First encode gives diff %s", diff)
+	}
 	buf1 := bytes.NewBuffer(enc1)
 	enc2 := decodeEncode(t, buf1, OptimizeNone)
-	diff := deep.Equal(enc2, enc1)
+	diff = deep.Equal(enc2, enc1)
 	if diff != nil {
 		t.Errorf("Second write gives diff %s", diff)
 	}
