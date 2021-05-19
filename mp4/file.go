@@ -280,13 +280,13 @@ func (f *File) Encode(w io.Writer) error {
 					return err
 				}
 			}
-			if f.EncOptimize&OptimizeTrun != 0 {
-				for _, seg := range f.Segments {
+			for _, seg := range f.Segments {
+				if f.EncOptimize&OptimizeTrun != 0 {
 					seg.EncOptimize = f.EncOptimize
-					err := seg.Encode(w)
-					if err != nil {
-						return err
-					}
+				}
+				err := seg.Encode(w)
+				if err != nil {
+					return err
 				}
 			}
 		case EncModeBoxTree:
