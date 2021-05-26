@@ -21,17 +21,29 @@ type infoDumper struct {
 	err    error
 }
 
+// fixStartingCopyrightChar - replace starting one byte © with two-bytes UTF-8
+func fixStartingCopyrightChar(boxType string) string {
+	// © is 0xa9 in latin1 (and in Apple boxes/atoms)
+	// In UTF-8 it is two bytes: 0xc2 0xa9
+	bType := []byte(boxType)
+	if bType[0] == 0xa9 {
+		bType = append([]byte{0xc2}, bType...)
+	}
+	return string(bType)
+}
+
 // newInfoDumper - make an infoDumper with indent
 // set Version to -1 if not present for box
 // set Version to -2 for sample group entries
 func newInfoDumper(w io.Writer, indent string, b boxLike, version int, flags uint32) *infoDumper {
 	bd := infoDumper{w, indent, b, nil}
+	utf8BoxType := fixStartingCopyrightChar(b.Type())
 	if version == -1 {
-		bd.write("[%s] size=%d", b.Type(), b.Size())
+		bd.write("[%s] size=%d", utf8BoxType, b.Size())
 	} else if version >= 0 {
-		bd.write("[%s] size=%d version=%d flags=%06x", b.Type(), b.Size(), version, flags)
+		bd.write("[%s] size=%d version=%d flags=%06x", utf8BoxType, b.Size(), version, flags)
 	} else { // version = -2
-		bd.write("GroupingType %q size=%d", b.Type(), b.Size())
+		bd.write("GroupingType %q size=%d", utf8BoxType, b.Size())
 	}
 	return &bd
 }

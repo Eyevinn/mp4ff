@@ -84,7 +84,7 @@ func (p *PrftBox) Encode(w io.Writer) error {
 
 func (p *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, p, int(p.Version), p.Flags)
-	bd.write(" - ntpTimestampe: %d", p.NTPTimestamp)
+	bd.write(" - ntpTimestamp: %d", p.NTPTimestamp)
 	bd.write(" - mediaTime: %d", p.MediaTime)
 	return bd.err
 }
