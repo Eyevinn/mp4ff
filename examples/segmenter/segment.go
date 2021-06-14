@@ -203,6 +203,49 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 	return samples, nil
 }
 
+// GetSamplesForInterval - get slice of samples with numbers startSampleNr to endSampleNr (inclusive)
+func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, startSampleNr, endSampleNr uint32) ([]*mp4.Sample, error) {
+	stbl := trak.Mdia.Minf.Stbl
+	var samples []*mp4.Sample
+	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
+		size := stbl.Stsz.GetSampleSize(int(sampleNr))
+		dur := stbl.Stts.GetDur(sampleNr)
+		var cto int32 = 0
+		if stbl.Ctts != nil {
+			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)
+		}
+		var sampleFlags mp4.SampleFlags
+		if stbl.Stss != nil {
+			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr))
+			sampleFlags.SampleIsNonSync = !isSync
+			if isSync {
+				sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
+			}
+		}
+		if stbl.Sdtp != nil {
+			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
+			sampleFlags.IsLeading = entry.IsLeading()
+			sampleFlags.SampleDependsOn = entry.SampleDependsOn()
+			sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
+			sampleFlags.SampleIsDependedOn = entry.SampleIsDependedOn()
+		}
+
+		//presTime := uint64(int64(decTime) + int64(cto))
+		//One can either segment on presentationTime or DecodeTime
+		//presTimeMs := presTime * 1000 / uint64(trak.timeScale)
+		sc := &mp4.Sample{
+			Flags: sampleFlags.Encode(),
+			Size:  size,
+			Dur:   dur,
+			Cto:   cto,
+		}
+
+		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
+		samples = append(samples, sc)
+	}
+	return samples, nil
+}
+
 type syncPoint struct {
 	sampleNr   uint32
 	decodeTime uint64
@@ -275,4 +318,50 @@ func getSegmentIntervals(syncTimescale uint32, syncPoints []syncPoint, trak *mp4
 	}
 	fmt.Printf("Sample intervals: %v\n", sampleIntervals)
 	return sampleIntervals, nil
+}
+
+func copyMediaData(trak *mp4.TrakBox, startSampleNr, endSampleNr uint32, rs io.ReadSeeker, w io.Writer) error {
+	stbl := trak.Mdia.Minf.Stbl
+	chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
+	if err != nil {
+		return err
+	}
+	var offset uint64
+	var startNr, endNr uint32
+	for i, chunk := range chunks {
+		if stbl.Co64 != nil {
+			offset = stbl.Co64.ChunkOffset[chunk.ChunkNr-1]
+		} else if stbl.Stco != nil {
+			offset = uint64(stbl.Stco.ChunkOffset[chunk.ChunkNr-1])
+		}
+		startNr = chunk.StartSampleNr
+		endNr = startNr + chunk.NrSamples - 1
+		if i == 0 {
+			for sNr := chunk.StartSampleNr; sNr < startSampleNr; sNr++ {
+				offset += uint64(stbl.Stsz.SampleSize[sNr-1])
+			}
+			startNr = startSampleNr
+		}
+
+		if i == len(chunks)-1 {
+			endNr = endSampleNr
+		}
+		var size int64
+		for sNr := startNr; sNr <= endNr; sNr++ {
+			size += int64(stbl.Stsz.GetSampleSize(int(sNr)))
+		}
+		_, err := rs.Seek(int64(offset), io.SeekStart)
+		if err != nil {
+			return err
+		}
+		n, err := io.CopyN(w, rs, size)
+		if err != nil {
+			return err
+		}
+		if n != size {
+			return fmt.Errorf("Copied %d bytes instead of %d", n, size)
+		}
+	}
+
+	return nil
 }

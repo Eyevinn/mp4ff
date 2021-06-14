@@ -1,6 +1,9 @@
 // segmenter  - segments a progressive mp4 file into init and media segments
 //
 // The output is either single-track segments, or muxed multi-track segments.
+// With the -lazy mode, mdat is read and written lazily. The lazy write
+// is only for single-track segments, so that it can be compared with multi-track
+// implementation.
 // There should be at most one audio and one video track in the input.
 // The output files will be named as
 // init segments: <output>_a.mp4 and <output>_v.mp4
@@ -29,7 +32,7 @@ func main() {
 	outFilePath := flag.String("o", "", "Required: Output filename prefix (without extension)")
 	segDur := flag.Int("d", 0, "Required: segment duration (milliseconds). The segments will start at syncSamples with decoded time >= n*segDur")
 	muxed := flag.Bool("m", false, "Output multiplexed segments")
-	lazy := flag.Bool("lazy", false, "Read mdat lazily")
+	lazy := flag.Bool("lazy", false, "Read/write mdat lazily")
 
 	flag.Parse()
 
@@ -69,7 +72,11 @@ func main() {
 	if *muxed {
 		err = makeMultiTrackSegments(segmenter, parsedMp4, ifd, *outFilePath)
 	} else {
-		err = makeSingleTrackSegments(segmenter, parsedMp4, ifd, *outFilePath)
+		if *lazy {
+			err = makeSingleTrackSegmentsLazyWrite(segmenter, parsedMp4, ifd, *outFilePath)
+		} else {
+			err = makeSingleTrackSegments(segmenter, parsedMp4, nil, *outFilePath)
+		}
 	}
 	if err != nil {
 		log.Fatalln(err)
@@ -112,6 +119,7 @@ func makeSingleTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.Re
 				return err
 			}
 			seg.AddFragment(frag)
+
 			for _, fullSample := range fullSamples {
 				err = frag.AddFullSampleToTrack(fullSample, tr.trackID)
 				if err != nil {
@@ -120,6 +128,74 @@ func makeSingleTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.Re
 			}
 			outPath := fmt.Sprintf("%s%s%d_%d.m4s", outFilePath, fileNameMap[mediaType], tr.trackID, segNr)
 			err = mp4.WriteToFile(seg, outPath)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Generated %s\n", outPath)
+		}
+		segNr++
+		if segNr > segmenter.nrSegs {
+			break
+		}
+	}
+	return nil
+}
+
+func makeSingleTrackSegmentsLazyWrite(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.ReadSeeker, outFilePath string) error {
+	fileNameMap := map[string]string{"video": "_v", "audio": "_a"}
+	inits, err := segmenter.MakeInitSegments()
+	if err != nil {
+		return err
+	}
+	for _, init := range inits {
+		trackID := init.Moov.Trak.Tkhd.TrackID
+		outPath := fmt.Sprintf("%s%s%d_init.mp4", outFilePath, fileNameMap[init.GetMediaType()], trackID)
+		err = mp4.WriteToFile(init, outPath)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Generated %s\n", outPath)
+	}
+
+	segNr := 1
+	for {
+		for _, tr := range segmenter.tracks {
+			mediaType := tr.trackType
+			startSampleNr, endSampleNr := tr.segments[segNr-1].startNr, tr.segments[segNr-1].endNr
+			fmt.Printf("%s: %d-%d\n", tr.trackType, startSampleNr, endSampleNr)
+			samples, err := segmenter.GetSamplesForInterval(parsedMp4, tr.inTrak, startSampleNr, endSampleNr)
+			if len(samples) == 0 {
+				fmt.Printf("No more samples for %s\n", mediaType)
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			seg := mp4.NewMediaSegment()
+			frag, err := mp4.CreateFragment(uint32(segNr), tr.trackID)
+			if err != nil {
+				return err
+			}
+			seg.AddFragment(frag)
+			baseMediaDecodeTime, _ := tr.inTrak.Mdia.Minf.Stbl.Stts.GetDecodeTime(startSampleNr)
+			for _, sample := range samples {
+				err = frag.AddSampleToTrack(sample, tr.trackID, baseMediaDecodeTime)
+				if err != nil {
+					return err
+				}
+			}
+			outPath := fmt.Sprintf("%s%s%d_%d.m4s", outFilePath, fileNameMap[mediaType], tr.trackID, segNr)
+			ofh, err := os.Create(outPath)
+			if err != nil {
+				return err
+			}
+			defer ofh.Close()
+			err = seg.Encode(ofh)
+			if err != nil {
+				return err
+			}
+			// Also write media data
+			err = copyMediaData(tr.inTrak, startSampleNr, endSampleNr, rs, ofh)
 			if err != nil {
 				return err
 			}
