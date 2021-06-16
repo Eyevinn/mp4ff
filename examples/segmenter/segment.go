@@ -1,249 +1,196 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/edgeware/mp4ff/mp4"
 )
 
-// Segmenter - segment the progressive inFIle
-type Segmenter struct {
-	inFile *mp4.File
-	tracks []*Track
-	nrSegs int //  target number of segments
-}
-
-// Track - media track defined by inTrak
-type Track struct {
-	trackType string
-	inTrak    *mp4.TrakBox
-	timeScale uint32
-	trackID   uint32 // trackID in segmented output
-	lang      string
-	segments  []sampleInterval
-}
-
-// NewSegmenter - create a Segmenter from inFile and fill in track information
-func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
-	if inFile.IsFragmented() {
-		return nil, errors.New("Segmented input file not supported")
+func makeSingleTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.ReadSeeker, outFilePath string) error {
+	fileNameMap := map[string]string{"video": "_v", "audio": "_a"}
+	inits, err := segmenter.MakeInitSegments()
+	if err != nil {
+		return err
 	}
-	s := Segmenter{inFile: inFile}
-	traks := inFile.Moov.Traks
-	for _, trak := range traks {
-		track := &Track{trackType: "", lang: ""}
-		switch hdlrType := trak.Mdia.Hdlr.HandlerType; hdlrType {
-		case "vide":
-			track.trackType = "video"
-		case "soun":
-			track.trackType = "audio"
-		default:
-			return nil, fmt.Errorf("hdlr typpe %q not supported", hdlrType)
-		}
-		track.lang = trak.Mdia.Mdhd.GetLanguage()
-		if trak.Mdia.Elng != nil {
-			track.lang = trak.Mdia.Elng.Language
-		}
-		track.inTrak = trak
-		track.timeScale = trak.Mdia.Mdhd.Timescale
-		s.tracks = append(s.tracks, track)
-	}
-	return &s, nil
-}
-
-func (s *Segmenter) SetTargetSegmentation(syncTimescale uint32, segStarts []syncPoint) error {
-
-	var err error
-	for i := range s.tracks {
-		s.tracks[i].segments, err = getSegmentIntervals(syncTimescale, segStarts, s.tracks[i].inTrak)
+	for _, init := range inits {
+		trackID := init.Moov.Trak.Tkhd.TrackID
+		outPath := fmt.Sprintf("%s%s%d_init.mp4", outFilePath, fileNameMap[init.GetMediaType()], trackID)
+		err = mp4.WriteToFile(init, outPath)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("Generated %s\n", outPath)
 	}
-	s.nrSegs = len(segStarts)
+
+	segNr := 1
+	for {
+		for _, tr := range segmenter.tracks {
+			mediaType := tr.trackType
+			startSampleNr, endSampleNr := tr.segments[segNr-1].startNr, tr.segments[segNr-1].endNr
+			fmt.Printf("%s: %d-%d\n", tr.trackType, startSampleNr, endSampleNr)
+			fullSamples, err := segmenter.GetFullSamplesForInterval(parsedMp4, tr, startSampleNr, endSampleNr, rs)
+			if len(fullSamples) == 0 {
+				fmt.Printf("No more samples for %s\n", mediaType)
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			seg := mp4.NewMediaSegment()
+			frag, err := mp4.CreateFragment(uint32(segNr), tr.trackID)
+			if err != nil {
+				return err
+			}
+			seg.AddFragment(frag)
+
+			for _, fullSample := range fullSamples {
+				err = frag.AddFullSampleToTrack(fullSample, tr.trackID)
+				if err != nil {
+					return err
+				}
+			}
+			outPath := fmt.Sprintf("%s%s%d_%d.m4s", outFilePath, fileNameMap[mediaType], tr.trackID, segNr)
+			err = mp4.WriteToFile(seg, outPath)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Generated %s\n", outPath)
+		}
+		segNr++
+		if segNr > segmenter.nrSegs {
+			break
+		}
+	}
 	return nil
 }
 
-// MakeInitSegments - initialized and return init segments for all the tracks
-func (s *Segmenter) MakeInitSegments() ([]*mp4.InitSegment, error) {
-	var inits []*mp4.InitSegment
-	for _, tr := range s.tracks {
-		init := mp4.CreateEmptyInit()
-		init.AddEmptyTrack(tr.timeScale, tr.trackType, tr.lang)
-		outTrak := init.Moov.Trak
-		tr.trackID = outTrak.Tkhd.TrackID
-		inStsd := tr.inTrak.Mdia.Minf.Stbl.Stsd
-		outStsd := outTrak.Mdia.Minf.Stbl.Stsd
-		switch tr.trackType {
-		case "audio":
-			outStsd.AddChild(inStsd.Mp4a)
-		case "video":
-			if inStsd.AvcX != nil {
-				outStsd.AddChild(inStsd.AvcX)
-			}
-			if inStsd.HvcX != nil {
-				outStsd.AddChild(inStsd.HvcX)
-			}
-		default:
-			return nil, fmt.Errorf("Unsupported tracktype: %s", tr.trackType)
-		}
-		inits = append(inits, init)
+func makeSingleTrackSegmentsLazyWrite(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.ReadSeeker, outFilePath string) error {
+	fileNameMap := map[string]string{"video": "_v", "audio": "_a"}
+	inits, err := segmenter.MakeInitSegments()
+	if err != nil {
+		return err
 	}
-	return inits, nil
-}
-
-// MakeMuxedInitSegment - initialized and return one init segments for all the tracks
-func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
-	init := mp4.CreateEmptyInit()
-	for _, tr := range s.tracks {
-		init.AddEmptyTrack(tr.timeScale, tr.trackType, tr.lang)
-		outTrak := init.Moov.Traks[len(init.Moov.Traks)-1]
-		tr.trackID = outTrak.Tkhd.TrackID
-		inStsd := tr.inTrak.Mdia.Minf.Stbl.Stsd
-		outStsd := outTrak.Mdia.Minf.Stbl.Stsd
-		switch tr.trackType {
-		case "audio":
-			outStsd.AddChild(inStsd.Mp4a)
-		case "video":
-			if inStsd.AvcX != nil {
-				outStsd.AddChild(inStsd.AvcX)
-			}
-			if inStsd.HvcX != nil {
-				outStsd.AddChild(inStsd.HvcX)
-			}
-		default:
-			return nil, fmt.Errorf("Unsupported tracktype: %s", tr.trackType)
-		}
-	}
-
-	return init, nil
-}
-
-// GetFullSamplesForInterval - get slice of fullsamples with numbers startSampleNr to endSampleNr (inclusive)
-func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSampleNr, endSampleNr uint32, rs io.ReadSeeker) ([]*mp4.FullSample, error) {
-	stbl := tr.inTrak.Mdia.Minf.Stbl
-	var samples []*mp4.FullSample
-	mdat := mp4f.Mdat
-	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
-	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
-		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(int(sampleNr))
+	for _, init := range inits {
+		trackID := init.Moov.Trak.Tkhd.TrackID
+		outPath := fmt.Sprintf("%s%s%d_init.mp4", outFilePath, fileNameMap[init.GetMediaType()], trackID)
+		err = mp4.WriteToFile(init, outPath)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		var offset int64
-		if stbl.Stco != nil {
-			offset = int64(stbl.Stco.ChunkOffset[chunkNr-1])
-		} else if stbl.Co64 != nil {
-			offset = int64(stbl.Co64.ChunkOffset[chunkNr-1])
-		}
-
-		for sNr := sampleNrAtChunkStart; sNr < int(sampleNr); sNr++ {
-			offset += int64(stbl.Stsz.SampleSize[sNr-1])
-		}
-		size := stbl.Stsz.GetSampleSize(int(sampleNr))
-		decTime, dur := stbl.Stts.GetDecodeTime(sampleNr)
-		var cto int32 = 0
-		if stbl.Ctts != nil {
-			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)
-		}
-		var sampleFlags mp4.SampleFlags
-		if stbl.Stss != nil {
-			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr))
-			sampleFlags.SampleIsNonSync = !isSync
-			if isSync {
-				sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
-			}
-		}
-		if stbl.Sdtp != nil {
-			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
-			sampleFlags.IsLeading = entry.IsLeading()
-			sampleFlags.SampleDependsOn = entry.SampleDependsOn()
-			sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
-			sampleFlags.SampleIsDependedOn = entry.SampleIsDependedOn()
-		}
-		var sampleData []byte
-		// Next find bytes as slice in mdat
-		if mdat.GetLazyDataSize() > 0 {
-			_, err := rs.Seek(offset, io.SeekStart)
-			if err != nil {
-				return nil, err
-			}
-			sampleData = make([]byte, size)
-			n, err := rs.Read(sampleData)
-			if err != nil {
-				return nil, err
-			}
-			if n != int(size) {
-				return nil, fmt.Errorf("Read %d bytes instead of %d", n, size)
-			}
-		} else {
-			offsetInMdatData := uint64(offset) - mdatPayloadStart
-			sampleData = mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
-		}
-
-		//presTime := uint64(int64(decTime) + int64(cto))
-		//One can either segment on presentationTime or DecodeTime
-		//presTimeMs := presTime * 1000 / uint64(tr.timeScale)
-		sc := &mp4.FullSample{
-			Sample: mp4.Sample{
-				Flags: sampleFlags.Encode(),
-				Size:  size,
-				Dur:   dur,
-				Cto:   cto,
-			},
-			DecodeTime: decTime,
-			Data:       sampleData,
-		}
-
-		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
-		samples = append(samples, sc)
+		fmt.Printf("Generated %s\n", outPath)
 	}
-	return samples, nil
+
+	segNr := 1
+	for {
+		for _, tr := range segmenter.tracks {
+			mediaType := tr.trackType
+			startSampleNr, endSampleNr := tr.segments[segNr-1].startNr, tr.segments[segNr-1].endNr
+			fmt.Printf("%s: %d-%d\n", tr.trackType, startSampleNr, endSampleNr)
+			samples, err := segmenter.GetSamplesForInterval(parsedMp4, tr.inTrak, startSampleNr, endSampleNr)
+			if len(samples) == 0 {
+				fmt.Printf("No more samples for %s\n", mediaType)
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			seg := mp4.NewMediaSegment()
+			frag, err := mp4.CreateFragment(uint32(segNr), tr.trackID)
+			if err != nil {
+				return err
+			}
+			seg.AddFragment(frag)
+			baseMediaDecodeTime, _ := tr.inTrak.Mdia.Minf.Stbl.Stts.GetDecodeTime(startSampleNr)
+			for _, sample := range samples {
+				err = frag.AddSampleToTrack(sample, tr.trackID, baseMediaDecodeTime)
+				if err != nil {
+					return err
+				}
+			}
+			outPath := fmt.Sprintf("%s%s%d_%d.m4s", outFilePath, fileNameMap[mediaType], tr.trackID, segNr)
+			ofh, err := os.Create(outPath)
+			if err != nil {
+				return err
+			}
+			defer ofh.Close()
+			err = seg.Encode(ofh)
+			if err != nil {
+				return err
+			}
+			// Also write media data
+			err = copyMediaData(tr.inTrak, startSampleNr, endSampleNr, rs, ofh)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Generated %s\n", outPath)
+		}
+		segNr++
+		if segNr > segmenter.nrSegs {
+			break
+		}
+	}
+	return nil
 }
 
-// GetSamplesForInterval - get slice of samples with numbers startSampleNr to endSampleNr (inclusive)
-func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, startSampleNr, endSampleNr uint32) ([]*mp4.Sample, error) {
-	stbl := trak.Mdia.Minf.Stbl
-	var samples []*mp4.Sample
-	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
-		size := stbl.Stsz.GetSampleSize(int(sampleNr))
-		dur := stbl.Stts.GetDur(sampleNr)
-		var cto int32 = 0
-		if stbl.Ctts != nil {
-			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)
+func makeMultiTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.ReadSeeker, outFilePath string) error {
+	init, err := segmenter.MakeMuxedInitSegment()
+	if err != nil {
+		return err
+	}
+	outPath := fmt.Sprintf("%s_init.mp4", outFilePath)
+	err = mp4.WriteToFile(init, outPath)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Generated %s\n", outPath)
+	var trackIDs []uint32
+	for _, trak := range init.Moov.Traks {
+		trackIDs = append(trackIDs, trak.Tkhd.TrackID)
+	}
+
+	segNr := 1
+	for {
+		seg := mp4.NewMediaSegment()
+		frag, err := mp4.CreateMultiTrackFragment(uint32(segNr), trackIDs)
+		if err != nil {
+			return err
 		}
-		var sampleFlags mp4.SampleFlags
-		if stbl.Stss != nil {
-			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr))
-			sampleFlags.SampleIsNonSync = !isSync
-			if isSync {
-				sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
+		seg.AddFragment(frag)
+
+		for _, tr := range segmenter.tracks {
+			startSampleNr, endSampleNr := tr.segments[segNr-1].startNr, tr.segments[segNr-1].endNr
+			fmt.Printf("%s: %d-%d\n", tr.trackType, startSampleNr, endSampleNr)
+			fullSamples, err := segmenter.GetFullSamplesForInterval(parsedMp4, tr, startSampleNr, endSampleNr, rs)
+			if len(fullSamples) == 0 {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			for _, sample := range fullSamples {
+				err = frag.AddFullSampleToTrack(sample, tr.trackID)
+				if err != nil {
+					return err
+				}
 			}
 		}
-		if stbl.Sdtp != nil {
-			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
-			sampleFlags.IsLeading = entry.IsLeading()
-			sampleFlags.SampleDependsOn = entry.SampleDependsOn()
-			sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
-			sampleFlags.SampleIsDependedOn = entry.SampleIsDependedOn()
+		outPath := fmt.Sprintf("%s_media_%d.m4s", outFilePath, segNr)
+		err = mp4.WriteToFile(seg, outPath)
+		if err != nil {
+			return err
 		}
-
-		//presTime := uint64(int64(decTime) + int64(cto))
-		//One can either segment on presentationTime or DecodeTime
-		//presTimeMs := presTime * 1000 / uint64(trak.timeScale)
-		sc := &mp4.Sample{
-			Flags: sampleFlags.Encode(),
-			Size:  size,
-			Dur:   dur,
-			Cto:   cto,
+		if err != nil {
+			return err
 		}
-
-		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
-		samples = append(samples, sc)
+		fmt.Printf("Generated %s\n", outPath)
+		segNr++
+		if segNr > segmenter.nrSegs {
+			break
+		}
 	}
-	return samples, nil
+	return nil
 }
 
 type syncPoint struct {
