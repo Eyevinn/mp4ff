@@ -161,7 +161,7 @@ func GetSliceTypeFromNALU(data []byte) (sliceType SliceType, err error) {
 }
 
 // ParseSliceHeader - Parse AVC Slice Header starting with NAL header
-func ParseSliceHeader(data []byte, sps *SPS, pps *PPS) (*SliceHeader, error) {
+func ParseSliceHeader(data []byte, sps *SPS, pps *PPS) (*SliceHeader, int, error) {
 	avcsh := &SliceHeader{}
 	var err error
 
@@ -171,175 +171,175 @@ func ParseSliceHeader(data []byte, sps *SPS, pps *PPS) (*SliceHeader, error) {
 	// Note! First byte is NAL Header
 	nalHdr, err := r.Read(8)
 	if err != nil {
-		return nil, err
+		return nil, r.NrBytesRead(), err
 	}
 	nalType := GetNaluType(byte(nalHdr))
 	if !sliceHeaderExpected(nalType) {
-		return nil, ErrNoSliceHeader
+		return nil, r.NrBytesRead(), ErrNoSliceHeader
 	}
 
 	avcsh.FirstMbInSlice, err = r.ReadExpGolomb()
 	if err != nil {
-		return nil, err
+		return nil, r.NrBytesRead(), err
 	}
 	sliceType, err := r.ReadExpGolomb()
 	if err != nil {
-		return nil, err
+		return nil, r.NrBytesRead(), err
 	}
 	avcsh.SliceType, err = setSliceType(sliceType)
 	if err != nil {
-		return nil, err
+		return nil, r.NrBytesRead(), err
 	}
 
 	avcsh.PicParameterSetID, err = r.ReadExpGolomb()
 	if err != nil {
-		return nil, err
+		return nil, r.NrBytesRead(), err
 	}
 	if sps.SeparateColourPlaneFlag {
 		avcsh.ColourPlaneID, err = r.Read(2)
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 	avcsh.FrameNum, err = r.Read(int(sps.Log2MaxFrameNumMinus4 + 4))
 	if err != nil {
-		return nil, err
+		return nil, r.NrBytesRead(), err
 	}
 	if !sps.FrameMbsOnlyFlag {
 		avcsh.FieldPicFlag, err = r.ReadFlag()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 		if avcsh.FieldPicFlag {
 			avcsh.BottomFieldFlag, err = r.ReadFlag()
 			if err != nil {
-				return nil, err
+				return nil, r.NrBytesRead(), err
 			}
 		}
 	}
 	if getIDRPicFlag(nalType) {
 		avcsh.IDRPicID, err = r.ReadExpGolomb()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 
 	if sps.PicOrderCntType == 0 {
 		avcsh.PicOrderCntLSB, err = r.Read(int(sps.Log2MaxPicOrderCntLsbMinus4 + 4))
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 		if pps.BottomFieldPicOrderInFramePresentFlag && !avcsh.FieldPicFlag {
 			avcsh.DeltaPicOrderCntBottom, err = r.ReadSignedGolomb()
 			if err != nil {
-				return nil, err
+				return nil, r.NrBytesRead(), err
 			}
 		}
 	}
 	if sps.PicOrderCntType == 1 && !sps.DeltaPicOrderAlwaysZeroFlag {
 		avcsh.DeltaPicOrderCnt[0], err = r.ReadSignedGolomb()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 		if pps.BottomFieldPicOrderInFramePresentFlag && !avcsh.FieldPicFlag {
 			avcsh.DeltaPicOrderCnt[1], err = r.ReadSignedGolomb()
 			if err != nil {
-				return nil, err
+				return nil, r.NrBytesRead(), err
 			}
 		}
 	}
 	if pps.RedundantPicCntPresentFlag {
 		avcsh.RedundantPicCnt, err = r.ReadExpGolomb()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 
 	if avcsh.SliceType == SLICE_B {
 		avcsh.DirectSpatialMVPredFlag, err = r.ReadFlag()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 	if avcsh.SliceType == SLICE_P || avcsh.SliceType == SLICE_SP || avcsh.SliceType == SLICE_B {
 		avcsh.NumRefIdxActiveOverrideFlag, err = r.ReadFlag()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 	if avcsh.NumRefIdxActiveOverrideFlag {
 		avcsh.NumRefIdxL0ActiveMinus1, err = r.ReadExpGolomb()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 		if avcsh.SliceType == SLICE_B {
 			avcsh.NumRefIdxL1ActiveMinus1, err = r.ReadExpGolomb()
 			if err != nil {
-				return nil, err
+				return nil, r.NrBytesRead(), err
 			}
 		}
 	}
 
 	if nalType == NaluType(20) || nalType == NaluType(21) {
 		// MVC not implemented
-		return nil, ErrParserNotImplemented
+		return nil, r.NrBytesRead(), ErrParserNotImplemented
 	} else {
 		avcsh.RefPicListModification, err = ParseRefPicListModification(r, avcsh)
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 	if (pps.WeightedPredFlag && (avcsh.SliceType == SLICE_P || avcsh.SliceType == SLICE_SP)) ||
 		(pps.WeightedBipredIDC == 1 && avcsh.SliceType == SLICE_B) {
 		avcsh.PredWeightTable, err = ParsePredWeightTable(r, sps, avcsh)
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 	if GetNalRefIDC(byte(nalHdr)) != 0 {
 		avcsh.DecRefPicMarking, err = ParseDecRefPicMarking(r, nalType)
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 
 	if pps.EntropyCodingModeFlag && avcsh.SliceType != SLICE_I && avcsh.SliceType != SLICE_SI {
 		avcsh.CabacInitIDC, err = r.ReadExpGolomb()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 
 	avcsh.SliceQPDelta, err = r.ReadSignedGolomb()
 	if err != nil {
-		return nil, err
+		return nil, r.NrBytesRead(), err
 	}
 	if avcsh.SliceType == SLICE_SP || avcsh.SliceType == SLICE_SI {
 		if avcsh.SliceType == SLICE_SP {
 			avcsh.SPForSwitchFlag, err = r.ReadFlag()
 			if err != nil {
-				return nil, err
+				return nil, r.NrBytesRead(), err
 			}
 		}
 		avcsh.SliceQSDelta, err = r.ReadSignedGolomb()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 
 	if pps.DeblockingFilterControlPresentFlag {
 		avcsh.DisableDeblockingFilterIDC, err = r.ReadExpGolomb()
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 		if avcsh.DisableDeblockingFilterIDC != 1 {
 			avcsh.SliceAlphaC0OffsetDev2, err = r.ReadSignedGolomb()
 			if err != nil {
-				return nil, err
+				return nil, r.NrBytesRead(), err
 			}
 			avcsh.SliceBetaOffsetDev2, err = r.ReadSignedGolomb()
 			if err != nil {
-				return nil, err
+				return nil, r.NrBytesRead(), err
 			}
 		}
 	}
@@ -349,11 +349,11 @@ func ParseSliceHeader(data []byte, sps *SPS, pps *PPS) (*SliceHeader, error) {
 		sgccNumBits := math.Ceil(math.Log2(float64((pps.PicSizeInMapUnitsMinus1+1)/(pps.SliceGroupChangeRateMinus1+1) + 1)))
 		avcsh.SliceGroupChangeCycle, err = r.Read(int(sgccNumBits))
 		if err != nil {
-			return nil, err
+			return nil, r.NrBytesRead(), err
 		}
 	}
 
-	return nil, nil
+	return avcsh, r.NrBytesRead(), nil
 }
 
 // ParseRefPicListModification - AVC Ref Pic list modification parser using bits r
