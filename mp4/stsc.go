@@ -96,7 +96,6 @@ func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 func (b *StscBox) ChunkNrFromSampleNr(sampleNr int) (chunkNr, firstSampleInChunk int, err error) {
 	nrEntries := len(b.FirstChunk) // Nr entries in stsc box
 	firstSampleInChunk = 1
-	err = nil
 	if sampleNr <= 0 {
 		err = fmt.Errorf("Bad sampleNr %d", sampleNr)
 		return
@@ -121,4 +120,80 @@ func (b *StscBox) ChunkNrFromSampleNr(sampleNr int) (chunkNr, firstSampleInChunk
 		}
 	}
 	return
+}
+
+// Chunk  defines a chunk with number, starting sampleNr and nrSamples
+type Chunk struct {
+	ChunkNr       uint32
+	StartSampleNr uint32
+	NrSamples     uint32
+}
+
+// GetContainingChunks - get chunks containing the sample interval
+func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chunk, error) {
+	if startSampleNr == 0 || endSampleNr < startSampleNr {
+		return nil, fmt.Errorf("bad sample interval %d-%d", startSampleNr, endSampleNr)
+	}
+	nrEntries := len(b.FirstChunk) // Nr entries in stsc box
+	var firstSampleInChunk uint32 = 1
+	var chunkNr uint32
+	var chunks []Chunk
+chunkEntryLoop:
+	for i := 0; i < nrEntries; i++ {
+		chunkNr = b.FirstChunk[i]
+		chunkLen := b.SamplesPerChunk[i]
+		var nextEntryStart uint32 = 0 // Used to change group of chunks
+		if i < nrEntries-1 {
+			nextEntryStart = b.FirstChunk[i+1]
+		}
+		for {
+			nextChunkStart := firstSampleInChunk + chunkLen
+			if len(chunks) == 0 {
+				if startSampleNr < nextChunkStart {
+					chunks = append(chunks, Chunk{chunkNr, firstSampleInChunk, chunkLen})
+				}
+			} else if endSampleNr >= firstSampleInChunk {
+				chunks = append(chunks, Chunk{chunkNr, firstSampleInChunk, chunkLen})
+			} else {
+				break chunkEntryLoop
+			}
+			chunkNr++
+			firstSampleInChunk = nextChunkStart
+			if chunkNr == nextEntryStart {
+				break
+			}
+		}
+	}
+	return chunks, nil
+}
+
+func (b *StscBox) GetChunk(chunkNr uint32) Chunk {
+	if chunkNr == 0 {
+		panic("ChunkNr set to 0 but is one-based")
+	}
+	chunk := Chunk{
+		ChunkNr:       chunkNr,
+		StartSampleNr: 1,
+		NrSamples:     0,
+	}
+	nrEntries := len(b.FirstChunk) // Nr entries in stsc box
+	var startSampleNr = uint32(1)
+	var currFirstChunk, nextFirstChunk, currSamplesPerChunk uint32
+	for i := 0; i < nrEntries; i++ {
+		currFirstChunk = b.FirstChunk[i]
+		currSamplesPerChunk = b.SamplesPerChunk[i]
+		if i < nrEntries-1 {
+			nextFirstChunk = b.FirstChunk[i+1]
+		}
+		if chunkNr < nextFirstChunk {
+			chunk.StartSampleNr = startSampleNr + (chunkNr-currFirstChunk)*currSamplesPerChunk
+			chunk.NrSamples = currSamplesPerChunk
+			return chunk
+		}
+		startSampleNr += currSamplesPerChunk * (nextFirstChunk - currFirstChunk)
+	}
+	startSampleNr += b.SamplesPerChunk[nrEntries-1] * (chunkNr - currFirstChunk)
+	chunk.StartSampleNr = startSampleNr
+	chunk.NrSamples = currSamplesPerChunk
+	return chunk
 }

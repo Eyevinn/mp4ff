@@ -115,8 +115,8 @@ func TestReadData_LazyMdatMode(t *testing.T) {
 	}
 
 	lazyMdat := &MdatBox{
-		StartPos:        0,
-		decLazyDataSize: 6,
+		StartPos:     0,
+		lazyDataSize: 6,
 	}
 
 	// test ReadData with provided ReadSeeker
@@ -172,8 +172,8 @@ func TestCopyData_LazyMdatMode(t *testing.T) {
 	}
 
 	lazyMdat := &MdatBox{
-		StartPos:        0,
-		decLazyDataSize: 6,
+		StartPos:     0,
+		lazyDataSize: 6,
 	}
 
 	// test ReadData with provided ReadSeeker

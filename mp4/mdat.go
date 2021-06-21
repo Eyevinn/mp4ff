@@ -10,10 +10,10 @@ import (
 // MdatBox - Media Data Box (mdat)
 // The mdat box contains media chunks/samples.
 type MdatBox struct {
-	StartPos        uint64
-	Data            []byte
-	decLazyDataSize uint64
-	LargeSize       bool
+	StartPos     uint64
+	Data         []byte
+	lazyDataSize uint64
+	LargeSize    bool
 }
 
 const maxNormalPayloadSize = (1 << 32) - 1 - 8
@@ -28,11 +28,26 @@ func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &MdatBox{startPos, data, 0, largeSize}, nil
 }
 
+// IsLazy - is the mdat data handled lazily (with separate writer/reader).
+func (m *MdatBox) IsLazy() bool {
+	return m.lazyDataSize > 0
+}
+
 // DecodeMdatLazily - box-specific decode but Data is not in memory
 func DecodeMdatLazily(hdr *boxHeader, startPos uint64) (Box, error) {
 	largeSize := hdr.hdrlen > boxHeaderSize
 	decLazyDataSize := hdr.size - uint64(hdr.hdrlen)
 	return &MdatBox{startPos, nil, decLazyDataSize, largeSize}, nil
+}
+
+// SetLazyDataSize - set size of mdat lazy data, so that the data can be written separately
+// Don't put any data in m.Data in this mode.
+func (m *MdatBox) SetLazyDataSize(newSize uint64) {
+	m.lazyDataSize = newSize
+}
+
+func (m *MdatBox) GetLazyDataSize() uint64 {
+	return m.lazyDataSize
 }
 
 // Type - return box type
@@ -42,17 +57,18 @@ func (m *MdatBox) Type() string {
 
 // Size - return calculated size, depending on largeSize set or not
 func (m *MdatBox) Size() uint64 {
-	if m.decLazyDataSize > 0 {
-		return uint64(boxHeaderSize + m.decLazyDataSize)
+	dataSize := uint64(len(m.Data))
+	if m.lazyDataSize > 0 {
+		dataSize = m.lazyDataSize
 	}
-	if len(m.Data) > maxNormalPayloadSize {
+	if dataSize > maxNormalPayloadSize {
 		m.LargeSize = true
 	}
-	size := boxHeaderSize + len(m.Data)
+	size := boxHeaderSize + dataSize
 	if m.LargeSize {
 		size += 8
 	}
-	return uint64(size)
+	return size
 }
 
 // AddSampleData -  a sample data to an mdat box
@@ -60,7 +76,13 @@ func (m *MdatBox) AddSampleData(s []byte) {
 	m.Data = append(m.Data, s...)
 }
 
-// Encode - write box to w
+// SetData - set the mdat data to given slice. No copying is done
+func (m *MdatBox) SetData(data []byte) {
+	m.Data = data
+	m.lazyDataSize = 0
+}
+
+// Encode - write box to w. If m.lazyDataSize > 0, the mdat data needs to be written separately
 func (m *MdatBox) Encode(w io.Writer) error {
 	err := EncodeHeaderWithSize("mdat", m.Size(), m.LargeSize, w)
 	if err != nil {
@@ -75,6 +97,7 @@ func (m *MdatBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
+// HeaderSize - 8 or 16 (bytes) depending o whether largeSize is used
 func (m *MdatBox) HeaderSize() uint64 {
 	hSize := boxHeaderSize
 	if m.LargeSize {
@@ -93,7 +116,7 @@ func (m *MdatBox) PayloadAbsoluteOffset() uint64 {
 // The ReadSeeker is used for lazily loaded mdat case.
 func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) {
 	// The Mdat box was decoded lazily
-	if m.decLazyDataSize > 0 {
+	if m.lazyDataSize > 0 {
 		if rs == nil {
 			return nil, errors.New("lazy mdat mode - expects non-nil readseeker to read data")
 		}
@@ -131,7 +154,7 @@ func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) 
 // The ReadSeeker is used for lazily loaded mdat case.
 func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nrWritten int64, err error) {
 	// The Mdat box was decoded lazily
-	if m.decLazyDataSize > 0 {
+	if m.lazyDataSize > 0 {
 		if rs == nil {
 			return 0, errors.New("lazy mdat mode - expects non-nil readseeker to read data")
 		}

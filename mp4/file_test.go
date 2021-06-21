@@ -20,8 +20,8 @@ func TestDecodeFileWithLazyMdatOption(t *testing.T) {
 
 	for _, seg := range parsedFile.Segments {
 		for _, frag := range seg.Fragments {
-			if frag.Mdat.decLazyDataSize == 0 {
-				t.Error("decLazyDataSize is expected to be greater than 0")
+			if frag.Mdat.GetLazyDataSize() == 0 {
+				t.Error("lazyDataSize is expected to be greater than 0")
 			}
 			if frag.Mdat.Data != nil {
 				t.Error("Mdat Data is expected to be nil")
@@ -46,7 +46,7 @@ func TestDecodeFileWithNoLazyMdatOption(t *testing.T) {
 
 	for _, seg := range parsedFile.Segments {
 		for _, frag := range seg.Fragments {
-			if frag.Mdat.decLazyDataSize != 0 {
+			if frag.Mdat.lazyDataSize != 0 {
 				t.Error("decLazyDataSize is expected to be 0")
 			}
 			if frag.Mdat.Data == nil || len(frag.Mdat.Data) == 0 {

@@ -126,7 +126,7 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	return samples, nil
 }
 
-// AddFullSample - add a full sample to first (and only) trun of a track
+// AddFullSample - add a full sample to the first (and only) trun of a track
 // AddFullSampleToTrack is the more general function
 func (f *Fragment) AddFullSample(s *FullSample) {
 	trun := f.Moof.Traf.Trun
@@ -142,6 +142,33 @@ func (f *Fragment) AddFullSample(s *FullSample) {
 // AddFullSampleToTrack - allows for adding samples to any track
 // New trun boxes will be created if latest trun of fragment is not in this track
 func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
+	err := f.AddSampleToTrack(&s.Sample, trackID, s.DecodeTime)
+	if err != nil {
+		return err
+	}
+	mdat := f.Mdat
+	mdat.lazyDataSize = 0
+	mdat.AddSampleData(s.Data)
+
+	return nil
+}
+
+// AddSample - add a sample to the first (and only) trun of a track
+// AddSampleToTrack is the more general function
+func (f *Fragment) AddSample(s *Sample, baseMediaDecodeTime uint64) {
+	trun := f.Moof.Traf.Trun
+	if trun.SampleCount() == 0 {
+		tfdt := f.Moof.Traf.Tfdt
+		tfdt.SetBaseMediaDecodeTime(baseMediaDecodeTime)
+	}
+	trun.AddSample(s)
+	f.Mdat.lazyDataSize += uint64(s.Size)
+}
+
+// AddSampleToTrack - allows for adding samples to any track
+// New trun boxes will be created if latest trun of fragment is not in this track
+// baseMediaDecodeTime will be used only for first sample in a trun
+func (f *Fragment) AddSampleToTrack(s *Sample, trackID uint32, baseMediaDecodeTime uint64) error {
 	var traf *TrafBox
 	for _, traf = range f.Moof.Trafs {
 		if traf.Tfhd.TrackID == trackID {
@@ -161,7 +188,7 @@ func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
 	}
 	if len(traf.Truns) == 1 && traf.Trun.SampleCount() == 0 {
 		tfdt := traf.Tfdt
-		tfdt.SetBaseMediaDecodeTime(s.DecodeTime)
+		tfdt.SetBaseMediaDecodeTime(baseMediaDecodeTime)
 	}
 	trun := traf.Truns[len(traf.Truns)-1] // latest of this track
 	if trun.writeOrderNr != f.nextTrunNr-1 {
@@ -173,9 +200,8 @@ func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
 			return err
 		}
 	}
-	trun.AddSample(&s.Sample)
-	mdat := f.Mdat
-	mdat.AddSampleData(s.Data)
+	trun.AddSample(s)
+	f.Mdat.lazyDataSize += uint64(s.Size)
 	return nil
 }
 

@@ -272,7 +272,7 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 // GetFullSamples - get all sample data including accumulated time and binary media
 // baseOffset is offset in mdat (normally 8)
 // baseTime is offset in track timescale (from mfhd)
-// To fill missing individual values from thd and trex defaults, call AddSampleDefaultValues() before this call
+// To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call
 func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*FullSample {
 	samples := make([]*FullSample, 0, t.SampleCount())
 	var accDur uint64 = 0
