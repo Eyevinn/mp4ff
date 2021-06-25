@@ -160,8 +160,15 @@ func (b *SttsBox) GetSampleNrAtTime(sampleStartTime uint64) (sampleNr uint32, er
 	for i := 0; i < len(b.SampleCount); i++ {
 		timeDelta := uint64(b.SampleTimeDelta[i])
 		if sampleStartTime < accTime+uint64(b.SampleCount[i])*timeDelta {
-			return accNr + uint32((sampleStartTime-accTime)/timeDelta) + 1, nil
+			relTime := (sampleStartTime - accTime)
+			nrInInterval := relTime / timeDelta
+			if relTime%timeDelta != 0 { // If not exact, increase number to next sample
+				nrInInterval++
+			}
+			return accNr + uint32(nrInInterval) + 1, nil
 		}
+		accNr += b.SampleCount[i]
+		accTime += timeDelta * uint64(b.SampleCount[i])
 	}
-	return 0, fmt.Errorf("no matching sample found")
+	return 0, fmt.Errorf("no matching sample found for time=%d", sampleStartTime)
 }
