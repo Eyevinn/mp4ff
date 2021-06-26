@@ -49,12 +49,13 @@ func newInfoDumper(w io.Writer, indent string, b boxLike, version int, flags uin
 }
 
 // write - write formated objecds if level <= bd.level
-func (b infoDumper) write(format string, p ...interface{}) {
+func (b *infoDumper) write(format string, p ...interface{}) {
 	if b.err != nil {
 		return
 	}
-	_, b.err = fmt.Fprintf(b.w, "%s", b.indent)
-	if b.err != nil {
+	_, err := fmt.Fprintf(b.w, "%s", b.indent)
+	if err != nil {
+		b.err = err
 		return
 	}
 	_, b.err = fmt.Fprintf(b.w, format+"\n", p...)
