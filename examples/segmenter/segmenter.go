@@ -124,7 +124,7 @@ func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 // GetFullSamplesForInterval - get slice of fullsamples with numbers startSampleNr to endSampleNr (inclusive)
 func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSampleNr, endSampleNr uint32, rs io.ReadSeeker) ([]*mp4.FullSample, error) {
 	stbl := tr.inTrak.Mdia.Minf.Stbl
-	var samples []*mp4.FullSample
+	samples := make([]*mp4.FullSample, 0, endSampleNr-startSampleNr+1)
 	mdat := mp4f.Mdat
 	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
@@ -147,21 +147,6 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		var cto int32 = 0
 		if stbl.Ctts != nil {
 			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)
-		}
-		var sampleFlags mp4.SampleFlags
-		if stbl.Stss != nil {
-			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr))
-			sampleFlags.SampleIsNonSync = !isSync
-			if isSync {
-				sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
-			}
-		}
-		if stbl.Sdtp != nil {
-			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
-			sampleFlags.IsLeading = entry.IsLeading()
-			sampleFlags.SampleDependsOn = entry.SampleDependsOn()
-			sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
-			sampleFlags.SampleIsDependedOn = entry.SampleIsDependedOn()
 		}
 		var sampleData []byte
 		// Next find bytes as slice in mdat
@@ -186,9 +171,9 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		//presTime := uint64(int64(decTime) + int64(cto))
 		//One can either segment on presentationTime or DecodeTime
 		//presTimeMs := presTime * 1000 / uint64(tr.timeScale)
-		sc := &mp4.FullSample{
+		sc := mp4.FullSample{
 			Sample: mp4.Sample{
-				Flags: sampleFlags.Encode(),
+				Flags: TranslateSampleFlagsForFragment(stbl, sampleNr),
 				Size:  size,
 				Dur:   dur,
 				Cto:   cto,
@@ -198,7 +183,7 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		}
 
 		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
-		samples = append(samples, sc)
+		samples = append(samples, &sc)
 	}
 	return samples, nil
 }
@@ -206,7 +191,7 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 // GetSamplesForInterval - get slice of samples with numbers startSampleNr to endSampleNr (inclusive)
 func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, startSampleNr, endSampleNr uint32) ([]*mp4.Sample, error) {
 	stbl := trak.Mdia.Minf.Stbl
-	var samples []*mp4.Sample
+	samples := make([]*mp4.Sample, 0, endSampleNr-startSampleNr+1)
 	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
 		size := stbl.Stsz.GetSampleSize(int(sampleNr))
 		dur := stbl.Stts.GetDur(sampleNr)
@@ -214,34 +199,39 @@ func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, sta
 		if stbl.Ctts != nil {
 			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)
 		}
-		var sampleFlags mp4.SampleFlags
-		if stbl.Stss != nil {
-			isSync := stbl.Stss.IsSyncSample(uint32(sampleNr))
-			sampleFlags.SampleIsNonSync = !isSync
-			if isSync {
-				sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
-			}
-		}
-		if stbl.Sdtp != nil {
-			entry := stbl.Sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
-			sampleFlags.IsLeading = entry.IsLeading()
-			sampleFlags.SampleDependsOn = entry.SampleDependsOn()
-			sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
-			sampleFlags.SampleIsDependedOn = entry.SampleIsDependedOn()
-		}
 
 		//presTime := uint64(int64(decTime) + int64(cto))
 		//One can either segment on presentationTime or DecodeTime
 		//presTimeMs := presTime * 1000 / uint64(trak.timeScale)
-		sc := &mp4.Sample{
-			Flags: sampleFlags.Encode(),
+		sc := mp4.Sample{
+			Flags: TranslateSampleFlagsForFragment(stbl, sampleNr),
 			Size:  size,
 			Dur:   dur,
 			Cto:   cto,
 		}
 
 		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
-		samples = append(samples, sc)
+		samples = append(samples, &sc)
 	}
 	return samples, nil
+}
+
+// TranslateSampleFlagsForFragment - translate sample flags from stss and sdtp to what is needed in trun
+func TranslateSampleFlagsForFragment(stbl *mp4.StblBox, sampleNr uint32) (flags uint32) {
+	var sampleFlags mp4.SampleFlags
+	if stbl.Stss != nil {
+		isSync := stbl.Stss.IsSyncSample(uint32(sampleNr))
+		sampleFlags.SampleIsNonSync = !isSync
+		if isSync {
+			sampleFlags.SampleDependsOn = 2 //2 == does not depend on others (I-picture). May be overridden by sdtp entry
+		}
+	}
+	if stbl.Sdtp != nil {
+		entry := stbl.Sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
+		sampleFlags.IsLeading = entry.IsLeading()
+		sampleFlags.SampleDependsOn = entry.SampleDependsOn()
+		sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()
+		sampleFlags.SampleIsDependedOn = entry.SampleIsDependedOn()
+	}
+	return sampleFlags.Encode()
 }
