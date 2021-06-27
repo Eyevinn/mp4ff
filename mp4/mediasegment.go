@@ -31,6 +31,21 @@ func (s *MediaSegment) LastFragment() *Fragment {
 	return s.Fragments[len(s.Fragments)-1]
 }
 
+// Size - return size of media segment
+func (s *MediaSegment) Size() uint64 {
+	var size uint64 = 0
+	if s.Styp != nil {
+		size += s.Styp.Size()
+	}
+	if s.Sidx != nil {
+		size += s.Sidx.Size()
+	}
+	for _, f := range s.Fragments {
+		size += f.Size()
+	}
+	return size
+}
+
 // Encode - Write MediaSegment via writer
 func (s *MediaSegment) Encode(w io.Writer) error {
 	if s.Styp != nil {

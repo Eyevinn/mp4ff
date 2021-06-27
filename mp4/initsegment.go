@@ -36,6 +36,15 @@ func (s *InitSegment) AddChild(b Box) {
 	s.Children = append(s.Children, b)
 }
 
+// Size - size of init segment
+func (s *InitSegment) Size() uint64 {
+	var size uint64 = 0
+	for _, box := range s.Children {
+		size += box.Size()
+	}
+	return size
+}
+
 // Encode - encode an initsegment to a Writer
 func (s *InitSegment) Encode(w io.Writer) error {
 	for _, b := range s.Children {
