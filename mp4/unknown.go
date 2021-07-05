@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 )
@@ -44,5 +45,10 @@ func (b *UnknownBox) Encode(w io.Writer) error {
 func (b *UnknownBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - not implemented or unknown box")
+	level := getInfoLevel(b, specificBoxLevels)
+	if level > 0 {
+		bd.write(" - %s", hex.EncodeToString(b.notDecoded))
+	}
+
 	return bd.err
 }
