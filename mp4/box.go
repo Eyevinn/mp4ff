@@ -257,7 +257,7 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
-// DecodeBox decodes a box but don't read mdat into memoryß
+// DecodeBox decodes a box but don't read mdat into memory
 func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 	var err error
 	var b Box

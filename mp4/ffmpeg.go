@@ -69,7 +69,7 @@ type DataBox struct {
 	Data []byte
 }
 
-// DecodeData - decode Data (from mov_write_string_data_tag in movenc.c in ffmpegß)
+// DecodeData - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
 func DecodeData(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
