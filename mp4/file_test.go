@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"bytes"
 	"os"
 	"testing"
 )
@@ -54,5 +55,45 @@ func TestDecodeFileWithNoLazyMdatOption(t *testing.T) {
 			}
 		}
 	}
+}
 
+// TestExtractTrackSampleData both lazily and by reading in full file
+func TestCopyTrackSampleData(t *testing.T) {
+	// load a progressive file
+
+	for j := 0; j < 2; j++ {
+		fd, err := os.Open("./testdata/prog_8s.mp4")
+		if err != nil {
+			t.Error(err)
+		}
+		defer fd.Close()
+		var mp4f *File
+		if j == 0 {
+			mp4f, err = DecodeFile(fd, WithDecodeMode(DecModeLazyMdat))
+		} else {
+			mp4f, err = DecodeFile(fd)
+		}
+		if err != nil {
+			t.Error(err)
+		}
+		var startSampleNr uint32 = 31
+		var endSampleNr uint32 = 60
+
+		for _, trak := range mp4f.Moov.Traks {
+			totSize := 0
+			stsz := trak.Mdia.Minf.Stbl.Stsz
+			for i := startSampleNr; i <= endSampleNr; i++ {
+				totSize += int(stsz.GetSampleSize(int(i)))
+			}
+			sampleData := bytes.Buffer{}
+
+			err := mp4f.CopySampleData(&sampleData, fd, trak, startSampleNr, endSampleNr)
+			if err != nil {
+				t.Error(err)
+			}
+			if sampleData.Len() != int(totSize) {
+				t.Errorf("Got %d bytes instead of %d", sampleData.Len(), totSize)
+			}
+		}
+	}
 }

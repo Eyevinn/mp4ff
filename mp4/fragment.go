@@ -79,6 +79,16 @@ func (f *Fragment) AddChild(b Box) {
 	f.Children = append(f.Children, b)
 }
 
+// Size - return size of fragment including all boxes.
+// Be aware that TrafBox.OptimizeTfhdTrun() can change size
+func (f *Fragment) Size() uint64 {
+	var size uint64 = 0
+	for _, c := range f.Children {
+		size += c.Size()
+	}
+	return size
+}
+
 // GetFullSamples - Get full samples including media and accumulated time
 func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	moof := f.Moof

@@ -352,3 +352,78 @@ func WithEncodeMode(mode EncFragFileMode) Option {
 func WithDecodeMode(mode DecFileMode) Option {
 	return func(f *File) { f.fileDecMode = mode }
 }
+
+// CopySampleData - copy sample data from a track in a progressive mp4 file to w. Use rs if lazy read.
+func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox, startSampleNr, endSampleNr uint32) error {
+	if f.isFragmented {
+		return fmt.Errorf("only available for progressive files")
+	}
+	mdat := f.Mdat
+
+	if mdat.IsLazy() && rs == nil {
+		return fmt.Errorf("no ReadSeeker for lazy mdat")
+	}
+	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
+
+	stbl := trak.Mdia.Minf.Stbl
+	chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
+	if err != nil {
+		return err
+	}
+	var chunkOffsets []uint64
+	if stbl.Stco != nil {
+		chunkOffsets = make([]uint64, len(stbl.Stco.ChunkOffset))
+		for i := range stbl.Stco.ChunkOffset {
+			chunkOffsets[i] = uint64(stbl.Stco.ChunkOffset[i])
+		}
+	} else if stbl.Co64 != nil {
+		chunkOffsets = stbl.Co64.ChunkOffset
+	} else {
+		return fmt.Errorf("neither stco nor co64 available")
+	}
+	var startNr, endNr uint32
+	var offset uint64
+	for i, chunk := range chunks {
+		startNr = chunk.StartSampleNr
+		endNr = startNr + chunk.NrSamples - 1
+		offset = chunkOffsets[chunk.ChunkNr-1]
+		if i == 0 {
+			for sNr := chunk.StartSampleNr; sNr < startSampleNr; sNr++ {
+				offset += uint64(stbl.Stsz.SampleSize[sNr-1])
+			}
+			startNr = startSampleNr
+		}
+
+		if i == len(chunks)-1 {
+			endNr = endSampleNr
+		}
+		var size int64
+		for sNr := startNr; sNr <= endNr; sNr++ {
+			size += int64(stbl.Stsz.GetSampleSize(int(sNr)))
+		}
+		if mdat.IsLazy() {
+			_, err := rs.Seek(int64(offset), io.SeekStart)
+			if err != nil {
+				return err
+			}
+			n, err := io.CopyN(w, rs, size)
+			if err != nil {
+				return err
+			}
+			if n != size {
+				return fmt.Errorf("copied %d bytes instead of %d", n, size)
+			}
+		} else {
+			offsetInMdatData := offset - mdatPayloadStart
+			n, err := w.Write(mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)])
+			if err != nil {
+				return err
+			}
+			if int64(n) != size {
+				return fmt.Errorf("copied %d bytes instead of %d", n, size)
+			}
+		}
+	}
+
+	return nil
+}
