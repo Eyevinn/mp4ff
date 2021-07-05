@@ -12,11 +12,20 @@ type MediaSegment struct {
 	EncOptimize EncOptimize
 }
 
-// NewMediaSegment - New empty MediaSegment
+// NewMediaSegment - create empty MediaSegment with CMAF styp box
 func NewMediaSegment() *MediaSegment {
 	return &MediaSegment{
 		Styp:        CreateStyp(),
-		Fragments:   []*Fragment{},
+		Fragments:   nil,
+		EncOptimize: OptimizeNone,
+	}
+}
+
+// NewMediaSegmentWithoutStyp - create empty media segment with no styp box
+func NewMediaSegmentWithoutStyp() *MediaSegment {
+	return &MediaSegment{
+		Styp:        nil,
+		Fragments:   nil,
 		EncOptimize: OptimizeNone,
 	}
 }
