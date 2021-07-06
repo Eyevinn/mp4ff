@@ -15,7 +15,8 @@ aligned(8) class SegmentIndexBox extends FullBox(‘sidx’, version, 0) {
 		unsigned int(32) earliest_presentation_time;
 		unsigned int(32) first_offset;
 	} else {
-		unsigned int(64) earliest_presentation_time; unsigned int(64) first_offset;
+		unsigned int(64) earliest_presentation_time;
+		unsigned int(64) first_offset;
 	}
 	unsigned int(16) reserved = 0;
 	unsigned int(16) reference_count;
