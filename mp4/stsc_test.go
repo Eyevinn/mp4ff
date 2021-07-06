@@ -72,10 +72,10 @@ func TestStsc(t *testing.T) {
 
 	t.Run("encode and decode", func(t *testing.T) {
 		stsc := &StscBox{
-			FirstChunk:          []uint32{1, 3},
-			SamplesPerChunk:     []uint32{256, 1000},
-			SampleDescriptionID: []uint32{1, 1},
+			FirstChunk:      []uint32{1, 3},
+			SamplesPerChunk: []uint32{256, 1000},
 		}
+		stsc.SetSingleSampleDescriptionID(1)
 		boxDiffAfterEncodeAndDecode(t, stsc)
 	})
 }
@@ -126,7 +126,7 @@ func TestGetChunk(t *testing.T) {
 	stsc := &StscBox{
 		FirstChunk:          []uint32{1, 3},
 		SamplesPerChunk:     []uint32{256, 1000},
-		SampleDescriptionID: []uint32{1, 1},
+		SampleDescriptionID: []uint32{1, 2},
 	}
 
 	testCases := []struct {
