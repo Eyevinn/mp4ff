@@ -81,18 +81,19 @@ func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
 		log.Print("ERROR: SttsBox.GetDecodeTime called with sampleNr == 0, although one-based")
 		return 0, 1
 	}
-	sampleNr-- // one-based
+	samplesRemaining := sampleNr - 1
 	decTime = 0
 	i := 0
-	for sampleNr > 0 && i < len(b.SampleCount) {
+	for {
 		dur = b.SampleTimeDelta[i]
-
-		if sampleNr >= b.SampleCount[i] {
+		if samplesRemaining >= b.SampleCount[i] {
 			decTime += uint64(b.SampleCount[i] * dur)
-			sampleNr -= b.SampleCount[i]
+			samplesRemaining -= b.SampleCount[i]
 		} else {
-			decTime += uint64(sampleNr * dur)
-			sampleNr = 0
+			if samplesRemaining > 0 {
+				decTime += uint64(samplesRemaining * dur)
+			}
+			break
 		}
 		i++
 	}
