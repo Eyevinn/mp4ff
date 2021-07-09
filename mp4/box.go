@@ -63,6 +63,7 @@ func init() {
 		"mfhd":    DecodeMfhd,
 		"mfra":    DecodeMfra,
 		"mfro":    DecodeMfro,
+		"mime":    DecodeMime,
 		"minf":    DecodeMinf,
 		"moof":    DecodeMoof,
 		"moov":    DecodeMoov,
