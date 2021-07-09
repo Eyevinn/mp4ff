@@ -61,7 +61,7 @@ func TestInitSegmentParsing(t *testing.T) {
 
 }
 
-func TestMoovParsingWithBtrtParsing(t *testing.T) {
+func TestMoovParsingWithBtrt(t *testing.T) {
 	initFile := "testdata/init_prog.mp4"
 	initDumpGoldenPath := "testdata/golden_init_prog_mp4_dump.txt"
 	f, err := parseInitFile(initFile)

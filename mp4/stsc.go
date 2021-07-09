@@ -14,13 +14,15 @@ import (
 //
 //   * first chunk : all chunks starting at this index up to the next first chunk have the same sample count/description
 //   * samples per chunk : number of samples in the chunk
-//   * description id : description (see the sample description box - stsd)
+//   * sample description id : description (see the sample description box - stsd)
+//     this value is most often the same for all samples, so it is stored as a single value if possible
 type StscBox struct {
-	Version             byte
-	Flags               uint32
-	FirstChunk          []uint32
-	SamplesPerChunk     []uint32
-	SampleDescriptionID []uint32
+	Version                   byte
+	Flags                     uint32
+	singleSampleDescriptionID uint32 // Used instead of slice if all values are the same
+	FirstChunk                []uint32
+	SamplesPerChunk           []uint32
+	SampleDescriptionID       []uint32
 }
 
 // DecodeStsc - box-specific decode
@@ -31,23 +33,34 @@ func DecodeStsc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	b := &StscBox{
-		Version:             byte(versionAndFlags >> 24),
-		Flags:               versionAndFlags & flagsMask,
-		FirstChunk:          []uint32{},
-		SamplesPerChunk:     []uint32{},
-		SampleDescriptionID: []uint32{},
+	b := StscBox{
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
 	}
-	ec := binary.BigEndian.Uint32(data[4:8])
-	for i := 0; i < int(ec); i++ {
+	entryCount := binary.BigEndian.Uint32(data[4:8])
+	b.FirstChunk = make([]uint32, 0, entryCount)
+	b.SamplesPerChunk = make([]uint32, 0, entryCount)
+	for i := 0; i < int(entryCount); i++ {
 		fc := binary.BigEndian.Uint32(data[(8 + 12*i):(12 + 12*i)])
 		spc := binary.BigEndian.Uint32(data[(12 + 12*i):(16 + 12*i)])
 		sdi := binary.BigEndian.Uint32(data[(16 + 12*i):(20 + 12*i)])
 		b.FirstChunk = append(b.FirstChunk, fc)
 		b.SamplesPerChunk = append(b.SamplesPerChunk, spc)
-		b.SampleDescriptionID = append(b.SampleDescriptionID, sdi)
+		if i == 0 {
+			b.singleSampleDescriptionID = sdi
+		} else {
+			if sdi != b.singleSampleDescriptionID {
+				if b.singleSampleDescriptionID != 0 {
+					for j := 0; j < i; j++ {
+						b.SampleDescriptionID = append(b.SampleDescriptionID, sdi)
+					}
+					b.singleSampleDescriptionID = 0
+				}
+				b.SampleDescriptionID = append(b.SampleDescriptionID, sdi)
+			}
+		}
 	}
-	return b, nil
+	return &b, nil
 }
 
 // Type box-specific type
@@ -74,7 +87,11 @@ func (b *StscBox) Encode(w io.Writer) error {
 	for i := range b.FirstChunk {
 		sw.WriteUint32(b.FirstChunk[i])
 		sw.WriteUint32(b.SamplesPerChunk[i])
-		sw.WriteUint32(b.SampleDescriptionID[i])
+		if b.singleSampleDescriptionID != 0 {
+			sw.WriteUint32(b.singleSampleDescriptionID)
+		} else {
+			sw.WriteUint32(b.SampleDescriptionID[i])
+		}
 	}
 	_, err = w.Write(buf)
 	return err
@@ -86,10 +103,24 @@ func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	if level >= 1 {
 		for i := range b.FirstChunk {
 			bd.write(" - entry[%d]: firstChunk=%d samplesPerChunk=%d sampleDescriptionID=%d",
-				i+1, b.FirstChunk[i], b.SamplesPerChunk[i], b.SampleDescriptionID[i])
+				i+1, b.FirstChunk[i], b.SamplesPerChunk[i], b.GetSampleDescriptionID(i+1))
 		}
 	}
 	return bd.err
+}
+
+// GetSampleDescription - get the sample description ID from common or individual values
+func (b *StscBox) GetSampleDescriptionID(sampleNr int) uint32 {
+	if b.singleSampleDescriptionID != 0 {
+		return b.singleSampleDescriptionID
+	}
+	return b.SampleDescriptionID[sampleNr-1]
+}
+
+// SetSingleSampleDescriptionID - use this for efficiency if all samples have same sample description
+func (b *StscBox) SetSingleSampleDescriptionID(sampleDescriptionID uint32) {
+	b.singleSampleDescriptionID = sampleDescriptionID
+	b.SampleDescriptionID = nil
 }
 
 // ChunkNrFromSampleNr - get chunk number from sampleNr (one-based)
