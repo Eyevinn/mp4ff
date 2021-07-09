@@ -51,3 +51,30 @@ func TestGetSampleNrAtTime(t *testing.T) {
 		}
 	}
 }
+
+func TestGetDecodeTime(t *testing.T) {
+	stts := SttsBox{
+		SampleCount:     []uint32{3, 1, 1},
+		SampleTimeDelta: []uint32{1024, 1025, 1024},
+	}
+
+	testCases := []struct {
+		sampleNr    uint32
+		expectedDec uint64
+		expectedDur uint32
+	}{
+		{1, 0, 1024},
+		{3, 2 * 1024, 1024},
+		{4, 3 * 1024, 1025},
+		{5, 3*1024 + 1025, 1024},
+	}
+	for idx, tc := range testCases {
+		gotDec, gotDur := stts.GetDecodeTime(tc.sampleNr)
+		if gotDec != tc.expectedDec {
+			t.Errorf("test case %d: got dec %d instead of %d for sampleNr %d", idx, gotDec, tc.expectedDec, tc.sampleNr)
+		}
+		if gotDur != tc.expectedDur {
+			t.Errorf("test case %d: got dur %d instead of %d for sampleNr %d", idx, gotDur, tc.expectedDur, tc.sampleNr)
+		}
+	}
+}
