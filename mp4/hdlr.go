@@ -37,6 +37,9 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 	case "subtitle", "subt":
 		hdlr.HandlerType = "subt"
 		hdlr.Name = "mp4ff subtitle handler"
+	case "text", "wvtt":
+		hdlr.HandlerType = "text"
+		hdlr.Name = "mp4ff text handler"
 	case "clcp":
 		hdlr.HandlerType = "subt"
 		hdlr.Name = "mp4ff closed captions handler"
