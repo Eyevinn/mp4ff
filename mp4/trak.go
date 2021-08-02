@@ -101,10 +101,10 @@ func (t *TrakBox) GetSampleData(startSampleNr, endSampleNr uint32) ([]Sample, er
 			cto = ctts.GetCompositionTimeOffset(nr)
 		}
 		samples[nr] = Sample{
-			Flags: createSampleFlagsFromProgressiveBoxes(stss, sdtp, nr),
-			Dur:   stts.GetDur(nr),
-			Size:  stbl.Stsz.GetSampleSize(int(nr)),
-			Cto:   cto,
+			Flags:                 createSampleFlagsFromProgressiveBoxes(stss, sdtp, nr),
+			Dur:                   stts.GetDur(nr),
+			Size:                  stbl.Stsz.GetSampleSize(int(nr)),
+			CompositionTimeOffset: cto,
 		}
 	}
 	return samples, nil

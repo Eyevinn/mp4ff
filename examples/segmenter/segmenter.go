@@ -173,10 +173,10 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		//presTimeMs := presTime * 1000 / uint64(tr.timeScale)
 		sc := mp4.FullSample{
 			Sample: mp4.Sample{
-				Flags: TranslateSampleFlagsForFragment(stbl, sampleNr),
-				Size:  size,
-				Dur:   dur,
-				Cto:   cto,
+				Flags:                 TranslateSampleFlagsForFragment(stbl, sampleNr),
+				Size:                  size,
+				Dur:                   dur,
+				CompositionTimeOffset: cto,
 			},
 			DecodeTime: decTime,
 			Data:       sampleData,
@@ -204,10 +204,10 @@ func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, sta
 		//One can either segment on presentationTime or DecodeTime
 		//presTimeMs := presTime * 1000 / uint64(trak.timeScale)
 		sc := mp4.Sample{
-			Flags: TranslateSampleFlagsForFragment(stbl, sampleNr),
-			Size:  size,
-			Dur:   dur,
-			Cto:   cto,
+			Flags:                 TranslateSampleFlagsForFragment(stbl, sampleNr),
+			Size:                  size,
+			Dur:                   dur,
+			CompositionTimeOffset: cto,
 		}
 
 		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
