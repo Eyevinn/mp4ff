@@ -25,7 +25,7 @@ type Track struct {
 	timeScale uint64
 	trak      *mp4.TrakBox
 	trex      *mp4.TrexBox
-	samples   []*mp4.FullSample
+	samples   []mp4.FullSample
 }
 
 func main() {

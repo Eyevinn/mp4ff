@@ -90,7 +90,7 @@ func (f *Fragment) Size() uint64 {
 }
 
 // GetFullSamples - Get full samples including media and accumulated time
-func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
+func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 	moof := f.Moof
 	mdat := f.Mdat
 	//seqNr := moof.Mfhd.SequenceNumber
@@ -112,7 +112,7 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 	tfhd := traf.Tfhd
 	baseTime := traf.Tfdt.BaseMediaDecodeTime
 	moofStartPos := moof.StartPos
-	var samples []*FullSample
+	var samples []FullSample
 	for _, trun := range traf.Truns {
 		totalDur := trun.AddSampleDefaultValues(tfhd, trex)
 		var baseOffset uint64
@@ -138,21 +138,21 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]*FullSample, error) {
 
 // AddFullSample - add a full sample to the first (and only) trun of a track
 // AddFullSampleToTrack is the more general function
-func (f *Fragment) AddFullSample(s *FullSample) {
+func (f *Fragment) AddFullSample(s FullSample) {
 	trun := f.Moof.Traf.Trun
 	if trun.SampleCount() == 0 {
 		tfdt := f.Moof.Traf.Tfdt
 		tfdt.SetBaseMediaDecodeTime(s.DecodeTime)
 	}
-	trun.AddSample(&s.Sample)
+	trun.AddSample(s.Sample)
 	mdat := f.Mdat
 	mdat.AddSampleData(s.Data)
 }
 
 // AddFullSampleToTrack - allows for adding samples to any track
 // New trun boxes will be created if latest trun of fragment is not in this track
-func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
-	err := f.AddSampleToTrack(&s.Sample, trackID, s.DecodeTime)
+func (f *Fragment) AddFullSampleToTrack(s FullSample, trackID uint32) error {
+	err := f.AddSampleToTrack(s.Sample, trackID, s.DecodeTime)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (f *Fragment) AddFullSampleToTrack(s *FullSample, trackID uint32) error {
 
 // AddSample - add a sample to the first (and only) trun of a track
 // AddSampleToTrack is the more general function
-func (f *Fragment) AddSample(s *Sample, baseMediaDecodeTime uint64) {
+func (f *Fragment) AddSample(s Sample, baseMediaDecodeTime uint64) {
 	trun := f.Moof.Traf.Trun
 	if trun.SampleCount() == 0 {
 		tfdt := f.Moof.Traf.Tfdt
@@ -178,7 +178,7 @@ func (f *Fragment) AddSample(s *Sample, baseMediaDecodeTime uint64) {
 // AddSampleToTrack - allows for adding samples to any track
 // New trun boxes will be created if latest trun of fragment is not in this track
 // baseMediaDecodeTime will be used only for first sample in a trun
-func (f *Fragment) AddSampleToTrack(s *Sample, trackID uint32, baseMediaDecodeTime uint64) error {
+func (f *Fragment) AddSampleToTrack(s Sample, trackID uint32, baseMediaDecodeTime uint64) error {
 	var traf *TrafBox
 	for _, traf = range f.Moof.Trafs {
 		if traf.Tfhd.TrackID == trackID {

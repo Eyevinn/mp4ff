@@ -17,7 +17,7 @@ func createTestTrafBox() *TrafBox {
 
 type testSamples struct {
 	name    string
-	samples []*Sample
+	samples []Sample
 }
 
 func TestTrafTrunWithoutOptimization(t *testing.T) {
@@ -25,7 +25,7 @@ func TestTrafTrunWithoutOptimization(t *testing.T) {
 	tests := []testSamples{
 		{
 			"audioSamples",
-			[]*Sample{
+			[]Sample{
 				{SyncSampleFlags, 1024, 234, 0},
 				{SyncSampleFlags, 1024, 235, 0},
 				{SyncSampleFlags, 1024, 235, 0},
@@ -33,7 +33,7 @@ func TestTrafTrunWithoutOptimization(t *testing.T) {
 		},
 		{
 			"videoWithInitialSyncSample",
-			[]*Sample{
+			[]Sample{
 				{SyncSampleFlags, 1024, 234, 0},
 				{NonSyncSampleFlags, 1024, 235, 0},
 				{NonSyncSampleFlags, 1024, 235, 0},
@@ -41,7 +41,7 @@ func TestTrafTrunWithoutOptimization(t *testing.T) {
 		},
 		{
 			"videoWithMultipleSyncSamplesAndCto",
-			[]*Sample{
+			[]Sample{
 				{SyncSampleFlags, 1024, 234, 0},
 				{NonSyncSampleFlags, 1024, 235, 2048},
 				{SyncSampleFlags, 1024, 235, -1024},
@@ -49,13 +49,13 @@ func TestTrafTrunWithoutOptimization(t *testing.T) {
 		},
 		{
 			"singleSample",
-			[]*Sample{
+			[]Sample{
 				{SyncSampleFlags, 1024, 234, 0},
 			},
 		},
 		{
 			"sameSize",
-			[]*Sample{
+			[]Sample{
 				{SyncSampleFlags, 1024, 234, 0},
 				{SyncSampleFlags, 1024, 234, 0},
 			},

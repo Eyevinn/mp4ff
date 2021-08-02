@@ -11,8 +11,8 @@ type Sample struct {
 }
 
 // NewSample - create Sample with trun data
-func NewSample(flags uint32, dur uint32, size uint32, cto int32) *Sample {
-	return &Sample{
+func NewSample(flags uint32, dur uint32, size uint32, cto int32) Sample {
+	return Sample{
 		Flags: flags,
 		Dur:   dur,
 		Size:  size,

@@ -16,7 +16,7 @@ type TrunBox struct {
 	sampleCount      uint32
 	DataOffset       int32
 	firstSampleFlags uint32 // interpreted as SampleFlags
-	Samples          []*Sample
+	Samples          []Sample
 	writeOrderNr     uint32 // Used for multi trun offsets
 }
 
@@ -273,15 +273,15 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 // baseOffset is offset in mdat (normally 8)
 // baseTime is offset in track timescale (from mfhd)
 // To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call
-func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatBox) []*FullSample {
-	samples := make([]*FullSample, 0, t.SampleCount())
+func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatBox) []FullSample {
+	samples := make([]FullSample, 0, t.SampleCount())
 	var accDur uint64 = 0
 	offset := baseOffset
 	for _, s := range t.Samples {
 		dTime := baseTime + accDur
 
-		newSample := &FullSample{
-			Sample:     *s,
+		newSample := FullSample{
+			Sample:     s,
 			DecodeTime: dTime,
 			Data:       mdat.Data[offset : offset+s.Size],
 		}
@@ -294,18 +294,18 @@ func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatB
 
 // GetSamples - get all trun sample data
 // To fill missing individual values from thd and trex defaults, call AddSampleDefaultValues() before this call
-func (t *TrunBox) GetSamples() []*Sample {
+func (t *TrunBox) GetSamples() []Sample {
 	return t.Samples
 }
 
 // AddFullSample - add Sample part of FullSample
 func (t *TrunBox) AddFullSample(s *FullSample) {
-	t.Samples = append(t.Samples, &s.Sample)
+	t.Samples = append(t.Samples, s.Sample)
 	t.sampleCount++
 }
 
 // AddSample - add a Sample
-func (t *TrunBox) AddSample(s *Sample) {
+func (t *TrunBox) AddSample(s Sample) {
 	t.Samples = append(t.Samples, s)
 	t.sampleCount++
 }
