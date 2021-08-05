@@ -122,9 +122,9 @@ func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 }
 
 // GetFullSamplesForInterval - get slice of fullsamples with numbers startSampleNr to endSampleNr (inclusive)
-func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSampleNr, endSampleNr uint32, rs io.ReadSeeker) ([]*mp4.FullSample, error) {
+func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSampleNr, endSampleNr uint32, rs io.ReadSeeker) ([]mp4.FullSample, error) {
 	stbl := tr.inTrak.Mdia.Minf.Stbl
-	samples := make([]*mp4.FullSample, 0, endSampleNr-startSampleNr+1)
+	samples := make([]mp4.FullSample, 0, endSampleNr-startSampleNr+1)
 	mdat := mp4f.Mdat
 	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
@@ -183,15 +183,15 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		}
 
 		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
-		samples = append(samples, &sc)
+		samples = append(samples, sc)
 	}
 	return samples, nil
 }
 
 // GetSamplesForInterval - get slice of samples with numbers startSampleNr to endSampleNr (inclusive)
-func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, startSampleNr, endSampleNr uint32) ([]*mp4.Sample, error) {
+func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, startSampleNr, endSampleNr uint32) ([]mp4.Sample, error) {
 	stbl := trak.Mdia.Minf.Stbl
-	samples := make([]*mp4.Sample, 0, endSampleNr-startSampleNr+1)
+	samples := make([]mp4.Sample, 0, endSampleNr-startSampleNr+1)
 	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
 		size := stbl.Stsz.GetSampleSize(int(sampleNr))
 		dur := stbl.Stts.GetDur(sampleNr)
@@ -211,7 +211,7 @@ func (s *Segmenter) GetSamplesForInterval(mp4f *mp4.File, trak *mp4.TrakBox, sta
 		}
 
 		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
-		samples = append(samples, &sc)
+		samples = append(samples, sc)
 	}
 	return samples, nil
 }

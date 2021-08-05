@@ -159,7 +159,7 @@ func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string) error {
 			codec = "hevc"
 		}
 	}
-	iSamples := make([]*mp4.FullSample, 0)
+	iSamples := make([]mp4.FullSample, 0)
 	for _, iSeg := range f.Segments {
 		for _, iFrag := range iSeg.Fragments {
 			fSamples, err := iFrag.GetFullSamples(nil)
