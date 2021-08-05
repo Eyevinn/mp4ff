@@ -269,25 +269,24 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// GetFullSamples - get all sample data including accumulated time and binary media
-// baseOffset is offset in mdat (normally 8)
-// baseTime is offset in track timescale (from mfhd)
-// To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call
-func (t *TrunBox) GetFullSamples(baseOffset uint32, baseTime uint64, mdat *MdatBox) []FullSample {
+// GetFullSamples - get all sample data including accumulated time and binary media data
+// offsetInMdat is offset in mdat data (data normally starts 8 or 16 bytes after start of mdat box)
+// baseDecodeTime is decodeTime in tfdt in track timescale (timescale in mfhd)
+// To fill missing individual values from tfhd and trex defaults, call trun.AddSampleDefaultValues() before this call
+func (t *TrunBox) GetFullSamples(offsetInMdat uint32, baseDecodeTime uint64, mdat *MdatBox) []FullSample {
 	samples := make([]FullSample, 0, t.SampleCount())
 	var accDur uint64 = 0
-	offset := baseOffset
 	for _, s := range t.Samples {
-		dTime := baseTime + accDur
+		dTime := baseDecodeTime + accDur
 
 		newSample := FullSample{
 			Sample:     s,
 			DecodeTime: dTime,
-			Data:       mdat.Data[offset : offset+s.Size],
+			Data:       mdat.Data[offsetInMdat : offsetInMdat+s.Size],
 		}
 		samples = append(samples, newSample)
 		accDur += uint64(s.Dur)
-		offset += s.Size
+		offsetInMdat += s.Size
 	}
 	return samples
 }
