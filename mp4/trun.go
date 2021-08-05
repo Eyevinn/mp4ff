@@ -310,6 +310,12 @@ func (t *TrunBox) AddSample(s Sample) {
 	t.sampleCount++
 }
 
+// AddSamples - add a a slice of Sample
+func (t *TrunBox) AddSamples(s []Sample) {
+	t.Samples = append(t.Samples, s...)
+	t.sampleCount += uint32(len(s))
+}
+
 // Duration - calculated duration given defaultSampleDuration
 func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 	if !t.HasSampleDuration() {

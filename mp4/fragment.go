@@ -175,6 +175,21 @@ func (f *Fragment) AddSample(s Sample, baseMediaDecodeTime uint64) {
 	f.Mdat.lazyDataSize += uint64(s.Size)
 }
 
+// AddSamples - add a slice of Sample to the first (and only) trun of a track
+func (f *Fragment) AddSamples(ss []Sample, baseMediaDecodeTime uint64) {
+	trun := f.Moof.Traf.Trun
+	if trun.SampleCount() == 0 {
+		tfdt := f.Moof.Traf.Tfdt
+		tfdt.SetBaseMediaDecodeTime(baseMediaDecodeTime)
+	}
+	trun.AddSamples(ss)
+	var accSize uint64 = 0
+	for _, s := range ss {
+		accSize += uint64(s.Size)
+	}
+	f.Mdat.lazyDataSize += accSize
+}
+
 // AddSampleToTrack - allows for adding samples to any track
 // New trun boxes will be created if latest trun of fragment is not in this track
 // baseMediaDecodeTime will be used only for first sample in a trun
