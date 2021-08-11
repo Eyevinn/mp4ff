@@ -307,3 +307,63 @@ func (f *Fragment) SetTrunDataOffsets() {
 		dataOffset += trun.SizeOfData()
 	}
 }
+
+// Look up sample number from a specifed time. Return error if no matching time
+func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32, error) {
+	if len(f.Moof.Trafs) != 1 {
+		return 0, fmt.Errorf("Not exactly one traf")
+	}
+	traf := f.Moof.Traf
+	if len(traf.Truns) != 1 {
+		return 0, fmt.Errorf("Not exactly one trun")
+	}
+	baseDecodeTime := traf.Tfdt.BaseMediaDecodeTime
+	if baseDecodeTime > sampleTime {
+		return 0, fmt.Errorf("sampleTime %d less that baseMediaDecodeTime %d", sampleTime, baseDecodeTime)
+	}
+	deltaTime := sampleTime - baseDecodeTime
+	defaultSampleDuration := trex.DefaultSampleDuration
+	if traf.Tfhd.HasDefaultSampleDuration() {
+		defaultSampleDuration = traf.Tfhd.DefaultSampleDuration
+	}
+	return traf.Trun.GetSampleNrForRelativeTime(deltaTime, defaultSampleDuration)
+}
+
+// GetSampleInterval - get SampleInterval for a fragment with only one track
+func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr uint32) (SampleInterval, error) {
+	moof := f.Moof
+	if len(moof.Trafs) != 1 {
+		return SampleInterval{}, fmt.Errorf("Not exactly one track in fragment")
+	}
+	traf := moof.Traf
+	if len(traf.Truns) != 1 {
+		return SampleInterval{}, fmt.Errorf("Not exactly 1, but %d trun boxes", len(traf.Truns))
+	}
+	tfhd, trun := traf.Tfhd, traf.Trun
+	moofStartPos := moof.StartPos
+	_ = trun.AddSampleDefaultValues(tfhd, trex)
+	var baseOffset uint64
+	if tfhd.HasBaseDataOffset() {
+		baseOffset = tfhd.BaseDataOffset
+	} else if tfhd.DefaultBaseIfMoof() {
+		baseOffset = moofStartPos
+	}
+	if trun.HasDataOffset() {
+		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
+	}
+	offsetInMdat := uint32(baseOffset - f.Mdat.PayloadAbsoluteOffset())
+	return trun.GetSampleInterval(startSampleNr, endSampleNr, traf.Tfdt.BaseMediaDecodeTime, f.Mdat, offsetInMdat)
+}
+
+// GetSampleInterval - get SampleInterval for a fragment with only one track
+func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
+	moof := f.Moof
+	traf := moof.Traf
+	trun := traf.Trun
+	if trun.sampleCount == 0 {
+		traf.Tfdt.BaseMediaDecodeTime = sItvl.FirstDecodeTime
+	}
+	trun.AddSamples(sItvl.Samples)
+	f.Mdat.AddSampleData(sItvl.Data)
+	return nil
+}

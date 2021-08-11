@@ -292,9 +292,54 @@ func (t *TrunBox) GetFullSamples(offsetInMdat uint32, baseDecodeTime uint64, mda
 }
 
 // GetSamples - get all trun sample data
-// To fill missing individual values from thd and trex defaults, call AddSampleDefaultValues() before this call
+// To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call
 func (t *TrunBox) GetSamples() []Sample {
 	return t.Samples
+}
+
+// GetSampleRange - get a one-based range of samples
+// To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call
+func (t *TrunBox) GetSampleRange(startSampleNr, endSampleNr uint32) []Sample {
+	return t.Samples[startSampleNr-1 : endSampleNr]
+}
+
+// GetSampleInterval - get sample interval [startSampleNr, endSampleNr] (1-based and inclusive)
+// This includes mdat data (if not lazy), in which case only offsetInMdat is given.
+// baseDecodeTime is decodeTime in tfdt in track timescale (timescale from mfhd).
+// To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call.
+func (t *TrunBox) GetSampleInterval(startSampleNr, endSampleNr uint32, baseDecodeTime uint64, mdat *MdatBox, offsetInMdat uint32) (SampleInterval, error) {
+	si := SampleInterval{}
+	if startSampleNr < 1 {
+		return si, fmt.Errorf("startSegNr < 1")
+	}
+	nrSamples := uint32(len(t.Samples))
+	if endSampleNr > nrSamples {
+		return si, fmt.Errorf("endSampleNr=%d is greater than nr samples %d", endSampleNr, nrSamples)
+	}
+	decTime := baseDecodeTime
+	var size uint32
+	for i, s := range t.Samples {
+		sampleNr := uint32(i + 1)
+		if sampleNr == startSampleNr {
+			si.FirstDecodeTime = decTime
+		}
+		if sampleNr >= startSampleNr {
+			size += s.Size
+			if sampleNr == endSampleNr {
+				break
+			}
+			continue
+		}
+		decTime += uint64(s.Dur)
+		offsetInMdat += s.Size
+	}
+	si.Samples = t.Samples[startSampleNr-1 : endSampleNr]
+	si.OffsetInMdat = offsetInMdat
+	si.Size = size
+	if mdat != nil && !mdat.IsLazy() {
+		si.Data = mdat.Data[si.OffsetInMdat : si.OffsetInMdat+si.Size]
+	}
+	return si, nil
 }
 
 // AddFullSample - add Sample part of FullSample
@@ -315,7 +360,7 @@ func (t *TrunBox) AddSamples(s []Sample) {
 	t.sampleCount += uint32(len(s))
 }
 
-// Duration - calculated duration given defaultSampleDuration
+// Duration - calculate total duration of all samples given defaultSampleDuration
 func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 	if !t.HasSampleDuration() {
 		return uint64(defaultSampleDuration) * uint64(t.SampleCount())
@@ -325,6 +370,35 @@ func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 		total += uint64(s.Dur)
 	}
 	return total
+}
+
+// GetSampleNrForRelativeTime - get sample number for exact relative time (calculated from summing durations)
+func (t *TrunBox) GetSampleNrForRelativeTime(deltaTime uint64, defaultSampleDuration uint32) (uint32, error) {
+	if !t.HasSampleDuration() {
+		nr := deltaTime / uint64(defaultSampleDuration)
+		if nr >= uint64(t.sampleCount) {
+			return 0, fmt.Errorf("time %d is bigger than largest time %d", deltaTime, (t.sampleCount-1)*defaultSampleDuration)
+		}
+		if nr*uint64(defaultSampleDuration) == deltaTime {
+			return uint32(nr) + 1, nil
+		}
+		return 0, fmt.Errorf("did not find time %d but %d", deltaTime, nr*uint64(defaultSampleDuration))
+	}
+	var accTime uint64
+	var nr uint32
+	found := false
+	for _, s := range t.Samples {
+		if deltaTime <= accTime {
+			found = true
+			break
+		}
+		accTime += uint64(s.Dur)
+		nr++
+	}
+	if found && accTime == deltaTime {
+		return nr + 1, nil
+	}
+	return 0, fmt.Errorf("did not find time %d but %d", deltaTime, accTime)
 }
 
 // SizeOfData - size of mediasamples in bytes
