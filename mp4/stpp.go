@@ -20,6 +20,8 @@ type StppBox struct {
 }
 
 // NewStppBox - Create new stpp box
+// namespace, schemaLocation and auxiliaryMimeType are space-separated utf8-lists without zero-termination
+// schemaLocation and auxiliaryMimeTypes are optional
 func NewStppBox(namespace, schemaLocation, auxiliaryMimeTypes string) *StppBox {
 	return &StppBox{
 		Namespace:          namespace,
@@ -59,14 +61,18 @@ func DecodeStpp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 
-	sb.SchemaLocation, err = s.ReadZeroTerminatedString()
-	if err != nil {
-		return nil, err
+	if s.NrRemainingBytes() > 0 {
+		sb.SchemaLocation, err = s.ReadZeroTerminatedString()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	sb.AuxiliaryMimeTypes, err = s.ReadZeroTerminatedString()
-	if err != nil {
-		return nil, err
+	if s.NrRemainingBytes() > 0 {
+		sb.AuxiliaryMimeTypes, err = s.ReadZeroTerminatedString()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pos := startPos + uint64(boxHeaderSize+s.GetPos())
@@ -101,8 +107,13 @@ func (s *StppBox) Type() string {
 // Size - return calculated size
 func (s *StppBox) Size() uint64 {
 	nrSampleEntryBytes := 8
-	totalSize := uint64(boxHeaderSize + nrSampleEntryBytes + len(s.Namespace) +
-		len(s.SchemaLocation) + len(s.AuxiliaryMimeTypes) + 3)
+	totalSize := uint64(boxHeaderSize + nrSampleEntryBytes + len(s.Namespace) + 1)
+	if s.SchemaLocation != "" {
+		totalSize += uint64(len(s.SchemaLocation)) + 1
+	}
+	if s.AuxiliaryMimeTypes != "" {
+		totalSize += uint64(len(s.AuxiliaryMimeTypes)) + 1
+	}
 	for _, child := range s.Children {
 		totalSize += child.Size()
 	}
@@ -120,9 +131,12 @@ func (s *StppBox) Encode(w io.Writer) error {
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(s.DataReferenceIndex)
 	sw.WriteString(s.Namespace, true)
-	sw.WriteString(s.SchemaLocation, true)
-	sw.WriteString(s.AuxiliaryMimeTypes, true)
-
+	if s.SchemaLocation != "" {
+		sw.WriteString(s.SchemaLocation, true)
+	}
+	if s.AuxiliaryMimeTypes != "" {
+		sw.WriteString(s.AuxiliaryMimeTypes, true)
+	}
 	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
 	if err != nil {
 		return err
