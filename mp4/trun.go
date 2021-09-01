@@ -25,7 +25,7 @@ const firstSampleFlagsPresentFlag uint32 = 0x04
 const sampleDurationPresentFlag uint32 = 0x100
 const sampleSizePresentFlag uint32 = 0x200
 const sampleFlagsPresentFlag uint32 = 0x400
-const sampleCTOPresentFlag uint32 = 0x800
+const sampleCompositionTimeOffsetPresentFlag uint32 = 0x800
 
 // DecodeTrun - box-specific decode
 func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
@@ -64,7 +64,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		} else if t.HasFirstSampleFlags() && i == 0 {
 			flags = t.firstSampleFlags
 		}
-		if t.HasSampleCTO() {
+		if t.HasSampleCompositionTimeOffset() {
 			cto = s.ReadInt32()
 		}
 		sample := NewSample(flags, dur, size, cto)
@@ -160,9 +160,9 @@ func (t *TrunBox) HasSampleSize() bool {
 	return t.flags&sampleSizePresentFlag != 0
 }
 
-// HasSampleCTO - interpreted sampleCompositionTimeOffset flag
-func (t *TrunBox) HasSampleCTO() bool {
-	return t.flags&sampleCTOPresentFlag != 0
+// HasSampleCompositionTimeOffset - interpreted sampleCompositionTimeOffset flag
+func (t *TrunBox) HasSampleCompositionTimeOffset() bool {
+	return t.flags&sampleCompositionTimeOffsetPresentFlag != 0
 }
 
 // Type - return box type
@@ -189,7 +189,7 @@ func (t *TrunBox) Size() uint64 {
 	if t.HasSampleFlags() {
 		bytesPerSample += 4
 	}
-	if t.HasSampleCTO() {
+	if t.HasSampleCompositionTimeOffset() {
 		bytesPerSample += 4
 	}
 	sz += int(t.sampleCount) * bytesPerSample
@@ -227,8 +227,8 @@ func (t *TrunBox) Encode(w io.Writer) error {
 		if t.HasSampleFlags() {
 			sw.WriteUint32(t.Samples[i].Flags)
 		}
-		if t.HasSampleCTO() {
-			sw.WriteInt32(t.Samples[i].Cto)
+		if t.HasSampleCompositionTimeOffset() {
+			sw.WriteInt32(t.Samples[i].CompositionTimeOffset)
 		}
 
 	}
@@ -260,8 +260,8 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 				sampleFlags := t.Samples[i].Flags
 				msg += fmt.Sprintf(" flags=%08x (%s)", sampleFlags, DecodeSampleFlags(sampleFlags))
 			}
-			if t.HasSampleCTO() {
-				msg += fmt.Sprintf(" cto=%d", t.Samples[i].Cto)
+			if t.HasSampleCompositionTimeOffset() {
+				msg += fmt.Sprintf(" compositionTimeOffset=%d", t.Samples[i].CompositionTimeOffset)
 			}
 			bd.write(msg)
 		}

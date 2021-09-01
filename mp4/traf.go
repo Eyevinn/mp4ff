@@ -145,16 +145,16 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 		}
 	}
 
-	if trun.HasSampleCTO() {
+	if trun.HasSampleCompositionTimeOffset() {
 		allZeroCTO := true
 		for _, s := range trun.Samples {
-			if s.Cto != 0 {
+			if s.CompositionTimeOffset != 0 {
 				allZeroCTO = false
 				break
 			}
 		}
 		if allZeroCTO {
-			trun.flags = trun.flags & ^sampleCTOPresentFlag
+			trun.flags = trun.flags & ^sampleCompositionTimeOffsetPresentFlag
 		}
 	}
 	return nil

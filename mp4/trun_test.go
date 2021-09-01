@@ -13,10 +13,10 @@ func TestTrunInfo(t *testing.T) {
 	trun.DataOffset = 314159
 	fs := FullSample{
 		Sample: Sample{
-			Flags: SyncSampleFlags,
-			Dur:   1024,
-			Size:  4,
-			Cto:   -512,
+			Flags:                 SyncSampleFlags,
+			Dur:                   1024,
+			Size:                  4,
+			CompositionTimeOffset: -512,
 		},
 		DecodeTime: 1024,
 		Data:       []byte{0, 1, 2, 3},

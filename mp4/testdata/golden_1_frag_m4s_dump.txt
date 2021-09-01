@@ -18,21 +18,21 @@
      - sampleCount: 15
      - DataOffset: 224
      - firstSampleFlags: 02000000 (isLeading=0 dependsOn=2 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0)
-     - sample[1]: size=3130 cto=6000
-     - sample[2]: size=183 cto=6000
-     - sample[3]: size=168 cto=6000
-     - sample[4]: size=129 cto=15000
-     - sample[5]: size=102 cto=6000
-     - sample[6]: size=82 cto=0
-     - sample[7]: size=97 cto=3000
-     - sample[8]: size=199 cto=15000
-     - sample[9]: size=80 cto=6000
-     - sample[10]: size=91 cto=0
-     - sample[11]: size=80 cto=3000
-     - sample[12]: size=128 cto=15000
-     - sample[13]: size=72 cto=6000
-     - sample[14]: size=62 cto=0
-     - sample[15]: size=61 cto=3000
+     - sample[1]: size=3130 compositionTimeOffset=6000
+     - sample[2]: size=183 compositionTimeOffset=6000
+     - sample[3]: size=168 compositionTimeOffset=6000
+     - sample[4]: size=129 compositionTimeOffset=15000
+     - sample[5]: size=102 compositionTimeOffset=6000
+     - sample[6]: size=82 compositionTimeOffset=0
+     - sample[7]: size=97 compositionTimeOffset=3000
+     - sample[8]: size=199 compositionTimeOffset=15000
+     - sample[9]: size=80 compositionTimeOffset=6000
+     - sample[10]: size=91 compositionTimeOffset=0
+     - sample[11]: size=80 compositionTimeOffset=3000
+     - sample[12]: size=128 compositionTimeOffset=15000
+     - sample[13]: size=72 compositionTimeOffset=6000
+     - sample[14]: size=62 compositionTimeOffset=0
+     - sample[15]: size=61 compositionTimeOffset=3000
 [mdat] size=4672
 [moof] size=212
   [mfhd] size=16 version=0 flags=000000
@@ -48,21 +48,21 @@
     [trun] size=140 version=1 flags=000a01
      - sampleCount: 15
      - DataOffset: 220
-     - sample[1]: size=544 cto=6000
-     - sample[2]: size=474 cto=15000
-     - sample[3]: size=151 cto=6000
-     - sample[4]: size=131 cto=0
-     - sample[5]: size=104 cto=3000
-     - sample[6]: size=982 cto=15000
-     - sample[7]: size=175 cto=6000
-     - sample[8]: size=153 cto=0
-     - sample[9]: size=126 cto=3000
-     - sample[10]: size=1124 cto=15000
-     - sample[11]: size=176 cto=6000
-     - sample[12]: size=224 cto=0
-     - sample[13]: size=193 cto=3000
-     - sample[14]: size=402 cto=9000
-     - sample[15]: size=228 cto=3000
+     - sample[1]: size=544 compositionTimeOffset=6000
+     - sample[2]: size=474 compositionTimeOffset=15000
+     - sample[3]: size=151 compositionTimeOffset=6000
+     - sample[4]: size=131 compositionTimeOffset=0
+     - sample[5]: size=104 compositionTimeOffset=3000
+     - sample[6]: size=982 compositionTimeOffset=15000
+     - sample[7]: size=175 compositionTimeOffset=6000
+     - sample[8]: size=153 compositionTimeOffset=0
+     - sample[9]: size=126 compositionTimeOffset=3000
+     - sample[10]: size=1124 compositionTimeOffset=15000
+     - sample[11]: size=176 compositionTimeOffset=6000
+     - sample[12]: size=224 compositionTimeOffset=0
+     - sample[13]: size=193 compositionTimeOffset=3000
+     - sample[14]: size=402 compositionTimeOffset=9000
+     - sample[15]: size=228 compositionTimeOffset=3000
 [mdat] size=5195
 [moof] size=216
   [mfhd] size=16 version=0 flags=000000
@@ -79,21 +79,21 @@
      - sampleCount: 15
      - DataOffset: 224
      - firstSampleFlags: 02000000 (isLeading=0 dependsOn=2 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=false degradationPriority=0)
-     - sample[1]: size=3893 cto=6000
-     - sample[2]: size=995 cto=15000
-     - sample[3]: size=213 cto=6000
-     - sample[4]: size=137 cto=0
-     - sample[5]: size=136 cto=3000
-     - sample[6]: size=1073 cto=15000
-     - sample[7]: size=239 cto=6000
-     - sample[8]: size=220 cto=0
-     - sample[9]: size=206 cto=3000
-     - sample[10]: size=944 cto=15000
-     - sample[11]: size=315 cto=6000
-     - sample[12]: size=250 cto=0
-     - sample[13]: size=161 cto=3000
-     - sample[14]: size=335 cto=15000
-     - sample[15]: size=256 cto=6000
+     - sample[1]: size=3893 compositionTimeOffset=6000
+     - sample[2]: size=995 compositionTimeOffset=15000
+     - sample[3]: size=213 compositionTimeOffset=6000
+     - sample[4]: size=137 compositionTimeOffset=0
+     - sample[5]: size=136 compositionTimeOffset=3000
+     - sample[6]: size=1073 compositionTimeOffset=15000
+     - sample[7]: size=239 compositionTimeOffset=6000
+     - sample[8]: size=220 compositionTimeOffset=0
+     - sample[9]: size=206 compositionTimeOffset=3000
+     - sample[10]: size=944 compositionTimeOffset=15000
+     - sample[11]: size=315 compositionTimeOffset=6000
+     - sample[12]: size=250 compositionTimeOffset=0
+     - sample[13]: size=161 compositionTimeOffset=3000
+     - sample[14]: size=335 compositionTimeOffset=15000
+     - sample[15]: size=256 compositionTimeOffset=6000
 [mdat] size=9381
 [moof] size=212
   [mfhd] size=16 version=0 flags=000000
@@ -109,19 +109,19 @@
     [trun] size=140 version=1 flags=000a01
      - sampleCount: 15
      - DataOffset: 220
-     - sample[1]: size=190 cto=0
-     - sample[2]: size=198 cto=3000
-     - sample[3]: size=713 cto=15000
-     - sample[4]: size=288 cto=6000
-     - sample[5]: size=231 cto=0
-     - sample[6]: size=226 cto=3000
-     - sample[7]: size=602 cto=15000
-     - sample[8]: size=296 cto=6000
-     - sample[9]: size=164 cto=0
-     - sample[10]: size=214 cto=3000
-     - sample[11]: size=737 cto=6000
-     - sample[12]: size=560 cto=15000
-     - sample[13]: size=308 cto=6000
-     - sample[14]: size=287 cto=0
-     - sample[15]: size=278 cto=3000
+     - sample[1]: size=190 compositionTimeOffset=0
+     - sample[2]: size=198 compositionTimeOffset=3000
+     - sample[3]: size=713 compositionTimeOffset=15000
+     - sample[4]: size=288 compositionTimeOffset=6000
+     - sample[5]: size=231 compositionTimeOffset=0
+     - sample[6]: size=226 compositionTimeOffset=3000
+     - sample[7]: size=602 compositionTimeOffset=15000
+     - sample[8]: size=296 compositionTimeOffset=6000
+     - sample[9]: size=164 compositionTimeOffset=0
+     - sample[10]: size=214 compositionTimeOffset=3000
+     - sample[11]: size=737 compositionTimeOffset=6000
+     - sample[12]: size=560 compositionTimeOffset=15000
+     - sample[13]: size=308 compositionTimeOffset=6000
+     - sample[14]: size=287 compositionTimeOffset=0
+     - sample[15]: size=278 compositionTimeOffset=3000
 [mdat] size=5300
