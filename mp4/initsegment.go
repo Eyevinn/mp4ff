@@ -260,3 +260,26 @@ func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
 	stsd.AddChild(mp4a)
 	return nil
 }
+
+// SetWvttDescriptor - Set wvtt descriptor with a vttC box. config should start with WEBVTT or be empty.
+func (t *TrakBox) SetWvttDescriptor(config string) error {
+	if config == "" {
+		config = "WEBVTT"
+	}
+	vttC := VttCBox{Config: config}
+	wvtt := WvttBox{}
+	wvtt.AddChild(&vttC)
+	t.Mdia.Minf.Stbl.Stsd.AddChild(&wvtt)
+	return nil
+}
+
+// SetStppDescriptor - add stpp box with utf8-lists namespace, schemaLocation and auxiliaryMimeType
+// The utf8-lists have space-separated items, but no zero-termination
+func (t *TrakBox) SetStppDescriptor(namespace, schemaLocation, auxiliaryMimeTypes string) error {
+	if namespace == "" {
+		namespace = "http://www.w3.org/ns/ttml"
+	}
+	stpp := NewStppBox(namespace, schemaLocation, auxiliaryMimeTypes)
+	t.Mdia.Minf.Stbl.Stsd.AddChild(stpp)
+	return nil
+}

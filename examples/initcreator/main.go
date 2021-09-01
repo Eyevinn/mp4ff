@@ -1,4 +1,4 @@
-// initcreator - create init segments for AVC video and AAC audio.
+// initcreator - create example init segments for video, audio, and subtitles
 package main
 
 import (
@@ -30,6 +30,14 @@ func main() {
 		log.Fatalln(err)
 	}
 	err = writeAudioAACInitSegment()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = writeSubtitlesWvttInitSegment()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = writeSubtitlesStppInitSegment()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -93,6 +101,34 @@ func writeAudioAACInitSegment() error {
 		return err
 	}
 	err = writeToFile(init, "audio_aac_init.cmfa")
+	return err
+}
+
+func writeSubtitlesWvttInitSegment() error {
+	subtitleTimescale := 1000
+	init := mp4.CreateEmptyInit()
+	init.AddEmptyTrack(uint32(subtitleTimescale), "wvtt", "en")
+	trak := init.Moov.Trak
+	err := trak.SetWvttDescriptor("WEBVTT")
+	if err != nil {
+		return err
+	}
+	err = writeToFile(init, "subtitles_wvtt_init.cmft")
+	return err
+}
+
+func writeSubtitlesStppInitSegment() error {
+	subtitleTimescale := 1000
+	init := mp4.CreateEmptyInit()
+	init.AddEmptyTrack(uint32(subtitleTimescale), "stpp", "en")
+	trak := init.Moov.Trak
+	schemaLocation := ""
+	auxiliaryMimeType := ""
+	err := trak.SetStppDescriptor("http://www.w3.org/ns/ttml", schemaLocation, auxiliaryMimeType)
+	if err != nil {
+		return err
+	}
+	err = writeToFile(init, "subtitles_stpp_init.cmft")
 	return err
 }
 
