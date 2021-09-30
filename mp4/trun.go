@@ -15,7 +15,7 @@ type TrunBox struct {
 	flags            uint32
 	sampleCount      uint32
 	DataOffset       int32
-	firstSampleFlags uint32 // interpreted as SampleFlags
+	FirstSampleFlags uint32 // interpreted as SampleFlags
 	Samples          []Sample
 	writeOrderNr     uint32 // Used for multi trun offsets
 }
@@ -46,7 +46,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	if t.HasFirstSampleFlags() {
-		t.firstSampleFlags = s.ReadUint32()
+		t.FirstSampleFlags = s.ReadUint32()
 	}
 
 	var i uint32
@@ -62,7 +62,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		if t.HasSampleFlags() {
 			flags = s.ReadUint32()
 		} else if t.HasFirstSampleFlags() && i == 0 {
-			flags = t.firstSampleFlags
+			flags = t.FirstSampleFlags
 		}
 		if t.HasSampleCompositionTimeOffset() {
 			cto = s.ReadInt32()
@@ -81,7 +81,7 @@ func CreateTrun(writeOrderNr uint32) *TrunBox {
 		flags:            0xf01, // Data offset and all sample data present
 		sampleCount:      0,
 		DataOffset:       0,
-		firstSampleFlags: 0,
+		FirstSampleFlags: 0,
 		Samples:          nil,
 		writeOrderNr:     writeOrderNr,
 	}
@@ -214,7 +214,7 @@ func (t *TrunBox) Encode(w io.Writer) error {
 		sw.WriteInt32(t.DataOffset)
 	}
 	if t.HasFirstSampleFlags() {
-		sw.WriteUint32(t.firstSampleFlags)
+		sw.WriteUint32(t.FirstSampleFlags)
 	}
 	var i uint32
 	for i = 0; i < t.sampleCount; i++ {
@@ -246,7 +246,7 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			bd.write(" - DataOffset: %d", t.DataOffset)
 		}
 		if t.HasFirstSampleFlags() {
-			bd.write(" - firstSampleFlags: %08x (%s)", t.firstSampleFlags, DecodeSampleFlags(t.firstSampleFlags))
+			bd.write(" - firstSampleFlags: %08x (%s)", t.FirstSampleFlags, DecodeSampleFlags(t.FirstSampleFlags))
 		}
 		for i := 0; i < int(t.sampleCount); i++ {
 			msg := fmt.Sprintf(" - sample[%d]:", i+1)

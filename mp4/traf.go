@@ -136,7 +136,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 		}
 		if hasCommonFlags {
 			if firstSampleFlags != commonSampleFlags {
-				trun.firstSampleFlags = firstSampleFlags
+				trun.FirstSampleFlags = firstSampleFlags
 				trun.flags |= firstSampleFlagsPresentFlag
 			}
 			tfhd.Flags = tfhd.Flags | defaultSampleFlagsPresent
