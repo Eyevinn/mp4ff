@@ -61,3 +61,38 @@ func TestHasParameterSets(t *testing.T) {
 		}
 	}
 }
+
+func TestGetParameterSets(t *testing.T) {
+	testCases := []struct {
+		name      string
+		input     []byte
+		wantedSPS [][]byte
+		wantedPPS [][]byte
+	}{
+		{
+			"Only IDR",
+			[]byte{0, 0, 0, 2, 5, 0},
+			nil, nil,
+		},
+		{
+			"AUD, SPS, PPS, IDRx2",
+			[]byte{0, 0, 0, 2, 9, 2,
+				0, 0, 0, 3, 7, 5, 4,
+				0, 0, 0, 3, 8, 1, 2,
+				0, 0, 0, 2, 5, 0,
+				0, 0, 0, 2, 5, 0},
+			[][]byte{{7, 5, 4}},
+			[][]byte{{8, 1, 2}},
+		},
+	}
+
+	for _, tc := range testCases {
+		gotSPS, gotPPS := GetParameterSets(tc.input)
+		if diff := deep.Equal(gotSPS, tc.wantedSPS); diff != nil {
+			t.Errorf("%s: %v", tc.name, diff)
+		}
+		if diff := deep.Equal(gotPPS, tc.wantedPPS); diff != nil {
+			t.Errorf("%s: %v", tc.name, diff)
+		}
+	}
+}
