@@ -15,7 +15,7 @@ type TrunBox struct {
 	flags            uint32
 	sampleCount      uint32
 	DataOffset       int32
-	FirstSampleFlags uint32 // interpreted as SampleFlags
+	firstSampleFlags uint32 // interpreted same way as SampleFlags
 	Samples          []Sample
 	writeOrderNr     uint32 // Used for multi trun offsets
 }
@@ -46,7 +46,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	if t.HasFirstSampleFlags() {
-		t.FirstSampleFlags = s.ReadUint32()
+		t.firstSampleFlags = s.ReadUint32()
 	}
 
 	var i uint32
@@ -62,7 +62,7 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		if t.HasSampleFlags() {
 			flags = s.ReadUint32()
 		} else if t.HasFirstSampleFlags() && i == 0 {
-			flags = t.FirstSampleFlags
+			flags = t.firstSampleFlags
 		}
 		if t.HasSampleCompositionTimeOffset() {
 			cto = s.ReadInt32()
@@ -81,7 +81,7 @@ func CreateTrun(writeOrderNr uint32) *TrunBox {
 		flags:            0xf01, // Data offset and all sample data present
 		sampleCount:      0,
 		DataOffset:       0,
-		FirstSampleFlags: 0,
+		firstSampleFlags: 0,
 		Samples:          nil,
 		writeOrderNr:     writeOrderNr,
 	}
@@ -128,6 +128,23 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) (totalDur
 		}
 	}
 	return totalDur
+}
+
+// FirstSampleFlags - return firstSampleFlags and indicator if present
+func (t *TrunBox) FirstSampleFlags() (flags uint32, present bool) {
+	return t.firstSampleFlags, t.flags&firstSampleFlagsPresentFlag != 0
+}
+
+// SetFirstSampleFlags - set firstSampleFlags and bit indicating its presence
+func (t *TrunBox) SetFirstSampleFlags(flags uint32) {
+	t.firstSampleFlags = flags
+	t.flags |= firstSampleFlagsPresentFlag
+}
+
+// RemoveFirstSampleFlags - remove firstSampleFlags and its indicator
+func (t *TrunBox) RemoveFirstSampleFlags() {
+	t.firstSampleFlags = 0
+	t.flags &= ^firstSampleFlagsPresentFlag
 }
 
 // SampleCount - return how many samples are defined
@@ -214,7 +231,7 @@ func (t *TrunBox) Encode(w io.Writer) error {
 		sw.WriteInt32(t.DataOffset)
 	}
 	if t.HasFirstSampleFlags() {
-		sw.WriteUint32(t.FirstSampleFlags)
+		sw.WriteUint32(t.firstSampleFlags)
 	}
 	var i uint32
 	for i = 0; i < t.sampleCount; i++ {
@@ -246,7 +263,7 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			bd.write(" - DataOffset: %d", t.DataOffset)
 		}
 		if t.HasFirstSampleFlags() {
-			bd.write(" - firstSampleFlags: %08x (%s)", t.FirstSampleFlags, DecodeSampleFlags(t.FirstSampleFlags))
+			bd.write(" - firstSampleFlags: %08x (%s)", t.firstSampleFlags, DecodeSampleFlags(t.firstSampleFlags))
 		}
 		for i := 0; i < int(t.sampleCount); i++ {
 			msg := fmt.Sprintf(" - sample[%d]:", i+1)
