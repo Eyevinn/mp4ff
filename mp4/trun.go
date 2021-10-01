@@ -15,7 +15,7 @@ type TrunBox struct {
 	flags            uint32
 	sampleCount      uint32
 	DataOffset       int32
-	firstSampleFlags uint32 // interpreted as SampleFlags
+	firstSampleFlags uint32 // interpreted same way as SampleFlags
 	Samples          []Sample
 	writeOrderNr     uint32 // Used for multi trun offsets
 }
@@ -128,6 +128,23 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) (totalDur
 		}
 	}
 	return totalDur
+}
+
+// FirstSampleFlags - return firstSampleFlags and indicator if present
+func (t *TrunBox) FirstSampleFlags() (flags uint32, present bool) {
+	return t.firstSampleFlags, t.flags&firstSampleFlagsPresentFlag != 0
+}
+
+// SetFirstSampleFlags - set firstSampleFlags and bit indicating its presence
+func (t *TrunBox) SetFirstSampleFlags(flags uint32) {
+	t.firstSampleFlags = flags
+	t.flags |= firstSampleFlagsPresentFlag
+}
+
+// RemoveFirstSampleFlags - remove firstSampleFlags and its indicator
+func (t *TrunBox) RemoveFirstSampleFlags() {
+	t.firstSampleFlags = 0
+	t.flags &= ^firstSampleFlagsPresentFlag
 }
 
 // SampleCount - return how many samples are defined

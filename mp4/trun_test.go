@@ -119,3 +119,37 @@ func TestGetSampleInterval(t *testing.T) {
 		}
 	}
 }
+
+func TestFirstSampleFlags(t *testing.T) {
+	trun := CreateTrun(0)
+	trun.DataOffset = 314159
+	trun.AddSample(Sample{
+		Flags:                 NonSyncSampleFlags,
+		Dur:                   1000,
+		Size:                  1000,
+		CompositionTimeOffset: 0,
+	})
+	trun.AddSample(Sample{
+		Flags:                 NonSyncSampleFlags,
+		Dur:                   1000,
+		Size:                  1000,
+		CompositionTimeOffset: 0,
+	})
+	_, present := trun.FirstSampleFlags()
+	if present {
+		t.Error("firstSampleFlags present")
+	}
+	trun.SetFirstSampleFlags(SyncSampleFlags)
+	gotFirstFlags, present := trun.FirstSampleFlags()
+	if !present {
+		t.Error("firstSampleFlags absent")
+	}
+	if gotFirstFlags != SyncSampleFlags {
+		t.Errorf("got firstSampleFlags %02x instead of %02x", gotFirstFlags, SyncSampleFlags)
+	}
+	trun.RemoveFirstSampleFlags()
+	_, present = trun.FirstSampleFlags()
+	if present {
+		t.Error("firstSampleFlags present after removal")
+	}
+}

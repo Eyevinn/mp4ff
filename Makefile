@@ -1,5 +1,8 @@
 .PHONY: all
-all: test check mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-wvttlister examples
+all: test check coverage build
+
+.PHONY: build
+build: mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-wvttlister examples
 
 .PHONY: prepare
 prepare:
