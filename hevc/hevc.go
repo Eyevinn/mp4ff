@@ -44,6 +44,8 @@ const (
 	NALU_SEI_PREFIX = NaluType(39)
 	//NALU_SEI_SUFFIX - Suffix SEI NAL Unit
 	NALU_SEI_SUFFIX = NaluType(40)
+
+	highestVideoNaluType = 31
 )
 
 func (n NaluType) String() string {
@@ -102,15 +104,36 @@ func FindNaluTypes(sample []byte) []NaluType {
 	return naluList
 }
 
+// FindNaluTypesUpToFirstVideoNalu - all nalu types up to first video nalu
+func FindNaluTypesUpToFirstVideoNalu(sample []byte) []NaluType {
+	naluList := make([]NaluType, 0)
+	length := len(sample)
+	if length < 4 {
+		return naluList
+	}
+	var pos uint32 = 0
+	for pos < uint32(length-4) {
+		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
+		pos += 4
+		naluType := GetNaluType(sample[pos])
+		naluList = append(naluList, naluType)
+		pos += naluLength
+		if naluType <= highestVideoNaluType {
+			break // Video has started
+		}
+	}
+	return naluList
+}
+
 // ContainsNaluType - is specific NaluType present in sample
-func ContainsNaluType(sample []byte, specificNalType NaluType) bool {
+func ContainsNaluType(sample []byte, specificNaluType NaluType) bool {
 	var pos uint32 = 0
 	length := len(sample)
 	for pos < uint32(length-4) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
 		naluType := GetNaluType(sample[pos])
-		if naluType == specificNalType {
+		if naluType == specificNaluType {
 			return true
 		}
 		pos += naluLength
@@ -118,7 +141,7 @@ func ContainsNaluType(sample []byte, specificNalType NaluType) bool {
 	return false
 }
 
-// IsRAPSample - is Random Access Sample (NALU 16-23)
+// IsRAPSample - is Random Access picture (NALU 16-23)
 func IsRAPSample(sample []byte) bool {
 	for _, naluType := range FindNaluTypes(sample) {
 		if 16 <= naluType && naluType <= 23 {
@@ -128,11 +151,21 @@ func IsRAPSample(sample []byte) bool {
 	return false
 }
 
+// IsIDRSample - is IDR picture (NALU 19-20)
+func IsIDRSample(sample []byte) bool {
+	for _, naluType := range FindNaluTypes(sample) {
+		if 19 <= naluType && naluType <= 20 {
+			return true
+		}
+	}
+	return false
+}
+
 // HasParameterSets - Check if HEVC VPS, SPS and PPS are present
 func HasParameterSets(b []byte) bool {
-	nalTypeList := FindNaluTypes(b)
+	naluTypeList := FindNaluTypesUpToFirstVideoNalu(b)
 	var hasVPS, hasSPS, hasPPS bool
-	for _, naluType := range nalTypeList {
+	for _, naluType := range naluTypeList {
 		switch naluType {
 		case NALU_VPS:
 			hasVPS = true
@@ -152,19 +185,22 @@ func HasParameterSets(b []byte) bool {
 func GetParameterSets(sample []byte) (vps, sps, pps [][]byte) {
 	sampleLength := uint32(len(sample))
 	var pos uint32 = 0
+naluLoop:
 	for {
 		if pos >= sampleLength {
 			break
 		}
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
-		switch GetNaluType(sample[pos]) {
-		case NALU_VPS:
+		switch naluType := GetNaluType(sample[pos]); {
+		case naluType == NALU_VPS:
 			vps = append(vps, sample[pos:pos+naluLength])
-		case NALU_SPS:
+		case naluType == NALU_SPS:
 			sps = append(sps, sample[pos:pos+naluLength])
-		case NALU_PPS:
+		case naluType == NALU_PPS:
 			pps = append(pps, sample[pos:pos+naluLength])
+		case naluType <= highestVideoNaluType:
+			break naluLoop
 		}
 		pos += naluLength
 	}
