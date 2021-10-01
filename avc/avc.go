@@ -27,6 +27,8 @@ const (
 	NALU_EO_STREAM = NaluType(11)
 	// NALU_FILL - Filler NAL Unit
 	NALU_FILL = NaluType(12)
+
+	highestVideoNaluType = 5
 )
 
 func (a NaluType) String() string {
@@ -77,6 +79,27 @@ func FindNaluTypes(sample []byte) []NaluType {
 	return naluList
 }
 
+// FindNaluTypesUpToFirstVideoNALU - find list of NAL unit types in sample
+func FindNaluTypesUpToFirstVideoNALU(sample []byte) []NaluType {
+	naluList := make([]NaluType, 0)
+	length := len(sample)
+	if length < 4 {
+		return naluList
+	}
+	var naluLength uint32 = 0
+	for naluLength < uint32(length-4) {
+		nalLength := binary.BigEndian.Uint32(sample[naluLength : naluLength+4])
+		naluLength += 4
+		naluType := NaluType(sample[naluLength] & 0x1f)
+		naluList = append(naluList, naluType)
+		naluLength += nalLength
+		if naluType <= highestVideoNaluType {
+			break
+		}
+	}
+	return naluList
+}
+
 // IsIDRSample - does sample contain IDR NALU
 func IsIDRSample(sample []byte) bool {
 	return ContainsNaluType(sample, NALU_IDR)
@@ -100,7 +123,7 @@ func ContainsNaluType(sample []byte, specificNalType NaluType) bool {
 
 // HasParameterSets - Check if H.264 SPS and PPS are present
 func HasParameterSets(b []byte) bool {
-	naluTypeList := FindNaluTypes(b)
+	naluTypeList := FindNaluTypesUpToFirstVideoNALU(b)
 	hasSPS := false
 	hasPPS := false
 	for _, naluType := range naluTypeList {

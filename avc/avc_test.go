@@ -14,7 +14,7 @@ func TestGetNaluTypes(t *testing.T) {
 	}{
 		{
 			"IDR",
-			[]byte{0, 0, 0, 2, 5},
+			[]byte{0, 0, 0, 2, 5, 0},
 			[]NaluType{NALU_IDR},
 		},
 		{
@@ -28,6 +28,36 @@ func TestGetNaluTypes(t *testing.T) {
 		got := FindNaluTypes(tc.input)
 		if diff := deep.Equal(got, tc.wanted); diff != nil {
 			t.Errorf("%s: %v", tc.name, diff)
+		}
+	}
+}
+
+func TestHasParameterSets(t *testing.T) {
+	testCases := []struct {
+		name   string
+		input  []byte
+		wanted bool
+	}{
+		{
+			"Only IDR",
+			[]byte{0, 0, 0, 2, 5, 0},
+			false,
+		},
+		{
+			"AUD, SPS, PPS, IDRx2",
+			[]byte{0, 0, 0, 2, 9, 2,
+				0, 0, 0, 3, 7, 5, 4,
+				0, 0, 0, 3, 8, 1, 2,
+				0, 0, 0, 2, 5, 0,
+				0, 0, 0, 2, 5, 0},
+			true,
+		},
+	}
+
+	for _, tc := range testCases {
+		got := HasParameterSets(tc.input)
+		if got != tc.wanted {
+			t.Errorf("%s: got %t instead of %t", tc.name, got, tc.wanted)
 		}
 	}
 }
