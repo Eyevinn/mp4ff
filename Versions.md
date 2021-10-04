@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.25.0 | Support sample intervals. Control first sample flags. Create subtitle init segments. Minor improvements and fixes |
 | 0.24.0 | api-change: DecodeFile lazy mode. Enhanced segmenter example with lazy read/write. |
 | 0.23.1 | fix: segment encode mode without optimization
 | 0.23.0 | api-change: encode mode and optimization options |
