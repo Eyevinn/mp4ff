@@ -40,13 +40,13 @@ most prominent child boxes have direct links with names which makes it possible 
 as
 
 ```go
-    fragment.Moof.Traf.Trun
+fragment.Moof.Traf.Trun
 ```
 
 to access the (only) `trun` box in a fragment with only one `traf` box, or
 
 ```go
-    fragment.Moof.Trafs[1].Trun[1]
+fragment.Moof.Trafs[1].Trun[1]
 ```
 
 to get the second `trun` of the second `traf` box (provided that they exist).
@@ -59,9 +59,9 @@ The first step is to create the init segment. This is done in three steps as can
 `examples/initcreator`:
 
 ```go
-    init := mp4.CreateEmptyInit()
-    init.AddEmptyTrack(timescale, mediatype, language)
-    init.Moov.Trak.SetHEVCDescriptor("hvc1", vpsNALUs, spsNALUs, ppsNALUs)
+init := mp4.CreateEmptyInit()
+init.AddEmptyTrack(timescale, mediatype, language)
+init.Moov.Trak.SetHEVCDescriptor("hvc1", vpsNALUs, spsNALUs, ppsNALUs)
 ```
 
 Here the third step fills in codec-specific parameters into the sample descriptor of the single track.
@@ -79,16 +79,16 @@ One way of creating a media segment is to first create a slice of `FullSample` w
 The definition of `mp4.FullSample` is
 
 ```go
-	mp4.FullSample{
-		Sample: mp4.Sample{
-	        Flags uint32 // Flag sync sample etc
-	        Dur   uint32 // Sample duration in mdhd timescale
-	        Size  uint32 // Size of sample data
-	        Cto   int32  // Signed composition time offset
-		},
-	    DecodeTime uint64 // Absolute decode time (offset + accumulated sample Dur)
-	    Data       []byte // Sample data
-	}
+mp4.FullSample{
+	Sample: mp4.Sample{
+		Flags uint32 // Flag sync sample etc
+		Dur   uint32 // Sample duration in mdhd timescale
+		Size  uint32 // Size of sample data
+		Cto   int32  // Signed composition time offset
+	},
+	DecodeTime uint64 // Absolute decode time (offset + accumulated sample Dur)
+	Data       []byte // Sample data
+}
 ```
 
 The `mp4.Sample` part is what will be written into the `trun` box.
@@ -99,18 +99,18 @@ be set as the `BaseMediaDecodeTime` in the `tfdt` box.
 Once a number of such full samples are available, they can be added to a media segment like
 
 ```go
-	seg := mp4.NewMediaSegment()
-	frag := mp4.CreateFragment(uint32(segNr), mp4.DefaultTrakID)
-	seg.AddFragment(frag)
-	for _, sample := range samples {
-		frag.AddFullSample(sample)
-	}
+seg := mp4.NewMediaSegment()
+frag := mp4.CreateFragment(uint32(segNr), mp4.DefaultTrakID)
+seg.AddFragment(frag)
+for _, sample := range samples {
+	frag.AddFullSample(sample)
+}
 ```
 
 This segment can finally be output to a `w io.Writer` as
 
 ```go
-    err := seg.Encode(w)
+err := seg.Encode(w)
 ```
 
 For multi-track segments, the code is a bit more involved. Please have a look at `examples/segmenter`
@@ -128,7 +128,7 @@ to later.
 For decoding, this is supported by running `mp4.DecodeFile()` in lazy mode as
 
 ```go
-    parsedMp4, err = mp4.DecodeFile(ifd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
+parsedMp4, err = mp4.DecodeFile(ifd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
 ```
 
 In this case, the media data of the `mdat` box will not be read, but only its size is being set.
@@ -136,13 +136,13 @@ To read or copy the actual data corresponding to a sample, one must calculate th
 corresponding byte range and either call
 
 ```go
-     func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error)
+func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error)
 ```
 
 or
 
 ```
-     func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nrWritten int64, err error)
+func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nrWritten int64, err error)
 ```
 
 Example code for this, including lazy writing of `mdat`, can be found in `examples/segmenter`
