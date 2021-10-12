@@ -8,11 +8,14 @@ import (
 	"io/ioutil"
 )
 
-var ErrCannotParseAVCExtension = errors.New("Cannot parse SPS extensions")
-var ErrLengthSize = errors.New("Can only handle 4byte NAL length size")
+// AVC parsing errors
+var (
+	ErrCannotParseAVCExtension = errors.New("Cannot parse SPS extensions")
+	ErrLengthSize              = errors.New("Can only handle 4byte NAL length size")
+)
 
-//AVCDecConfRec - AVCDecoderConfigurationRecord
-type AVCDecConfRec struct {
+// DecConfRec - AVCDecoderConfigurationRecord
+type DecConfRec struct {
 	AVCProfileIndication byte
 	ProfileCompatibility byte
 	AVCLevelIndication   byte
@@ -26,14 +29,14 @@ type AVCDecConfRec struct {
 }
 
 // CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
-func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*AVCDecConfRec, error) {
+func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*DecConfRec, error) {
 
 	sps, err := ParseSPSNALUnit(spsNALUs[0], false) // false -> parse only start of VUI
 	if err != nil {
 		return nil, err
 	}
 
-	return &AVCDecConfRec{
+	return &DecConfRec{
 		AVCProfileIndication: byte(sps.Profile),
 		ProfileCompatibility: byte(sps.ProfileCompatibility),
 		AVCLevelIndication:   byte(sps.Level),
@@ -48,15 +51,15 @@ func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*AVCDecConfRec, 
 }
 
 // DecodeAVCDecConfRec - decode an AVCDecConfRec
-func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
+func DecodeAVCDecConfRec(r io.Reader) (DecConfRec, error) {
 
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
-		return AVCDecConfRec{}, err
+		return DecConfRec{}, err
 	}
 	configurationVersion := data[0] // Should be 1
 	if configurationVersion != 1 {
-		return AVCDecConfRec{}, fmt.Errorf("AVC decoder configuration record version %d unknown",
+		return DecConfRec{}, fmt.Errorf("AVC decoder configuration record version %d unknown",
 			configurationVersion)
 	}
 	AVCProfileIndication := data[1]
@@ -64,7 +67,7 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 	AVCLevelIndication := data[3]
 	LengthSizeMinus1 := data[4] & 0x03 // The first 5 bits are 1
 	if LengthSizeMinus1 != 0x3 {
-		return AVCDecConfRec{}, ErrLengthSize
+		return DecConfRec{}, ErrLengthSize
 	}
 	numSPS := data[5] & 0x1f // 5 bits following 3 reserved bits
 	pos := 6
@@ -84,7 +87,7 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 		ppsNALUs = append(ppsNALUs, data[pos:pos+naluLength])
 		pos += naluLength
 	}
-	adcr := AVCDecConfRec{
+	adcr := DecConfRec{
 		AVCProfileIndication: AVCProfileIndication,
 		ProfileCompatibility: ProfileCompatibility,
 		AVCLevelIndication:   AVCLevelIndication,
@@ -119,7 +122,8 @@ func DecodeAVCDecConfRec(r io.Reader) (AVCDecConfRec, error) {
 	return adcr, nil
 }
 
-func (a *AVCDecConfRec) Size() uint64 {
+// Size - total size in bytes
+func (a *DecConfRec) Size() uint64 {
 	totalSize := 7
 	for _, nalu := range a.SPSnalus {
 		totalSize += 2 + len(nalu)
@@ -139,7 +143,7 @@ func (a *AVCDecConfRec) Size() uint64 {
 }
 
 // Encode - write an AVCDecConfRec to w
-func (a *AVCDecConfRec) Encode(w io.Writer) error {
+func (a *DecConfRec) Encode(w io.Writer) error {
 	var errWrite error
 	writeByte := func(b byte) {
 		if errWrite != nil {

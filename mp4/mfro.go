@@ -55,8 +55,9 @@ func (b *MfroBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (t *MfroBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
-	bd.write(" - parentSize: %d", t.ParentSize)
+// Info - write box-specific information
+func (b *MfroBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
+	bd.write(" - parentSize: %d", b.ParentSize)
 	return bd.err
 }

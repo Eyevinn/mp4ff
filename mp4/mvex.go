@@ -58,8 +58,8 @@ func (m *MvexBox) Size() uint64 {
 }
 
 // GetChildren - list of child boxes
-func (t *MvexBox) GetChildren() []Box {
-	return t.Children
+func (m *MvexBox) GetChildren() []Box {
+	return m.Children
 }
 
 // Encode - write mvex container to w
@@ -67,6 +67,7 @@ func (m *MvexBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
+// Info - write box-specific information
 func (m *MvexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

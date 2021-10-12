@@ -11,8 +11,8 @@ type IlstBox struct {
 }
 
 // AddChild - Add a child box and update SampleCount
-func (s *IlstBox) AddChild(child Box) {
-	s.Children = append(s.Children, child)
+func (b *IlstBox) AddChild(child Box) {
+	b.Children = append(b.Children, child)
 }
 
 // DecodeIlst - box-specific decode
@@ -29,7 +29,7 @@ func DecodeIlst(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Type - box-specific type
-func (s *IlstBox) Type() string {
+func (b *IlstBox) Type() string {
 	return "ilst"
 }
 
@@ -58,6 +58,7 @@ func (b *IlstBox) Encode(w io.Writer) error {
 	return nil
 }
 
+// Info - write box-specific information
 func (b *IlstBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }

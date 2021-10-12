@@ -48,6 +48,7 @@ func (b *PaspBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *PaspBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - hSpacing:vSpacing: %d:%d", b.HSpacing, b.VSpacing)

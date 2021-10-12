@@ -68,7 +68,7 @@ func (b *StscBox) Type() string {
 	return "stsc"
 }
 
-// Size - box-specfic size
+// Size - box-specific size
 func (b *StscBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.FirstChunk)*12)
 }
@@ -97,6 +97,7 @@ func (b *StscBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write specfic box info to w
 func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	level := getInfoLevel(b, specificBoxLevels)
@@ -109,7 +110,7 @@ func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// GetSampleDescription - get the sample description ID from common or individual values
+// GetSampleDescriptionID - get the sample description ID from common or individual values
 func (b *StscBox) GetSampleDescriptionID(sampleNr int) uint32 {
 	if b.singleSampleDescriptionID != 0 {
 		return b.singleSampleDescriptionID
@@ -198,6 +199,7 @@ chunkEntryLoop:
 	return chunks, nil
 }
 
+// GetChunk - get chunk for chunkNr (one-based)
 func (b *StscBox) GetChunk(chunkNr uint32) Chunk {
 	if chunkNr == 0 {
 		panic("ChunkNr set to 0 but is one-based")

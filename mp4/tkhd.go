@@ -126,6 +126,7 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *TkhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - trackID: %d", b.TrackID)

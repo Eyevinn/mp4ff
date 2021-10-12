@@ -54,7 +54,7 @@ func (entry SdtpEntry) SampleIsDependedOn() uint8 {
 	return (uint8(entry) >> 2) & 3
 }
 
-// SampleIsDependedOn (bits 6-7)
+// SampleHasRedundancy (bits 6-7)
 // 0: Redundant coding unknown
 // 1: Redundant coding in this sample
 // 2: No redundant coding in this sample
@@ -63,7 +63,7 @@ func (entry SdtpEntry) SampleHasRedundancy() uint8 {
 	return uint8(entry) & 3
 }
 
-// CreateSdtpBox - Create a new SdtpBox
+// CreateSdtpBox - create a new SdtpBox
 func CreateSdtpBox(entries []SdtpEntry) *SdtpBox {
 	return &SdtpBox{
 		Entries: entries,
@@ -126,6 +126,7 @@ func (b *SdtpBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *SdtpBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	level := getInfoLevel(b, specificBoxLevels)

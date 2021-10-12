@@ -42,12 +42,12 @@ func (b *StssBox) EntryCount() uint32 {
 	return uint32(len(b.SampleNumber))
 }
 
-// Type - box-specfic type
+// Type - box-specific type
 func (b *StssBox) Type() string {
 	return "stss"
 }
 
-// Size - box-specfic size
+// Size - box-specific size
 func (b *StssBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.SampleNumber)*4)
 }
@@ -89,6 +89,7 @@ func (b *StssBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *StssBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	level := getInfoLevel(b, specificBoxLevels)

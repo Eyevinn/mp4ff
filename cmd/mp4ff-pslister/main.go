@@ -26,7 +26,7 @@ mp4ff-pslister lists parameter sets for AVC/H.264 or HEVC/H.265 from mp4 sample 
 It prints them as hex and in verbose mode it also prints details in JSON format.
 `
 
-var Usage = func(msg string) {
+var usage = func(msg string) {
 	parts := strings.Split(os.Args[0], "/")
 	name := parts[len(parts)-1]
 	fmt.Fprintf(os.Stderr, "Error: %s\n", msg)
@@ -52,12 +52,12 @@ func main() {
 	}
 
 	if *inFile == "" && *spsHex == "" {
-		Usage("Must specify infile or sps")
+		usage("Must specify infile or sps")
 		os.Exit(1)
 	}
 
 	if *ppsHex != "" && *spsHex == "" {
-		Usage("pps needs sps")
+		usage("pps needs sps")
 		os.Exit(1)
 	}
 

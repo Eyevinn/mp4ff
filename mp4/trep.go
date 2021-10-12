@@ -15,8 +15,8 @@ type TrepBox struct {
 }
 
 // AddChild - Add a child box and update SampleCount
-func (s *TrepBox) AddChild(child Box) {
-	s.Children = append(s.Children, child)
+func (b *TrepBox) AddChild(child Box) {
+	b.Children = append(b.Children, child)
 }
 
 // DecodeTrep - box-specific decode
@@ -46,7 +46,7 @@ func DecodeTrep(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Type - box-specific type
-func (s *TrepBox) Type() string {
+func (b *TrepBox) Type() string {
 	return "trep"
 }
 
@@ -79,6 +79,7 @@ func (b *TrepBox) Encode(w io.Writer) error {
 	return nil
 }
 
+// Info - write box-specific information
 func (b *TrepBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if bd.err != nil {

@@ -63,7 +63,7 @@ func (b *MimeBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Info - specific box information
+// Info - write specific box information
 func (b *MimeBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - contentType: %s", b.ContentType)

@@ -42,7 +42,7 @@ func (s *StsdBox) AddChild(box Box) {
 	s.SampleCount++
 }
 
-// AddChild - Replace a child box with one of the same type
+// ReplaceChild - Replace a child box with one of the same type
 func (s *StsdBox) ReplaceChild(box Box) {
 	switch box.(type) {
 	case *VisualSampleEntryBox:
@@ -141,6 +141,7 @@ func (s *StsdBox) Encode(w io.Writer) error {
 	return nil
 }
 
+// Info - write box-specific information
 func (s *StsdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, s, int(s.Version), s.Flags)
 	if bd.err != nil {

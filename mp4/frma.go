@@ -11,7 +11,7 @@ type FrmaBox struct {
 	DataFormat string // uint32 - original box type
 }
 
-// DecodeSaio - box-specific decode
+// DecodeFrma - box-specific decode
 func DecodeFrma(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {

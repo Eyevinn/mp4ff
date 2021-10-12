@@ -39,7 +39,7 @@ type TfrfData struct {
 }
 
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
-func DecodeUUID(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeUUIDBox(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -191,6 +191,7 @@ func (t *TfrfData) encode(w io.Writer) error {
 	return err
 }
 
+// Info - box-specific info
 func (u *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, u, -1, 0)
 	bd.write(" - uuid: %s", hex.EncodeToString([]byte(u.UUID)))

@@ -17,7 +17,7 @@ type Co64Box struct {
 	ChunkOffset []uint64
 }
 
-// DecodeStco - box-specific decode
+// DecodeCo64 - box-specific decode
 func DecodeCo64(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -66,6 +66,7 @@ func (b *Co64Box) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *Co64Box) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	level := getInfoLevel(b, specificBoxLevels)

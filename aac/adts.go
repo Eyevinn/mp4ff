@@ -20,6 +20,7 @@ type ADTSHeader struct {
 	BufferFullness         uint16
 }
 
+// NewADTSHeader - create a new ADTS header
 func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, plLen uint16) (*ADTSHeader, error) {
 	if objectType != AAClc {
 		return nil, fmt.Errorf("Must use AAC-LC (type 2) not %d", objectType)
@@ -35,9 +36,9 @@ func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, p
 		PayloadLength:          plLen,
 		BufferFullness:         0x7ff, // variable bitrate
 	}, nil
-
 }
 
+// Encode - encode ADTSHeader into byte slice
 func (a ADTSHeader) Encode() []byte {
 	buf := bytes.Buffer{}
 	bw := bits.NewWriter(&buf)
@@ -96,8 +97,8 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	_ = br.Read(1) // ignore private
 	ah.ChannelConfig = byte(br.Read(3))
 	_ = br.Read(4) // ignore original/copy, home, copyright
-	frame_length := br.Read(13)
-	ah.PayloadLength = uint16(frame_length - 7)
+	frameLength := br.Read(13)
+	ah.PayloadLength = uint16(frameLength - 7)
 	ah.BufferFullness = uint16(br.Read(11))
 	nrRawBlocksMinus1 := br.Read(2)
 	if nrRawBlocksMinus1 != 0 {

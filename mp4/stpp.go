@@ -32,15 +32,15 @@ func NewStppBox(namespace, schemaLocation, auxiliaryMimeTypes string) *StppBox {
 }
 
 // AddChild - add a child box (avcC normally, but clap and pasp could be part of visual entry)
-func (w *StppBox) AddChild(box Box) {
-	switch b := box.(type) {
+func (b *StppBox) AddChild(child Box) {
+	switch box := child.(type) {
 	case *BtrtBox:
-		w.Btrt = b
+		b.Btrt = box
 	default:
 		// Other box
 	}
 
-	w.Children = append(w.Children, box)
+	b.Children = append(b.Children, child)
 }
 
 // DecodeStpp - Decode XMLSubtitleSampleEntry (stpp)
@@ -49,27 +49,27 @@ func DecodeStpp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	sb := &StppBox{}
+	b := &StppBox{}
 	s := NewSliceReader(data)
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	s.SkipBytes(6) // Skip 6 reserved bytes
-	sb.DataReferenceIndex = s.ReadUint16()
+	b.DataReferenceIndex = s.ReadUint16()
 
-	sb.Namespace, err = s.ReadZeroTerminatedString()
+	b.Namespace, err = s.ReadZeroTerminatedString()
 	if err != nil {
 		return nil, err
 	}
 
 	if s.NrRemainingBytes() > 0 {
-		sb.SchemaLocation, err = s.ReadZeroTerminatedString()
+		b.SchemaLocation, err = s.ReadZeroTerminatedString()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if s.NrRemainingBytes() > 0 {
-		sb.AuxiliaryMimeTypes, err = s.ReadZeroTerminatedString()
+		b.AuxiliaryMimeTypes, err = s.ReadZeroTerminatedString()
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +87,7 @@ func DecodeStpp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 			return nil, err
 		}
 		if box != nil {
-			sb.AddChild(box)
+			b.AddChild(box)
 			pos += box.Size()
 		}
 		if pos == startPos+hdr.size {
@@ -96,46 +96,46 @@ func DecodeStpp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 			return nil, errors.New("Bad size in stpp")
 		}
 	}
-	return sb, nil
+	return b, nil
 }
 
 // Type - return box type
-func (s *StppBox) Type() string {
+func (b *StppBox) Type() string {
 	return "stpp"
 }
 
 // Size - return calculated size
-func (s *StppBox) Size() uint64 {
+func (b *StppBox) Size() uint64 {
 	nrSampleEntryBytes := 8
-	totalSize := uint64(boxHeaderSize + nrSampleEntryBytes + len(s.Namespace) + 1)
-	if s.SchemaLocation != "" {
-		totalSize += uint64(len(s.SchemaLocation)) + 1
+	totalSize := uint64(boxHeaderSize + nrSampleEntryBytes + len(b.Namespace) + 1)
+	if b.SchemaLocation != "" {
+		totalSize += uint64(len(b.SchemaLocation)) + 1
 	}
-	if s.AuxiliaryMimeTypes != "" {
-		totalSize += uint64(len(s.AuxiliaryMimeTypes)) + 1
+	if b.AuxiliaryMimeTypes != "" {
+		totalSize += uint64(len(b.AuxiliaryMimeTypes)) + 1
 	}
-	for _, child := range s.Children {
+	for _, child := range b.Children {
 		totalSize += child.Size()
 	}
 	return totalSize
 }
 
 // Encode - write box to w
-func (s *StppBox) Encode(w io.Writer) error {
-	err := EncodeHeader(s, w)
+func (b *StppBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(s)
+	buf := makebuf(b)
 	sw := NewSliceWriter(buf)
 	sw.WriteZeroBytes(6)
-	sw.WriteUint16(s.DataReferenceIndex)
-	sw.WriteString(s.Namespace, true)
-	if s.SchemaLocation != "" {
-		sw.WriteString(s.SchemaLocation, true)
+	sw.WriteUint16(b.DataReferenceIndex)
+	sw.WriteString(b.Namespace, true)
+	if b.SchemaLocation != "" {
+		sw.WriteString(b.SchemaLocation, true)
 	}
-	if s.AuxiliaryMimeTypes != "" {
-		sw.WriteString(s.AuxiliaryMimeTypes, true)
+	if b.AuxiliaryMimeTypes != "" {
+		sw.WriteString(b.AuxiliaryMimeTypes, true)
 	}
 	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
 	if err != nil {
@@ -143,7 +143,7 @@ func (s *StppBox) Encode(w io.Writer) error {
 	}
 
 	// Next output child boxes in order
-	for _, child := range s.Children {
+	for _, child := range b.Children {
 		err = child.Encode(w)
 		if err != nil {
 			return err
@@ -152,17 +152,18 @@ func (s *StppBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (s *StppBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, s, -1, 0)
-	bd.write(" - dataReferenceIndex: %d", s.DataReferenceIndex)
-	bd.write(" - nameSpace: %s", s.Namespace)
-	bd.write(" - schemaLocation: %s", s.SchemaLocation)
-	bd.write(" - auxiliaryMimeTypes: %s", s.AuxiliaryMimeTypes)
+// Info - write specfic box info to w
+func (b *StppBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - dataReferenceIndex: %d", b.DataReferenceIndex)
+	bd.write(" - nameSpace: %s", b.Namespace)
+	bd.write(" - schemaLocation: %s", b.SchemaLocation)
+	bd.write(" - auxiliaryMimeTypes: %s", b.AuxiliaryMimeTypes)
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
-	for _, child := range s.Children {
+	for _, child := range b.Children {
 		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err

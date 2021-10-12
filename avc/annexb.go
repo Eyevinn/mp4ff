@@ -77,21 +77,20 @@ func ConvertByteStreamToNaluSample(stream []byte) []byte {
 			copy(stream[s.startPos-4:s.startPos], lengthField)
 		}
 		return stream
-	} else {
-		// Build new output slice with one extra byte per NALU
-		out := make([]byte, 0, streamLen+len(scNalus))
-		for i, s := range scNalus {
-			if i+1 < len(scNalus) {
-				naluLength = scNalus[i+1].startPos - s.startPos - scNalus[i+1].startCodeLength
-			} else {
-				naluLength = len(stream) - scNalus[i].startPos
-			}
-			binary.BigEndian.PutUint32(lengthField, uint32(naluLength))
-			out = append(out, lengthField...)
-			out = append(out, stream[s.startPos:s.startPos+naluLength]...)
-		}
-		return out
 	}
+	// Build new output slice with one extra byte per NALU
+	out := make([]byte, 0, streamLen+len(scNalus))
+	for i, s := range scNalus {
+		if i+1 < len(scNalus) {
+			naluLength = scNalus[i+1].startPos - s.startPos - scNalus[i+1].startCodeLength
+		} else {
+			naluLength = len(stream) - scNalus[i].startPos
+		}
+		binary.BigEndian.PutUint32(lengthField, uint32(naluLength))
+		out = append(out, lengthField...)
+		out = append(out, stream[s.startPos:s.startPos+naluLength]...)
+	}
+	return out
 }
 
 // ConvertSampleToByteStream - Replace 4-byte NALU lengths with start codes

@@ -71,6 +71,7 @@ func (m *MdiaBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
+// Info - write box-specific information
 func (m *MdiaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

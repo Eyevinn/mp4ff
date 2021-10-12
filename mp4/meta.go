@@ -33,7 +33,7 @@ func (b *MetaBox) AddChild(box Box) {
 	b.Children = append(b.Children, box)
 }
 
-// DecodeMinf - box-specific decode
+// DecodeMeta - box-specific decode
 func DecodeMeta(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
@@ -90,6 +90,7 @@ func (b *MetaBox) Encode(w io.Writer) error {
 	return nil
 }
 
+// Info - box-specific info
 func (b *MetaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if bd.err != nil {

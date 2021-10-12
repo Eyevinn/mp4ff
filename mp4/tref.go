@@ -50,6 +50,7 @@ func (b *TrefBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Info - write box-specific information
 func (b *TrefBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }
@@ -62,7 +63,7 @@ type TrefTypeBox struct {
 	TrackIDs []uint32
 }
 
-// DecodeElng - box-specific decode
+// DecodeTrefType - box-specific decode
 func DecodeTrefType(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	b := TrefTypeBox{
 		Name: hdr.name,
@@ -103,6 +104,7 @@ func (b *TrefTypeBox) Encode(w io.Writer) error {
 	return nil
 }
 
+// Info - write box-specific information
 func (b *TrefTypeBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	msg := " - trackIDs: "

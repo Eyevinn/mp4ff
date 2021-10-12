@@ -90,6 +90,7 @@ func (t *TfdtBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box info to w
 func (t *TfdtBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
 	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
 	bd.write(" - baseMediaDecodeTime: %d", t.BaseMediaDecodeTime)

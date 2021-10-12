@@ -185,6 +185,7 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write specific box information
 func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - width: %d", b.Width)

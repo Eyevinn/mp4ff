@@ -82,6 +82,7 @@ func (p *PrftBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (p *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, p, int(p.Version), p.Flags)
 	bd.write(" - ntpTimestamp: %d", p.NTPTimestamp)

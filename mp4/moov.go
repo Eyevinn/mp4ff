@@ -80,6 +80,7 @@ func (m *MoovBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
+// Info - write box-specific information
 func (m *MoovBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

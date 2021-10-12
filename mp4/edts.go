@@ -54,6 +54,7 @@ func (b *EdtsBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Info - write box-specific information
 func (b *EdtsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }

@@ -6,10 +6,13 @@ import (
 	"fmt"
 )
 
-var SliceReadError = fmt.Errorf("Read too far in SliceReader")
+// SliceReader errors
+var (
+	ErrSliceRead = fmt.Errorf("Read too far in SliceReader")
+)
 
 // SliceReader - read integers and other data from a slice.
-// Accumulates error, and the first error can be retrived.
+// Accumulates error, and the first error can be retrieved.
 // If err != nil, 0 or empty string is returned
 type SliceReader struct {
 	slice []byte
@@ -39,7 +42,7 @@ func (s *SliceReader) ReadUint8() byte {
 		return 0
 	}
 	if s.pos > s.len-1 {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return 0
 	}
 	res := s.slice[s.pos]
@@ -53,7 +56,7 @@ func (s *SliceReader) ReadUint16() uint16 {
 		return 0
 	}
 	if s.pos > s.len-2 {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return 0
 	}
 	res := binary.BigEndian.Uint16(s.slice[s.pos : s.pos+2])
@@ -67,7 +70,7 @@ func (s *SliceReader) ReadInt16() int16 {
 		return 0
 	}
 	if s.pos > s.len-2 {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return 0
 	}
 	res := binary.BigEndian.Uint16(s.slice[s.pos : s.pos+2])
@@ -81,7 +84,7 @@ func (s *SliceReader) ReadUint32() uint32 {
 		return 0
 	}
 	if s.pos > s.len-4 {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return 0
 	}
 	res := binary.BigEndian.Uint32(s.slice[s.pos : s.pos+4])
@@ -95,7 +98,7 @@ func (s *SliceReader) ReadInt32() int32 {
 		return 0
 	}
 	if s.pos > s.len-4 {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return 0
 	}
 	res := binary.BigEndian.Uint32(s.slice[s.pos : s.pos+4])
@@ -109,7 +112,7 @@ func (s *SliceReader) ReadUint64() uint64 {
 		return 0
 	}
 	if s.pos > s.len-8 {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return 0
 	}
 	res := binary.BigEndian.Uint64(s.slice[s.pos : s.pos+8])
@@ -123,7 +126,7 @@ func (s *SliceReader) ReadInt64() int64 {
 		return 0
 	}
 	if s.pos > s.len-8 {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return 0
 	}
 	res := binary.BigEndian.Uint64(s.slice[s.pos : s.pos+8])
@@ -138,7 +141,7 @@ func (s *SliceReader) ReadFixedLengthString(n int) string {
 		return ""
 	}
 	if s.pos > s.len-n {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return ""
 	}
 	res := string(s.slice[s.pos : s.pos+n])
@@ -175,7 +178,7 @@ func (s *SliceReader) ReadBytes(n int) []byte {
 		return []byte{}
 	}
 	if s.pos > s.len-n {
-		s.err = SliceReadError
+		s.err = ErrSliceRead
 		return []byte{}
 	}
 	res := s.slice[s.pos : s.pos+n]
@@ -193,7 +196,7 @@ func (s *SliceReader) RemainingBytes() []byte {
 	return res
 }
 
-// NrRemaingingByts - return number of bytes remaining
+// NrRemainingBytes - return number of bytes remaining
 func (s *SliceReader) NrRemainingBytes() int {
 	if s.err != nil {
 		return 0

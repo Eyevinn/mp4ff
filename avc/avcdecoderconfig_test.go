@@ -17,7 +17,7 @@ func TestAvcDecoderConfigRecord(t *testing.T) {
 	spsBytes, _ := hex.DecodeString(sps)
 	ppsBytes, _ := hex.DecodeString(pps)
 
-	wanted := AVCDecConfRec{
+	wanted := DecConfRec{
 		AVCProfileIndication: 100,
 		ProfileCompatibility: 0,
 		AVCLevelIndication:   30,

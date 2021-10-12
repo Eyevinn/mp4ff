@@ -45,6 +45,7 @@ func (b *SchiBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Info - write box-specific information
 func (b *SchiBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }

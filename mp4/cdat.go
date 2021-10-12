@@ -44,6 +44,7 @@ func (b *CdatBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write specific box information
 func (b *CdatBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - data: %s", hex.EncodeToString(b.Data))

@@ -21,7 +21,7 @@ For some boxes, more details are available by using -l with a comma-separated li
 
 `
 
-var Usage = func() {
+var usage = func() {
 	parts := strings.Split(os.Args[0], "/")
 	name := parts[len(parts)-1]
 	fmt.Fprintln(os.Stderr, usg)
@@ -43,7 +43,7 @@ func main() {
 
 	var inFilePath = flag.Arg(0)
 	if inFilePath == "" {
-		Usage()
+		usage()
 		os.Exit(1)
 	}
 

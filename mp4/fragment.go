@@ -17,7 +17,7 @@ type Fragment struct {
 	EncOptimize EncOptimize // Bit field with optimizations being done at encoding
 }
 
-// NewFragment - New emtpy one-track MP4 Fragment
+// NewFragment - New empty one-track MP4 Fragment
 func NewFragment() *Fragment {
 	return &Fragment{}
 }
@@ -44,7 +44,7 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	return f, nil
 }
 
-// CreateFragment - create multi-track empty fragment without trun
+// CreateMultiTrackFragment - create multi-track empty fragment without trun
 func CreateMultiTrackFragment(seqNumber uint32, trackIDs []uint32) (*Fragment, error) {
 	f := NewFragment()
 	moof := &MoofBox{}
@@ -277,6 +277,7 @@ func (f *Fragment) Encode(w io.Writer) error {
 	return nil
 }
 
+// Info - write box-specific information
 func (f *Fragment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	for _, box := range f.Children {
 		err := box.Info(w, specificBoxLevels, indent, indentStep)
@@ -308,7 +309,7 @@ func (f *Fragment) SetTrunDataOffsets() {
 	}
 }
 
-// Look up sample number from a specifed time. Return error if no matching time
+// GetSampleNrFromTime - look up sample number from a specified time. Return error if no matching time
 func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32, error) {
 	if len(f.Moof.Trafs) != 1 {
 		return 0, fmt.Errorf("Not exactly one traf")
@@ -355,7 +356,7 @@ func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr u
 	return trun.GetSampleInterval(startSampleNr, endSampleNr, traf.Tfdt.BaseMediaDecodeTime, f.Mdat, offsetInMdat)
 }
 
-// GetSampleInterval - get SampleInterval for a fragment with only one track
+// AddSampleInterval - add SampleInterval for a fragment with only one track
 func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
 	moof := f.Moof
 	traf := moof.Traf

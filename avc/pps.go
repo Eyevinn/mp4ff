@@ -9,6 +9,7 @@ import (
 	"github.com/edgeware/mp4ff/bits"
 )
 
+// PPS - Picture Parameter Set
 type PPS struct {
 	PicParameterSetID                     uint
 	SeqParameterSetID                     uint
@@ -22,7 +23,7 @@ type PPS struct {
 	SliceGroupChangeDirectionFlag         bool
 	SliceGroupChangeRateMinus1            uint
 	PicSizeInMapUnitsMinus1               uint
-	SliceGroupId                          []uint
+	SliceGroupID                          []uint
 	NumRefIdxI0DefaultActiveMinus1        uint
 	NumRefIdxI1DefaultActiveMinus1        uint
 	WeightedPredFlag                      bool
@@ -39,7 +40,10 @@ type PPS struct {
 	SecondChromaQpIndexOffset             int
 }
 
-var ErrNotPPS = errors.New("Not an PPS NAL unit")
+// AVC PPS errors
+var (
+	ErrNotPPS = errors.New("Not an PPS NAL unit")
+)
 
 // ParsePPSNALUnit - Parse AVC PPS NAL unit starting with NAL header
 func ParsePPSNALUnit(data []byte, sps *SPS) (*PPS, error) {
@@ -131,7 +135,7 @@ func ParsePPSNALUnit(data []byte, sps *SPS) (*PPS, error) {
 				if err != nil {
 					return nil, err
 				}
-				pps.SliceGroupId = append(pps.SliceGroupId, sgi)
+				pps.SliceGroupID = append(pps.SliceGroupID, sgi)
 			}
 		}
 	}

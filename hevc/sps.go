@@ -12,7 +12,7 @@ import (
 type SPS struct {
 	VpsID                                byte
 	MaxSubLayersMinus1                   byte
-	TemporalIdNestingFlag                bool
+	TemporalIDNestingFlag                bool
 	ProfileTierLevel                     ProfileTierLevel
 	SpsID                                byte
 	ChromaFormatIDC                      byte
@@ -44,7 +44,7 @@ type SPS struct {
 	VUIParametersPresentFlag             bool
 }
 
-// ISO/IEC 23008-2 Section 7.3.3
+// ProfileTierLevel according to ISO/IEC 23008-2 Section 7.3.3
 type ProfileTierLevel struct {
 	GeneralProfileSpace              byte
 	GeneralTierFlag                  bool
@@ -61,6 +61,7 @@ type ProfileTierLevel struct {
 
 }
 
+// ConformanceWindow according to ISO/IEC 23008-2
 type ConformanceWindow struct {
 	LeftOffset   uint32
 	RightOffset  uint32
@@ -68,6 +69,7 @@ type ConformanceWindow struct {
 	BottomOffset uint32
 }
 
+// SubLayerOrderingInfo according to ISO/IEC 23008-2
 type SubLayerOrderingInfo struct {
 	MaxDecPicBufferingMinus1 byte
 	MaxNumReorderPics        byte
@@ -90,7 +92,7 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	}
 	sps.VpsID = byte(r.Read(4))
 	sps.MaxSubLayersMinus1 = byte(r.Read(3))
-	sps.TemporalIdNestingFlag = r.ReadFlag()
+	sps.TemporalIDNestingFlag = r.ReadFlag()
 	sps.ProfileTierLevel.GeneralProfileSpace = byte(r.Read(2))
 	sps.ProfileTierLevel.GeneralTierFlag = r.ReadFlag()
 	sps.ProfileTierLevel.GeneralProfileIDC = byte(r.Read(5))

@@ -55,6 +55,7 @@ func (d *DinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(d, w)
 }
 
+// Info - write box info to w
 func (d *DinfBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(d, w, specificBoxLevels, indent, indentStep)
 }
