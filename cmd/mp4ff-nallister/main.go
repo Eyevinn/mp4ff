@@ -74,16 +74,8 @@ func main() {
 }
 
 func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
-	var videoTrak *mp4.TrakBox
-	for _, inTrak := range f.Moov.Traks {
-		hdlrType := inTrak.Mdia.Hdlr.HandlerType
-		if hdlrType != "vide" {
-			continue
-		}
-		videoTrak = inTrak
-		break
-	}
-	if videoTrak == nil {
+	videoTrak, ok := findFirstVideoTrak(f.Moov)
+	if !ok {
 		return fmt.Errorf("No video track found")
 	}
 
@@ -101,12 +93,7 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
 		if err != nil {
 			return err
 		}
-		var offset int64
-		if stbl.Stco != nil {
-			offset = int64(stbl.Stco.ChunkOffset[chunkNr-1])
-		} else if stbl.Co64 != nil {
-			offset = int64(stbl.Co64.ChunkOffset[chunkNr-1])
-		}
+		offset := getChunkOffset(stbl, chunkNr)
 		for sNr := sampleNrAtChunkStart; sNr < sampleNr; sNr++ {
 			offset += int64(stbl.Stsz.SampleSize[sNr-1])
 		}
@@ -137,19 +124,32 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string) error {
 	return nil
 }
 
+func findFirstVideoTrak(moov *mp4.MoovBox) (*mp4.TrakBox, bool) {
+	for _, inTrak := range moov.Traks {
+		hdlrType := inTrak.Mdia.Hdlr.HandlerType
+		if hdlrType != "vide" {
+			continue
+		}
+		return inTrak, true
+	}
+	return nil, false
+}
+
+func getChunkOffset(stbl *mp4.StblBox, chunkNr int) int64 {
+	if stbl.Stco != nil {
+		return int64(stbl.Stco.ChunkOffset[chunkNr-1])
+	}
+	if stbl.Co64 != nil {
+		return int64(stbl.Co64.ChunkOffset[chunkNr-1])
+	}
+	panic("Neither stco nor co64 is set")
+}
+
 func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string) error {
 	if f.Init != nil { // Auto-detect codec if moov box is there
 		moov := f.Init.Moov
-		var videoTrak *mp4.TrakBox
-		for _, inTrak := range moov.Traks {
-			hdlrType := inTrak.Mdia.Hdlr.HandlerType
-			if hdlrType != "vide" {
-				continue
-			}
-			videoTrak = inTrak
-			break
-		}
-		if videoTrak == nil {
+		videoTrak, ok := findFirstVideoTrak(moov)
+		if !ok {
 			return fmt.Errorf("No video track found")
 		}
 		stbl := videoTrak.Mdia.Minf.Stbl
