@@ -17,3 +17,9 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           only-new-issues: true
+
+      - name: go-report-card
+        uses: creekorful/goreportcard-action@v1.0
+        with:
+          only-new-issues: true
+
