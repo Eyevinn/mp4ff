@@ -45,7 +45,7 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 		hdlr.Name = "mp4ff closed captions handler"
 	default:
 		if len(mediaOrHdlrType) != 4 {
-			return nil, fmt.Errorf("Unkown media or hdlr type %s", mediaOrHdlrType)
+			return nil, fmt.Errorf("Unknown media or hdlr type %s", mediaOrHdlrType)
 		}
 		hdlr.HandlerType = mediaOrHdlrType
 		hdlr.Name = fmt.Sprintf("mp4ff %s handler", mediaOrHdlrType)
@@ -115,6 +115,7 @@ func (b *HdlrBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *HdlrBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - handlerType: %s", b.HandlerType)

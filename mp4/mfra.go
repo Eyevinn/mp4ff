@@ -76,6 +76,7 @@ func (m *MfraBox) GetChildren() []Box {
 	return m.Children
 }
 
+// Info - write box-specific information
 func (m *MfraBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

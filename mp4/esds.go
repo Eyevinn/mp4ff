@@ -199,6 +199,7 @@ func (e *EsdsBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (e *EsdsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, e, int(e.Version), e.Flags)
 	bd.write(" - maxBitrate: %d", e.MaxBitrate)

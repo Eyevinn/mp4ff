@@ -76,6 +76,7 @@ func (t *TrexBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (t *TrexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
 	bd.write(" - trackID: %d", t.TrackID)

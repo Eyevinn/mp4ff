@@ -11,7 +11,7 @@ import (
 // AvcCBox - AVCConfigurationBox (ISO/IEC 14496-15 5.4.2.1.2 and 5.3.3.1.2)
 // Contains one AVCDecoderConfigurationRecord
 type AvcCBox struct {
-	avc.AVCDecConfRec
+	avc.DecConfRec
 }
 
 // CreateAvcC - Create an avcC box based on SPS and PPS
@@ -40,7 +40,7 @@ func (a *AvcCBox) Type() string {
 
 // Size - return calculated size
 func (a *AvcCBox) Size() uint64 {
-	return uint64(boxHeaderSize + a.AVCDecConfRec.Size())
+	return uint64(boxHeaderSize + a.DecConfRec.Size())
 }
 
 // Encode - write box to w
@@ -49,9 +49,10 @@ func (a *AvcCBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return a.AVCDecConfRec.Encode(w)
+	return a.DecConfRec.Encode(w)
 }
 
+// Info - write box-specific information
 func (a *AvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, a, -1, 0)
 	bd.write(" - AVCProfileIndication: %d", a.AVCProfileIndication)

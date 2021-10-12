@@ -17,7 +17,7 @@ func TestSPSParser1(t *testing.T) {
 	wanted := SPS{
 		VpsID:                 0,
 		MaxSubLayersMinus1:    0,
-		TemporalIdNestingFlag: true,
+		TemporalIDNestingFlag: true,
 		ProfileTierLevel: ProfileTierLevel{
 			GeneralProfileSpace:              0,
 			GeneralTierFlag:                  false,

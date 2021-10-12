@@ -50,6 +50,7 @@ func (b *NmhdBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *NmhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	return bd.err

@@ -22,27 +22,25 @@ type WvttBox struct {
 	DataReferenceIndex uint16
 }
 
-// NewAudioSampleEntryBox - Create new empty mp4a box
+// NewWvttBox - Create new empty wvtt box
 func NewWvttBox() *WvttBox {
-	w := &WvttBox{}
-	w.DataReferenceIndex = 1
-	return w
+	return &WvttBox{DataReferenceIndex: 1}
 }
 
-// AddChild - add a child box (avcC normally, but clap and pasp could be part of visual entry)
-func (w *WvttBox) AddChild(box Box) {
-	switch b := box.(type) {
+// AddChild - add a child box
+func (b *WvttBox) AddChild(child Box) {
+	switch box := child.(type) {
 	case *VttCBox:
-		w.VttC = b
+		b.VttC = box
 	case *VlabBox:
-		w.Vlab = b
+		b.Vlab = box
 	case *BtrtBox:
-		w.Btrt = b
+		b.Btrt = box
 	default:
 		// Other box
 	}
 
-	w.Children = append(w.Children, box)
+	b.Children = append(b.Children, child)
 }
 
 const nrWvttBytesBeforeChildren = 16
@@ -85,29 +83,29 @@ func DecodeWvtt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Type - return box type
-func (a *WvttBox) Type() string {
+func (b *WvttBox) Type() string {
 	return "wvtt"
 }
 
 // Size - return calculated size
-func (a *WvttBox) Size() uint64 {
+func (b *WvttBox) Size() uint64 {
 	totalSize := uint64(nrWvttBytesBeforeChildren)
-	for _, child := range a.Children {
+	for _, child := range b.Children {
 		totalSize += child.Size()
 	}
 	return totalSize
 }
 
 // Encode - write box to w
-func (a *WvttBox) Encode(w io.Writer) error {
-	err := EncodeHeader(a, w)
+func (b *WvttBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(a)
+	buf := makebuf(b)
 	sw := NewSliceWriter(buf)
 	sw.WriteZeroBytes(6)
-	sw.WriteUint16(a.DataReferenceIndex)
+	sw.WriteUint16(b.DataReferenceIndex)
 
 	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
 	if err != nil {
@@ -115,7 +113,7 @@ func (a *WvttBox) Encode(w io.Writer) error {
 	}
 
 	// Next output child boxes in order
-	for _, child := range a.Children {
+	for _, child := range b.Children {
 		err = child.Encode(w)
 		if err != nil {
 			return err
@@ -124,13 +122,14 @@ func (a *WvttBox) Encode(w io.Writer) error {
 	return err
 }
 
-func (a *WvttBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, a, -1, 0)
+// Info - write box-specific information
+func (b *WvttBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	if bd.err != nil {
 		return bd.err
 	}
 	var err error
-	for _, child := range a.Children {
+	for _, child := range b.Children {
 		err = child.Info(w, specificBoxLevels, indent+indentStep, indent)
 		if err != nil {
 			return err
@@ -159,28 +158,29 @@ func DecodeVttC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Type - box-specific type
-func (v *VttCBox) Type() string {
+func (b *VttCBox) Type() string {
 	return "vttC"
 }
 
 // Size - calculated size of box
-func (v *VttCBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(v.Config))
+func (b *VttCBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.Config))
 }
 
 // Encode - write box to w
-func (v *VttCBox) Encode(w io.Writer) error {
-	err := EncodeHeader(v, w)
+func (b *VttCBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(v.Config))
+	_, err = w.Write([]byte(b.Config))
 	return err
 }
 
-func (v *VttCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1, 0)
-	bd.write(" - config: %q", v.Config)
+// Info - write box-specific information
+func (b *VttCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - config: %q", b.Config)
 	return bd.err
 }
 
@@ -197,35 +197,33 @@ func DecodeVlab(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := &VlabBox{
-		SourceLabel: string(data),
-	}
-	return v, nil
+	return &VlabBox{SourceLabel: string(data)}, nil
 }
 
 // Type - box-specific type
-func (v *VlabBox) Type() string {
+func (b *VlabBox) Type() string {
 	return "vlab"
 }
 
 // Size - calculated size of box
-func (v *VlabBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(v.SourceLabel))
+func (b *VlabBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.SourceLabel))
 }
 
 // Encode - write box to w
-func (v *VlabBox) Encode(w io.Writer) error {
-	err := EncodeHeader(v, w)
+func (b *VlabBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(v.SourceLabel))
+	_, err = w.Write([]byte(b.SourceLabel))
 	return err
 }
 
-func (v *VlabBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1, 0)
-	bd.write(" - sourceLabel: %s", v.SourceLabel)
+// Info - write box-specific information
+func (b *VlabBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - sourceLabel: %s", b.SourceLabel)
 	return bd.err
 }
 
@@ -239,7 +237,7 @@ type VtteBox struct {
 }
 
 // Type - box-specific type
-func (v *VtteBox) Type() string {
+func (b *VtteBox) Type() string {
 	return "vtte"
 }
 
@@ -249,17 +247,18 @@ func DecodeVtte(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Size - calculated size of box
-func (v *VtteBox) Size() uint64 {
+func (b *VtteBox) Size() uint64 {
 	return uint64(boxHeaderSize)
 }
 
 // Encode - write box to w
-func (v *VtteBox) Encode(w io.Writer) error {
-	return EncodeHeader(v, w)
+func (b *VtteBox) Encode(w io.Writer) error {
+	return EncodeHeader(b, w)
 }
 
-func (v *VtteBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1, 0)
+// Info - write box-specific information
+func (b *VtteBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
 	return bd.err
 }
 
@@ -276,60 +275,61 @@ type VttcBox struct {
 }
 
 // AddChild - Add a child box
-func (v *VttcBox) AddChild(box Box) {
+func (b *VttcBox) AddChild(child Box) {
 
-	switch b := box.(type) {
+	switch box := child.(type) {
 	case *VsidBox:
-		v.Vsid = b
+		b.Vsid = box
 	case *IdenBox:
-		v.Iden = b
+		b.Iden = box
 	case *CtimBox:
-		v.Ctim = b
+		b.Ctim = box
 	case *SttgBox:
-		v.Sttg = b
+		b.Sttg = box
 	case *PaylBox:
-		v.Payl = b
+		b.Payl = box
 	default:
 		// Type outside ISO/IEC 14496-30 spec
 	}
-	v.Children = append(v.Children, box)
+	b.Children = append(b.Children, child)
 }
 
 // DecodeVttc - box-specific decode
 func DecodeVttc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	m := &VttcBox{}
-	for _, b := range l {
-		m.AddChild(b)
+	b := VttcBox{}
+	for _, child := range children {
+		b.AddChild(child)
 	}
-	return m, nil
+	return &b, nil
 }
 
 // Type - return box type
-func (v *VttcBox) Type() string {
+func (b *VttcBox) Type() string {
 	return "vttc"
 }
 
 // Size - return calculated size
-func (v *VttcBox) Size() uint64 {
-	return containerSize(v.Children)
+func (b *VttcBox) Size() uint64 {
+	return containerSize(b.Children)
 }
 
 // GetChildren - list of child boxes
-func (v *VttcBox) GetChildren() []Box {
-	return v.Children
+func (b *VttcBox) GetChildren() []Box {
+	return b.Children
 }
 
 // Encode - write mvex container to w
-func (v *VttcBox) Encode(w io.Writer) error {
-	return EncodeContainer(v, w)
+func (b *VttcBox) Encode(w io.Writer) error {
+	return EncodeContainer(b, w)
 }
 
-func (v *VttcBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return ContainerInfo(v, w, specificBoxLevels, indent, indentStep)
+// Info - write box-specific information
+func (b *VttcBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }
 
 ////////////////////////////// vsid //////////////////////////////
@@ -345,37 +345,37 @@ func DecodeVsid(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := &VsidBox{
+	return &VsidBox{
 		SourceID: binary.BigEndian.Uint32(data[0:4]),
-	}
-	return v, nil
+	}, nil
 }
 
 // Type - box-specific type
-func (v *VsidBox) Type() string {
+func (b *VsidBox) Type() string {
 	return "vsid"
 }
 
 // Size - calculated size of box
-func (v *VsidBox) Size() uint64 {
+func (b *VsidBox) Size() uint64 {
 	return uint64(boxHeaderSize + 4) // len of uint32
 }
 
 // Encode - write box to w
-func (v *VsidBox) Encode(w io.Writer) error {
-	err := EncodeHeader(v, w)
+func (b *VsidBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
 	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, v.SourceID)
+	binary.BigEndian.PutUint32(buf, b.SourceID)
 	_, err = w.Write(buf)
 	return err
 }
 
-func (v *VsidBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1, 0)
-	bd.write(" - sourceID: %d", v.SourceID)
+// Info - write box-specific information
+func (b *VsidBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - sourceID: %d", b.SourceID)
 	return bd.err
 }
 
@@ -393,35 +393,35 @@ func DecodeCtim(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &CtimBox{
+	return &CtimBox{
 		CueCurrentTime: string(data),
-	}
-	return c, nil
+	}, nil
 }
 
 // Type - box-specific type
-func (c *CtimBox) Type() string {
+func (b *CtimBox) Type() string {
 	return "ctim"
 }
 
 // Size - calculated size of box
-func (c *CtimBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(c.CueCurrentTime))
+func (b *CtimBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.CueCurrentTime))
 }
 
 // Encode - write box to w
-func (c *CtimBox) Encode(w io.Writer) error {
-	err := EncodeHeader(c, w)
+func (b *CtimBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(c.CueCurrentTime))
+	_, err = w.Write([]byte(b.CueCurrentTime))
 	return err
 }
 
-func (c *CtimBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, c, -1, 0)
-	bd.write(" - cueCurrentTime: %s", c.CueCurrentTime)
+// Info - write box-specific information
+func (b *CtimBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - cueCurrentTime: %s", b.CueCurrentTime)
 	return bd.err
 }
 
@@ -438,35 +438,35 @@ func DecodeIden(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	i := &IdenBox{
+	return &IdenBox{
 		CueID: string(data),
-	}
-	return i, nil
+	}, nil
 }
 
 // Type - box-specific type
-func (i *IdenBox) Type() string {
+func (b *IdenBox) Type() string {
 	return "iden"
 }
 
 // Size - calculated size of box
-func (i *IdenBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(i.CueID))
+func (b *IdenBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.CueID))
 }
 
 // Encode - write box to w
-func (i *IdenBox) Encode(w io.Writer) error {
-	err := EncodeHeader(i, w)
+func (b *IdenBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(i.CueID))
+	_, err = w.Write([]byte(b.CueID))
 	return err
 }
 
-func (i *IdenBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, i, -1, 0)
-	bd.write(" - cueID: %s", i.CueID)
+// Info - write box-specific information
+func (b *IdenBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - cueID: %s", b.CueID)
 	return bd.err
 }
 
@@ -483,35 +483,35 @@ func DecodeSttg(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &SttgBox{
+	return &SttgBox{
 		Settings: string(data),
-	}
-	return s, nil
+	}, nil
 }
 
 // Type - box-specific type
-func (s *SttgBox) Type() string {
+func (b *SttgBox) Type() string {
 	return "sttg"
 }
 
 // Size - calculated size of box
-func (s *SttgBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(s.Settings))
+func (b *SttgBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.Settings))
 }
 
 // Encode - write box to w
-func (s *SttgBox) Encode(w io.Writer) error {
-	err := EncodeHeader(s, w)
+func (b *SttgBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(s.Settings))
+	_, err = w.Write([]byte(b.Settings))
 	return err
 }
 
-func (s *SttgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, s, -1, 0)
-	bd.write(" - settings: %s", s.Settings)
+// Info - write box-specific information
+func (b *SttgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - settings: %s", b.Settings)
 	return bd.err
 }
 
@@ -528,35 +528,35 @@ func DecodePayl(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &PaylBox{
+	return &PaylBox{
 		CueText: string(data),
-	}
-	return p, nil
+	}, nil
 }
 
 // Type - box-specific type
-func (p *PaylBox) Type() string {
+func (b *PaylBox) Type() string {
 	return "payl"
 }
 
 // Size - calculated size of box
-func (p *PaylBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(p.CueText))
+func (b *PaylBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.CueText))
 }
 
 // Encode - write box to w
-func (p *PaylBox) Encode(w io.Writer) error {
-	err := EncodeHeader(p, w)
+func (b *PaylBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(p.CueText))
+	_, err = w.Write([]byte(b.CueText))
 	return err
 }
 
-func (p *PaylBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, p, -1, 0)
-	bd.write(" - cueText: %q", p.CueText)
+// Info - write box-specific information
+func (b *PaylBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - cueText: %q", b.CueText)
 	return bd.err
 }
 
@@ -573,34 +573,34 @@ func DecodeVtta(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &VttaBox{
+	return &VttaBox{
 		CueAdditionalText: string(data),
-	}
-	return p, nil
+	}, nil
 }
 
 // Type - box-specific type
-func (v *VttaBox) Type() string {
+func (b *VttaBox) Type() string {
 	return "vtta"
 }
 
 // Size - calculated size of box
-func (v *VttaBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(v.CueAdditionalText))
+func (b *VttaBox) Size() uint64 {
+	return uint64(boxHeaderSize + len(b.CueAdditionalText))
 }
 
 // Encode - write box to w
-func (v *VttaBox) Encode(w io.Writer) error {
-	err := EncodeHeader(v, w)
+func (b *VttaBox) Encode(w io.Writer) error {
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(v.CueAdditionalText))
+	_, err = w.Write([]byte(b.CueAdditionalText))
 	return err
 }
 
-func (v *VttaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, v, -1, 0)
-	bd.write(" - cueAdditionalText: %q", v.CueAdditionalText)
+// Info - write box-specific information
+func (b *VttaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - cueAdditionalText: %q", b.CueAdditionalText)
 	return bd.err
 }

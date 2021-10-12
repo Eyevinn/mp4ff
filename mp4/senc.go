@@ -30,7 +30,7 @@ type SencBox struct {
 	SubSamples  [][]SubSamplePattern
 }
 
-// CreateSendBox - create an empty SencBox
+// CreateSencBox - create an empty SencBox
 func CreateSencBox() *SencBox {
 	return &SencBox{}
 }
@@ -200,6 +200,7 @@ func (s *SencBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, s, int(s.Version), s.Flags)
 	for _, subSamples := range s.SubSamples {
@@ -228,6 +229,7 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
+// GetPerSampleIVSize - return perSampleIVSize
 func (s *SencBox) GetPerSampleIVSize() int {
 	perSampleIVSize := 0
 	for _, iv := range s.IVs {

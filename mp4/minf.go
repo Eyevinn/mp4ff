@@ -69,6 +69,7 @@ func (m *MinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
+// Info - write box-specific information
 func (m *MinfBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

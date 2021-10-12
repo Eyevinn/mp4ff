@@ -4,21 +4,20 @@ import (
 	"io"
 )
 
-// EbspWriter writes bits into underlying io.Writer and inserts
-// start-code emulation prevention bytes as necessary
-// Stops writing at first error.
-// Errors that have occured can later be checked with Error().
+// EBSPWriter - write bits and insert start-code emulation prevention bytes as necessary.
+// Cease writing at first error.
+// Errors that have occurred can later be checked with Error().
 type EBSPWriter struct {
 	n   int    // current number of bits
 	v   uint   // current accumulated value
 	err error  // The first error caused by any write operation
-	nr0 int    // Number preceeding zero bytes
+	nr0 int    // Number preceding zero bytes
 	out []byte // Slice of length 1 to avoid allocation at output
 
 	wr io.Writer
 }
 
-// NewWriter - returns a new Writer
+// NewEBSPWriter - returns a new Writer
 func NewEBSPWriter(w io.Writer) *EBSPWriter {
 	return &EBSPWriter{
 		wr:  w,
@@ -59,7 +58,7 @@ func (w *EBSPWriter) Write(bits uint, n int) {
 	w.v &= mask(8)
 }
 
-// Write - write rbsp trailing bits (a 1 followed by zeros to a byte boundary)
+// WriteRbspTrailingBits - write rbsp trailing bits (a 1 followed by zeros to a byte boundary)
 func (w *EBSPWriter) WriteRbspTrailingBits() {
 	w.Write(1, 1)
 	w.StuffByteWithZeros()

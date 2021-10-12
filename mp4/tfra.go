@@ -14,11 +14,11 @@ type TfraBox struct {
 	LengthSizeOfTrafNum   byte
 	LengthSizeOfTrunNum   byte
 	LengthSizeOfSampleNum byte
-	Entries               []TrafEntry
+	Entries               []TfraEntry
 }
 
-// Tfrabox - reference as used inside SidxBox
-type TrafEntry struct {
+// TfraEntry - reference as used inside TfraBox
+type TfraEntry struct {
 	Time        int64
 	MoofOffset  int64
 	TrafNumber  uint32
@@ -47,7 +47,7 @@ func DecodeTfra(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	b.LengthSizeOfSampleNum = byte(sizesBlock & 0x3)
 	nrEntries := s.ReadUint32()
 	for i := uint32(0); i < nrEntries; i++ {
-		te := TrafEntry{}
+		te := TfraEntry{}
 		if b.Version == 1 {
 			te.Time = s.ReadInt64()
 			te.MoofOffset = s.ReadInt64()
@@ -166,7 +166,7 @@ func (b *TfraBox) Encode(w io.Writer) error {
 	return err
 }
 
-//Info - more info for level 1
+//Info - box-specific info. More for level 1
 func (b *TfraBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - trackID: %d", b.TrackID)

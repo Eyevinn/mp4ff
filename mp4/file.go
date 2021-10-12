@@ -36,27 +36,34 @@ type File struct {
 	fileDecMode  DecFileMode
 }
 
+// EncFragFileMode - mode for writing file
 type EncFragFileMode byte
 
 const (
-	EncModeSegment = EncFragFileMode(0) // Only encode boxes that are part of Init and MediaSegments
-	EncModeBoxTree = EncFragFileMode(1) // Encode all boxes in file tree
+	// EncModeSegment - only encode boxes that are part of Init and MediaSegments
+	EncModeSegment = EncFragFileMode(0)
+	// EncModeBoxTree - encode all boxes in file tree
+	EncModeBoxTree = EncFragFileMode(1)
 )
 
+// DecFileMode - mode for decoding file
 type DecFileMode byte
 
 const (
-	// DecModeNormal reads Mdat data into memory during file decoding.
+	// DecModeNormal - read Mdat data into memory during file decoding.
 	DecModeNormal DecFileMode = iota
-	// DecModeLazyMdat doesn't not read Mdat data into memory,
-	// which means the decoding process requires less memory and faster.
+	// DecModeLazyMdat - do not read mdat data into memory.
+	// Thus, decode process requires less memory and faster.
 	DecModeLazyMdat
 )
 
+// EncOptimize - encoder optimization mode
 type EncOptimize uint32
 
 const (
+	// OptimizeNone - no optimization
 	OptimizeNone = EncOptimize(0)
+	// OptimizeTrun - optimize trun box by moving default values to tfhd
 	OptimizeTrun = EncOptimize(1 << 0)
 )
 

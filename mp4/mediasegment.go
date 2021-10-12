@@ -80,20 +80,20 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 }
 
 // Info - write box tree with indent for each level
-func (m *MediaSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	if m.Styp != nil {
-		err := m.Styp.Info(w, specificBoxLevels, indent, indentStep)
+func (s *MediaSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	if s.Styp != nil {
+		err := s.Styp.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}
 	}
-	if m.Sidx != nil {
-		err := m.Sidx.Info(w, specificBoxLevels, indent, indentStep)
+	if s.Sidx != nil {
+		err := s.Sidx.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}
 	}
-	for _, f := range m.Fragments {
+	for _, f := range s.Fragments {
 		err := f.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err

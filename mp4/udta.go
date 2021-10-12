@@ -2,7 +2,7 @@ package mp4
 
 import "io"
 
-// User Data Box - container for User Data
+// UdtaBox - User Data Box is a container for User Data
 //
 // Contained in : moov, trak, moof, or traf
 //
@@ -48,6 +48,7 @@ func (b *UdtaBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Info - write box-specific information
 func (b *UdtaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }

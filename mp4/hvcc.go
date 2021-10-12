@@ -11,10 +11,10 @@ import (
 // HvcCBox - HEVCConfigurationBox (ISO/IEC 14496-15 8.4.1.1.2)
 // Contains one HEVCDecoderConfigurationRecord
 type HvcCBox struct {
-	hevc.HEVCDecConfRec
+	hevc.DecConfRec
 }
 
-// CreateHvcC- Create an hvcC box based on VPS, SPS and PPS and signal completeness
+// CreateHvcC - create an hvcC box based on VPS, SPS and PPS and signal completeness
 func CreateHvcC(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete, ppsComplete bool) (*HvcCBox, error) {
 	hevcDecConfRec, err := hevc.CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus,
 		vpsComplete, spsComplete, ppsComplete)
@@ -41,7 +41,7 @@ func (b *HvcCBox) Type() string {
 
 // Size - return calculated size
 func (b *HvcCBox) Size() uint64 {
-	return uint64(boxHeaderSize + b.HEVCDecConfRec.Size())
+	return uint64(boxHeaderSize + b.DecConfRec.Size())
 }
 
 // Encode - write box to w
@@ -50,13 +50,13 @@ func (b *HvcCBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return b.HEVCDecConfRec.Encode(w)
+	return b.DecConfRec.Encode(w)
 }
 
 // Info - box-specific Info
 func (b *HvcCBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
-	hdcr := b.HEVCDecConfRec
+	hdcr := b.DecConfRec
 	bd.write(" - GeneralProfileSpace: %d", hdcr.GeneralProfileSpace)
 	bd.write(" - GeneralTierFlag: %t", hdcr.GeneralTierFlag)
 	bd.write(" - GeneralProfileIDC: %d", hdcr.GeneralProfileIDC)

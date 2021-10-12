@@ -80,6 +80,7 @@ func (b *StszBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *StszBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if b.SampleNumber == 0 { // No samples
@@ -116,7 +117,7 @@ func (b *StszBox) GetSampleSize(i int) uint32 {
 	return b.SampleSize[i-1]
 }
 
-// GetTotalSize - get total size of a range [startNr, endNr] of samples
+// GetTotalSampleSize - get total size of a range [startNr, endNr] of samples
 func (b *StszBox) GetTotalSampleSize(startNr, endNr uint32) (uint64, error) {
 	if startNr <= 0 || endNr > b.SampleNumber {
 		return 0, fmt.Errorf("startNr or calculated endNr outside range 1-%d", b.SampleNumber)

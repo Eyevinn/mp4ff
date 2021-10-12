@@ -19,6 +19,7 @@ func (sf SampleFlags) String() string {
 		sf.SampleIsNonSync, sf.SampleDegradationPriority)
 }
 
+// Encode - convert sampleflags to uint32 bit pattern
 func (sf SampleFlags) Encode() uint32 {
 	sfBin := uint32(sf.IsLeading)<<26 | uint32(sf.SampleDependsOn)<<24 | uint32(sf.SampleIsDependedOn)<<22
 	sfBin |= uint32(sf.SampleHasRedundancy)<<20 | uint32(sf.SamplePaddingValue)<<17

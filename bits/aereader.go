@@ -15,11 +15,12 @@ type AccErrReader struct {
 	rd io.Reader
 }
 
+// AccError - accumulated error is first error that occurred
 func (r *AccErrReader) AccError() error {
 	return r.err
 }
 
-// NewReader - return a new Reader
+// NewAccErrReader - return a new Reader
 func NewAccErrReader(rd io.Reader) *AccErrReader {
 	return &AccErrReader{
 		rd: rd,

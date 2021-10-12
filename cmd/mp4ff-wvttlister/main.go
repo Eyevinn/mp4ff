@@ -18,7 +18,7 @@ mp4ff-wvttlister lists and displays content of wvtt (WebVTT in ISOBMFF) samples.
 Use track with given non-zero track ID or first wvtt track found in an asset.
 `
 
-var Usage = func() {
+var usage = func() {
 	parts := strings.Split(os.Args[0], "/")
 	name := parts[len(parts)-1]
 	fmt.Fprintln(os.Stderr, usg)
@@ -40,7 +40,7 @@ func main() {
 
 	var inFilePath = flag.Arg(0)
 	if inFilePath == "" {
-		Usage()
+		usage()
 		os.Exit(1)
 	}
 

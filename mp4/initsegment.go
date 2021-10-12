@@ -57,8 +57,8 @@ func (s *InitSegment) Encode(w io.Writer) error {
 }
 
 // Info - write box tree with indent for each level
-func (i *InitSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	for _, box := range i.Children {
+func (s *InitSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	for _, box := range s.Children {
 		err := box.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
@@ -81,8 +81,8 @@ func CreateEmptyInit() *InitSegment {
 }
 
 // AddEmptyTrack - add trak + trex box with appropriate trackID value
-func (i *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string) {
-	moov := i.Moov
+func (s *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string) {
+	moov := s.Moov
 	trackID := uint32(len(moov.Traks) + 1)
 	moov.Mvhd.NextTrackID = trackID + 1
 	newTrak := CreateEmptyTrak(trackID, timeScale, mediaType, language)
@@ -90,7 +90,7 @@ func (i *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string
 	moov.Mvex.AddChild(CreateTrex(trackID))
 }
 
-// Create a full Trak tree for an empty (fragmented) track with no samples or stsd content
+// CreateEmptyTrak - create a full trak-tree for an empty (fragmented) track with no samples or stsd content
 func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *TrakBox {
 	/*  Built tree like
 	- trak

@@ -125,9 +125,8 @@ func (r *AccErrEBSPReader) ReadSignedGolomb() int {
 	}
 	if unsignedGolomb%2 == 1 {
 		return int((unsignedGolomb + 1) / 2)
-	} else {
-		return -int(unsignedGolomb / 2)
 	}
+	return -int(unsignedGolomb / 2)
 }
 
 // IsSeeker - does reader support Seek
@@ -143,7 +142,7 @@ func (r *AccErrEBSPReader) MoreRbspData() (bool, error) {
 	if !r.IsSeeker() {
 		return false, ErrNotReedSeeker
 	}
-	// Find out if next positon is the last 1
+	// Find out if next position is the last 1
 	stateCopy := *r
 
 	firstBit := r.Read(1)

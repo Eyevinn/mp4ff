@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// SchiBox -  Protection Scheme Information Box
+// SinfBox -  Protection Scheme Information Box according to ISO/IEC 23001-7
 type SinfBox struct {
 	Frma     *FrmaBox // Mandatory
 	Schm     *SchmBox // Optional
@@ -58,6 +58,7 @@ func (b *SinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Info - write box-specific information
 func (b *SinfBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
 }

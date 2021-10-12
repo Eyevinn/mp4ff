@@ -40,12 +40,13 @@ func DecodeMdatLazily(hdr *boxHeader, startPos uint64) (Box, error) {
 	return &MdatBox{startPos, nil, decLazyDataSize, largeSize}, nil
 }
 
-// SetLazyDataSize - set size of mdat lazy data, so that the data can be written separately
+// SetLazyDataSize - set size of mdat lazy data so that the data can be written separately
 // Don't put any data in m.Data in this mode.
 func (m *MdatBox) SetLazyDataSize(newSize uint64) {
 	m.lazyDataSize = newSize
 }
 
+// GetLazyDataSize - size of the box if filled with data
 func (m *MdatBox) GetLazyDataSize() uint64 {
 	return m.lazyDataSize
 }
@@ -92,6 +93,7 @@ func (m *MdatBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (m *MdatBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, m, -1, 0)
 	return bd.err
@@ -112,7 +114,7 @@ func (m *MdatBox) PayloadAbsoluteOffset() uint64 {
 }
 
 // ReadData reads Mdat data specified by the start and size.
-// Input argument start is the postion relative to the start of a file.
+// Input argument start is the position relative to the start of a file.
 // The ReadSeeker is used for lazily loaded mdat case.
 func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) {
 	// The Mdat box was decoded lazily

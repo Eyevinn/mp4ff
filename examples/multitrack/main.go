@@ -19,6 +19,7 @@ const (
 	filePath = "testdata/main_1.mp4"
 )
 
+// Track - information for an mp4 track
 type Track struct {
 	trackID   uint32
 	hdlrType  string

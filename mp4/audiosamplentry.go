@@ -150,6 +150,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box info to w
 func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, a, -1, 0)
 	if bd.err != nil {

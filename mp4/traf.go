@@ -71,6 +71,7 @@ func (t *TrafBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
 }
 
+// Info - write box-specific information
 func (t *TrafBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(t, w, specificBoxLevels, indent, indentStep)
 }

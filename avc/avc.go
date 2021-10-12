@@ -15,7 +15,7 @@ const (
 	NALU_IDR = NaluType(5)
 	// NALU_SEI - Supplementary Enhancement Information NAL Unit
 	NALU_SEI = NaluType(6)
-	// NALU_SSP - SequenceParameterSet NAL Unit
+	// NALU_SPS - SequenceParameterSet NAL Unit
 	NALU_SPS = NaluType(7)
 	// NALU_PPS - PictureParameterSet NAL Unit
 	NALU_PPS = NaluType(8)
@@ -56,7 +56,7 @@ func (a NaluType) String() string {
 	}
 }
 
-// Get NaluType from NAL Unit Header byte
+// GetNaluType - get NALU type from  NALU Header byte
 func GetNaluType(naluHeader byte) NaluType {
 	return NaluType(naluHeader & 0x1f)
 }

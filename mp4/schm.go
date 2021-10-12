@@ -11,7 +11,7 @@ type SchmBox struct {
 	Flags         uint32
 	SchemeType    string // 4CC represented as uint32
 	SchemeVersion uint32
-	SchemeUri     string // Absolute null-terminated URL
+	SchemeURI     string // Absolute null-terminated URL
 }
 
 // DecodeSchm - box-specific decode
@@ -31,7 +31,7 @@ func DecodeSchm(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	b.SchemeType = s.ReadFixedLengthString(4)
 	b.SchemeVersion = s.ReadUint32()
 	if b.Flags&0x01 != 0 {
-		b.SchemeUri, err = s.ReadZeroTerminatedString()
+		b.SchemeURI, err = s.ReadZeroTerminatedString()
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func (b *SchmBox) Type() string {
 func (b *SchmBox) Size() uint64 {
 	size := uint64(20)
 	if b.Flags&0x01 != 0 {
-		size += uint64(len(b.SchemeUri) + 1)
+		size += uint64(len(b.SchemeURI) + 1)
 	}
 	return size
 }
@@ -66,7 +66,7 @@ func (b *SchmBox) Encode(w io.Writer) error {
 	sw.WriteString(b.SchemeType, false)
 	sw.WriteUint32(b.SchemeVersion)
 	if b.Flags&0x01 != 0 {
-		sw.WriteString(b.SchemeUri, true)
+		sw.WriteString(b.SchemeURI, true)
 	}
 	_, err = w.Write(buf)
 	return err
@@ -78,7 +78,7 @@ func (b *SchmBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - schemeType: %s", b.SchemeType)
 	bd.write(" - schemeVersion: %d", b.SchemeVersion)
 	if b.Flags&0x01 != 0 {
-		bd.write(" - schemeURI: %q", b.SchemeUri)
+		bd.write(" - schemeURI: %q", b.SchemeURI)
 	}
 	return bd.err
 }

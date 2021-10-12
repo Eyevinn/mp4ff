@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-const ()
-
 func TestCodecString(t *testing.T) {
 	testCases := []struct {
 		hexSPS      string

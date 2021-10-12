@@ -17,7 +17,7 @@ type ClapBox struct {
 	VertOffD             uint32
 }
 
-// DecideClap - box-specific decode
+// DecodeClap - box-specific decode
 func DecodeClap(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -66,6 +66,7 @@ func (b *ClapBox) Encode(w io.Writer) error {
 	return err
 }
 
+// Info - write box-specific information
 func (b *ClapBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - cleanAperturWidth: %d/%d", b.CleanApertureWidthN, b.CleanApertureWidthD)

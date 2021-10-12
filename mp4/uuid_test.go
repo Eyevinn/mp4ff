@@ -18,7 +18,7 @@ func TestTfxd(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	uuidRead, err := DecodeUUID(hdr, 0, inbuf)
+	uuidRead, err := DecodeUUIDBox(hdr, 0, inbuf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,7 +48,7 @@ func TestTfrf(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	uuidRead, err := DecodeUUID(hdr, 0, inbuf)
+	uuidRead, err := DecodeUUIDBox(hdr, 0, inbuf)
 	if err != nil {
 		t.Error(err)
 	}

@@ -14,8 +14,8 @@ type EmsgBox struct {
 	PresentationTimeDelta uint32
 	PresentationTime      uint64
 	EventDuration         uint32
-	Id                    uint32
-	SchemeIdURI           string
+	ID                    uint32
+	SchemeIDURI           string
 	Value                 string
 }
 
@@ -37,8 +37,8 @@ func DecodeEmsg(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		b.TimeScale = s.ReadUint32()
 		b.PresentationTime = s.ReadUint64()
 		b.EventDuration = s.ReadUint32()
-		b.Id = s.ReadUint32()
-		b.SchemeIdURI, err = s.ReadZeroTerminatedString()
+		b.ID = s.ReadUint32()
+		b.SchemeIDURI, err = s.ReadZeroTerminatedString()
 		if err != nil {
 			return nil, fmt.Errorf("Read schemedIDUri error in emsg")
 		}
@@ -47,7 +47,7 @@ func DecodeEmsg(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 			return nil, fmt.Errorf("Read schemedIDUri error in emsg")
 		}
 	} else if version == 0 {
-		b.SchemeIdURI, err = s.ReadZeroTerminatedString()
+		b.SchemeIDURI, err = s.ReadZeroTerminatedString()
 		if err != nil {
 			return nil, fmt.Errorf("Read schemedIDUri error in emsg")
 		}
@@ -58,7 +58,7 @@ func DecodeEmsg(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		b.TimeScale = s.ReadUint32()
 		b.PresentationTimeDelta = s.ReadUint32()
 		b.EventDuration = s.ReadUint32()
-		b.Id = s.ReadUint32()
+		b.ID = s.ReadUint32()
 	} else {
 		return nil, fmt.Errorf("Unknown version for emsg")
 	}
@@ -73,9 +73,9 @@ func (b *EmsgBox) Type() string {
 // Size - calculated size of box
 func (b *EmsgBox) Size() uint64 {
 	if b.Version == 1 {
-		return uint64(boxHeaderSize + 4 + 4 + 8 + 4 + 4 + len(b.SchemeIdURI) + 1 + len(b.Value) + 1)
+		return uint64(boxHeaderSize + 4 + 4 + 8 + 4 + 4 + len(b.SchemeIDURI) + 1 + len(b.Value) + 1)
 	}
-	return uint64(boxHeaderSize + 4 + len(b.SchemeIdURI) + 1 + len(b.Value) + 1 + 4 + 4 + 4 + 4) // m.Version == 0
+	return uint64(boxHeaderSize + 4 + len(b.SchemeIDURI) + 1 + len(b.Value) + 1 + 4 + 4 + 4 + 4) // m.Version == 0
 }
 
 // Encode - write box to w
@@ -92,22 +92,23 @@ func (b *EmsgBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.TimeScale)
 		sw.WriteUint64(b.PresentationTime)
 		sw.WriteUint32(b.EventDuration)
-		sw.WriteUint32(b.Id)
-		sw.WriteString(b.SchemeIdURI, true)
+		sw.WriteUint32(b.ID)
+		sw.WriteString(b.SchemeIDURI, true)
 		sw.WriteString(b.Value, true)
 	} else {
-		sw.WriteString(b.SchemeIdURI, true)
+		sw.WriteString(b.SchemeIDURI, true)
 		sw.WriteString(b.Value, true)
 		sw.WriteUint32(b.TimeScale)
 		sw.WriteUint32(b.PresentationTimeDelta)
 		sw.WriteUint32(b.EventDuration)
-		sw.WriteUint32(b.Id)
+		sw.WriteUint32(b.ID)
 	}
 
 	_, err = w.Write(buf)
 	return err
 }
 
+// Info - write box-specific information
 func (b *EmsgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - timeScale: %d", b.TimeScale)
@@ -115,8 +116,8 @@ func (b *EmsgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		bd.write(" - presentationTime: %d", b.PresentationTime)
 	}
 	bd.write(" - eventDuration: %d", b.EventDuration)
-	bd.write(" - id: %d", b.Id)
-	bd.write(" - schedIdURI: %s", b.SchemeIdURI)
+	bd.write(" - id: %d", b.ID)
+	bd.write(" - schedIdURI: %s", b.SchemeIDURI)
 	bd.write(" - value: %s", b.Value)
 	if b.Version == 0 {
 		bd.write(" - presentationTimeDelta: %d", b.PresentationTimeDelta)

@@ -65,23 +65,23 @@ func TestTrafTrunWithoutOptimization(t *testing.T) {
 	// Without optimizations
 	optimization := false
 	for _, test := range tests {
-		run_encode_decode(t, test, optimization)
+		runEncodeDecode(t, test, optimization)
 	}
 	// With optimizations (smaller trun box)
 	optimization = true
 	for _, test := range tests {
-		run_encode_decode(t, test, optimization)
+		runEncodeDecode(t, test, optimization)
 	}
 }
 
-func run_encode_decode(t *testing.T, test testSamples, with_optimization bool) {
+func runEncodeDecode(t *testing.T, test testSamples, withOptimization bool) {
 	traf := createTestTrafBox()
 	for _, s := range test.samples {
 		traf.Trun.AddSample(s)
 	}
 	traf.Trun.DataOffset = 100 // Needs to be set. Value not important in test
 	var buf bytes.Buffer
-	if with_optimization {
+	if withOptimization {
 		err := traf.OptimizeTfhdTrun()
 		if err != nil {
 			t.Error(err)
@@ -102,6 +102,6 @@ func run_encode_decode(t *testing.T, test testSamples, with_optimization bool) {
 	outSamples := outTrun.Samples
 	if !reflect.DeepEqual(outSamples, test.samples) {
 		t.Errorf("Case %s optimization=%v failed. Got %v instead of %v",
-			test.name, with_optimization, outSamples, test.samples)
+			test.name, withOptimization, outSamples, test.samples)
 	}
 }

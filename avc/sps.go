@@ -11,7 +11,10 @@ import (
 // extendedSAR - Extended Sample Aspect Ratio Code
 const extendedSAR = 255
 
-var ErrNotSPS = errors.New("Not an SPS NAL unit")
+// SPS errors
+var (
+	ErrNotSPS = errors.New("Not an SPS NAL unit")
+)
 
 // SPS - AVC SPS parameters
 type SPS struct {
@@ -50,7 +53,8 @@ type SPS struct {
 	VUI                             *VUIParameters
 }
 
-type ScalingList []int // 4x4 or 8x8 Scaling lists. Nil if not present
+// ScalingList - 4x4 or 8x8 Scaling lists. Nil if not present
+type ScalingList []int
 
 // VUIParameters - extra parameters according to 14496-10, E.1
 type VUIParameters struct {

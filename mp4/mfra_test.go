@@ -10,7 +10,7 @@ func TestMfra(t *testing.T) {
 		LengthSizeOfTrunNum:   1,
 		LengthSizeOfSampleNum: 2,
 	}
-	te := TrafEntry{
+	te := TfraEntry{
 		Time:        3145,
 		MoofOffset:  1892,
 		TrafNumber:  1,

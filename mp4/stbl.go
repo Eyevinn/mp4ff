@@ -109,6 +109,7 @@ func (s *StblBox) Encode(w io.Writer) error {
 	return EncodeContainer(s, w)
 }
 
+// Info - write box-specific information
 func (s *StblBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(s, w, specificBoxLevels, indent, indentStep)
 }

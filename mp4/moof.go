@@ -84,6 +84,7 @@ func (m *MoofBox) GetChildren() []Box {
 	return m.Children
 }
 
+// Info - write box-specific information
 func (m *MoofBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }

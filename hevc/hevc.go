@@ -8,6 +8,7 @@ import (
 // NaluType - HEVC nal type according to ISO/IEC 23008-2 Table 7.1
 type NaluType uint16
 
+// HEVC NALU types
 const (
 	NALU_TRAIL_N = NaluType(0)
 	NALU_TRAIL_R = NaluType(1)
@@ -81,7 +82,7 @@ func (n NaluType) String() string {
 	}
 }
 
-// Get NaluType from first byte of NALU Header
+// GetNaluType - extract NALU type from first byte of NALU Header
 func GetNaluType(naluHeaderStart byte) NaluType {
 	return NaluType((naluHeaderStart >> 1) & 0x3f)
 }
