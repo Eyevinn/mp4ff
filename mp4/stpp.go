@@ -152,7 +152,7 @@ func (b *StppBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Info - write specfic box info to w
+// Info - write specific box info to w
 func (b *StppBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - dataReferenceIndex: %d", b.DataReferenceIndex)

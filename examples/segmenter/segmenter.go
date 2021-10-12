@@ -53,9 +53,8 @@ func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
 	return &s, nil
 }
 
-// SetTargetSemgmentation - set segment start points
+// SetTargetSegmentation - set segment start points
 func (s *Segmenter) SetTargetSegmentation(syncTimescale uint32, segStarts []syncPoint) error {
-
 	var err error
 	for i := range s.tracks {
 		s.tracks[i].segments, err = getSegmentIntervals(syncTimescale, segStarts, s.tracks[i].inTrak)

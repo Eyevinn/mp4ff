@@ -97,7 +97,7 @@ func (b *StscBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Info - write specfic box info to w
+// Info - write specific box info to w
 func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	level := getInfoLevel(b, specificBoxLevels)
