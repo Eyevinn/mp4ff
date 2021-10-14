@@ -85,13 +85,18 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if senc.Flags&UseSubSampleEncryption == 0 {
 		// No subsamples
 		perSampleIVSize := uint16(nrBytesLeft / senc.SampleCount)
+		senc.IVs = make([]InitializationVector, 0, senc.SampleCount)
 		switch perSampleIVSize {
 		case 0:
 			// Nothing to do
 		case 8:
-			senc.IVs = append(senc.IVs, s.ReadBytes(8))
+			for i := 0; i < int(senc.SampleCount); i++ {
+				senc.IVs = append(senc.IVs, s.ReadBytes(8))
+			}
 		case 16:
-			senc.IVs = append(senc.IVs, s.ReadBytes(16))
+			for i := 0; i < int(senc.SampleCount); i++ {
+				senc.IVs = append(senc.IVs, s.ReadBytes(16))
+			}
 		default:
 			return nil, fmt.Errorf("Strange derived PerSampleIvSize: %d", perSampleIVSize)
 		}
@@ -111,7 +116,7 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return senc, nil
 }
 
-// parseSencSamples - try to parse and fill senc samples given perSampleIVSize
+// parseAndFillSamples - parse and fill senc samples given perSampleIVSize
 func (s *SencBox) parseAndFillSamples(sr *SliceReader, perSampleIVSize int) (ok bool) {
 	ok = true
 	s.SubSamples = make([][]SubSamplePattern, s.SampleCount)
@@ -210,6 +215,7 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	perSampleIVSize := s.GetPerSampleIVSize()
 	bd.write(" - perSampleIVSize: %d", perSampleIVSize)
+	bd.write(" - nrSamples: %d", len(s.IVs))
 	level := getInfoLevel(s, specificBoxLevels)
 	if level > 0 {
 		for i := 0; i < int(s.SampleCount); i++ {

@@ -240,6 +240,7 @@
      - sample[96]: size=378 flags=00010000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0) compositionTimeOffset=1
     [senc] size=1558 version=0 flags=000002
      - perSampleIVSize: 8
+     - nrSamples: 96
      - sample[1]:  iv=89d2843aeaa409b6
        - subSample[1]: nrBytesClear=5 nrBytesProtected=758
        - subSample[2]: nrBytesClear=5 nrBytesProtected=15511
