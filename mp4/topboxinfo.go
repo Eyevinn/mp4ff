@@ -5,14 +5,18 @@ import (
 	"io"
 )
 
+// TopBoxInfo - information about a top-level box
 type TopBoxInfo struct {
-	Name     string
-	Size     uint64
+	// Type - box type
+	Type string
+	// Size - box size
+	Size uint64
+	// StartPos - where in file does box start
 	StartPos uint64
 }
 
-// GetTopBoxInfoList - get top boxes until stopBox or end of file
-func GetTopBoxInfoList(rs io.ReadSeeker, stopBox string) ([]TopBoxInfo, error) {
+// GetTopBoxInfoList - get top boxes until stopBoxType or end of file
+func GetTopBoxInfoList(rs io.ReadSeeker, stopBoxType string) ([]TopBoxInfo, error) {
 	var pos uint64 = 0
 	var topBoxList []TopBoxInfo
 
@@ -24,7 +28,7 @@ func GetTopBoxInfoList(rs io.ReadSeeker, stopBox string) ([]TopBoxInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		if h.name == stopBox {
+		if h.name == stopBoxType {
 			break
 		}
 		topBoxList = append(topBoxList, TopBoxInfo{h.name, h.size, pos})

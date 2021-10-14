@@ -12,9 +12,9 @@ func TestTopBoxInfo(t *testing.T) {
 	testfile := "testdata/init_prog.mp4"
 
 	testCases := []struct {
-		name      string
-		stopBox   string
-		wantedTBI []TopBoxInfo
+		name        string
+		stopBoxType string
+		wantedTBI   []TopBoxInfo
 	}{
 		{
 			"before moov", "moov", []TopBoxInfo{{"ftyp", 24, 0}},
@@ -29,7 +29,7 @@ func TestTopBoxInfo(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		gotTBI, err := GetTopBoxInfoList(fh, tc.stopBox)
+		gotTBI, err := GetTopBoxInfoList(fh, tc.stopBoxType)
 		if err != nil {
 			t.Error(err)
 		}
