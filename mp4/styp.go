@@ -67,7 +67,7 @@ func (b *StypBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Info - write specfic box info to w
+// Info - write specific box info to w
 func (b *StypBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - majorBrand: %s", b.MajorBrand)

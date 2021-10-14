@@ -9,10 +9,10 @@ import (
 
 // UUIDs for different DRM systems
 const (
-	UUID_PlayReady = "9a04f079-9840-4286-ab92-e65be0885f95"
-	UUID_Widevine  = "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
-	UUID_FairPlay  = "94CE86FB-07FF-4F43-ADB8-93D2FA968CA2"
-	UUID_VCAS      = "9a27dd82-fde2-4725-8cbc-4234aa06ec09"
+	UUIDPlayReady = "9a04f079-9840-4286-ab92-e65be0885f95"
+	UUIDWidevine  = "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+	UUIDFairPlay  = "94CE86FB-07FF-4F43-ADB8-93D2FA968CA2"
+	UUID_VCAS     = "9a27dd82-fde2-4725-8cbc-4234aa06ec09"
 )
 
 // UUID - 16-byte KeyID or SystemID
@@ -29,11 +29,11 @@ func (u UUID) String() string {
 func systemName(systemID UUID) string {
 	uStr := systemID.String()
 	switch uStr {
-	case UUID_PlayReady:
+	case UUIDPlayReady:
 		return "PlayReady"
-	case UUID_Widevine:
+	case UUIDWidevine:
 		return "Widevine"
-	case UUID_FairPlay:
+	case UUIDFairPlay:
 		return "FairPlay"
 	case UUID_VCAS:
 		return "Verimatrix VCAS"
