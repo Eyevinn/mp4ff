@@ -12,6 +12,9 @@ import (
 type TrafBox struct {
 	Tfhd     *TfhdBox
 	Tfdt     *TfdtBox
+	Saiz     *SaizBox
+	Saio     *SaioBox
+	Senc     *SencBox
 	Trun     *TrunBox // The first TrunBox
 	Truns    []*TrunBox
 	Children []Box
@@ -40,6 +43,12 @@ func (t *TrafBox) AddChild(b Box) error {
 		t.Tfhd = b.(*TfhdBox)
 	case "tfdt":
 		t.Tfdt = b.(*TfdtBox)
+	case "saiz":
+		t.Saiz = b.(*SaizBox)
+	case "saio":
+		t.Saio = b.(*SaioBox)
+	case "senc":
+		t.Senc = b.(*SencBox)
 	case "trun":
 		if t.Trun == nil {
 			t.Trun = b.(*TrunBox)

@@ -4,11 +4,16 @@ import "io"
 
 // SchiBox -  Schema Information Box
 type SchiBox struct {
+	Tenc     *TencBox
 	Children []Box
 }
 
 // AddChild - Add a child box
 func (b *SchiBox) AddChild(box Box) {
+	switch box.Type() {
+	case "tenc":
+		b.Tenc = box.(*TencBox)
+	}
 	b.Children = append(b.Children, box)
 }
 

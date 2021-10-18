@@ -15,6 +15,7 @@ type AudioSampleEntryBox struct {
 	SampleSize         uint16
 	SampleRate         uint16 // Integer part
 	Esds               *EsdsBox
+	Sinf               *SinfBox
 	Children           []Box
 }
 
@@ -48,13 +49,15 @@ func CreateAudioSampleEntryBox(name string, nrChannels, sampleSize, sampleRate u
 }
 
 // AddChild - add a child box (avcC normally, but clap and pasp could be part of visual entry)
-func (a *AudioSampleEntryBox) AddChild(b Box) {
-	switch b.Type() {
+func (a *AudioSampleEntryBox) AddChild(child Box) {
+	switch child.Type() {
 	case "esds":
-		a.Esds = b.(*EsdsBox)
+		a.Esds = child.(*EsdsBox)
+	case "sinf":
+		a.Sinf = child.(*SinfBox)
 	}
 
-	a.Children = append(a.Children, b)
+	a.Children = append(a.Children, child)
 }
 
 const nrAudioSampleBytesBeforeChildren = 36

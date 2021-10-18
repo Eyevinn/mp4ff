@@ -78,7 +78,8 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return senc, nil
 	}
 
-	// We must now deduct the PerSampleIVSize from the rest of the content
+	// We now deduce the PerSampleIVSize from the rest of the content
+	// but it should be available in the saiz box
 
 	nrBytesLeft := uint32(s.NrRemainingBytes())
 
