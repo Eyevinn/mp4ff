@@ -10,11 +10,11 @@ func TestEncryptDecrypt(t *testing.T) {
 	iv := []byte("0123456776543210")
 	key := []byte("00112233445566778899aabbccddeeff")
 
-	sample_enc, err := DecryptSampleCTR([]byte(sample_txt), key, iv)
+	sample_enc, err := DecryptBytesCTR([]byte(sample_txt), key, iv)
 	if err != nil {
 		t.Error(err)
 	}
-	sample_dec, err := DecryptSampleCTR(sample_enc, key, iv)
+	sample_dec, err := DecryptBytesCTR(sample_enc, key, iv)
 	if err != nil {
 		t.Error(err)
 	}

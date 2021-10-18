@@ -16,7 +16,7 @@ type TencBox struct {
 	DefaultIsProtected     byte
 	DefaultPerSampleIVSize byte
 	DefaultKID             UUID
-	// BDefaultConstantIVSize  byte given by len(DefaultContantIV)
+	// DefaultConstantIVSize  byte given by len(DefaultConstantIV)
 	DefaultConstantIV []byte
 }
 

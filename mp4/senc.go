@@ -79,7 +79,7 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	// We now deduce the PerSampleIVSize from the rest of the content
-	// but it should be available in the saiz box
+	// by trial and error but it should be available in the saiz box
 
 	nrBytesLeft := uint32(s.NrRemainingBytes())
 
@@ -107,7 +107,7 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 			s.SetPos(startPos)
 			ok := senc.parseAndFillSamples(s, perSampleIVSize)
 			if ok {
-				break
+				break // We have found a working perSampleIVSize
 			}
 		}
 		if err != nil {
@@ -240,10 +240,9 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 func (s *SencBox) GetPerSampleIVSize() int {
 	perSampleIVSize := 0
 	for _, iv := range s.IVs {
-		if len(iv) != perSampleIVSize {
-			if perSampleIVSize == 0 {
-				perSampleIVSize = len(iv)
-			}
+		if len(iv) != 0 {
+			perSampleIVSize = len(iv)
+			break
 		}
 	}
 	return perSampleIVSize

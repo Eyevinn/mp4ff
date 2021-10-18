@@ -9,9 +9,9 @@ import "io"
 type MinfBox struct {
 	Vmhd     *VmhdBox
 	Smhd     *SmhdBox
-	Stbl     *StblBox
+	Sthd     *SthdBox
 	Dinf     *DinfBox
-	Hdlr     *HdlrBox
+	Stbl     *StblBox
 	Children []Box
 }
 
@@ -28,6 +28,8 @@ func (m *MinfBox) AddChild(box Box) {
 		m.Vmhd = box.(*VmhdBox)
 	case "smhd":
 		m.Smhd = box.(*SmhdBox)
+	case "sthd":
+		m.Sthd = box.(*SthdBox)
 	case "dinf":
 		m.Dinf = box.(*DinfBox)
 	case "stbl":

@@ -206,3 +206,23 @@ func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 	}
 	return nil
 }
+
+// RemoveEncryption - remove sinf box and set type to unencrypted type
+func (b *VisualSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
+	if b.name != "encv" {
+		return nil, fmt.Errorf("is not encrypted: %s", b.name)
+	}
+	sinf := b.Sinf
+	if sinf == nil {
+		return nil, fmt.Errorf("does not have sinf box")
+	}
+	for i := range b.Children {
+		if b.Children[i].Type() == "sinf" {
+			b.Children = append(b.Children[:i], b.Children[i+1:]...)
+			b.Sinf = nil
+			break
+		}
+	}
+	b.name = sinf.Frma.DataFormat
+	return sinf, nil
+}

@@ -168,3 +168,26 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 	}
 	return nil
 }
+
+//RemoveEncryptionBoxes - remove encryption boxes and return number of bytes removed
+func (t *TrafBox) RemoveEncryptionBoxes() uint64 {
+	remainingChildren := make([]Box, 0, len(t.Children))
+	var nrBytesRemoved uint64 = 0
+	for _, ch := range t.Children {
+		switch ch.Type() {
+		case "saiz":
+			nrBytesRemoved += ch.Size()
+			t.Saiz = nil
+		case "saio":
+			nrBytesRemoved += ch.Size()
+			t.Saio = nil
+		case "senc":
+			nrBytesRemoved += ch.Size()
+			t.Senc = nil
+		default:
+			remainingChildren = append(remainingChildren, ch)
+		}
+	}
+	t.Children = remainingChildren
+	return nrBytesRemoved
+}

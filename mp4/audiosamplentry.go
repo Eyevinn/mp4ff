@@ -168,3 +168,23 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 	}
 	return nil
 }
+
+// RemoveEncryption - remove sinf box and set type to unencrypted type
+func (a *AudioSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
+	if a.name != "enca" {
+		return nil, fmt.Errorf("is not encrypted: %s", a.name)
+	}
+	sinf := a.Sinf
+	if sinf == nil {
+		return nil, fmt.Errorf("does not have sinf box")
+	}
+	for i := range a.Children {
+		if a.Children[i].Type() == "sinf" {
+			a.Children = append(a.Children[:i], a.Children[i+1:]...)
+			a.Sinf = nil
+			break
+		}
+	}
+	a.name = sinf.Frma.DataFormat
+	return sinf, nil
+}

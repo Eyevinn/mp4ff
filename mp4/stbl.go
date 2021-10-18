@@ -25,8 +25,8 @@ type StblBox struct {
 	Sgpd  *SgpdBox   // The first
 	Sgpds []*SgpdBox // All
 	Subs  *SubsBox
-	Saiz  *SaizBox
 	Saio  *SaioBox
+	Saiz  *SaizBox
 
 	Children []Box
 }
