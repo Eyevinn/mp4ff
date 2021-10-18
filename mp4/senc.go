@@ -215,7 +215,7 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	perSampleIVSize := s.GetPerSampleIVSize()
 	bd.write(" - perSampleIVSize: %d", perSampleIVSize)
-	bd.write(" - nrSamples: %d", len(s.IVs))
+	bd.write(" - sampleCount: %d", s.SampleCount)
 	level := getInfoLevel(s, specificBoxLevels)
 	if level > 0 {
 		for i := 0; i < int(s.SampleCount); i++ {
