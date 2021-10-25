@@ -140,7 +140,7 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		}
 
 		for sNr := sampleNrAtChunkStart; sNr < int(sampleNr); sNr++ {
-			offset += int64(stbl.Stsz.SampleSize[sNr-1])
+			offset += int64(stbl.Stsz.GetSampleSize(sNr))
 		}
 		size := stbl.Stsz.GetSampleSize(int(sampleNr))
 		decTime, dur := stbl.Stts.GetDecodeTime(sampleNr)

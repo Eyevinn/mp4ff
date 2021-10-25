@@ -118,7 +118,7 @@ func parseProgressiveMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
 			offset = int64(stbl.Co64.ChunkOffset[chunkNr-1])
 		}
 		for sNr := sampleNrAtChunkStart; sNr < sampleNr; sNr++ {
-			offset += int64(stbl.Stsz.SampleSize[sNr-1])
+			offset += int64(stbl.Stsz.GetSampleSize(sNr))
 		}
 		size := stbl.Stsz.GetSampleSize(sampleNr)
 		decTime, dur := stbl.Stts.GetDecodeTime(uint32(sampleNr))
