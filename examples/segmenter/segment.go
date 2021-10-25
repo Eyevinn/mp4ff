@@ -285,7 +285,7 @@ func copyMediaData(trak *mp4.TrakBox, startSampleNr, endSampleNr uint32, rs io.R
 		endNr = startNr + chunk.NrSamples - 1
 		if i == 0 {
 			for sNr := chunk.StartSampleNr; sNr < startSampleNr; sNr++ {
-				offset += uint64(stbl.Stsz.SampleSize[sNr-1])
+				offset += uint64(stbl.Stsz.GetSampleSize(int(sNr)))
 			}
 			startNr = startSampleNr
 		}
