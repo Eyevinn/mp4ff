@@ -31,7 +31,7 @@ func TestAccErrReader(t *testing.T) {
 	}
 	err := reader.AccError()
 	if err != nil {
-		t.Errorf("Got accumulated error: %w", err)
+		t.Errorf("Got accumulated error: %s", err.Error())
 	}
 }
 

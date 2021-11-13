@@ -81,6 +81,22 @@ func (r *AccErrEBSPReader) Read(n int) uint {
 	return v
 }
 
+// Read - read n bytes and return nil if (previous) error or if n bytes not available
+func (r *AccErrEBSPReader) ReadBytes(n int) []byte {
+	if r.err != nil {
+		return nil
+	}
+	payload := make([]byte, n)
+	for i := 0; i < n; i++ {
+		b := byte(r.Read(8))
+		payload[i] = b
+	}
+	if r.err != nil {
+		return nil
+	}
+	return payload
+}
+
 // ReadFlag - read 1 bit into bool. Return false if not possible
 func (r *AccErrEBSPReader) ReadFlag() bool {
 	return r.Read(1) == 1
