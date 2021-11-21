@@ -134,11 +134,6 @@ func decryptMP4withCenc(r io.Reader, key []byte, outPath string) error {
 		fmt.Printf("pssh: %s\n", psshInfo.String())
 	}
 
-	// Copy ftyp from input
-	err = inMp4.Ftyp.Encode(ofh)
-	if err != nil {
-		return err
-	}
 	// Write the modified init segment
 	err = inMp4.Init.Encode(ofh)
 	if err != nil {
@@ -163,6 +158,9 @@ func decryptAndWriteSegments(segs []*mp4.MediaSegment, tracks []trackInfo, key [
 				return err
 			}
 			outNr++
+		}
+		if seg.Sidx != nil {
+			seg.Sidx = nil // drop sidx inside segment, since not modified properly
 		}
 		err := seg.Encode(ofh)
 		if err != nil {
