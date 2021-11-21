@@ -71,3 +71,13 @@ func (m *MvexBox) Encode(w io.Writer) error {
 func (m *MvexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }
+
+// GetTrex - get trex box for trackID
+func (m *MvexBox) GetTrex(trackID uint32) (trex *TrexBox, ok bool) {
+	for _, trex := range m.Trexs {
+		if trex.TrackID == trackID {
+			return trex, false
+		}
+	}
+	return nil, true
+}
