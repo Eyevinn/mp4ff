@@ -131,6 +131,8 @@ func (b *TkhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - trackID: %d", b.TrackID)
 	bd.write(" - duration: %d", b.Duration)
+	bd.write(" - creation time: %s", timeStr(b.CreationTime))
+	bd.write(" - modification time: %s", timeStr(b.ModificationTime))
 	if b.Width != 0 && b.Height != 0 { // These are Fixed32 values
 		bd.write(" - Width: %s, Height: %s", b.Width, b.Height)
 	}

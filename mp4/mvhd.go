@@ -3,6 +3,7 @@ package mp4
 import (
 	"io"
 	"io/ioutil"
+	"time"
 )
 
 // MvhdBox - Movie Header Box (mvhd - mandatory)
@@ -121,5 +122,18 @@ func (b *MvhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - timeScale: %d", b.Timescale)
 	bd.write(" - duration: %d", b.Duration)
+	bd.write(" - creation time: %s", timeStr(b.CreationTime))
+	bd.write(" - modification time: %s", timeStr(b.ModificationTime))
 	return bd.err
+}
+
+// Make time string from t which is seconds since Jan. 1 1904
+func timeStr(t uint64) string {
+	epochDiffS := int64((66*365 + 16) * 24 * 3600)
+	unixSeconds := int64(t) - epochDiffS
+	if unixSeconds < 0 {
+		return "0"
+	}
+	ut := time.Unix(unixSeconds, 0)
+	return ut.UTC().Format("2006-01-02T15:04:05Z")
 }
