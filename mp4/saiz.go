@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// SaizBox - Sample Auxiliary Information Sizes Box (saiz)
+// SaizBox - Sample Auxiliary Information Sizes Box (saiz)  (in stbl or traf box)
 type SaizBox struct {
 	Version               byte
 	Flags                 uint32

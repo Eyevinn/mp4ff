@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -14,6 +15,8 @@ type TrafBox struct {
 	Tfdt     *TfdtBox
 	Saiz     *SaizBox
 	Saio     *SaioBox
+	Sbgp     *SbgpBox
+	Sgpd     *SgpdBox
 	Senc     *SencBox
 	Trun     *TrunBox // The first TrunBox
 	Truns    []*TrunBox
@@ -36,6 +39,58 @@ func DecodeTraf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return t, nil
 }
 
+// ContainsSencBox - is there a senc box in traf and is it parsed
+// If not parsed, call ParseReadSenc to parse it
+func (t *TrafBox) ContainsSencBox() (ok, parsed bool) {
+	if t.Senc != nil {
+		return true, !t.Senc.readButNotParsed
+	}
+	return false, false
+}
+
+func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
+	if t.Senc == nil {
+		return fmt.Errorf("no senc box")
+	}
+	if t.Saio != nil {
+		// saio should be present, but we try without it, if it doesn't exist
+		posFromSaio := t.Saio.Offset[0] + int64(moofStartPos)
+		if uint64(posFromSaio) != t.Senc.StartPos+16 {
+			return fmt.Errorf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, t.Senc.StartPos+16)
+		}
+	}
+	perSampleIVSize := defaultIVSize
+	if t.Sbgp != nil && t.Sgpd != nil {
+		sbgp, sgpd := t.Sbgp, t.Sgpd
+		if sbgp.GroupingType != "seig" {
+			return fmt.Errorf("sbgp grouping type %s not supported", sbgp.GroupingType)
+		}
+		nrSbgpEntries := len(sbgp.SampleCounts)
+		if nrSbgpEntries != 1 {
+			return fmt.Errorf("sbgp entries = %d, only 1 supported for now", nrSbgpEntries)
+		}
+		sgpdEntryNr := sbgp.GroupDescriptionIndices[0]
+		if sgpdEntryNr != sbgpInsideOffset+1 {
+			return fmt.Errorf("sgpd entry number must be first inside = 65536 + 1")
+		}
+		if sgpd.GroupingType != "seig" {
+			return fmt.Errorf("sgpd grouping type %s not supported", sgpd.GroupingType)
+		}
+
+		sgpdEntry := sgpd.SampleGroupEntries[sgpdEntryNr-sbgpInsideOffset-1]
+		if sgpdEntry.Type() != "seig" {
+			return fmt.Errorf("expected sgpd entry type seig but found %q", sgpdEntry.Type())
+		}
+		seigEntry := sgpdEntry.(*SeigSampleGroupEntry)
+		perSampleIVSize = seigEntry.PerSampleIVSize
+	}
+	err := t.Senc.ParseReadBox(perSampleIVSize, t.Saiz)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // AddChild - add child box
 func (t *TrafBox) AddChild(b Box) error {
 	switch b.Type() {
@@ -47,6 +102,10 @@ func (t *TrafBox) AddChild(b Box) error {
 		t.Saiz = b.(*SaizBox)
 	case "saio":
 		t.Saio = b.(*SaioBox)
+	case "sbgp":
+		t.Sbgp = b.(*SbgpBox)
+	case "sgpd":
+		t.Sgpd = b.(*SgpdBox)
 	case "senc":
 		t.Senc = b.(*SencBox)
 	case "trun":

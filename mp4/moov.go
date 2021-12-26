@@ -15,6 +15,7 @@ type MoovBox struct {
 	Pssh     *PsshBox
 	Psshs    []*PsshBox
 	Children []Box
+	StartPos uint64
 }
 
 // NewMoovBox - Generate a new empty moov box
@@ -24,7 +25,6 @@ func NewMoovBox() *MoovBox {
 
 // AddChild - Add a child box
 func (m *MoovBox) AddChild(box Box) {
-
 	switch box.Type() {
 	case "mvhd":
 		m.Mvhd = box.(*MvhdBox)
@@ -62,6 +62,7 @@ func DecodeMoov(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	m := NewMoovBox()
+	m.StartPos = startPos
 	for _, b := range l {
 		m.AddChild(b)
 	}
@@ -110,4 +111,20 @@ func (m *MoovBox) RemovePsshs() []*PsshBox {
 	m.Psshs = nil
 
 	return psshs
+}
+
+func (m *MoovBox) GetSinf(trackID uint32) *SinfBox {
+	for _, trak := range m.Traks {
+		if trak.Tkhd.TrackID == trackID {
+			stsd := trak.Mdia.Minf.Stbl.Stsd
+			sd := stsd.Children[0] // Get first (and only)
+			if visual, ok := sd.(*VisualSampleEntryBox); ok {
+				return visual.Sinf
+			}
+			if audio, ok := sd.(*AudioSampleEntryBox); ok {
+				return audio.Sinf
+			}
+		}
+	}
+	return nil
 }

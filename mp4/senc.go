@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -19,15 +20,21 @@ type SubSamplePattern struct {
 // InitializationVector (8 or 16 bytes)
 type InitializationVector []byte
 
-// SencBox - Sample Encryption Box (senc)
-// See ISO/IEC 23001-7 Section 7.2
+// SencBox - Sample Encryption Box (senc) (in trak or traf box)
+// Should only be decoded after saio and saiz provide relevant offset and sizes
+// Here we make a two-step decode, with first step reading, and other parsing.
+// See ISO/IEC 23001-7 Section 7.2 and CMAF specification
 // Full Box + SampleCount
 type SencBox struct {
-	Version     byte
-	Flags       uint32
-	SampleCount uint32
-	IVs         []InitializationVector // 8 or 16 bytes if present
-	SubSamples  [][]SubSamplePattern
+	Version          byte
+	readButNotParsed bool
+	perSampleIVSize  byte
+	Flags            uint32
+	SampleCount      uint32
+	StartPos         uint64
+	rawData          []byte
+	IVs              []InitializationVector // 8 or 16 bytes if present
+	SubSamples       [][]SubSamplePattern
 }
 
 // CreateSencBox - create an empty SencBox
@@ -43,11 +50,14 @@ type SencSample struct {
 
 // AddSample - add a senc sample with possible IV and subsamples
 func (s *SencBox) AddSample(sample SencSample) error {
-	if s.SampleCount > 0 {
-		if len(sample.IV) != s.GetPerSampleIVSize() {
-			return fmt.Errorf("Mix of PerSampleIV lengths")
+	if s.SampleCount == 0 {
+		s.perSampleIVSize = byte(len(sample.IV))
+	} else {
+		if len(sample.IV) != int(s.perSampleIVSize) {
+			return fmt.Errorf("mix of IV lengths")
 		}
 	}
+
 	if len(sample.IV) != 0 {
 		s.IVs = append(s.IVs, sample.IV)
 	}
@@ -65,60 +75,93 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
 
-	versionAndFlags := s.ReadUint32()
-	senc := &SencBox{
-		Version:     byte(versionAndFlags >> 24),
-		Flags:       versionAndFlags & flagsMask,
-		SampleCount: s.ReadUint32(),
+	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sampleCount := binary.BigEndian.Uint32(data[4:8])
+
+	senc := SencBox{
+		Version:          byte(versionAndFlags >> 24),
+		rawData:          data[8:], // After the first 8 bytes of box content
+		Flags:            versionAndFlags & flagsMask,
+		StartPos:         startPos,
+		SampleCount:      sampleCount,
+		readButNotParsed: true,
 	}
 
-	if senc.SampleCount == 0 {
-		return senc, nil
+	if senc.SampleCount == 0 || len(senc.rawData) == 0 {
+		senc.readButNotParsed = false
+		return &senc, nil
 	}
+	return &senc, nil
+}
 
-	// We now deduce the PerSampleIVSize from the rest of the content
-	// by trial and error but it should be available in the saiz box
+// ParseReadBox - second phase when perSampleIVSize should be known from tenc or sgpd boxes
+// if perSampleIVSize is 0, we try to find the appropriate error given data length
+func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
+	if !s.readButNotParsed {
+		if perSampleIVSize != 0 {
+			s.perSampleIVSize = byte(perSampleIVSize)
+		}
+		return fmt.Errorf("senc box already parsed")
+	}
+	sr := NewSliceReader(s.rawData)
+	nrBytesLeft := uint32(sr.NrRemainingBytes())
 
-	nrBytesLeft := uint32(s.NrRemainingBytes())
-
-	if senc.Flags&UseSubSampleEncryption == 0 {
+	if s.Flags&UseSubSampleEncryption == 0 {
 		// No subsamples
-		perSampleIVSize := uint16(nrBytesLeft / senc.SampleCount)
-		senc.IVs = make([]InitializationVector, 0, senc.SampleCount)
+		if perSampleIVSize == 0 { // Infer the size
+			perSampleIVSize = byte(nrBytesLeft / s.SampleCount)
+		}
+
+		s.IVs = make([]InitializationVector, 0, s.SampleCount)
 		switch perSampleIVSize {
 		case 0:
 			// Nothing to do
 		case 8:
-			for i := 0; i < int(senc.SampleCount); i++ {
-				senc.IVs = append(senc.IVs, s.ReadBytes(8))
+			for i := 0; i < int(s.SampleCount); i++ {
+				s.IVs = append(s.IVs, sr.ReadBytes(8))
 			}
 		case 16:
-			for i := 0; i < int(senc.SampleCount); i++ {
-				senc.IVs = append(senc.IVs, s.ReadBytes(16))
+			for i := 0; i < int(s.SampleCount); i++ {
+				s.IVs = append(s.IVs, sr.ReadBytes(16))
 			}
 		default:
-			return nil, fmt.Errorf("Strange derived PerSampleIvSize: %d", perSampleIVSize)
+			return fmt.Errorf("Strange derived PerSampleIVSize: %d", perSampleIVSize)
 		}
-	} else { // Now we have 6 bytes of subsamplecount per subsample
-		startPos := s.GetPos()
-		for perSampleIVSize := 0; perSampleIVSize <= 16; perSampleIVSize += 8 {
-			s.SetPos(startPos)
-			ok := senc.parseAndFillSamples(s, perSampleIVSize)
-			if ok {
-				break // We have found a working perSampleIVSize
-			}
+		s.readButNotParsed = false
+		return nil
+	}
+	// 6 bytes of subsamplecount per subsample and known perSampleIVSize
+	// The total length for each sample should correspond to
+	// sizes in saiz (defaultSampleInfoSize or SampleInfo value)
+	// We don't check that though, but it could be implemented here.
+	if perSampleIVSize != 0 {
+		if ok := s.parseAndFillSamples(sr, perSampleIVSize); !ok {
+			return fmt.Errorf("error decoding senc with perSampleIVSize = %d", perSampleIVSize)
 		}
-		if err != nil {
-			return nil, fmt.Errorf("Could not decode senc")
+		s.readButNotParsed = false
+		return nil
+	}
+
+	// Finally, 6 bytes of subsamplecount per subsample and unknown perSampleIVSize
+	startPos := sr.GetPos()
+	ok := false
+	for perSampleIVSize := byte(0); perSampleIVSize <= 16; perSampleIVSize += 8 {
+		sr.SetPos(startPos)
+		ok = s.parseAndFillSamples(sr, perSampleIVSize)
+		if ok {
+			break // We have found a working perSampleIVSize
 		}
 	}
-	return senc, nil
+	if !ok {
+		return fmt.Errorf("Could not decode senc")
+	}
+	s.readButNotParsed = false
+	return nil
 }
 
 // parseAndFillSamples - parse and fill senc samples given perSampleIVSize
-func (s *SencBox) parseAndFillSamples(sr *SliceReader, perSampleIVSize int) (ok bool) {
+func (s *SencBox) parseAndFillSamples(sr *SliceReader, perSampleIVSize byte) (ok bool) {
 	ok = true
 	s.SubSamples = make([][]SubSamplePattern, s.SampleCount)
 	for i := 0; i < int(s.SampleCount); i++ {
@@ -127,7 +170,7 @@ func (s *SencBox) parseAndFillSamples(sr *SliceReader, perSampleIVSize int) (ok 
 				ok = false
 				break
 			}
-			s.IVs = append(s.IVs, sr.ReadBytes(perSampleIVSize))
+			s.IVs = append(s.IVs, sr.ReadBytes(int(perSampleIVSize)))
 		}
 		if sr.NrRemainingBytes() < 2 {
 			ok = false
@@ -150,6 +193,7 @@ func (s *SencBox) parseAndFillSamples(sr *SliceReader, perSampleIVSize int) (ok 
 		s.SubSamples = nil
 		ok = false
 	}
+	s.perSampleIVSize = byte(perSampleIVSize)
 	return ok
 }
 
@@ -160,6 +204,9 @@ func (s *SencBox) Type() string {
 
 // Size - box-specific type
 func (s *SencBox) Size() uint64 {
+	if s.readButNotParsed {
+		return boxHeaderSize + 8 + uint64(len(s.rawData)) // read 8 bytes after header
+	}
 	totalSize := boxHeaderSize + 8
 	perSampleIVSize := s.GetPerSampleIVSize()
 	for i := 0; i < int(s.SampleCount); i++ {
@@ -209,6 +256,11 @@ func (s *SencBox) Encode(w io.Writer) error {
 // Info - write box-specific information
 func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, s, int(s.Version), s.Flags)
+	bd.write(" - sampleCount: %d", s.SampleCount)
+	if s.readButNotParsed {
+		bd.write(" - NOT YET PARSED, call ParseReadBox to parse it")
+		return nil
+	}
 	for _, subSamples := range s.SubSamples {
 		if len(subSamples) > 0 {
 			s.Flags |= UseSubSampleEncryption
@@ -216,7 +268,6 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	perSampleIVSize := s.GetPerSampleIVSize()
 	bd.write(" - perSampleIVSize: %d", perSampleIVSize)
-	bd.write(" - sampleCount: %d", s.SampleCount)
 	level := getInfoLevel(s, specificBoxLevels)
 	if level > 0 {
 		for i := 0; i < int(s.SampleCount); i++ {
@@ -238,12 +289,5 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 
 // GetPerSampleIVSize - return perSampleIVSize
 func (s *SencBox) GetPerSampleIVSize() int {
-	perSampleIVSize := 0
-	for _, iv := range s.IVs {
-		if len(iv) != 0 {
-			perSampleIVSize = len(iv)
-			break
-		}
-	}
-	return perSampleIVSize
+	return int(s.perSampleIVSize)
 }

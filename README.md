@@ -200,6 +200,7 @@ The examples are:
     This tool has been extended to support generation of segments with multiple tracks as well
 	as reading and writing `mdat` in lazy mode
 4. `multitrack` parses a fragmented file with multiple tracks
+5. `decrypt-cenc` decrypts a segmented mp4 file encrypted in `cenc` mode
 
 ## Stability
 The APIs should be fairly stable, but minor non-backwards-compatible changes may happen until version 1.

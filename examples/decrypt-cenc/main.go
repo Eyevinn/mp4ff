@@ -1,3 +1,8 @@
+// decrypt-cenc  - decrypt a segmented mp4 file encrypted in cenc mode
+//
+// The output is in the same format as the input but with samples decrypted
+// and encryption information boxes such as pssh and schm removed.
+// An example file is given in testdata/prog_8s_enc_dashinit.mp4
 package main
 
 import (
@@ -13,25 +18,26 @@ import (
 )
 
 func main() {
-
 	inFilePath := flag.String("i", "", "Required: Path to input file")
 	outFilePath := flag.String("o", "", "Required: Output file")
 	hexKey := flag.String("k", "", "Required: key (hex)")
 
-	err := start(*inFilePath, *outFilePath, *hexKey)
+	ifh, err := os.Open(*inFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer ifh.Close()
+	ofh, err := os.Create(*outFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = start(ifh, ofh, *hexKey)
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 }
 
-func start(inPath, outPath, hexKey string) error {
-
-	ifh, err := os.Open(inPath)
-	if err != nil {
-		return err
-	}
-	defer ifh.Close()
+func start(r io.Reader, w io.Writer, hexKey string) error {
 
 	if len(hexKey) != 32 {
 		return fmt.Errorf("Hex key must have length 32 chars")
@@ -41,7 +47,7 @@ func start(inPath, outPath, hexKey string) error {
 		return err
 	}
 
-	err = decryptMP4withCenc(ifh, key, outPath)
+	err = decryptMP4withCenc(r, key, w)
 	if err != nil {
 		return err
 	}
@@ -64,18 +70,13 @@ func findTrackInfo(tracks []trackInfo, trackID uint32) trackInfo {
 }
 
 // decryptMP4withCenc - decrypt segmented mp4 file with CENC encryption
-func decryptMP4withCenc(r io.Reader, key []byte, outPath string) error {
+func decryptMP4withCenc(r io.Reader, key []byte, w io.Writer) error {
 	inMp4, err := mp4.DecodeFile(r)
 	if err != nil {
 		return err
 	}
 	if !inMp4.IsFragmented() {
 		return fmt.Errorf("file not fragmented. Not supported")
-	}
-
-	ofh, err := os.Create(outPath)
-	if err != nil {
-		return err
 	}
 
 	tracks := make([]trackInfo, 0, len(inMp4.Init.Moov.Traks))
@@ -135,16 +136,15 @@ func decryptMP4withCenc(r io.Reader, key []byte, outPath string) error {
 	}
 
 	// Write the modified init segment
-	err = inMp4.Init.Encode(ofh)
+	err = inMp4.Init.Encode(w)
 	if err != nil {
 		return err
 	}
 
-	err = decryptAndWriteSegments(inMp4.Segments, tracks, key, ofh)
+	err = decryptAndWriteSegments(inMp4.Segments, tracks, key, w)
 	if err != nil {
 		return err
 	}
-	ofh.Close()
 	return nil
 }
 
@@ -176,13 +176,24 @@ func decryptFragment(frag *mp4.Fragment, tracks []trackInfo, key []byte) error {
 	moof := frag.Moof
 	var nrBytesRemoved uint64 = 0
 	for _, traf := range moof.Trafs {
-		senc := traf.Senc
+		hasSenc, isParsed := traf.ContainsSencBox()
+		if !hasSenc {
+			return fmt.Errorf("no senc box in traf")
+		}
 		ti := findTrackInfo(tracks, traf.Tfhd.TrackID)
+		if !isParsed {
+			defaultIVSize := ti.sinf.Schi.Tenc.DefaultPerSampleIVSize
+			err := traf.ParseReadSenc(defaultIVSize, moof.StartPos)
+			if err != nil {
+				return fmt.Errorf("parseReadSenc: %w", err)
+			}
+		}
 		samples, err := frag.GetFullSamples(ti.trex)
 		if err != nil {
 			return err
 		}
-		err = decryptSamplesInPlace(samples, key, senc)
+
+		err = decryptSamplesInPlace(samples, key, traf.Senc)
 		if err != nil {
 			return err
 		}

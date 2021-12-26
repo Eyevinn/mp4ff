@@ -76,7 +76,7 @@ func (b *SchmBox) Encode(w io.Writer) error {
 func (b *SchmBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - schemeType: %s", b.SchemeType)
-	bd.write(" - schemeVersion: %d", b.SchemeVersion)
+	bd.write(" - schemeVersion: %d  (%d.%d)", b.SchemeVersion, b.SchemeVersion>>16, b.SchemeVersion&0xffff)
 	if b.Flags&0x01 != 0 {
 		bd.write(" - schemeURI: %q", b.SchemeURI)
 	}
