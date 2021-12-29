@@ -72,6 +72,11 @@ func DecodeSeigSampleGroupEntry(name string, length uint32, sr *SliceReader) (Sa
 	return s, nil
 }
 
+// ConstantIVSize - non-zero if protected and perSampleIVSize == 0
+func (s *SeigSampleGroupEntry) ConstantIVSize() byte {
+	return byte(len(s.ConstantIV))
+}
+
 // Type - GroupingType SampleGroupEntry (uint32 according to spec)
 func (s *SeigSampleGroupEntry) Type() string {
 	return "seig"
@@ -114,6 +119,7 @@ func (s *SeigSampleGroupEntry) Info(w io.Writer, specificBoxLevels, indent, inde
 	bd.write(" * perSampleIVSize: %d", s.PerSampleIVSize)
 	bd.write(" * KID: %s", s.KID)
 	if s.IsProtected == 1 && s.PerSampleIVSize == 0 {
+		bd.write(" * constantIVSize: %d", s.ConstantIVSize())
 		bd.write(" * constantIV: %s", hex.EncodeToString(s.ConstantIV))
 	}
 	return bd.err
