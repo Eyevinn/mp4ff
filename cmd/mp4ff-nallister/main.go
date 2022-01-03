@@ -150,6 +150,7 @@ func getChunkOffset(stbl *mp4.StblBox, chunkNr int) int64 {
 }
 
 func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel int) error {
+	var trex *mp4.TrexBox
 	if f.Init != nil { // Auto-detect codec if moov box is there
 		moov := f.Init.Moov
 		videoTrak, ok := findFirstVideoTrak(moov)
@@ -162,11 +163,12 @@ func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel in
 		} else if stbl.Stsd.HvcX != nil {
 			codec = "hevc"
 		}
+		trex, _ = moov.Mvex.GetTrex(videoTrak.Tkhd.TrackID)
 	}
 	iSamples := make([]mp4.FullSample, 0)
 	for _, iSeg := range f.Segments {
 		for _, iFrag := range iSeg.Fragments {
-			fSamples, err := iFrag.GetFullSamples(nil)
+			fSamples, err := iFrag.GetFullSamples(trex)
 			if err != nil {
 				return err
 			}

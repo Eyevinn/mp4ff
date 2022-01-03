@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-// SaioBox - Sample Auxiliary Information Offsets Box (saiz)
+// SaioBox - Sample Auxiliary Information Offsets Box (saiz) (in stbl or traf box)
 type SaioBox struct {
 	Version              byte
 	Flags                uint32
@@ -101,8 +101,9 @@ func (b *SaioBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	bd.write(" - sampleCount: %d", len(b.Offset))
 	level := getInfoLevel(b, specificBoxLevels)
+	bd.write(" - offset[%d]=%d", 1, b.Offset[0])
 	if level > 0 {
-		for i := 0; i < len(b.Offset); i++ {
+		for i := 1; i < len(b.Offset); i++ {
 			bd.write(" - offset[%d]=%d", i+1, b.Offset[i])
 		}
 	}

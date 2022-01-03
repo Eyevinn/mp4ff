@@ -32,7 +32,7 @@
     [sbgp] size=28 version=0 flags=000000
      - groupingType: seig
      - entryCount: 1
-     - entry[1] sampleCount=96 groupDescriptionIndex=65537
+     - entry[1] sampleCount=96 groupDescriptionIndex=65537 (index 1 inside fragment)
     [saiz] size=121 version=0 flags=000001
      - auxInfoType: cenc
      - auxInfoTypeParameter: 0
@@ -239,6 +239,7 @@
      - sample[95]: size=369 flags=00010000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0) compositionTimeOffset=1
      - sample[96]: size=378 flags=00010000 (isLeading=0 dependsOn=0 isDependedOn=0 hasRedundancy=0 padding=0 isNonSync=true degradationPriority=0) compositionTimeOffset=1
     [senc] size=1558 version=0 flags=000002
+     - sampleCount: 96
      - perSampleIVSize: 8
      - sample[1]:  iv=89d2843aeaa409b6
        - subSample[1]: nrBytesClear=5 nrBytesProtected=758

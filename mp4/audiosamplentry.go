@@ -15,6 +15,7 @@ type AudioSampleEntryBox struct {
 	SampleSize         uint16
 	SampleRate         uint16 // Integer part
 	Esds               *EsdsBox
+	Sinf               *SinfBox
 	Children           []Box
 }
 
@@ -48,13 +49,15 @@ func CreateAudioSampleEntryBox(name string, nrChannels, sampleSize, sampleRate u
 }
 
 // AddChild - add a child box (avcC normally, but clap and pasp could be part of visual entry)
-func (a *AudioSampleEntryBox) AddChild(b Box) {
-	switch b.Type() {
+func (a *AudioSampleEntryBox) AddChild(child Box) {
+	switch child.Type() {
 	case "esds":
-		a.Esds = b.(*EsdsBox)
+		a.Esds = child.(*EsdsBox)
+	case "sinf":
+		a.Sinf = child.(*SinfBox)
 	}
 
-	a.Children = append(a.Children, b)
+	a.Children = append(a.Children, child)
 }
 
 const nrAudioSampleBytesBeforeChildren = 36
@@ -164,4 +167,24 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 		}
 	}
 	return nil
+}
+
+// RemoveEncryption - remove sinf box and set type to unencrypted type
+func (a *AudioSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
+	if a.name != "enca" {
+		return nil, fmt.Errorf("is not encrypted: %s", a.name)
+	}
+	sinf := a.Sinf
+	if sinf == nil {
+		return nil, fmt.Errorf("does not have sinf box")
+	}
+	for i := range a.Children {
+		if a.Children[i].Type() == "sinf" {
+			a.Children = append(a.Children[:i], a.Children[i+1:]...)
+			a.Sinf = nil
+			break
+		}
+	}
+	a.name = sinf.Frma.DataFormat
+	return sinf, nil
 }

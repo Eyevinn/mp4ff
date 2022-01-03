@@ -15,8 +15,8 @@ const DefaultTrakID = 1
 // A media file can contain one or more tracks.
 type TrakBox struct {
 	Tkhd     *TkhdBox
-	Mdia     *MdiaBox
 	Edts     *EdtsBox
+	Mdia     *MdiaBox
 	Children []Box
 }
 

@@ -12,6 +12,8 @@ type MoofBox struct {
 	Mfhd     *MfhdBox
 	Traf     *TrafBox // The first traf child box
 	Trafs    []*TrafBox
+	Pssh     *PsshBox
+	Psshs    []*PsshBox
 	Children []Box
 	StartPos uint64
 }
@@ -44,6 +46,12 @@ func (m *MoofBox) AddChild(b Box) error {
 			m.Traf = b.(*TrafBox)
 		}
 		m.Trafs = append(m.Trafs, b.(*TrafBox))
+	case "pssh":
+		pssh := b.(*PsshBox)
+		if m.Pssh == nil {
+			m.Pssh = pssh
+		}
+		m.Psshs = append(m.Psshs, pssh)
 	}
 	m.Children = append(m.Children, b)
 	return nil
@@ -87,4 +95,23 @@ func (m *MoofBox) GetChildren() []Box {
 // Info - write box-specific information
 func (m *MoofBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
+}
+
+// RemovePsshs - remove and return all psshs children boxes
+func (m *MoofBox) RemovePsshs() []*PsshBox {
+	if m.Pssh == nil {
+		return nil
+	}
+	psshs := m.Psshs
+	newChildren := make([]Box, 0, len(m.Children)-len(m.Psshs))
+	for i := range m.Children {
+		if m.Children[i].Type() != "pssh" {
+			newChildren = append(newChildren, m.Children[i])
+		}
+	}
+	m.Children = newChildren
+	m.Pssh = nil
+	m.Psshs = nil
+
+	return psshs
 }

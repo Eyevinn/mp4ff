@@ -1,8 +1,13 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
+)
+
+const (
+	sbgpInsideOffset = 65536
 )
 
 // SbgpBox - Sample To Group Box, ISO/IEC 14496-12 6'th edition 2020 Section 8.9.2
@@ -12,7 +17,7 @@ type SbgpBox struct {
 	GroupingType            string // uint32, but takes values such as seig
 	GroupingTypeParameter   uint32
 	SampleCounts            []uint32
-	GroupDescriptionIndices []uint32
+	GroupDescriptionIndices []uint32 // Starts at 65537 inside fragment, see Section 8.9.4
 }
 
 // DecodeSbgp - box-specific decode
@@ -91,8 +96,13 @@ func (b *SbgpBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	level := getInfoLevel(b, specificBoxLevels)
 	if level > 0 {
 		for i := range b.SampleCounts {
-			bd.write(" - entry[%d] sampleCount=%d groupDescriptionIndex=%d",
-				i+1, b.SampleCounts[i], b.GroupDescriptionIndices[i])
+			gdi := fmt.Sprintf("%d", b.GroupDescriptionIndices[i])
+			if b.GroupDescriptionIndices[i] > sbgpInsideOffset {
+				gdi = fmt.Sprintf("%d (index %d inside fragment)",
+					b.GroupDescriptionIndices[i], b.GroupDescriptionIndices[i]-sbgpInsideOffset)
+			}
+			bd.write(" - entry[%d] sampleCount=%d groupDescriptionIndex=%s",
+				i+1, b.SampleCounts[i], gdi)
 		}
 	}
 	return bd.err

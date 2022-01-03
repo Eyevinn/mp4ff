@@ -48,7 +48,7 @@
                  - dataFormat: avc3
                 [schm] size=20 version=0 flags=000000
                  - schemeType: cenc
-                 - schemeVersion: 65536
+                 - schemeVersion: 65536  (1.0)
                 [schi] size=40
                   [tenc] size=32 version=0 flags=000000
                    - defaultIsProtected: 1

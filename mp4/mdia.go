@@ -11,7 +11,6 @@ type MdiaBox struct {
 	Hdlr     *HdlrBox
 	Elng     *ElngBox
 	Minf     *MinfBox
-	Elst     *ElstBox
 	Children []Box
 }
 
@@ -22,7 +21,6 @@ func NewMdiaBox() *MdiaBox {
 
 // AddChild - Add a child box
 func (m *MdiaBox) AddChild(box Box) {
-
 	switch box.Type() {
 	case "mdhd":
 		m.Mdhd = box.(*MdhdBox)
@@ -32,8 +30,6 @@ func (m *MdiaBox) AddChild(box Box) {
 		m.Elng = box.(*ElngBox)
 	case "minf":
 		m.Minf = box.(*MinfBox)
-	case "elst":
-		m.Elst = box.(*ElstBox)
 	}
 	m.Children = append(m.Children, box)
 }

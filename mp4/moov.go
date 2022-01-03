@@ -12,7 +12,10 @@ type MoovBox struct {
 	Trak     *TrakBox // The first trak box
 	Traks    []*TrakBox
 	Mvex     *MvexBox
+	Pssh     *PsshBox
+	Psshs    []*PsshBox
 	Children []Box
+	StartPos uint64
 }
 
 // NewMoovBox - Generate a new empty moov box
@@ -22,7 +25,6 @@ func NewMoovBox() *MoovBox {
 
 // AddChild - Add a child box
 func (m *MoovBox) AddChild(box Box) {
-
 	switch box.Type() {
 	case "mvhd":
 		m.Mvhd = box.(*MvhdBox)
@@ -43,6 +45,12 @@ func (m *MoovBox) AddChild(box Box) {
 		}
 	case "mvex":
 		m.Mvex = box.(*MvexBox)
+	case "pssh":
+		pssh := box.(*PsshBox)
+		if m.Pssh == nil {
+			m.Pssh = pssh
+		}
+		m.Psshs = append(m.Psshs, pssh)
 	}
 	m.Children = append(m.Children, box)
 }
@@ -54,6 +62,7 @@ func DecodeMoov(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	m := NewMoovBox()
+	m.StartPos = startPos
 	for _, b := range l {
 		m.AddChild(b)
 	}
@@ -83,4 +92,39 @@ func (m *MoovBox) Encode(w io.Writer) error {
 // Info - write box-specific information
 func (m *MoovBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
+}
+
+// RemovePsshs - remove and return all psshs children boxes
+func (m *MoovBox) RemovePsshs() []*PsshBox {
+	if m.Pssh == nil {
+		return nil
+	}
+	psshs := m.Psshs
+	newChildren := make([]Box, 0, len(m.Children)-len(m.Psshs))
+	for i := range m.Children {
+		if m.Children[i].Type() != "pssh" {
+			newChildren = append(newChildren, m.Children[i])
+		}
+	}
+	m.Children = newChildren
+	m.Pssh = nil
+	m.Psshs = nil
+
+	return psshs
+}
+
+func (m *MoovBox) GetSinf(trackID uint32) *SinfBox {
+	for _, trak := range m.Traks {
+		if trak.Tkhd.TrackID == trackID {
+			stsd := trak.Mdia.Minf.Stbl.Stsd
+			sd := stsd.Children[0] // Get first (and only)
+			if visual, ok := sd.(*VisualSampleEntryBox); ok {
+				return visual.Sinf
+			}
+			if audio, ok := sd.(*AudioSampleEntryBox); ok {
+				return audio.Sinf
+			}
+		}
+	}
+	return nil
 }
