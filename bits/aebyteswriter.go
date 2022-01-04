@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// AccErrByteWriter - writer that wraps an io.Writer and accumulater error
+// AccErrByteWriter - writer that wraps an io.Writer and accumulates error
 type AccErrByteWriter struct {
 	w   io.Writer
 	err error

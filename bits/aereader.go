@@ -2,7 +2,9 @@ package bits
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
+	"io/ioutil"
 )
 
 // AccErrReader - bit reader that accumulates error
@@ -71,4 +73,21 @@ func (r *AccErrReader) ReadVInt(n int) int {
 		ival = int(uval) - (1 << n)
 	}
 	return ival
+}
+
+// ReadRemainingBytes - read remaining bytes if byte-aligned
+func (r *AccErrReader) ReadRemainingBytes() []byte {
+	if r.err != nil {
+		return nil
+	}
+	if r.nrBits != 0 {
+		r.err = fmt.Errorf("%d bit instead of byte alignment when reading remaining bytes", r.nrBits)
+		return nil
+	}
+	rest, err := ioutil.ReadAll(r.rd)
+	if err != nil {
+		r.err = err
+		return nil
+	}
+	return rest
 }
