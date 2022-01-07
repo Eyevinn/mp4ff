@@ -324,7 +324,8 @@ func (t *TrunBox) GetSampleRange(startSampleNr, endSampleNr uint32) []Sample {
 // This includes mdat data (if not lazy), in which case only offsetInMdat is given.
 // baseDecodeTime is decodeTime in tfdt in track timescale (timescale from mfhd).
 // To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call.
-func (t *TrunBox) GetSampleInterval(startSampleNr, endSampleNr uint32, baseDecodeTime uint64, mdat *MdatBox, offsetInMdat uint32) (SampleInterval, error) {
+func (t *TrunBox) GetSampleInterval(startSampleNr, endSampleNr uint32, baseDecodeTime uint64,
+	mdat *MdatBox, offsetInMdat uint32) (SampleInterval, error) {
 	si := SampleInterval{}
 	if startSampleNr < 1 {
 		return si, fmt.Errorf("startSegNr < 1")

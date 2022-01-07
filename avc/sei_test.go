@@ -21,7 +21,8 @@ func TestParseSEI(t *testing.T) {
 		wantedString string
 	}{
 		{"Type 0", sei0Hex, 0, `SEI type 0, size=7, "810f1c00507440"`},
-		{"Type 4", sei4Hex, 4, `SEI type 4 CEA-608, size=28, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`},
+		{"Type 4", sei4Hex, 4,
+			`SEI type 4 CEA-608, size=28, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`},
 	}
 
 	for _, tc := range testCases {
