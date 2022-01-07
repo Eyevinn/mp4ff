@@ -217,13 +217,13 @@ func (b *StscBox) GetChunk(chunkNr uint32) Chunk {
 		currSamplesPerChunk = b.SamplesPerChunk[i]
 		if i < nrEntries-1 {
 			nextFirstChunk = b.FirstChunk[i+1]
+			if chunkNr < nextFirstChunk {
+				chunk.StartSampleNr = startSampleNr + (chunkNr-currFirstChunk)*currSamplesPerChunk
+				chunk.NrSamples = currSamplesPerChunk
+				return chunk
+			}
+			startSampleNr += currSamplesPerChunk * (nextFirstChunk - currFirstChunk)
 		}
-		if chunkNr < nextFirstChunk {
-			chunk.StartSampleNr = startSampleNr + (chunkNr-currFirstChunk)*currSamplesPerChunk
-			chunk.NrSamples = currSamplesPerChunk
-			return chunk
-		}
-		startSampleNr += currSamplesPerChunk * (nextFirstChunk - currFirstChunk)
 	}
 	startSampleNr += b.SamplesPerChunk[nrEntries-1] * (chunkNr - currFirstChunk)
 	chunk.StartSampleNr = startSampleNr

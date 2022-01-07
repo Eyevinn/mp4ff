@@ -185,8 +185,11 @@ Some useful command line tools are available in `cmd`.
 2. `mp4ff-pslister` extracts and displays SPS and PPS for AVC in a mp4 file. Partial information is printed for HEVC.
 3. `mp4ff-nallister` lists NALUs and picture types for video in progressive or fragmented file
 4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
+5. `mp4ff-crop` shortens a progressive mp4 file to a specified duration
 
-You can install these tools by going to their respective directory and run `go install .`.
+You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
+
+    go install github.com/edgeware/mp4ff/cmd/mp4ff-info@latest
 
 ## Example code
 
