@@ -61,16 +61,16 @@ func (m *MoovBox) AddChild(box Box) {
 
 // DecodeMoov - box-specific decode
 func DecodeMoov(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	m := NewMoovBox()
+	m := MoovBox{Children: make([]Box, 0, len(children))}
 	m.StartPos = startPos
-	for _, b := range l {
-		m.AddChild(b)
+	for _, child := range children {
+		m.AddChild(child)
 	}
-	return m, err
+	return &m, err
 }
 
 // Type - box type

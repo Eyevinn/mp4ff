@@ -40,15 +40,15 @@ func (t *TrakBox) AddChild(box Box) {
 
 // DecodeTrak - box-specific decode
 func DecodeTrak(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	t := NewTrakBox()
-	for _, b := range l {
-		t.AddChild(b)
+	t := TrakBox{Children: make([]Box, 0, len(children))}
+	for _, child := range children {
+		t.AddChild(child)
 	}
-	return t, nil
+	return &t, nil
 }
 
 // Type - box type
