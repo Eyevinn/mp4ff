@@ -29,7 +29,8 @@ func DecodeTraf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &TrafBox{}
+	t := &TrafBox{
+		Children: make([]Box, 0, len(children))}
 	for _, b := range children {
 		err := t.AddChild(b)
 		if err != nil {
@@ -109,10 +110,13 @@ func (t *TrafBox) AddChild(b Box) error {
 	case "senc":
 		t.Senc = b.(*SencBox)
 	case "trun":
+		trun := b.(*TrunBox)
 		if t.Trun == nil {
-			t.Trun = b.(*TrunBox)
+			t.Trun = trun
+		} else {
+			t.Truns = append(t.Truns, t.Trun)
+			t.Truns = append(t.Truns, trun)
 		}
-		t.Truns = append(t.Truns, b.(*TrunBox))
 	default:
 	}
 	t.Children = append(t.Children, b)

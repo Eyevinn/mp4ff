@@ -24,7 +24,7 @@ func DecodeMoof(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := &MoofBox{}
+	m := &MoofBox{Children: make([]Box, 0, len(children))}
 	m.StartPos = startPos
 	for _, box := range children {
 		err := m.AddChild(box)
