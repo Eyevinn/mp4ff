@@ -191,11 +191,10 @@ func EncodeHeaderWithSize(boxType string, boxSize uint64, largeSize bool, w io.W
 	buf := make([]byte, headerSize)
 	if !largeSize {
 		binary.BigEndian.PutUint32(buf, uint32(boxSize))
+		strtobuf(buf[4:], boxType, 4)
 	} else {
-		binary.BigEndian.PutUint32(buf, 1)
-	}
-	strtobuf(buf[4:], boxType, 4)
-	if largeSize {
+		binary.BigEndian.PutUint32(buf, 1) // signals large size
+		strtobuf(buf[4:], boxType, 4)
 		binary.BigEndian.PutUint64(buf[8:], boxSize)
 	}
 	_, err := w.Write(buf)
