@@ -172,7 +172,7 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 	sw.WriteUint16(0x0018) // depth == 0x0018
 	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
 
-	_, err = w.Write(buf[:sw.pos]) // Only write  written bytes
+	_, err = w.Write(buf[:sw.Offset()]) // Only write  written bytes
 	if err != nil {
 		return err
 	}

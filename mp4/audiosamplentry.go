@@ -137,7 +137,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	sw.WriteZeroBytes(4)                          // Pre-defined and reserved
 	sw.WriteUint32(makeFixed32Uint(a.SampleRate)) // nrAudioSampleBytesBeforeChildren bytes this far
 
-	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
+	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
 	if err != nil {
 		return err
 	}

@@ -136,7 +136,7 @@ func (b *StppBox) Encode(w io.Writer) error {
 	if b.AuxiliaryMimeTypes != "" {
 		sw.WriteString(b.AuxiliaryMimeTypes, true)
 	}
-	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
+	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
 	if err != nil {
 		return err
 	}

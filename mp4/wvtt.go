@@ -106,7 +106,7 @@ func (b *WvttBox) Encode(w io.Writer) error {
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 
-	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
+	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
 	if err != nil {
 		return err
 	}
