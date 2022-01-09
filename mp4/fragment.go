@@ -365,6 +365,6 @@ func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
 		traf.Tfdt.BaseMediaDecodeTime = sItvl.FirstDecodeTime
 	}
 	trun.AddSamples(sItvl.Samples)
-	f.Mdat.AddSampleData(sItvl.Data)
+	f.Mdat.AddSampleDataPart(sItvl.Data)
 	return nil
 }
