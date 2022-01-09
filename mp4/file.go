@@ -85,6 +85,7 @@ func NewFile() *File {
 		FragEncMode: EncModeSegment,
 		EncOptimize: OptimizeNone,
 		fileDecMode: DecModeNormal,
+		Children:    make([]Box, 0, 8), // Reasonable number of children
 	}
 }
 

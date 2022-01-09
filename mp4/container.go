@@ -24,7 +24,7 @@ func containerSize(boxes []Box) uint64 {
 
 // DecodeContainerChildren decodes a container box
 func DecodeContainerChildren(hdr boxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
-	l := []Box{}
+	l := make([]Box, 0, 8)
 	pos := startPos
 	for {
 		b, err := DecodeBox(pos, r)
