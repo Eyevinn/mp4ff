@@ -28,7 +28,7 @@ const sampleFlagsPresentFlag uint32 = 0x400
 const sampleCompositionTimeOffsetPresentFlag uint32 = 0x800
 
 // DecodeTrun - box-specific decode
-func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

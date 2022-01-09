@@ -34,7 +34,7 @@ func (d *DrefBox) AddChild(box Box) {
 }
 
 // DecodeDref - box-specific decode
-func DecodeDref(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeDref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, entryCount uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {

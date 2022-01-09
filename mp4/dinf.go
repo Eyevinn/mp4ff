@@ -23,7 +23,7 @@ func (d *DinfBox) AddChild(box Box) {
 }
 
 // DecodeDinf - box-specific decode
-func DecodeDinf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeDinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err

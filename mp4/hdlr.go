@@ -55,7 +55,7 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 }
 
 // DecodeHdlr - box-specific decode
-func DecodeHdlr(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeHdlr(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 
 	if err != nil {

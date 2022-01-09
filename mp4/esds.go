@@ -83,7 +83,7 @@ func CreateEsdsBox(decConfig []byte) *EsdsBox {
 const fixedPartLen = 37
 
 // DecodeEsds - box-specific decode
-func DecodeEsds(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeEsds(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

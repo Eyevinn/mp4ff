@@ -18,7 +18,7 @@ func (b *TrefBox) AddChild(box Box) {
 }
 
 // DecodeTref - box-specific decode
-func DecodeTref(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ type TrefTypeBox struct {
 }
 
 // DecodeTrefType - box-specific decode
-func DecodeTrefType(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrefType(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	b := TrefTypeBox{
 		Name: hdr.name,
 	}

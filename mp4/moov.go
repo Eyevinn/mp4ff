@@ -60,7 +60,7 @@ func (m *MoovBox) AddChild(box Box) {
 }
 
 // DecodeMoov - box-specific decode
-func DecodeMoov(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMoov(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err

@@ -55,7 +55,7 @@ type SubsSample struct {
 }
 
 // DecodeSubs - box-specific decode
-func DecodeSubs(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSubs(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

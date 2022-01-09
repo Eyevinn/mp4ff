@@ -25,7 +25,7 @@ func CreateAvcC(spsNALUs [][]byte, ppsNALUs [][]byte) (*AvcCBox, error) {
 }
 
 // DecodeAvcC - box-specific decode
-func DecodeAvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeAvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	avcDecConfRec, err := avc.DecodeAVCDecConfRec(r)
 	if err != nil {
 		return nil, err

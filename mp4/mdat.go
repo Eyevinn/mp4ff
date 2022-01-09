@@ -19,7 +19,7 @@ type MdatBox struct {
 const maxNormalPayloadSize = (1 << 32) - 1 - 8
 
 // DecodeMdat - box-specific decode
-func DecodeMdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (m *MdatBox) IsLazy() bool {
 }
 
 // DecodeMdatLazily - box-specific decode but Data is not in memory
-func DecodeMdatLazily(hdr *boxHeader, startPos uint64) (Box, error) {
+func DecodeMdatLazily(hdr boxHeader, startPos uint64) (Box, error) {
 	largeSize := hdr.hdrlen > boxHeaderSize
 	decLazyDataSize := hdr.size - uint64(hdr.hdrlen)
 	return &MdatBox{startPos, nil, decLazyDataSize, largeSize}, nil

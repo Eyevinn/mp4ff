@@ -20,7 +20,7 @@ type StcoBox struct {
 }
 
 // DecodeStco - box-specific decode
-func DecodeStco(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStco(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

@@ -22,7 +22,7 @@ func CreateVmhd() *VmhdBox {
 }
 
 // DecodeVmhd - box-specific decode
-func DecodeVmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

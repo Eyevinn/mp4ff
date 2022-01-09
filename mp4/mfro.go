@@ -14,7 +14,7 @@ type MfroBox struct {
 }
 
 // DecodeMfro - box-specific decode
-func DecodeMfro(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMfro(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

@@ -34,7 +34,7 @@ func (b *MetaBox) AddChild(box Box) {
 }
 
 // DecodeMeta - box-specific decode
-func DecodeMeta(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMeta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {

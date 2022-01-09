@@ -20,7 +20,7 @@ func (b *TrepBox) AddChild(child Box) {
 }
 
 // DecodeTrep - box-specific decode
-func DecodeTrep(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrep(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {

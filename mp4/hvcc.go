@@ -26,7 +26,7 @@ func CreateHvcC(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete,
 }
 
 // DecodeHvcC - box-specific decode
-func DecodeHvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeHvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	hevcDecConfRec, err := hevc.DecodeHEVCDecConfRec(r)
 	if err != nil {
 		return nil, err

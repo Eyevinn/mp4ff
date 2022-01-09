@@ -17,7 +17,7 @@ type URLBox struct {
 const dataIsSelfContainedFlag = 0x000001
 
 // DecodeURLBox - box-specific decode
-func DecodeURLBox(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeURLBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

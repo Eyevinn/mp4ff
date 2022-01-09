@@ -12,7 +12,7 @@ type CTooBox struct {
 }
 
 // DecodeCToo - box-specific decode
-func DecodeCToo(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeCToo(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ type DataBox struct {
 }
 
 // DecodeData - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
-func DecodeData(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeData(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

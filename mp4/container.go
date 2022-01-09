@@ -23,7 +23,7 @@ func containerSize(boxes []Box) uint64 {
 }
 
 // DecodeContainerChildren decodes a container box
-func DecodeContainerChildren(hdr *boxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
+func DecodeContainerChildren(hdr boxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
 	l := []Box{}
 	pos := startPos
 	for {

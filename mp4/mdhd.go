@@ -27,7 +27,7 @@ type MdhdBox struct {
 }
 
 // DecodeMdhd - Decode box
-func DecodeMdhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMdhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

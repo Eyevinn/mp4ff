@@ -12,7 +12,7 @@ type FreeBox struct {
 }
 
 // DecodeFree - box-specific decode
-func DecodeFree(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeFree(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

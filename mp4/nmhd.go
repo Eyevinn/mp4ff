@@ -12,7 +12,7 @@ type NmhdBox struct {
 }
 
 // DecodeNmhd - box-specific decode
-func DecodeNmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeNmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

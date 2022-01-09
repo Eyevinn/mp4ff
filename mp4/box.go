@@ -138,14 +138,14 @@ type boxHeader struct {
 }
 
 // decodeHeader decodes a box header (size + box type + possiible largeSize)
-func decodeHeader(r io.Reader) (*boxHeader, error) {
+func decodeHeader(r io.Reader) (boxHeader, error) {
 	buf := make([]byte, boxHeaderSize)
 	n, err := r.Read(buf)
 	if err != nil {
-		return nil, err
+		return boxHeader{}, err
 	}
 	if n != boxHeaderSize {
-		return nil, errors.New("Could not read full 8B header")
+		return boxHeader{}, errors.New("Could not read full 8B header")
 	}
 	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
 	headerLen := boxHeaderSize
@@ -153,17 +153,17 @@ func decodeHeader(r io.Reader) (*boxHeader, error) {
 		buf := make([]byte, largeSizeLen)
 		n, err := r.Read(buf)
 		if err != nil {
-			return nil, err
+			return boxHeader{}, err
 		}
 		if n != largeSizeLen {
-			return nil, fmt.Errorf("Could not read largeSize length field")
+			return boxHeader{}, fmt.Errorf("Could not read largeSize length field")
 		}
 		size = binary.BigEndian.Uint64(buf)
 		headerLen += largeSizeLen
 	} else if size == 0 {
-		return nil, fmt.Errorf("Size 0, meaning to end of file, not supported")
+		return boxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
-	return &boxHeader{string(buf[4:8]), size, headerLen}, nil
+	return boxHeader{string(buf[4:8]), size, headerLen}, nil
 }
 
 // EncodeHeader - encode a box header to a writer
@@ -229,7 +229,7 @@ type Informer interface {
 }
 
 // BoxDecoder is function signature of the Box Decode method
-type BoxDecoder func(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error)
+type BoxDecoder func(hdr boxHeader, startPos uint64, r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
 func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
@@ -247,7 +247,6 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 
 	if !ok {
 		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
-
 	} else {
 		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
 	}

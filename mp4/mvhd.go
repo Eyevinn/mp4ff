@@ -37,7 +37,7 @@ func CreateMvhd() *MvhdBox {
 }
 
 // DecodeMvhd - box-specific decode
-func DecodeMvhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMvhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

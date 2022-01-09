@@ -19,7 +19,7 @@ type MoofBox struct {
 }
 
 // DecodeMoof - box-specific decode
-func DecodeMoof(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMoof(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err

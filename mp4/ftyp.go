@@ -23,7 +23,7 @@ func CreateFtyp() *FtypBox {
 }
 
 // DecodeFtyp - box-specific decode
-func DecodeFtyp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeFtyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

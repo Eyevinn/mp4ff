@@ -73,7 +73,7 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 }
 
 // DecodeVisualSampleEntry - decode avc1/avc3/... box
-func DecodeVisualSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVisualSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

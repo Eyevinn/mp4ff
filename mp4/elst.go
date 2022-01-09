@@ -19,7 +19,7 @@ type ElstBox struct {
 }
 
 // DecodeElst - box-specific decode
-func DecodeElst(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeElst(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

@@ -75,7 +75,7 @@ func (s *StsdBox) GetSampleDescription(index int) (Box, error) {
 }
 
 // DecodeStsd - box-specific decode
-func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStsd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, sampleCount uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {

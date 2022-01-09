@@ -35,7 +35,7 @@ func (m *MvexBox) AddChild(box Box) {
 }
 
 // DecodeMvex - box-specific decode
-func DecodeMvex(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMvex(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
