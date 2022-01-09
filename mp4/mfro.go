@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // MfroBox - Movie Fragment Random Access Offset Box (mfro)
@@ -15,7 +14,7 @@ type MfroBox struct {
 
 // DecodeMfro - box-specific decode
 func DecodeMfro(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

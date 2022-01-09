@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 )
 
 // UnknownBox - box that we don't know how to parse
@@ -15,7 +14,7 @@ type UnknownBox struct {
 
 // DecodeUnknown - decode an unknown box
 func DecodeUnknown(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

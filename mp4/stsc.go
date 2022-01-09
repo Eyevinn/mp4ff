@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // StscBox - Sample To Chunk Box (stsc - mandatory)
@@ -27,7 +26,7 @@ type StscBox struct {
 
 // DecodeStsc - box-specific decode
 func DecodeStsc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

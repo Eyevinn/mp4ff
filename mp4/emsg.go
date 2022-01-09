@@ -3,7 +3,6 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // EmsgBox - DASHEventMessageBox as defined in ISO/IEC 23009-1
@@ -21,7 +20,7 @@ type EmsgBox struct {
 
 // DecodeEmsg - box-specific decode
 func DecodeEmsg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

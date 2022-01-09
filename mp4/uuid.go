@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 )
 
 const (
@@ -40,7 +39,7 @@ type TfrfData struct {
 
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
 func DecodeUUIDBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

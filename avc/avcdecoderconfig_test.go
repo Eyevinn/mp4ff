@@ -1,7 +1,6 @@
 package avc
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -29,7 +28,7 @@ func TestAvcDecoderConfigRecord(t *testing.T) {
 		NumSPSExt:            0,
 	}
 
-	got, err := DecodeAVCDecConfRec(bytes.NewBuffer(byteData))
+	got, err := DecodeAVCDecConfRec(byteData)
 	if err != nil {
 		t.Error("Error parsing AVCDecoderConfigurationRecord")
 	}

@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 )
 
 // MimeBox - MIME Box as defined in ISO/IEC 14496-12 2020 Section 12.3.3.2
@@ -16,7 +15,7 @@ type MimeBox struct {
 
 // DecodeMime - box-specific decode
 func DecodeMime(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

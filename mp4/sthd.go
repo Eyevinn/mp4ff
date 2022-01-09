@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // SthdBox - Subtitle Media Header Box (sthd - for subtitle tracks)
@@ -13,7 +12,7 @@ type SthdBox struct {
 
 // DecodeSthd - box-specific decode
 func DecodeSthd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

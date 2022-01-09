@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 const charOffset = 0x60 // According to Section 8.4.2.3 of 14496-12
@@ -28,7 +27,7 @@ type MdhdBox struct {
 
 // DecodeMdhd - Decode box
 func DecodeMdhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

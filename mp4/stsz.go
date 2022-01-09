@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // StszBox - Sample Size Box (stsz - mandatory)
@@ -25,7 +24,7 @@ type StszBox struct {
 
 // DecodeStsz - box-specific decode
 func DecodeStsz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,6 @@ package mp4
 // ffmpeg boxes according to https://kdenlive.org/en/project/adding-meta-data-to-mp4-video
 import (
 	"io"
-	"io/ioutil"
 )
 
 // CTooBox - ©too box defines the ffmpeg encoding tool information
@@ -71,7 +70,7 @@ type DataBox struct {
 
 // DecodeData - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
 func DecodeData(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

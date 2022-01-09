@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // StcoBox - Chunk Offset Box (stco - mandatory)
@@ -21,7 +20,7 @@ type StcoBox struct {
 
 // DecodeStco - box-specific decode
 func DecodeStco(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

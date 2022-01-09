@@ -243,12 +243,10 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 
 	d, ok := decoders[h.name]
 
-	remainingLength := int64(h.size) - int64(h.hdrlen)
-
 	if !ok {
-		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
+		b, err = DecodeUnknown(h, startPos, r)
 	} else {
-		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
+		b, err = d(h, startPos, r)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("decode %s: %w", h.name, err)
@@ -272,7 +270,7 @@ func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 	remainingLength := int64(h.size) - int64(h.hdrlen)
 
 	if !ok {
-		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
+		b, err = DecodeUnknown(h, startPos, r)
 	} else {
 		switch h.name {
 		case "mdat":
@@ -281,7 +279,7 @@ func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 				_, err = r.Seek(remainingLength, io.SeekCurrent)
 			}
 		default:
-			b, err = d(h, startPos, io.LimitReader(r, remainingLength))
+			b, err = d(h, startPos, r)
 		}
 	}
 	if err != nil {
@@ -316,4 +314,21 @@ func strtobuf(out []byte, str string, l int) {
 
 func makebuf(b Box) []byte {
 	return make([]byte, b.Size()-boxHeaderSize)
+}
+
+// readBoxBody - read box body and check length
+func readBoxBody(r io.Reader, h boxHeader) ([]byte, error) {
+	bodyLen := h.size - uint64(h.hdrlen)
+	if bodyLen == 0 {
+		return nil, nil
+	}
+	body := make([]byte, bodyLen)
+	n, err := r.Read(body)
+	if err != nil {
+		return nil, err
+	}
+	if n != int(bodyLen) {
+		return nil, fmt.Errorf("too few bytes")
+	}
+	return body, nil
 }

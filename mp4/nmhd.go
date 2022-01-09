@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // NmhdBox - Null Media Header Box (nmhd - often used instead ofsthd for subtitle tracks)
@@ -13,7 +12,7 @@ type NmhdBox struct {
 
 // DecodeNmhd - box-specific decode
 func DecodeNmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

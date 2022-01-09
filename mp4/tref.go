@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // TrefBox -  // TrackReferenceBox - ISO/IEC 14496-12 Ed. 9 Sec. 8.3
@@ -68,7 +67,7 @@ func DecodeTrefType(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	b := TrefTypeBox{
 		Name: hdr.name,
 	}
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

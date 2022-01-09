@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // UUIDs for different DRM systems
@@ -54,7 +53,7 @@ type PsshBox struct {
 
 // DecodePssh - box-specific decode
 func DecodePssh(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

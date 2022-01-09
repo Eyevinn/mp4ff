@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // SchmBox - Scheme Type Box
@@ -16,7 +15,7 @@ type SchmBox struct {
 
 // DecodeSchm - box-specific decode
 func DecodeSchm(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

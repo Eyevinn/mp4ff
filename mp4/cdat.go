@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 )
 
 // CdatBox - Closed Captioning Sample Data according to QuickTime spec:
@@ -14,7 +13,7 @@ type CdatBox struct {
 
 // DecodeCdat - box-specific decode
 func DecodeCdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

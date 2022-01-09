@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"io/ioutil"
 )
 
 // Boxes needed for wvtt according to ISO/IEC 14496-30
@@ -47,7 +46,7 @@ const nrWvttBytesBeforeChildren = 16
 
 // DecodeWvtt - Decoder wvtt Sample Entry (wvtt)
 func DecodeWvtt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +146,7 @@ type VttCBox struct {
 
 // DecodeVttC - box-specific decode
 func DecodeVttC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +192,7 @@ type VlabBox struct {
 
 // DecodeVlab - box-specific decode
 func DecodeVlab(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +340,7 @@ type VsidBox struct {
 
 // DecodeVsid - box-specific decode
 func DecodeVsid(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +388,7 @@ type CtimBox struct {
 
 // DecodeCtim - box-specific decode
 func DecodeCtim(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +433,7 @@ type IdenBox struct {
 
 // DecodeIden - box-specific decode
 func DecodeIden(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +478,7 @@ type SttgBox struct {
 
 // DecodeSttg - box-specific decode
 func DecodeSttg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +523,7 @@ type PaylBox struct {
 
 // DecodePayl - box-specific decode
 func DecodePayl(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -569,7 +568,7 @@ type VttaBox struct {
 
 // DecodeVtta - box-specific decode
 func DecodeVtta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

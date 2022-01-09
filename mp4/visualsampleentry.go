@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // VisualSampleEntryBox - Video Sample Description box (avc1/avc3)
@@ -74,7 +73,7 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 
 // DecodeVisualSampleEntry - decode avc1/avc3/... box
 func DecodeVisualSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

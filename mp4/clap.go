@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // ClapBox - Clean Aperture Box, ISO/IEC 14496-12 2020 Sec. 12.1.4
@@ -19,7 +18,7 @@ type ClapBox struct {
 
 // DecodeClap - box-specific decode
 func DecodeClap(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

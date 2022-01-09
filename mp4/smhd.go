@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // SmhdBox - Sound Media Header Box (smhd - mandatory for sound tracks)
@@ -22,7 +21,7 @@ func CreateSmhd() *SmhdBox {
 
 // DecodeSmhd - box-specific decode
 func DecodeSmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 )
 
 // CttsBox - Composition Time to Sample Box (ctts - optional)
@@ -18,7 +17,7 @@ type CttsBox struct {
 
 // DecodeCtts - box-specific decode
 func DecodeCtts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

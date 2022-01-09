@@ -3,7 +3,6 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 /*
@@ -56,7 +55,7 @@ type SubsSample struct {
 
 // DecodeSubs - box-specific decode
 func DecodeSubs(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

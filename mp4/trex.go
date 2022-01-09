@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // TrexBox - Track Extends Box
@@ -28,7 +27,7 @@ func CreateTrex(trackID uint32) *TrexBox {
 
 // DecodeTrex - box-specific decode
 func DecodeTrex(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

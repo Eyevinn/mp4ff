@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 )
 
 // FtypBox - File Type Box (ftyp - mandatory)
@@ -24,7 +23,7 @@ func CreateFtyp() *FtypBox {
 
 // DecodeFtyp - box-specific decode
 func DecodeFtyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

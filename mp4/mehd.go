@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // MehdBox - Movie Extends Header Box
@@ -15,7 +14,7 @@ type MehdBox struct {
 
 // DecodeMehd - box-specific decode
 func DecodeMehd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

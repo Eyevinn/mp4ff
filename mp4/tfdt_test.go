@@ -12,7 +12,7 @@ func TestTfdtReadingV0(t *testing.T) {
 	r := bytes.NewReader(byteData[8:]) // Don't include header
 	bHdr := boxHeader{
 		name:   "tfdt",
-		size:   uint64(len(byteData)/2 + 8),
+		size:   uint64(len(byteData)),
 		hdrlen: 8,
 	}
 	box, _ := DecodeTfdt(bHdr, 0, r)
@@ -52,7 +52,7 @@ func TestTfdtWriteV1(t *testing.T) {
 	r := bytes.NewReader(byteData[8:]) // Don't include header
 	bHdr := boxHeader{
 		name:   "tfdt",
-		size:   uint64(len(byteData)/2 + 8),
+		size:   uint64(len(byteData)),
 		hdrlen: 8,
 	}
 	box, err := DecodeTfdt(bHdr, 0, r)

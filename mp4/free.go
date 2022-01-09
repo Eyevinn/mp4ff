@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // FreeBox - Free Space Box (free or skip)
@@ -13,7 +12,7 @@ type FreeBox struct {
 
 // DecodeFree - box-specific decode
 func DecodeFree(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

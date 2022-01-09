@@ -3,7 +3,6 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // Co64Box - Chunk Large Offset Box
@@ -19,7 +18,7 @@ type Co64Box struct {
 
 // DecodeCo64 - box-specific decode
 func DecodeCo64(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

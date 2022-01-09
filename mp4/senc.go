@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // UseSubSampleEncryption - flag for subsample encryption
@@ -71,7 +70,7 @@ func (s *SencBox) AddSample(sample SencSample) error {
 
 // DecodeSenc - box-specific decode
 func DecodeSenc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

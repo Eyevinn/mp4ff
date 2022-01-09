@@ -3,7 +3,6 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 )
 
 // BtrtBox - BitRateBox - ISO/IEC 14496-12 Section 8.5.2.2
@@ -15,7 +14,7 @@ type BtrtBox struct {
 
 // DecodeBtrt - box-specific decode
 func DecodeBtrt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

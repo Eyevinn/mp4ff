@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // MfhdBox - Media Fragment Header Box (mfhd)
@@ -16,7 +15,7 @@ type MfhdBox struct {
 
 // DecodeMfhd - box-specific decode
 func DecodeMfhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

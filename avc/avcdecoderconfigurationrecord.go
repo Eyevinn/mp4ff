@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // AVC parsing errors
@@ -51,12 +50,7 @@ func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*DecConfRec, err
 }
 
 // DecodeAVCDecConfRec - decode an AVCDecConfRec
-func DecodeAVCDecConfRec(r io.Reader) (DecConfRec, error) {
-
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return DecConfRec{}, err
-	}
+func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 	configurationVersion := data[0] // Should be 1
 	if configurationVersion != 1 {
 		return DecConfRec{}, fmt.Errorf("AVC decoder configuration record version %d unknown",

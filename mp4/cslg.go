@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 // CslgBox - CompositionToDecodeBox -ISO/IEC 14496-12 2015 Sec. 8.6.1.4
@@ -20,7 +19,7 @@ type CslgBox struct {
 
 // DecodeCslg - box-specific decode
 func DecodeCslg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

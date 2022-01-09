@@ -3,7 +3,6 @@ package mp4
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 )
 
 // ElstBox - Edit List Box (elst - optional)
@@ -20,7 +19,7 @@ type ElstBox struct {
 
 // DecodeElst - box-specific decode
 func DecodeElst(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // AudioSampleEntryBox according to ISO/IEC 14496-12
@@ -64,7 +63,7 @@ const nrAudioSampleBytesBeforeChildren = 36
 
 // DecodeAudioSampleEntry - decode mp4a... box
 func DecodeAudioSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 
 	"github.com/edgeware/mp4ff/bits"
 )
@@ -99,11 +98,7 @@ func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, sp
 }
 
 // DecodeHEVCDecConfRec - decode an HEVCDecConfRec
-func DecodeHEVCDecConfRec(r io.Reader) (DecConfRec, error) {
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return DecConfRec{}, err
-	}
+func DecodeHEVCDecConfRec(data []byte) (DecConfRec, error) {
 	hdcr := DecConfRec{}
 	sr := bits.NewSliceReader(data)
 	hdcr.ConfigurationVersion = sr.ReadUint8()
