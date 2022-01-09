@@ -34,10 +34,12 @@ func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	s := NewSliceReader(data)
 	versionAndFlags := s.ReadUint32()
+	sampleCount := s.ReadUint32()
 	t := &TrunBox{
 		Version:     byte(versionAndFlags >> 24),
 		flags:       versionAndFlags & flagsMask,
-		sampleCount: s.ReadUint32(),
+		sampleCount: sampleCount,
+		Samples:     make([]Sample, sampleCount),
 	}
 
 	if t.HasDataOffset() {
@@ -66,8 +68,7 @@ func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		if t.HasSampleCompositionTimeOffset() {
 			cto = s.ReadInt32()
 		}
-		sample := NewSample(flags, dur, size, cto)
-		t.Samples = append(t.Samples, sample)
+		t.Samples[i] = Sample{flags, dur, size, cto}
 	}
 
 	return t, nil
