@@ -17,30 +17,30 @@ type ContainerBox interface {
 	Info(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
 
-func containerSize(boxes []Box) uint64 {
+func containerSize(children []Box) uint64 {
 	var contentSize uint64 = 0
-	for _, box := range boxes {
-		contentSize += box.Size()
+	for _, child := range children {
+		contentSize += child.Size()
 	}
 	return boxHeaderSize + contentSize
 }
 
 // DecodeContainerChildren decodes a container box
 func DecodeContainerChildren(hdr boxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
-	l := make([]Box, 0, 8)
+	children := make([]Box, 0, 8)
 	pos := startPos
 	for {
-		b, err := DecodeBox(pos, r)
+		child, err := DecodeBox(pos, r)
 		if err == io.EOF {
-			return l, nil
+			return children, nil
 		}
 		if err != nil {
-			return l, err
+			return children, err
 		}
-		l = append(l, b)
-		pos += b.Size()
+		children = append(children, child)
+		pos += child.Size()
 		if pos == endPos {
-			return l, nil
+			return children, nil
 		} else if pos > endPos {
 			return nil, fmt.Errorf("Non-matching children box sizes")
 		}
@@ -53,8 +53,8 @@ func EncodeContainer(c ContainerBox, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, b := range c.GetChildren() {
-		err = b.Encode(w)
+	for _, child := range c.GetChildren() {
+		err = child.Encode(w)
 		if err != nil {
 			return err
 		}
@@ -68,8 +68,8 @@ func EncodeContainerSW(c ContainerBox, sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
-	for _, b := range c.GetChildren() {
-		err = b.EncodeSW(sw)
+	for _, child := range c.GetChildren() {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}
