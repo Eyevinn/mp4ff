@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // KindBox - Track Kind Box
@@ -44,16 +46,24 @@ func (b *KindBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *KindBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// Encode - write box to w
+func (b *KindBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	sw.WriteString(b.SchemeURI, true)
 	sw.WriteString(b.Value, true)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

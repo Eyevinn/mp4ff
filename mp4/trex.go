@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrexBox - Track Extends Box
@@ -47,41 +49,49 @@ func DecodeTrex(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Type - return box type
-func (t *TrexBox) Type() string {
+func (b *TrexBox) Type() string {
 	return "trex"
 }
 
 // Size - return calculated size
-func (t *TrexBox) Size() uint64 {
+func (b *TrexBox) Size() uint64 {
 	return uint64(boxHeaderSize + 4 + 20)
 }
 
 // Encode - write box to w
-func (t *TrexBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
+func (b *TrexBox) Encode(w io.Writer) error {
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(t)
-	sw := NewSliceWriter(buf)
-	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
-	sw.WriteUint32(versionAndFlags)
-	sw.WriteUint32(t.TrackID)
-	sw.WriteUint32(t.DefaultSampleDescriptionIndex)
-	sw.WriteUint32(t.DefaultSampleDuration)
-	sw.WriteUint32(t.DefaultSampleSize)
-	sw.WriteUint32(t.DefaultSampleFlags)
-	_, err = w.Write(buf)
+	_, err = w.Write(sw.Bytes())
 	return err
 }
 
+// EncodeSW - box-specific encode to slicewriter
+func (b *TrexBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(b.TrackID)
+	sw.WriteUint32(b.DefaultSampleDescriptionIndex)
+	sw.WriteUint32(b.DefaultSampleDuration)
+	sw.WriteUint32(b.DefaultSampleSize)
+	sw.WriteUint32(b.DefaultSampleFlags)
+	return sw.AccError()
+}
+
 // Info - write box-specific information
-func (t *TrexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
-	bd.write(" - trackID: %d", t.TrackID)
-	bd.write(" - defaultSampleDescriptionIndex: %d", t.DefaultSampleDescriptionIndex)
-	bd.write(" - defaultSampleDuration: %d", t.DefaultSampleDuration)
-	bd.write(" - defaultSampleSize: %d", t.DefaultSampleSize)
-	bd.write(" - defaultSampleFlags: %08x (%s)", t.DefaultSampleFlags, DecodeSampleFlags(t.DefaultSampleFlags))
+func (b *TrexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
+	bd.write(" - trackID: %d", b.TrackID)
+	bd.write(" - defaultSampleDescriptionIndex: %d", b.DefaultSampleDescriptionIndex)
+	bd.write(" - defaultSampleDuration: %d", b.DefaultSampleDuration)
+	bd.write(" - defaultSampleSize: %d", b.DefaultSampleSize)
+	bd.write(" - defaultSampleFlags: %08x (%s)", b.DefaultSampleFlags, DecodeSampleFlags(b.DefaultSampleFlags))
 	return bd.err
 }

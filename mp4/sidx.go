@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 /*
@@ -116,12 +118,21 @@ func (b *SidxBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SidxBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SidxBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(b.ReferenceID)
@@ -141,8 +152,7 @@ func (b *SidxBox) Encode(w io.Writer) error {
 		sw.WriteUint32((uint32(ref.StartsWithSAP) << 31) | (uint32(ref.SAPType) << 28) |
 			ref.SAPDeltaTime)
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 //Info - more info for level 1

@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // SaizBox - Sample Auxiliary Information Sizes Box (saiz)  (in stbl or traf box)
@@ -61,12 +63,21 @@ func (b *SaizBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SaizBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SaizBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	if b.Flags&0x01 != 0 {
@@ -80,8 +91,7 @@ func (b *SaizBox) Encode(w io.Writer) error {
 			sw.WriteUint8(b.SampleInfo[i])
 		}
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write SaizBox details. Get sampleInfo list with level >= 1

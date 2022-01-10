@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // FreeBox - Free Space Box (free or skip)
@@ -31,12 +33,23 @@ func (b *FreeBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *FreeBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(b.notDecoded)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *FreeBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteBytes(b.notDecoded)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

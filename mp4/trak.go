@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // DefaultTrakID - trakID used when generating new fragmented content
@@ -69,6 +71,11 @@ func (t *TrakBox) GetChildren() []Box {
 // Encode - write trak container to w
 func (t *TrakBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
+}
+
+// Encode - write trak container to sw
+func (b *TrakBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box info to w

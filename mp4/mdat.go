@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MdatBox - Media Data Box (mdat)
@@ -115,6 +117,23 @@ func (m *MdatBox) Encode(w io.Writer) error {
 	}
 
 	return err
+}
+
+// Encode - write box to sw. If m.lazyDataSize > 0, the mdat data needs to be written separately
+func (m *MdatBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderWithSizeSW("mdat", m.Size(), m.LargeSize, sw)
+	if err != nil {
+		return err
+	}
+	if len(m.DataParts) > 0 {
+		for _, dp := range m.DataParts {
+			sw.WriteBytes(dp)
+		}
+	} else {
+		sw.WriteBytes(m.Data)
+	}
+
+	return sw.AccError()
 }
 
 // DataLength - length of data stored in box either as one or multiple parts

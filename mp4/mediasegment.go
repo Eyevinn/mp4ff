@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MediaSegment - MP4 Media Segment
@@ -72,6 +74,30 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 	for _, f := range s.Fragments {
 		f.EncOptimize = s.EncOptimize
 		err := f.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW - Write MediaSegment via SliceWriter
+func (s *MediaSegment) EncodeSW(sw bits.SliceWriter) error {
+	if s.Styp != nil {
+		err := s.Styp.EncodeSW(sw)
+		if err != nil {
+			return err
+		}
+	}
+	if s.Sidx != nil {
+		err := s.Sidx.EncodeSW(sw)
+		if err != nil {
+			return err
+		}
+	}
+	for _, f := range s.Fragments {
+		f.EncOptimize = s.EncOptimize
+		err := f.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

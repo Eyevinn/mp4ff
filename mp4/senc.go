@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // UseSubSampleEncryption - flag for subsample encryption
@@ -201,6 +203,16 @@ func (s *SencBox) Type() string {
 	return "senc"
 }
 
+//setSubSamplesUsedFlag - set flag if subsamples are used
+func (s *SencBox) setSubSamplesUsedFlag() {
+	for _, subSamples := range s.SubSamples {
+		if len(subSamples) > 0 {
+			s.Flags |= UseSubSampleEncryption
+			break
+		}
+	}
+}
+
 // Size - box-specific type
 func (s *SencBox) Size() uint64 {
 	if s.readButNotParsed {
@@ -217,20 +229,26 @@ func (s *SencBox) Size() uint64 {
 	return uint64(totalSize)
 }
 
-// Encode - box-specific encode
+// Encode - write box to w
 func (s *SencBox) Encode(w io.Writer) error {
 	// First check if subsamplencryption is to be used since it influences the box size
-	for _, subSamples := range s.SubSamples {
-		if len(subSamples) > 0 {
-			s.Flags |= UseSubSampleEncryption
-		}
-	}
-	err := EncodeHeader(s, w)
+	s.setSubSamplesUsedFlag()
+	sw := bits.NewSliceWriterWithSize(int(s.Size()))
+	err := s.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(s)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (s *SencBox) EncodeSW(sw bits.SliceWriter) error {
+	s.setSubSamplesUsedFlag()
+	err := EncodeHeaderSW(s, sw)
+	if err != nil {
+		return err
+	}
 
 	versionAndFlags := (uint32(s.Version) << 24) + s.Flags
 	sw.WriteUint32(versionAndFlags)
@@ -248,8 +266,7 @@ func (s *SencBox) Encode(w io.Writer) error {
 			}
 		}
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

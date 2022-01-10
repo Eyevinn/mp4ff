@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // DinfBox - Data Information Box (dinf - mandatory)
@@ -53,6 +55,11 @@ func (d *DinfBox) GetChildren() []Box {
 // Encode - write dinf container to w
 func (d *DinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(d, w)
+}
+
+// EncodeSW - write container using slice writer
+func (d *DinfBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(d, sw)
 }
 
 // Info - write box info to w

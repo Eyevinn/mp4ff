@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // UdtaBox - User Data Box is a container for User Data
 //
@@ -46,6 +50,11 @@ func (b *UdtaBox) GetChildren() []Box {
 // Encode - write udta container to w
 func (b *UdtaBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
+}
+
+// Encode - write udta container to sw
+func (b *UdtaBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // StsdBox - Sample Description Box (stsd - manatory)
@@ -134,6 +136,24 @@ func (s *StsdBox) Encode(w io.Writer) error {
 	}
 	for _, b := range s.Children {
 		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW - box-specific encode of stsd - not a usual container
+func (s *StsdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(s, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(s.Version) << 24) + s.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(s.SampleCount)
+	for _, c := range s.Children {
+		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

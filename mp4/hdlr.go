@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // HdlrBox - Handler Reference Box (hdlr - mandatory)
@@ -97,21 +99,28 @@ func (b *HdlrBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *HdlrBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	versionAndFlags := (uint32(b.Version) << 24) | b.Flags
-	binary.BigEndian.PutUint32(buf[0:], versionAndFlags)
-	binary.BigEndian.PutUint32(buf[4:], b.PreDefined)
-	strtobuf(buf[8:], b.HandlerType, 4)
-	strtobuf(buf[24:], b.Name, len(b.Name))
-	if !b.LacksNullTermination {
-		buf[len(buf)-1] = 0 // null-termination of string
-	}
-	_, err = w.Write(buf)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *HdlrBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) | b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(b.PreDefined)
+	sw.WriteString(b.HandlerType, false)
+	sw.WriteZeroBytes(12)
+	sw.WriteString(b.Name, !b.LacksNullTermination)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

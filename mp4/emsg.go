@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // EmsgBox - DASHEventMessageBox as defined in ISO/IEC 23009-1
@@ -79,12 +81,21 @@ func (b *EmsgBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *EmsgBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, b.Size()-boxHeaderSize)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *EmsgBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	if b.Version == 1 {
@@ -102,9 +113,7 @@ func (b *EmsgBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.EventDuration)
 		sw.WriteUint32(b.ID)
 	}
-
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

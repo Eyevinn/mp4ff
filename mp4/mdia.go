@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // MdiaBox - Media Box (mdia)
 //
@@ -62,9 +66,14 @@ func (m *MdiaBox) GetChildren() []Box {
 	return m.Children
 }
 
-// Encode - write mdia container to w
+// EncodeSW - write mdia container to w
 func (m *MdiaBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+// Encode - write mdia container via sw
+func (m *MdiaBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(m, sw)
 }
 
 // Info - write box-specific information

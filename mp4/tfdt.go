@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TfdtBox - Track Fragment Decode Time (tfdt)
@@ -72,12 +74,21 @@ func (t *TfdtBox) Size() uint64 {
 
 // Encode - write box to w
 func (t *TfdtBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
+	sw := bits.NewSliceWriterWithSize(int(t.Size()))
+	err := t.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(t)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (t *TfdtBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(t, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	if t.Version == 0 {
@@ -85,8 +96,7 @@ func (t *TfdtBox) Encode(w io.Writer) error {
 	} else {
 		sw.WriteUint64(t.BaseMediaDecodeTime)
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box info to w

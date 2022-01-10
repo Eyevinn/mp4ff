@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // FrmaBox - Original Format Box
@@ -34,12 +36,23 @@ func (b *FrmaBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *FrmaBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.DataFormat))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *FrmaBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.DataFormat, false)
+	return sw.AccError()
 }
 
 // Info - write box info to w

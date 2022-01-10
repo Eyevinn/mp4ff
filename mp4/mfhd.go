@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MfhdBox - Media Fragment Header Box (mfhd)
@@ -52,17 +54,25 @@ func (m *MfhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (m *MfhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
+	sw := bits.NewSliceWriterWithSize(int(m.Size()))
+	err := m.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(m)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (m *MfhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(m, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(m.Version) << 24) + m.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(m.SequenceNumber)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

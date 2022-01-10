@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MoovBox - Movie Box (moov - mandatory)
@@ -91,6 +93,11 @@ func (m *MoovBox) GetChildren() []Box {
 // Encode - write moov container to w
 func (m *MoovBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+// Encode - write moov container to sw
+func (m *MoovBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(m, sw)
 }
 
 // Info - write box-specific information

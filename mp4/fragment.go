@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"sort"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
@@ -270,6 +272,31 @@ func (f *Fragment) Encode(w io.Writer) error {
 	f.SetTrunDataOffsets()
 	for _, b := range f.Children {
 		err := b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW - write fragment via SliceWriter
+func (f *Fragment) EncodeSW(sw bits.SliceWriter) error {
+	if f.Moof == nil {
+		return fmt.Errorf("moof not set in fragment")
+	}
+	traf := f.Moof.Traf
+	if f.EncOptimize&OptimizeTrun != 0 {
+		err := traf.OptimizeTfhdTrun()
+		if err != nil {
+			return err
+		}
+	}
+	if f.Mdat == nil {
+		return fmt.Errorf("mdat not set in fragment")
+	}
+	f.SetTrunDataOffsets()
+	for _, c := range f.Children {
+		err := c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

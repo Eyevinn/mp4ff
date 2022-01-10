@@ -156,35 +156,44 @@ func (h *DecConfRec) Size() uint64 {
 	return uint64(totalSize)
 }
 
-// Encode - write an HEVCDecConfRec to w
 func (h *DecConfRec) Encode(w io.Writer) error {
-	aw := bits.NewAccErrByteWriter(w)
-	aw.WriteUint8(h.ConfigurationVersion)
+	sw := bits.NewSliceWriterWithSize(int(h.Size()))
+	err := h.EncodeSW(sw)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW- write an HEVCDecConfRec to sw
+func (h *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
+	sw.WriteUint8(h.ConfigurationVersion)
 	var generalTierFlagBit byte
 	if h.GeneralTierFlag {
 		generalTierFlagBit = 1 << 5
 	}
-	aw.WriteUint8(h.GeneralProfileSpace<<6 | generalTierFlagBit | h.GeneralProfileIDC)
-	aw.WriteUint32(h.GeneralProfileCompatibilityFlags)
-	aw.WriteUint48(h.GeneralConstraintIndicatorFlags)
-	aw.WriteUint8(h.GeneralLevelIDC)
-	aw.WriteUint16(0xf000 | h.MinSpatialSegmentationIDC)
-	aw.WriteUint8(0xfc | h.ParallellismType)
-	aw.WriteUint8(0xfc | h.ChromaFormatIDC)
-	aw.WriteUint8(0xf8 | h.BitDepthLumaMinus8)
-	aw.WriteUint8(0xf8 | h.BitDepthChromaMinus8)
-	aw.WriteUint16(h.AvgFrameRate)
-	aw.WriteUint8(h.ConstantFrameRate<<6 | h.NumTemporalLayers<<3 | h.TemporalIDNested<<2 | h.LengthSizeMinusOne)
-	aw.WriteUint8(byte(len(h.NaluArrays)))
+	sw.WriteUint8(h.GeneralProfileSpace<<6 | generalTierFlagBit | h.GeneralProfileIDC)
+	sw.WriteUint32(h.GeneralProfileCompatibilityFlags)
+	sw.WriteUint48(h.GeneralConstraintIndicatorFlags)
+	sw.WriteUint8(h.GeneralLevelIDC)
+	sw.WriteUint16(0xf000 | h.MinSpatialSegmentationIDC)
+	sw.WriteUint8(0xfc | h.ParallellismType)
+	sw.WriteUint8(0xfc | h.ChromaFormatIDC)
+	sw.WriteUint8(0xf8 | h.BitDepthLumaMinus8)
+	sw.WriteUint8(0xf8 | h.BitDepthChromaMinus8)
+	sw.WriteUint16(h.AvgFrameRate)
+	sw.WriteUint8(h.ConstantFrameRate<<6 | h.NumTemporalLayers<<3 | h.TemporalIDNested<<2 | h.LengthSizeMinusOne)
+	sw.WriteUint8(byte(len(h.NaluArrays)))
 	for _, array := range h.NaluArrays {
-		aw.WriteUint8(array.completeAndType)
-		aw.WriteUint16(uint16(len(array.Nalus)))
+		sw.WriteUint8(array.completeAndType)
+		sw.WriteUint16(uint16(len(array.Nalus)))
 		for _, nalu := range array.Nalus {
-			aw.WriteUint16(uint16(len(nalu)))
-			aw.WriteSlice(nalu)
+			sw.WriteUint16(uint16(len(nalu)))
+			sw.WriteBytes(nalu)
 		}
 	}
-	return aw.AccError()
+	return sw.AccError()
 }
 
 // GetNalusForType - get all nalus for a specific naluType

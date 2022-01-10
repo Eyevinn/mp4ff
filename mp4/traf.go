@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrafBox - Track Fragment Box (traf)
@@ -137,6 +139,11 @@ func (t *TrafBox) GetChildren() []Box {
 // Encode - write box to w
 func (t *TrafBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
+}
+
+// Encode - write minf container to sw
+func (b *TrafBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

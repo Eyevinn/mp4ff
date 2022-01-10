@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // SinfBox -  Protection Scheme Information Box according to ISO/IEC 23001-7
@@ -56,6 +58,11 @@ func (b *SinfBox) GetChildren() []Box {
 // Encode - write minf container to w
 func (b *SinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
+}
+
+// Encode - write minf container to sw
+func (b *SinfBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

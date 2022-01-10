@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrunBox - Track Fragment Run Box (trun)
@@ -215,12 +217,21 @@ func (t *TrunBox) Size() uint64 {
 
 // Encode - write box to w
 func (t *TrunBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
+	sw := bits.NewSliceWriterWithSize(int(t.Size()))
+	err := t.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(t)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (t *TrunBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(t, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(t.Version) << 24) + t.flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(t.sampleCount)
@@ -249,8 +260,7 @@ func (t *TrunBox) Encode(w io.Writer) error {
 		}
 
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - specificBoxLevels trun:1 gives details

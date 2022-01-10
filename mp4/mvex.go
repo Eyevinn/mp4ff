@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // MvexBox - MovieExtendsBox (mevx)
 //
@@ -65,6 +69,11 @@ func (m *MvexBox) GetChildren() []Box {
 // Encode - write mvex container to w
 func (m *MvexBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+// Encode - write mvex container to sw
+func (m *MvexBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(m, sw)
 }
 
 // Info - write box-specific information

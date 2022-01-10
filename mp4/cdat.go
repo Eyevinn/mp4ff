@@ -3,6 +3,8 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // CdatBox - Closed Captioning Sample Data according to QuickTime spec:
@@ -35,12 +37,23 @@ func (b *CdatBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CdatBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(b.Data)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *CdatBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteBytes(b.Data)
+	return sw.AccError()
 }
 
 // Info - write specific box information

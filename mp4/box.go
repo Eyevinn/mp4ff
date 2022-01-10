@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const (
@@ -201,6 +203,33 @@ func EncodeHeaderWithSize(boxType string, boxSize uint64, largeSize bool, w io.W
 	return err
 }
 
+// EncodeHeaderSW - encode a box header to a SliceWriter
+func EncodeHeaderSW(b Box, sw bits.SliceWriter) error {
+	boxType, boxSize := b.Type(), b.Size()
+	if boxSize >= 1<<32 {
+		return fmt.Errorf("Box size %d is too big for normal 4-byte size field", boxSize)
+	}
+	sw.WriteUint32(uint32(boxSize))
+	sw.WriteString(boxType, false)
+	return nil
+}
+
+// EncodeHeaderWithSize - encode a box header to a writer and allow for largeSize
+func EncodeHeaderWithSizeSW(boxType string, boxSize uint64, largeSize bool, sw bits.SliceWriter) error {
+	if !largeSize && boxSize >= 1<<32 {
+		return fmt.Errorf("Box size %d is too big for normal 4-byte size field", boxSize)
+	}
+	if !largeSize {
+		sw.WriteUint32(uint32(boxSize))
+		sw.WriteString(boxType, false)
+	} else {
+		sw.WriteUint32(1) // signals large size
+		sw.WriteString(boxType, false)
+		sw.WriteUint64(boxSize)
+	}
+	return sw.AccError()
+}
+
 // Box is the general interface to any ISOBMFF box or similar
 type Box interface {
 	// Type of box, normally 4 asccii characters, but is uint32 according to spec
@@ -209,6 +238,8 @@ type Box interface {
 	Size() uint64
 	// Encode box to writer
 	Encode(w io.Writer) error
+	// Encode box to SliceWriter
+	EncodeSW(sw bits.SliceWriter) error
 	// Info - write box details
 	//   spedificBoxLevels is a comma-separated list box:level or all:level where level >= 0.
 	//   Higher levels give more details. 0 is default
@@ -302,8 +333,7 @@ func (f Fixed32) String() string {
 	return fmt.Sprintf("%d.%d", uint32(f)>>16, uint32(f)&15)
 }
 
-func strtobuf(out []byte, str string, l int) {
-	in := []byte(str)
+func strtobuf(out []byte, in string, l int) {
 	if l < len(in) {
 		copy(out, in)
 	} else {

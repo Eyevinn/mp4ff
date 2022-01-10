@@ -3,6 +3,8 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // StssBox - Sync Sample Box (stss - optional)
@@ -70,22 +72,30 @@ func (b *StssBox) IsSyncSample(sampleNr uint32) (isSync bool) {
 	return i < nrSamples && b.SampleNumber[i] == sampleNr
 }
 
-// Encode - box-specific encode
+// Encode - write box to w
 func (b *StssBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *StssBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(uint32(len(b.SampleNumber)))
 	for i := range b.SampleNumber {
 		sw.WriteUint32(b.SampleNumber[i])
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

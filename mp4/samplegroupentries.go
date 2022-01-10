@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // SampleGroupEntry - like a box, but size and type are not in a header
@@ -13,7 +15,7 @@ type SampleGroupEntry interface {
 	// Size of SampleGroup Entry
 	Size() uint64
 	// Encode SampleGroupEntry to SliceWriter
-	Encode(sw *SliceWriter)
+	Encode(sw bits.SliceWriter)
 	// Info - description of content.
 	Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error)
 }
@@ -97,7 +99,7 @@ func (s *SeigSampleGroupEntry) Size() uint64 {
 }
 
 // Encode SampleGroupEntry to SliceWriter
-func (s *SeigSampleGroupEntry) Encode(sw *SliceWriter) {
+func (s *SeigSampleGroupEntry) Encode(sw bits.SliceWriter) {
 	sw.WriteUint8(0) // Reserved
 	byteTwo := s.CryptByteBlock<<4 | s.SkipByteBlock
 	sw.WriteUint8(byteTwo)
@@ -151,7 +153,7 @@ func (s *UnknownSampleGroupEntry) Size() uint64 {
 }
 
 // Encode SampleGroupEntry to SliceWriter
-func (s *UnknownSampleGroupEntry) Encode(sw *SliceWriter) {
+func (s *UnknownSampleGroupEntry) Encode(sw bits.SliceWriter) {
 	sw.WriteBytes(s.Data)
 }
 
@@ -193,7 +195,7 @@ func (s *RollSampleGroupEntry) Size() uint64 {
 }
 
 // Encode SampleGroupEntry to SliceWriter
-func (s *RollSampleGroupEntry) Encode(sw *SliceWriter) {
+func (s *RollSampleGroupEntry) Encode(sw bits.SliceWriter) {
 	sw.WriteInt16(s.RollDistance)
 }
 
@@ -232,7 +234,7 @@ func (s *RapSampleGroupEntry) Size() uint64 {
 }
 
 // Encode SampleGroupEntry to SliceWriter
-func (s *RapSampleGroupEntry) Encode(sw *SliceWriter) {
+func (s *RapSampleGroupEntry) Encode(sw bits.SliceWriter) {
 	var byt uint8
 	byt |= (s.NumLeadingSamplesKnown << 7)
 	byt |= (s.NumLeadingSamples)
@@ -300,7 +302,7 @@ func DecodeAlstSampleGroupEntry(name string, length uint32, sr *SliceReader) (Sa
 }
 
 // Encode SampleGroupEntry to SliceWriter
-func (s *AlstSampleGroupEntry) Encode(sw *SliceWriter) {
+func (s *AlstSampleGroupEntry) Encode(sw bits.SliceWriter) {
 	sw.WriteUint16(s.RollCount)
 	sw.WriteUint16(s.FirstOutputSample)
 	for _, offset := range s.SampleOffset {

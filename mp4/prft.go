@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // PrftBox - Producer Reference Box (prft)
@@ -52,39 +54,47 @@ func DecodePrft(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // Type - return box type
-func (p *PrftBox) Type() string {
+func (b *PrftBox) Type() string {
 	return "prft"
 }
 
 // Size - return calculated size
-func (p *PrftBox) Size() uint64 {
-	return uint64(boxHeaderSize + 16 + 4*int(p.Version))
+func (b *PrftBox) Size() uint64 {
+	return uint64(boxHeaderSize + 16 + 4*int(b.Version))
 }
 
 // Encode - write box to w
-func (p *PrftBox) Encode(w io.Writer) error {
-	err := EncodeHeader(p, w)
+func (b *PrftBox) Encode(w io.Writer) error {
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(p)
-	sw := NewSliceWriter(buf)
-	versionAndFlags := (uint32(p.Version) << 24) + p.Flags
-	sw.WriteUint32(versionAndFlags)
-	sw.WriteUint64(p.NTPTimestamp)
-	if p.Version == 0 {
-		sw.WriteUint32(uint32(p.MediaTime))
-	} else {
-		sw.WriteUint64(p.MediaTime)
-	}
-	_, err = w.Write(buf)
+	_, err = w.Write(sw.Bytes())
 	return err
 }
 
+// EncodeSW - box-specific encode to slicewriter
+func (b *PrftBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint64(b.NTPTimestamp)
+	if b.Version == 0 {
+		sw.WriteUint32(uint32(b.MediaTime))
+	} else {
+		sw.WriteUint64(b.MediaTime)
+	}
+	return sw.AccError()
+}
+
 // Info - write box-specific information
-func (p *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, p, int(p.Version), p.Flags)
-	bd.write(" - ntpTimestamp: %d", p.NTPTimestamp)
-	bd.write(" - mediaTime: %d", p.MediaTime)
+func (b *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
+	bd.write(" - ntpTimestamp: %d", b.NTPTimestamp)
+	bd.write(" - mediaTime: %d", b.MediaTime)
 	return bd.err
 }

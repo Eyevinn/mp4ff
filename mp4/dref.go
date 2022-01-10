@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // DrefBox - Data Reference Box (dref - mandatory)
@@ -92,6 +94,24 @@ func (d *DrefBox) Encode(w io.Writer) error {
 	}
 	for _, b := range d.Children {
 		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// EncodeSW - write dref box to w including children
+func (d *DrefBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(d, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(d.Version) << 24) + d.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(uint32(d.EntryCount))
+	for _, b := range d.Children {
+		err = b.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

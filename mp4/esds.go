@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 /*
@@ -159,15 +161,22 @@ func (e *EsdsBox) Size() uint64 {
 
 // Encode - write box to w
 func (e *EsdsBox) Encode(w io.Writer) error {
-	err := EncodeHeader(e, w)
+	sw := bits.NewSliceWriterWithSize(int(e.Size()))
+	err := e.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
+	_, err = w.Write(sw.Bytes())
+	return err
+}
 
+// EncodeSW - box-specific encode to slicewriter
+func (e *EsdsBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(e, sw)
+	if err != nil {
+		return err
+	}
 	decCfgLen := len(e.DecConfig)
-
-	buf := makebuf(e)
-	sw := NewSliceWriter(buf)
 	versionAndFlags := (uint32(e.Version) << 24) + e.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint8(e.EsDescrTag)
@@ -193,9 +202,7 @@ func (e *EsdsBox) Encode(w io.Writer) error {
 	}
 	sw.WriteUint8(1)               // final length byte
 	sw.WriteUint8(e.SLConfigValue) // Constant
-
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

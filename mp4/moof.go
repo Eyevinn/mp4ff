@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MoofBox -  Movie Fragment Box (moof)
@@ -80,6 +82,26 @@ func (m *MoofBox) Encode(w io.Writer) error {
 	}
 	for _, b := range m.Children {
 		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Encode - write moof after updating trun dataoffset
+func (m *MoofBox) EncodeSW(sw bits.SliceWriter) error {
+	for _, trun := range m.Traf.Truns {
+		if trun.HasDataOffset() && trun.DataOffset == 0 {
+			return fmt.Errorf("Dataoffset in trun not set")
+		}
+	}
+	err := EncodeHeaderSW(m, sw)
+	if err != nil {
+		return err
+	}
+	for _, c := range m.Children {
+		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

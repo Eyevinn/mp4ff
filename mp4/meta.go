@@ -3,6 +3,8 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MetaBox - MetaBox meta ISO/IEC 14496-12 Ed. 6 2020 Section 8.11
@@ -83,6 +85,23 @@ func (b *MetaBox) Encode(w io.Writer) error {
 	}
 	for _, b := range b.Children {
 		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Encode - write minf container to sw
+func (b *MetaBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	for _, c := range b.Children {
+		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

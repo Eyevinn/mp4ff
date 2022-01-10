@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // SchiBox -  Schema Information Box
 type SchiBox struct {
@@ -48,6 +52,11 @@ func (b *SchiBox) GetChildren() []Box {
 // Encode - write minf container to w
 func (b *SchiBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
+}
+
+// Encode - write minf container to sw
+func (b *SchiBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

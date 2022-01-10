@@ -3,6 +3,8 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // BtrtBox - BitRateBox - ISO/IEC 14496-12 Section 8.5.2.2
@@ -39,25 +41,25 @@ func (b *BtrtBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *BtrtBox) Encode(w io.Writer) error {
-	var err error
-
-	err = EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-
-	write := func(b uint32) {
-		if err != nil {
-			return
-		}
-		err = binary.Write(w, binary.BigEndian, b)
-	}
-
-	write(b.BufferSizeDB)
-	write(b.MaxBitrate)
-	write(b.AvgBitrate)
-
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *BtrtBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteUint32(b.BufferSizeDB)
+	sw.WriteUint32(b.MaxBitrate)
+	sw.WriteUint32(b.AvgBitrate)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

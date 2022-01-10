@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // VisualSampleEntryBox - Video Sample Description box (avc1/avc3)
@@ -153,7 +155,7 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	sw := bits.NewSliceWriter(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteZeroBytes(16) // pre_defined and reserved
@@ -180,6 +182,40 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 	// Next output child boxes in order
 	for _, child := range b.Children {
 		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// EncodeSW - write box to sw
+func (b *VisualSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteZeroBytes(6)
+	sw.WriteUint16(b.DataReferenceIndex)
+	sw.WriteZeroBytes(16) // pre_defined and reserved
+	sw.WriteUint16(b.Width)
+	sw.WriteUint16(b.Height) //36 bytes
+
+	sw.WriteUint32(b.Horizresolution)
+	sw.WriteUint32(b.Vertresolution)
+	sw.WriteZeroBytes(4)
+	sw.WriteUint16(b.FrameCount) //50 bytes
+
+	compressorNameLength := byte(len(b.CompressorName))
+	sw.WriteUint8(compressorNameLength)
+	sw.WriteString(b.CompressorName, false)
+	sw.WriteZeroBytes(int(31 - compressorNameLength))
+	sw.WriteUint16(0x0018) // depth == 0x0018
+	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
+
+	// Next output child boxes in order
+	for _, child := range b.Children {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

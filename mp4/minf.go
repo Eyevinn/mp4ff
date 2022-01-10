@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // MinfBox -  Media Information Box (minf - mandatory)
 //
@@ -69,6 +73,11 @@ func (m *MinfBox) GetChildren() []Box {
 // Encode - write minf container to w
 func (m *MinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+// Encode - write minf container to sw
+func (m *MinfBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(m, sw)
 }
 
 // Info - write box-specific information

@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // IlstBox - iTunes Metadata Item List Atom (ilst)
@@ -43,19 +45,14 @@ func (b *IlstBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - box-specific encode of stsd - not a usual container
+/// Encode - write ilst container to w
 func (b *IlstBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
-	if err != nil {
-		return err
-	}
-	for _, c := range b.Children {
-		err = c.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(b, w)
+}
+
+// Encode - write ilst container to sw
+func (b *IlstBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // ContainerBox is interface for ContainerBoxes
@@ -10,6 +12,7 @@ type ContainerBox interface {
 	Type() string
 	Size() uint64
 	Encode(w io.Writer) error
+	EncodeSW(w bits.SliceWriter) error
 	GetChildren() []Box
 	Info(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
@@ -52,6 +55,21 @@ func EncodeContainer(c ContainerBox, w io.Writer) error {
 	}
 	for _, b := range c.GetChildren() {
 		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeContainerSW - marshal container c to sw
+func EncodeContainerSW(c ContainerBox, sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(c, sw)
+	if err != nil {
+		return err
+	}
+	for _, b := range c.GetChildren() {
+		err = b.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrefBox -  // TrackReferenceBox - ISO/IEC 14496-12 Ed. 9 Sec. 8.3
@@ -49,6 +51,11 @@ func (b *TrefBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Encode - write minf container to sw
+func (b *TrefBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
+}
+
 // Info - write box-specific information
 func (b *TrefBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
@@ -89,18 +96,26 @@ func (b *TrefTypeBox) Size() uint64 {
 }
 
 // Encode - write box to w
-func (b *TrefTypeBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (t *TrefTypeBox) Encode(w io.Writer) error {
+	sw := bits.NewSliceWriterWithSize(int(t.Size()))
+	err := t.EncodeSW(sw)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// Encode - write box to sw
+func (b *TrefTypeBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
 	if err != nil {
 		return err
 	}
 	for _, trackID := range b.TrackIDs {
-		err = binary.Write(w, binary.BigEndian, trackID)
-		if err != nil {
-			return err
-		}
+		sw.WriteUint32(trackID)
 	}
-	return nil
+	return sw.AccError()
 }
 
 // Info - write box-specific information

@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // EdtsBox - Edit Box (edts - optional)
@@ -52,6 +54,11 @@ func (b *EdtsBox) GetChildren() []Box {
 // Encode - write edts container to w
 func (b *EdtsBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
+}
+
+// EncodeSW - write edts container to sw
+func (b *EdtsBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

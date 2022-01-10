@@ -3,6 +3,8 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // UnknownBox - box that we don't know how to parse
@@ -33,12 +35,23 @@ func (b *UnknownBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *UnknownBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(b.notDecoded)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *UnknownBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteBytes(b.notDecoded)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

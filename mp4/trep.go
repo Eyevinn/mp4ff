@@ -3,6 +3,8 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrepBox - Track Extension Properties Box (trep)
@@ -72,6 +74,24 @@ func (b *TrepBox) Encode(w io.Writer) error {
 	}
 	for _, c := range b.Children {
 		err = c.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW- box-specific encode of stsd - not a usual container
+func (b *TrepBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(b.TrackID)
+	for _, c := range b.Children {
+		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

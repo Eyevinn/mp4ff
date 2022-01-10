@@ -1,14 +1,35 @@
-package mp4
+package bits
 
 import (
 	"encoding/binary"
 	"errors"
 )
 
-var SliceWriterError = errors.New("overflow in SliceWriter")
+type SliceWriter interface {
+	Len() int
+	Capacity() int
+	Offset() int
+	Bytes() []byte
+	AccError() error
+	WriteUint8(n byte)
+	WriteUint16(n uint16)
+	WriteInt16(n int16)
+	WriteUint24(n uint32)
+	WriteUint32(n uint32)
+	WriteInt32(n int32)
+	WriteUint48(u uint64)
+	WriteUint64(n uint64)
+	WriteInt64(n int64)
+	WriteString(s string, addZeroEnd bool)
+	WriteZeroBytes(n int)
+	WriteBytes(byteSlice []byte)
+	WriteUnityMatrix()
+}
 
-// SliceWriter - write numbers to a fixed []byte slice
-type SliceWriter struct {
+var SliceWriterError = errors.New("overflow in FixedSliceWriter")
+
+// FixedSliceWriter - write numbers to a fixed []byte slice
+type FixedSliceWriter struct {
 	buf      []byte
 	off      int
 	accError error
@@ -18,8 +39,8 @@ type SliceWriter struct {
 // The slice will not grow, but stay the same size.
 // If too much data is written, there will be
 // an accumuluated error. Can be retrieved with AccError()
-func NewSliceWriter(data []byte) *SliceWriter {
-	return &SliceWriter{
+func NewSliceWriter(data []byte) *FixedSliceWriter {
+	return &FixedSliceWriter{
 		buf:      data,
 		off:      0,
 		accError: nil,
@@ -27,31 +48,41 @@ func NewSliceWriter(data []byte) *SliceWriter {
 }
 
 // NewSliceWriter - create slice writer with fixed size.
-func NewSliceWriterWithSize(size int) *SliceWriter {
-	return &SliceWriter{
+func NewSliceWriterWithSize(size int) *FixedSliceWriter {
+	return &FixedSliceWriter{
 		buf:      make([]byte, size),
 		off:      0,
 		accError: nil,
 	}
 }
 
-// Len - length of SliceWriter buffer
-func (b *SliceWriter) Len() int {
-	return len(b.buf)
-}
-
-// Offset - offset for writing in SliceWriter buffer
-func (b *SliceWriter) Offset() int {
+// Len - length of FixedSliceWriter buffer written. Same as Offset()
+func (b *FixedSliceWriter) Len() int {
 	return b.off
 }
 
+// Capacity - max length of FixedSliceWriter buffer
+func (b *FixedSliceWriter) Capacity() int {
+	return len(b.buf)
+}
+
+// Offset - offset for writing in FixedSliceWriter buffer
+func (b *FixedSliceWriter) Offset() int {
+	return b.off
+}
+
+// Bytes - return buf up to what's written
+func (b *FixedSliceWriter) Bytes() []byte {
+	return b.buf[:b.off]
+}
+
 // AccError - return accumulated erro
-func (b *SliceWriter) AccError() error {
+func (b *FixedSliceWriter) AccError() error {
 	return b.accError
 }
 
 // WriteUint8 - write byte to slice
-func (b *SliceWriter) WriteUint8(n byte) {
+func (b *FixedSliceWriter) WriteUint8(n byte) {
 	if b.off+1 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -61,7 +92,7 @@ func (b *SliceWriter) WriteUint8(n byte) {
 }
 
 // WriteUint16 - write uint16 to slice
-func (b *SliceWriter) WriteUint16(n uint16) {
+func (b *FixedSliceWriter) WriteUint16(n uint16) {
 	if b.off+2 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -71,7 +102,7 @@ func (b *SliceWriter) WriteUint16(n uint16) {
 }
 
 // WriteInt16 - write int16 to slice
-func (b *SliceWriter) WriteInt16(n int16) {
+func (b *FixedSliceWriter) WriteInt16(n int16) {
 	if b.off+2 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -81,7 +112,7 @@ func (b *SliceWriter) WriteInt16(n int16) {
 }
 
 // WriteUint24 - write uint24 to slice
-func (b *SliceWriter) WriteUint24(n uint32) {
+func (b *FixedSliceWriter) WriteUint24(n uint32) {
 	if b.off+3 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -91,7 +122,7 @@ func (b *SliceWriter) WriteUint24(n uint32) {
 }
 
 // WriteUint32 - write uint32 to slice
-func (b *SliceWriter) WriteUint32(n uint32) {
+func (b *FixedSliceWriter) WriteUint32(n uint32) {
 	if b.off+4 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -101,7 +132,7 @@ func (b *SliceWriter) WriteUint32(n uint32) {
 }
 
 // WriteInt32 - write int32 to slice
-func (b *SliceWriter) WriteInt32(n int32) {
+func (b *FixedSliceWriter) WriteInt32(n int32) {
 	if b.off+4 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -110,8 +141,22 @@ func (b *SliceWriter) WriteInt32(n int32) {
 	b.off += 4
 }
 
+// WriteUint48 - write uint48
+func (b *FixedSliceWriter) WriteUint48(u uint64) {
+	if b.accError != nil {
+		return
+	}
+	msb := uint16(u >> 32)
+	binary.BigEndian.PutUint16(b.buf[b.off:], msb)
+	b.off += 2
+
+	lsb := uint32(u & 0xffffffff)
+	binary.BigEndian.PutUint32(b.buf[b.off:], lsb)
+	b.off += 4
+}
+
 // WriteUint64 - write uint64 to slice
-func (b *SliceWriter) WriteUint64(n uint64) {
+func (b *FixedSliceWriter) WriteUint64(n uint64) {
 	if b.off+8 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -121,7 +166,7 @@ func (b *SliceWriter) WriteUint64(n uint64) {
 }
 
 // WriteInt64 - write int64 to slice
-func (b *SliceWriter) WriteInt64(n int64) {
+func (b *FixedSliceWriter) WriteInt64(n int64) {
 	if b.off+8 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -131,7 +176,7 @@ func (b *SliceWriter) WriteInt64(n int64) {
 }
 
 // WriteString - write string to slice with or without zero end
-func (b *SliceWriter) WriteString(s string, addZeroEnd bool) {
+func (b *FixedSliceWriter) WriteString(s string, addZeroEnd bool) {
 	nrNew := len(s)
 	if addZeroEnd {
 		nrNew++
@@ -149,7 +194,7 @@ func (b *SliceWriter) WriteString(s string, addZeroEnd bool) {
 }
 
 // WriteZeroBytes - write n byte of zeroes
-func (b *SliceWriter) WriteZeroBytes(n int) {
+func (b *FixedSliceWriter) WriteZeroBytes(n int) {
 	if b.off+n > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -161,7 +206,7 @@ func (b *SliceWriter) WriteZeroBytes(n int) {
 }
 
 // WriteBytes - write []byte
-func (b *SliceWriter) WriteBytes(byteSlice []byte) {
+func (b *FixedSliceWriter) WriteBytes(byteSlice []byte) {
 	if b.off+len(byteSlice) > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -171,7 +216,7 @@ func (b *SliceWriter) WriteBytes(byteSlice []byte) {
 }
 
 // WriteUnityMatrix - write a unity matrix for mvhd or tkhd
-func (b *SliceWriter) WriteUnityMatrix() {
+func (b *FixedSliceWriter) WriteUnityMatrix() {
 	if b.off+36 > len(b.buf) {
 		b.accError = SliceWriterError
 		return
@@ -185,9 +230,4 @@ func (b *SliceWriter) WriteUnityMatrix() {
 	b.WriteUint32(0)
 	b.WriteUint32(0)
 	b.WriteUint32(0x40000000) // = 1 fixed 2.30
-}
-
-// Bytes - return buf
-func (b *SliceWriter) Bytes() []byte {
-	return b.buf
 }

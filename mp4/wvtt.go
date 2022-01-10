@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // Boxes needed for wvtt according to ISO/IEC 14496-30
@@ -102,7 +104,7 @@ func (b *WvttBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	sw := bits.NewSliceWriter(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 
@@ -114,6 +116,25 @@ func (b *WvttBox) Encode(w io.Writer) error {
 	// Next output child boxes in order
 	for _, child := range b.Children {
 		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// EncodeSW - write box to w
+func (b *WvttBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteZeroBytes(6)
+	sw.WriteUint16(b.DataReferenceIndex)
+
+	// Next output child boxes in order
+	for _, child := range b.Children {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}
@@ -168,12 +189,23 @@ func (b *VttCBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VttCBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.Config))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VttCBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.Config, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -211,12 +243,23 @@ func (b *VlabBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VlabBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.SourceLabel))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VlabBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.SourceLabel, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -253,6 +296,11 @@ func (b *VtteBox) Size() uint64 {
 // Encode - write box to w
 func (b *VtteBox) Encode(w io.Writer) error {
 	return EncodeHeader(b, w)
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VtteBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeHeaderSW(b, sw)
 }
 
 // Info - write box-specific information
@@ -326,6 +374,11 @@ func (b *VttcBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Encode - write vttc container to sw
+func (b *VttcBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
+}
+
 // Info - write box-specific information
 func (b *VttcBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
@@ -361,14 +414,23 @@ func (b *VsidBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VsidBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, b.SourceID)
-	_, err = w.Write(buf)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VsidBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteUint32(b.SourceID)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -409,12 +471,23 @@ func (b *CtimBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CtimBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueCurrentTime))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *CtimBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueCurrentTime, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -454,12 +527,23 @@ func (b *IdenBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *IdenBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueID))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *IdenBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueID, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -499,12 +583,23 @@ func (b *SttgBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SttgBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.Settings))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SttgBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.Settings, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -544,12 +639,23 @@ func (b *PaylBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *PaylBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueText))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *PaylBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueText, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -589,12 +695,23 @@ func (b *VttaBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VttaBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueAdditionalText))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VttaBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueAdditionalText, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

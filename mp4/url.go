@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // URLBox - DataEntryUrlBox ('url ')
@@ -30,12 +32,12 @@ func DecodeURLBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		location, err = s.ReadZeroTerminatedString()
 	}
 
-	u := &URLBox{
+	b := &URLBox{
 		Version:  version,
 		Flags:    flags,
 		Location: location,
 	}
-	return u, err
+	return b, err
 }
 
 // CreateURLBox - Create a self-referencing URL box
@@ -48,39 +50,47 @@ func CreateURLBox() *URLBox {
 }
 
 // Type - return box type
-func (u *URLBox) Type() string {
+func (b *URLBox) Type() string {
 	return "url "
 }
 
 // Size - return calculated size
-func (u *URLBox) Size() uint64 {
+func (b *URLBox) Size() uint64 {
 	size := uint64(boxHeaderSize + 4)
-	if u.Flags != uint32(dataIsSelfContainedFlag) {
-		size += uint64(len(u.Location) + 1)
+	if b.Flags != uint32(dataIsSelfContainedFlag) {
+		size += uint64(len(b.Location) + 1)
 	}
 	return size
 }
 
 // Encode - write box to w
-func (u *URLBox) Encode(w io.Writer) error {
-	err := EncodeHeader(u, w)
+func (b *URLBox) Encode(w io.Writer) error {
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(u)
-	sw := NewSliceWriter(buf)
-	versionAndFlags := (uint32(u.Version) << 24) + u.Flags
-	sw.WriteUint32(versionAndFlags)
-	if u.Flags != dataIsSelfContainedFlag {
-		sw.WriteString(u.Location, true)
-	}
-	_, err = w.Write(buf)
+	_, err = w.Write(sw.Bytes())
 	return err
 }
 
+// EncodeSW - box-specific encode to slicewriter
+func (b *URLBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	if b.Flags != dataIsSelfContainedFlag {
+		sw.WriteString(b.Location, true)
+	}
+	return sw.AccError()
+}
+
 // Info - write specific box information
-func (u *URLBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, u, -1, 0)
-	bd.write(" - location: %q", u.Location)
+func (b *URLBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - location: %q", b.Location)
 	return bd.err
 }

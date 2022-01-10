@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // StppBox - XMLSubtitleSampleEntryr Box (stpp)
@@ -126,7 +128,7 @@ func (b *StppBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	sw := bits.NewSliceWriter(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteString(b.Namespace, true)
@@ -144,6 +146,32 @@ func (b *StppBox) Encode(w io.Writer) error {
 	// Next output child boxes in order
 	for _, child := range b.Children {
 		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// Encode - write box to w
+func (b *StppBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteZeroBytes(6)
+	sw.WriteUint16(b.DataReferenceIndex)
+	sw.WriteString(b.Namespace, true)
+	if b.SchemaLocation != "" {
+		sw.WriteString(b.SchemaLocation, true)
+	}
+	if b.AuxiliaryMimeTypes != "" {
+		sw.WriteString(b.AuxiliaryMimeTypes, true)
+	}
+
+	// Next output child boxes in order
+	for _, child := range b.Children {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

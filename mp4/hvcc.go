@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/edgeware/mp4ff/bits"
 	"github.com/edgeware/mp4ff/hevc"
 )
 
@@ -55,6 +56,15 @@ func (b *HvcCBox) Encode(w io.Writer) error {
 		return err
 	}
 	return b.DecConfRec.Encode(w)
+}
+
+// Encode - write box to w
+func (b *HvcCBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	return b.DecConfRec.EncodeSW(sw)
 }
 
 // Info - box-specific Info

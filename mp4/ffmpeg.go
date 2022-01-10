@@ -3,6 +3,8 @@ package mp4
 // ffmpeg boxes according to https://kdenlive.org/en/project/adding-meta-data-to-mp4-video
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // CTooBox - ©too box defines the ffmpeg encoding tool information
@@ -43,19 +45,14 @@ func (b *CTooBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - box-specific encode of stsd - not a usual container
+// Encode - write minf container to w
 func (b *CTooBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
-	if err != nil {
-		return err
-	}
-	for _, c := range b.Children {
-		err = c.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(b, w)
+}
+
+// Encode - write minf container to sw
+func (b *CTooBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - box-specific Info
@@ -90,17 +87,25 @@ func (b *DataBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *DataBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *DataBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	sw.WriteUint32(0x00000001)
 	sw.WriteUint32(0x00000000)
 	sw.WriteBytes(b.Data)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - box-specific Info

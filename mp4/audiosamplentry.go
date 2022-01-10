@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // AudioSampleEntryBox according to ISO/IEC 14496-12
@@ -128,7 +130,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(a)
-	sw := NewSliceWriter(buf)
+	sw := bits.NewSliceWriter(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(a.DataReferenceIndex)
 	sw.WriteZeroBytes(8) // pre_defined and reserved
@@ -145,6 +147,30 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	// Next output child boxes in order
 	for _, child := range a.Children {
 		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// Encode - write box to sw
+func (a *AudioSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(a, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteZeroBytes(6)
+	sw.WriteUint16(a.DataReferenceIndex)
+	sw.WriteZeroBytes(8) // pre_defined and reserved
+	sw.WriteUint16(a.ChannelCount)
+	sw.WriteUint16(a.SampleSize)
+	sw.WriteZeroBytes(4)                          // Pre-defined and reserved
+	sw.WriteUint32(makeFixed32Uint(a.SampleRate)) // nrAudioSampleBytesBeforeChildren bytes this far
+
+	// Next output child boxes in order
+	for _, child := range a.Children {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

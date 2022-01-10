@@ -3,6 +3,8 @@ package mp4
 import (
 	"errors"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // ElstBox - Edit List Box (elst - optional)
@@ -71,12 +73,21 @@ func (b *ElstBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *ElstBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, b.Size()-boxHeaderSize)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *ElstBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(uint32(len(b.SegmentDuration)))
@@ -95,9 +106,7 @@ func (b *ElstBox) Encode(w io.Writer) error {
 			sw.WriteInt16(b.MediaRateFraction[i])
 		}
 	}
-
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

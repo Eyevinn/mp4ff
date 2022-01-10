@@ -1,4 +1,4 @@
-package mp4
+package bits
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ func TestSliceWriter(t *testing.T) {
 	sw.WriteUint24(0xffffff)
 	sw.WriteUint32(0xffffffff)
 	sw.WriteUint64(0xffffffffffffffff)
+	sw.WriteUint16(0)
 	expected := make([]byte, 20)
 	for i := range expected {
 		if i == 18 {

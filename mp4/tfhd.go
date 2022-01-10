@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const baseDataOffsetPresent uint32 = 0x000001
@@ -142,12 +144,21 @@ func (t *TfhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (t *TfhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
+	sw := bits.NewSliceWriterWithSize(int(t.Size()))
+	err := t.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(t)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (t *TfhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(t, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(t.TrackID)
@@ -166,9 +177,7 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 	if t.HasDefaultSampleFlags() {
 		sw.WriteUint32(t.DefaultSampleFlags)
 	}
-
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write specific box information

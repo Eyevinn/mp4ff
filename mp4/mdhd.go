@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const charOffset = 0x60 // According to Section 8.4.2.3 of 14496-12
@@ -90,13 +92,21 @@ func (m *MdhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (m *MdhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
+	sw := bits.NewSliceWriterWithSize(int(m.Size()))
+	err := m.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(m)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
 
-	sw := NewSliceWriter(buf)
+// EncodeSW - box-specific encode to slicewriter
+func (m *MdhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(m, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(m.Version) << 24) + m.Flags
 	sw.WriteUint32(versionAndFlags)
 	if m.Version == 1 {
@@ -112,8 +122,7 @@ func (m *MdhdBox) Encode(w io.Writer) error {
 	}
 	sw.WriteUint16(m.Language)
 	sw.WriteUint16(0)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information
