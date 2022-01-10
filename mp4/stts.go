@@ -29,20 +29,20 @@ func DecodeStts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	b := &SttsBox{
-		Version:         byte(versionAndFlags >> 24),
-		Flags:           versionAndFlags & flagsMask,
-		SampleCount:     []uint32{},
-		SampleTimeDelta: []uint32{},
+	b := SttsBox{
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
 	}
-	ec := binary.BigEndian.Uint32(data[4:8])
-	for i := 0; i < int(ec); i++ {
+	entryCount := binary.BigEndian.Uint32(data[4:8])
+	b.SampleCount = make([]uint32, 0, entryCount)
+	b.SampleTimeDelta = make([]uint32, 0, entryCount)
+	for i := 0; i < int(entryCount); i++ {
 		sCount := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
 		sDelta := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
 		b.SampleCount = append(b.SampleCount, sCount)
 		b.SampleTimeDelta = append(b.SampleTimeDelta, sDelta)
 	}
-	return b, nil
+	return &b, nil
 }
 
 // Type - return box type

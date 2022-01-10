@@ -34,13 +34,14 @@ func DecodeStsc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	b := StscBox{
-		Version: byte(versionAndFlags >> 24),
-		Flags:   versionAndFlags & flagsMask,
-	}
 	entryCount := binary.BigEndian.Uint32(data[4:8])
-	b.FirstChunk = make([]uint32, 0, entryCount)
-	b.SamplesPerChunk = make([]uint32, 0, entryCount)
+	b := StscBox{
+		Version:         byte(versionAndFlags >> 24),
+		Flags:           versionAndFlags & flagsMask,
+		FirstChunk:      make([]uint32, 0, entryCount),
+		SamplesPerChunk: make([]uint32, 0, entryCount),
+	}
+
 	for i := 0; i < int(entryCount); i++ {
 		fc := binary.BigEndian.Uint32(data[(8 + 12*i):(12 + 12*i)])
 		spc := binary.BigEndian.Uint32(data[(12 + 12*i):(16 + 12*i)])

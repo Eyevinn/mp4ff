@@ -24,15 +24,15 @@ func DecodeCtts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	entryCount := binary.BigEndian.Uint32(data[4:8])
 	b := &CttsBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		SampleCount:  []uint32{},
-		SampleOffset: []int32{},
+		SampleCount:  make([]uint32, 0, entryCount),
+		SampleOffset: make([]int32, 0, entryCount),
 	}
 
-	ec := binary.BigEndian.Uint32(data[4:8])
-	for i := 0; i < int(ec); i++ {
+	for i := 0; i < int(entryCount); i++ {
 		sCount := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
 		sOffset := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
 		b.SampleCount = append(b.SampleCount, sCount)

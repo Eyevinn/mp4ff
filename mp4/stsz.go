@@ -32,20 +32,19 @@ func DecodeStsz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
 
-	b := &StszBox{
+	b := StszBox{
 		Version:           byte(versionAndFlags >> 24),
 		Flags:             versionAndFlags & flagsMask,
 		SampleUniformSize: binary.BigEndian.Uint32(data[4:8]),
 		SampleNumber:      binary.BigEndian.Uint32(data[8:12]),
-		SampleSize:        []uint32{},
 	}
-	if len(data) > 12 {
+	if b.SampleNumber > 0 {
+		b.SampleSize = make([]uint32, b.SampleNumber)
 		for i := 0; i < int(b.SampleNumber); i++ {
-			sz := binary.BigEndian.Uint32(data[(12 + 4*i):(16 + 4*i)])
-			b.SampleSize = append(b.SampleSize, sz)
+			b.SampleSize[i] = binary.BigEndian.Uint32(data[(12 + 4*i):(16 + 4*i)])
 		}
 	}
-	return b, nil
+	return &b, nil
 }
 
 // Type - box-specific type

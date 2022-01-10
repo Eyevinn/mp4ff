@@ -25,13 +25,13 @@ func DecodeStss(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	entryCount := binary.BigEndian.Uint32(data[4:8])
 	b := &StssBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		SampleNumber: []uint32{},
+		SampleNumber: make([]uint32, 0, entryCount),
 	}
-	ec := binary.BigEndian.Uint32(data[4:8])
-	for i := 0; i < int(ec); i++ {
+	for i := 0; i < int(entryCount); i++ {
 		sample := binary.BigEndian.Uint32(data[(8 + 4*i):(12 + 4*i)])
 		b.SampleNumber = append(b.SampleNumber, sample)
 	}
