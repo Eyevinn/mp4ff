@@ -157,7 +157,7 @@ func (h *DecConfRec) Size() uint64 {
 }
 
 func (h *DecConfRec) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(h.Size()))
+	sw := bits.NewFixedSliceWriter(int(h.Size()))
 	err := h.EncodeSW(sw)
 	if err != nil {
 		return err

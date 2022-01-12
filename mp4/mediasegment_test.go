@@ -227,7 +227,7 @@ func BenchmarkDecodeEncodeMediaSegmentSliceWriter(b *testing.B) {
 	outRaw := make([]byte, len(inRaw))
 	for i := 0; i < b.N; i++ {
 		inBuf := bytes.NewBuffer(inRaw)
-		sw := bits.NewSliceWriter(outRaw)
+		sw := bits.NewFixedSliceWriterFromSlice(outRaw)
 		f, err := DecodeFile(inBuf)
 		if err != nil {
 			b.Error(err)
@@ -253,7 +253,7 @@ func BenchmarkEncodeSegmentSW(b *testing.B) {
 
 	outData := make([]byte, len(inData))
 	for i := 0; i < b.N; i++ {
-		sw := bits.NewSliceWriter(outData)
+		sw := bits.NewFixedSliceWriterFromSlice(outData)
 		_ = decFile.EncodeSW(sw)
 	}
 }

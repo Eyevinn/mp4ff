@@ -113,7 +113,7 @@ func TestDecodeEncodeProgressiveSliceWriter(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	sw := bits.NewSliceWriter(rawOutput)
+	sw := bits.NewFixedSliceWriterFromSlice(rawOutput)
 	err = parsedFile.EncodeSW(sw)
 	if err != nil {
 		t.Error(err)

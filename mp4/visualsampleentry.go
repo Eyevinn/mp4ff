@@ -155,7 +155,7 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	sw := bits.NewSliceWriter(buf)
+	sw := bits.NewFixedSliceWriterFromSlice(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteZeroBytes(16) // pre_defined and reserved

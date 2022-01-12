@@ -22,7 +22,7 @@ func boxDiffAfterEncodeAndDecode(t *testing.T, box Box) {
 
 	// First do encode in a slice via SliceWriter
 	size := box.Size()
-	sw := bits.NewSliceWriterWithSize(int(size))
+	sw := bits.NewFixedSliceWriter(int(size))
 	err := box.EncodeSW(sw)
 	if err != nil {
 		t.Error(err)

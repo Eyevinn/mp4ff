@@ -74,7 +74,7 @@ func (b *StssBox) IsSyncSample(sampleNr uint32) (isSync bool) {
 
 // Encode - write box to w
 func (b *StssBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err

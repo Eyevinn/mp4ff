@@ -122,7 +122,7 @@ func (b *SttsBox) GetDur(sampleNr uint32) (dur uint32) {
 
 // Encode - write box to w
 func (b *SttsBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err

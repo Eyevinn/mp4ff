@@ -130,7 +130,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(a)
-	sw := bits.NewSliceWriter(buf)
+	sw := bits.NewFixedSliceWriterFromSlice(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(a.DataReferenceIndex)
 	sw.WriteZeroBytes(8) // pre_defined and reserved

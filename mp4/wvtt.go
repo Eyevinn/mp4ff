@@ -104,7 +104,7 @@ func (b *WvttBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	sw := bits.NewSliceWriter(buf)
+	sw := bits.NewFixedSliceWriterFromSlice(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 
@@ -189,7 +189,7 @@ func (b *VttCBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VttCBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
@@ -243,7 +243,7 @@ func (b *VlabBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VlabBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
@@ -414,7 +414,7 @@ func (b *VsidBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VsidBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
@@ -471,7 +471,7 @@ func (b *CtimBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CtimBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
@@ -527,7 +527,7 @@ func (b *IdenBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *IdenBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
@@ -583,7 +583,7 @@ func (b *SttgBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SttgBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
@@ -639,7 +639,7 @@ func (b *PaylBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *PaylBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
@@ -695,7 +695,7 @@ func (b *VttaBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VttaBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err

@@ -161,7 +161,7 @@ func (e *EsdsBox) Size() uint64 {
 
 // Encode - write box to w
 func (e *EsdsBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(e.Size()))
+	sw := bits.NewFixedSliceWriter(int(e.Size()))
 	err := e.EncodeSW(sw)
 	if err != nil {
 		return err

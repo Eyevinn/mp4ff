@@ -53,7 +53,7 @@ func (b *CttsBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CttsBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(b.Size()))
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
 	err := b.EncodeSW(sw)
 	if err != nil {
 		return err

@@ -54,7 +54,7 @@ func (m *MfhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (m *MfhdBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(m.Size()))
+	sw := bits.NewFixedSliceWriter(int(m.Size()))
 	err := m.EncodeSW(sw)
 	if err != nil {
 		return err

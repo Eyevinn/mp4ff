@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestSliceWriter(t *testing.T) {
-	sw := NewSliceWriterWithSize(20)
+func TestFixedSliceWriter(t *testing.T) {
+	sw := NewFixedSliceWriter(20)
 	sw.WriteUint8(0xff)
 	sw.WriteUint16(0xffff)
 	sw.WriteUint24(0xffffff)

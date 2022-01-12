@@ -233,7 +233,7 @@ func (s *SencBox) Size() uint64 {
 func (s *SencBox) Encode(w io.Writer) error {
 	// First check if subsamplencryption is to be used since it influences the box size
 	s.setSubSamplesUsedFlag()
-	sw := bits.NewSliceWriterWithSize(int(s.Size()))
+	sw := bits.NewFixedSliceWriter(int(s.Size()))
 	err := s.EncodeSW(sw)
 	if err != nil {
 		return err

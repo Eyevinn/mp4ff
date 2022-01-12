@@ -97,7 +97,7 @@ func (b *TrefTypeBox) Size() uint64 {
 
 // Encode - write box to w
 func (t *TrefTypeBox) Encode(w io.Writer) error {
-	sw := bits.NewSliceWriterWithSize(int(t.Size()))
+	sw := bits.NewFixedSliceWriter(int(t.Size()))
 	err := t.EncodeSW(sw)
 	if err != nil {
 		return err
