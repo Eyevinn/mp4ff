@@ -2,8 +2,9 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.26.0 | New example code for decrypting segment. New tool for cropping mp4 file. SEI parsing for H.264. Interpret timestamps |
 | 0.25.0 | Support sample intervals. Control first sample flags. Create subtitle init segments. Minor improvements and fixes |
-| 0.24.0 | api-change: DecodeFile lazy mode. Enhanced segmenter example with lazy read/write. |
+| 0.24.0 | api-change: DecodeFile lazy mode. Enhanced segmenter example with lazy read/write |
 | 0.23.1 | fix: segment encode mode without optimization
 | 0.23.0 | api-change: encode mode and optimization options |
 | 0.22.0 | feat: add codec string for AVC and HEVC |
