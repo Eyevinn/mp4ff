@@ -10,8 +10,8 @@ import (
 )
 
 func TestDecodeCenc(t *testing.T) {
-	inFile := "testdata/prog_8s_enc_dashinit.mp4"
-	expectedOutFile := "testdata/prog_8s_dec_dashinit.mp4"
+	inFile := "../../mp4/testdata/prog_8s_enc_dashinit.mp4"
+	expectedOutFile := "../../mp4/testdata/prog_8s_dec_dashinit.mp4"
 	hexString := "63cb5f7184dd4b689a5c5ff11ee6a328"
 	ifh, err := os.Open(inFile)
 	if err != nil {
