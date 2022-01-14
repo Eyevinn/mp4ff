@@ -99,12 +99,12 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 // if perSampleIVSize is 0, we try to find the appropriate error given data length
 func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 	if !s.readButNotParsed {
-		if perSampleIVSize != 0 {
-			s.perSampleIVSize = byte(perSampleIVSize)
-		}
 		return fmt.Errorf("senc box already parsed")
 	}
 	sr := NewSliceReader(s.rawData)
+	if perSampleIVSize != 0 {
+		s.perSampleIVSize = byte(perSampleIVSize)
+	}
 	nrBytesLeft := uint32(sr.NrRemainingBytes())
 
 	if s.Flags&UseSubSampleEncryption == 0 {

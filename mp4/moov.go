@@ -34,14 +34,18 @@ func (m *MoovBox) AddChild(box Box) {
 			m.Trak = trak
 		}
 		m.Traks = append(m.Traks, trak)
-		if m.Mvex != nil { // Need to insert before mvex box
-			for i, child := range m.Children {
-				if child == m.Mvex {
-					m.Children = append(m.Children[:i+1], m.Children[i:]...)
-					m.Children[i] = trak
-					return
-				}
+		// Possibley re-order to keep traks together on same
+		// side of mvex or similar. Put this trak after last previous trak
+		lastTrakIdx := 0
+		for i, child := range m.Children {
+			if child.Type() == "trak" {
+				lastTrakIdx = i
 			}
+		}
+		if lastTrakIdx != 0 && lastTrakIdx != len(m.Children)-1 { // last one in middle
+			m.Children = append(m.Children[:lastTrakIdx+2], m.Children[lastTrakIdx+1:]...)
+			m.Children[lastTrakIdx+1] = trak
+			return
 		}
 	case "mvex":
 		m.Mvex = box.(*MvexBox)
