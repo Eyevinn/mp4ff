@@ -132,7 +132,7 @@ func decryptMP4withCenc(r io.Reader, key []byte, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("pssh: %s\n", psshInfo.String())
+		//fmt.Printf("pssh: %s\n", psshInfo.String())
 	}
 
 	// Write the modified init segment
@@ -150,9 +150,9 @@ func decryptMP4withCenc(r io.Reader, key []byte, w io.Writer) error {
 
 func decryptAndWriteSegments(segs []*mp4.MediaSegment, tracks []trackInfo, key []byte, ofh io.Writer) error {
 	var outNr uint32 = 1
-	for i, seg := range segs {
-		for j, frag := range seg.Fragments {
-			fmt.Printf("Segment %d, fragment %d\n", i+1, j+1)
+	for _, seg := range segs {
+		for _, frag := range seg.Fragments {
+			//fmt.Printf("Segment %d, fragment %d\n", i+1, j+1)
 			err := decryptFragment(frag, tracks, key)
 			if err != nil {
 				return err
