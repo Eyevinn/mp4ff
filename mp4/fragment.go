@@ -26,7 +26,7 @@ func NewFragment() *Fragment {
 
 // CreateFragment - create single track empty fragment
 func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
-	f := NewFragment()
+	f := Fragment{Children: make([]Box, 0, 2)}
 	moof := &MoofBox{}
 	f.AddChild(moof)
 	mfhd := CreateMfhd(seqNumber)
@@ -43,7 +43,7 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	mdat := &MdatBox{}
 	f.AddChild(mdat)
 
-	return f, nil
+	return &f, nil
 }
 
 // CreateMultiTrackFragment - create multi-track empty fragment without trun
