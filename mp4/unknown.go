@@ -20,7 +20,13 @@ func DecodeUnknown(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &UnknownBox{hdr.name, hdr.size, data}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeUnknownSR(hdr, startPos, sr)
+}
+
+// DecodeUnknown - decode an unknown box
+func DecodeUnknownSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &UnknownBox{hdr.name, hdr.size, sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - return box type

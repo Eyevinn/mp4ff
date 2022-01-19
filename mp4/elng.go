@@ -28,6 +28,14 @@ func DecodeElng(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// DecodeElngSR - box-specific decode
+func DecodeElngSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := &ElngBox{
+		Language: string(sr.ReadZeroTerminatedString(hdr.payloadLen())),
+	}
+	return b, sr.AccError()
+}
+
 // Type - box type
 func (b *ElngBox) Type() string {
 	return "elng"

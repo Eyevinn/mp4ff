@@ -109,6 +109,33 @@ func DecodeStsd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return stsd, nil
 }
 
+// DecodeStsdSR - box-specific decode
+func DecodeStsdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	sampleCount := sr.ReadUint32()
+	//Note higher startPos below since not simple container
+	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	if len(children) != int(sampleCount) {
+		return nil, fmt.Errorf("Stsd sample count  mismatch")
+	}
+	stsd := StsdBox{
+		Version:     byte(versionAndFlags >> 24),
+		Flags:       versionAndFlags & flagsMask,
+		SampleCount: 0, // set by  AddChild
+		Children:    make([]Box, 0, len(children)),
+	}
+	for _, box := range children {
+		stsd.AddChild(box)
+	}
+	if stsd.SampleCount != sampleCount {
+		return nil, fmt.Errorf("Stsd sample count mismatch")
+	}
+	return &stsd, nil
+}
+
 // Type - box-specific type
 func (s *StsdBox) Type() string {
 	return "stsd"

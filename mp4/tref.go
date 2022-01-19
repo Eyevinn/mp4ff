@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -25,8 +24,21 @@ func DecodeTref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	b := TrefBox{}
-	for _, child := range children {
-		b.AddChild(child)
+	for _, c := range children {
+		b.AddChild(c)
+	}
+	return &b, nil
+}
+
+// DecodeTrefSR - box-specific decode
+func DecodeTrefSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := TrefBox{}
+	for _, c := range children {
+		b.AddChild(c)
 	}
 	return &b, nil
 }
@@ -71,18 +83,25 @@ type TrefTypeBox struct {
 
 // DecodeTrefType - box-specific decode
 func DecodeTrefType(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	b := TrefTypeBox{
-		Name: hdr.name,
-	}
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	for i := 0; i < len(data); i += 4 {
-		trackID := binary.BigEndian.Uint32(data[i : i+4])
-		b.TrackIDs = append(b.TrackIDs, trackID)
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTrefTypeSR(hdr, startPos, sr)
+}
+
+// DecodeTrefTypeSR - box-specific decode
+func DecodeTrefTypeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	nrIds := hdr.payloadLen() / 4
+	b := TrefTypeBox{
+		Name:     hdr.name,
+		TrackIDs: make([]uint32, nrIds),
 	}
-	return &b, nil
+	for i := 0; i < nrIds; i++ {
+		b.TrackIDs[i] = sr.ReadUint32()
+	}
+	return &b, sr.AccError()
 }
 
 // Type - box type

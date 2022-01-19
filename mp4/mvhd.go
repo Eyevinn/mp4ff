@@ -43,8 +43,13 @@ func DecodeMvhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMvhdSR(hdr, startPos, sr)
+}
+
+// DecodeMvhdSR - box-specific decode
+func DecodeMvhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
 	m := &MvhdBox{
@@ -53,23 +58,23 @@ func DecodeMvhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	if version == 1 {
-		m.CreationTime = s.ReadUint64()
-		m.ModificationTime = s.ReadUint64()
-		m.Timescale = s.ReadUint32()
-		m.Duration = s.ReadUint64()
+		m.CreationTime = sr.ReadUint64()
+		m.ModificationTime = sr.ReadUint64()
+		m.Timescale = sr.ReadUint32()
+		m.Duration = sr.ReadUint64()
 	} else {
-		m.CreationTime = uint64(s.ReadUint32())
-		m.ModificationTime = uint64(s.ReadUint32())
-		m.Timescale = s.ReadUint32()
-		m.Duration = uint64(s.ReadUint32())
+		m.CreationTime = uint64(sr.ReadUint32())
+		m.ModificationTime = uint64(sr.ReadUint32())
+		m.Timescale = sr.ReadUint32()
+		m.Duration = uint64(sr.ReadUint32())
 	}
-	m.Rate = Fixed32(s.ReadUint32())
-	m.Volume = Fixed16(s.ReadUint16())
-	s.SkipBytes(10) // Reserved bytes
-	s.SkipBytes(36) // Matrix patterndata
-	s.SkipBytes(24) // Predefined 0
-	m.NextTrackID = s.ReadUint32()
-	return m, nil
+	m.Rate = Fixed32(sr.ReadUint32())
+	m.Volume = Fixed16(sr.ReadUint16())
+	sr.SkipBytes(10) // Reserved bytes
+	sr.SkipBytes(36) // Matrix patterndata
+	sr.SkipBytes(24) // Predefined 0
+	m.NextTrackID = sr.ReadUint32()
+	return m, sr.AccError()
 }
 
 // Type - return box type

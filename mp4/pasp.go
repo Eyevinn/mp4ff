@@ -18,11 +18,16 @@ func DecodePasp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	sr := bits.NewFixedSliceReader(data)
+	return DecodePaspSR(hdr, startPos, sr)
+}
+
+// DecodePaspSR - box-specific decode
+func DecodePaspSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	pasp := &PaspBox{}
-	sr := NewSliceReader(data)
 	pasp.HSpacing = sr.ReadUint32()
 	pasp.VSpacing = sr.ReadUint32()
-	return pasp, nil
+	return pasp, sr.AccError()
 }
 
 // Type - box type

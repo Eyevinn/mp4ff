@@ -21,23 +21,25 @@ func DecodeSchm(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSchmSR(hdr, startPos, sr)
+}
+
+// DecodeSchmSR - box-specific decode
+func DecodeSchmSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &SchmBox{
+	b := SchmBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.SchemeType = s.ReadFixedLengthString(4)
-	b.SchemeVersion = s.ReadUint32()
+	b.SchemeType = sr.ReadFixedLengthString(4)
+	b.SchemeVersion = sr.ReadUint32()
 	if b.Flags&0x01 != 0 {
-		b.SchemeURI, err = s.ReadZeroTerminatedString()
-		if err != nil {
-			return nil, err
-		}
+		b.SchemeURI = sr.ReadZeroTerminatedString(hdr.payloadLen())
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type

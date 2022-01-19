@@ -21,6 +21,11 @@ func DecodeFree(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &FreeBox{Name: hdr.name, notDecoded: data}, nil
 }
 
+// DecodeFreeSR - box-specific decode
+func DecodeFreeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &FreeBox{Name: hdr.name, notDecoded: sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
+}
+
 // Type - box type
 func (b *FreeBox) Type() string {
 	return b.Name

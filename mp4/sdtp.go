@@ -77,25 +77,27 @@ func DecodeSdtp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSdtpSR(hdr, startPos, sr)
+}
+
+// DecodeSdtpSR - box-specific decode
+func DecodeSdtpSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
 
-	// Supposed to get count from stsz
-	entries := make([]SdtpEntry, s.NrRemainingBytes())
+	// Supposed to get count from stsz. Use rest of payload
+	entries := make([]SdtpEntry, hdr.payloadLen()-4)
 	for i := range entries {
-		b := s.ReadUint8()
-		entries[i] = SdtpEntry(b)
+		entries[i] = SdtpEntry(sr.ReadUint8())
 	}
 
-	b := &SdtpBox{
+	return &SdtpBox{
 		Version: version,
 		Flags:   flags,
 		Entries: entries,
-	}
-	return b, nil
-
+	}, sr.AccError()
 }
 
 // Type - return box type

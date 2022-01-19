@@ -35,34 +35,39 @@ func DecodeTfhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTfhdSR(hdr, startPos, sr)
+}
+
+// DecodeTfhdSR - box-specific decode
+func DecodeTfhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
 
 	t := &TfhdBox{
 		Version: version,
 		Flags:   flags,
-		TrackID: s.ReadUint32(),
+		TrackID: sr.ReadUint32(),
 	}
 
 	if t.HasBaseDataOffset() {
-		t.BaseDataOffset = s.ReadUint64()
+		t.BaseDataOffset = sr.ReadUint64()
 	}
 	if t.HasSampleDescriptionIndex() {
-		t.SampleDescriptionIndex = s.ReadUint32()
+		t.SampleDescriptionIndex = sr.ReadUint32()
 	}
 	if t.HasDefaultSampleDuration() {
-		t.DefaultSampleDuration = s.ReadUint32()
+		t.DefaultSampleDuration = sr.ReadUint32()
 	}
 	if t.HasDefaultSampleSize() {
-		t.DefaultSampleSize = s.ReadUint32()
+		t.DefaultSampleSize = sr.ReadUint32()
 	}
 	if t.HasDefaultSampleFlags() {
-		t.DefaultSampleFlags = s.ReadUint32()
+		t.DefaultSampleFlags = sr.ReadUint32()
 	}
 
-	return t, nil
+	return t, sr.AccError()
 }
 
 // CreateTfhd - Create a new TfdtBox with baseMediaDecodeTime

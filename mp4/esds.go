@@ -90,51 +90,56 @@ func DecodeEsds(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeEsdsSR(hdr, startPos, sr)
+}
+
+// DecodeEsdsSR - box-specific decode
+func DecodeEsdsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
 	e := &EsdsBox{
 		Version:    version,
 		Flags:      versionAndFlags & flagsMask,
-		EsDescrTag: s.ReadUint8(),
+		EsDescrTag: sr.ReadUint8(),
 	}
 
-	_, nrBytesRead := readSizeOfInstance(s)
+	_, nrBytesRead := readSizeOfInstance(sr)
 	e.nrExtraSizeBytes += nrBytesRead - 1
 
-	e.EsID = s.ReadUint16()
+	e.EsID = sr.ReadUint16()
 
-	e.FlagsAndPriority = s.ReadUint8()
-	e.DecoderConfigDescrTag = s.ReadUint8()
+	e.FlagsAndPriority = sr.ReadUint8()
+	e.DecoderConfigDescrTag = sr.ReadUint8()
 
-	_, nrBytesRead = readSizeOfInstance(s)
+	_, nrBytesRead = readSizeOfInstance(sr)
 	e.nrExtraSizeBytes += nrBytesRead - 1
-	e.ObjectType = s.ReadUint8()
+	e.ObjectType = sr.ReadUint8()
 
-	streamTypeAndBufferSizeDB := s.ReadUint32()
+	streamTypeAndBufferSizeDB := sr.ReadUint32()
 	e.StreamType = byte(streamTypeAndBufferSizeDB >> 24)
 	e.BufferSizeDB = streamTypeAndBufferSizeDB & 0xffffff
-	e.MaxBitrate = s.ReadUint32()
-	e.AvgBitrate = s.ReadUint32()
-	e.DecSpecificInfoTag = s.ReadUint8()
-	size, nrBytesRead := readSizeOfInstance(s)
+	e.MaxBitrate = sr.ReadUint32()
+	e.AvgBitrate = sr.ReadUint32()
+	e.DecSpecificInfoTag = sr.ReadUint8()
+	size, nrBytesRead := readSizeOfInstance(sr)
 	e.nrExtraSizeBytes += nrBytesRead - 1
-	e.DecConfig = s.ReadBytes(size)
-	e.SLConfigDescrTag = s.ReadUint8()
-	size, nrBytesRead = readSizeOfInstance(s)
+	e.DecConfig = sr.ReadBytes(size)
+	e.SLConfigDescrTag = sr.ReadUint8()
+	size, nrBytesRead = readSizeOfInstance(sr)
 	e.nrExtraSizeBytes += nrBytesRead - 1
 	if size != 1 {
 		return e, errors.New("Cannot handle SLConfigDescr not equal to 1 byte")
 	}
-	e.SLConfigValue = s.ReadUint8()
-	return e, nil
+	e.SLConfigValue = sr.ReadUint8()
+	return e, sr.AccError()
 }
 
 // readSizeOfInstance - accumulate size by 7 bits from each byte. MSB = 1 indicates more bytes.
 // Defined in ISO 14496-1 Section 8.3.3
 
-func readSizeOfInstance(s *SliceReader) (int, int) {
+func readSizeOfInstance(s bits.SliceReader) (int, int) {
 	tmp := s.ReadUint8()
 	nrBytesRead := 1
 	var sizeOfInstance int = int(tmp & 0x7f)

@@ -51,6 +51,19 @@ func DecodeMdia(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return m, nil
 }
 
+// DecodeMdiaSR - box-specific decode
+func DecodeMdiaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := NewMdiaBox()
+	for _, c := range children {
+		m.AddChild(c)
+	}
+	return m, nil
+}
+
 // Type - return box type
 func (m *MdiaBox) Type() string {
 	return "mdia"

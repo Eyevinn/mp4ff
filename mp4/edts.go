@@ -36,6 +36,30 @@ func DecodeEdts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return e, nil
 }
 
+// DecodeEdtsSR - box-specific decode
+func DecodeEdtsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	e := &EdtsBox{}
+	e.Children = children
+	for _, b := range children {
+		switch b.Type() {
+		case "elst":
+			e.Elst = append(e.Elst, b.(*ElstBox))
+		default:
+			return nil, fmt.Errorf("Box of type %s in edts", b.Type())
+		}
+	}
+	return e, sr.AccError()
+}
+
+// AddChild - Add a child box and update EntryCount
+func (e *EdtsBox) AddChild(child Box) {
+	e.Children = append(e.Children, child)
+}
+
 // Type - box type
 func (b *EdtsBox) Type() string {
 	return "edts"

@@ -59,38 +59,43 @@ func DecodeSidx(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSidxSR(hdr, startPos, sr)
+}
+
+// DecodeSidxSR - box-specific decode
+func DecodeSidxSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
 	b := &SidxBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.ReferenceID = s.ReadUint32()
-	b.Timescale = s.ReadUint32()
+	b.ReferenceID = sr.ReadUint32()
+	b.Timescale = sr.ReadUint32()
 	if version == 0 {
-		b.EarliestPresentationTime = uint64(s.ReadUint32())
-		b.FirstOffset = uint64(s.ReadUint32())
+		b.EarliestPresentationTime = uint64(sr.ReadUint32())
+		b.FirstOffset = uint64(sr.ReadUint32())
 	} else {
-		b.EarliestPresentationTime = s.ReadUint64()
-		b.FirstOffset = s.ReadUint64()
+		b.EarliestPresentationTime = sr.ReadUint64()
+		b.FirstOffset = sr.ReadUint64()
 	}
-	s.SkipBytes(2)
-	refCount := s.ReadUint16()
+	sr.SkipBytes(2)
+	refCount := sr.ReadUint16()
 	for i := 0; i < int(refCount); i++ {
 		ref := SidxRef{}
-		work := s.ReadUint32()
+		work := sr.ReadUint32()
 		ref.ReferenceType = uint8(work >> 31)
 		ref.ReferencedSize = work & 0x7fffffff
-		ref.SubSegmentDuration = s.ReadUint32()
-		work = s.ReadUint32()
+		ref.SubSegmentDuration = sr.ReadUint32()
+		work = sr.ReadUint32()
 		ref.StartsWithSAP = uint8(work >> 31)
 		ref.SAPType = uint8((work >> 28) & 0x07)
 		ref.SAPDeltaTime = work & 0x0fffffff
 		b.SidxRefs = append(b.SidxRefs, ref)
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // CreateSidx - Create a new TfdtBox with baseMediaDecodeTime

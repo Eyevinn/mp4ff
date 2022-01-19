@@ -32,25 +32,30 @@ func DecodePrft(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodePrftSR(hdr, startPos, sr)
+}
+
+// DecodePrftSR - box-specific decode
+func DecodePrftSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
-	ntp := s.ReadUint64()
+	ntp := sr.ReadUint64()
 	var mediatime uint64
 	if version == 0 {
-		mediatime = uint64(s.ReadUint32())
+		mediatime = uint64(sr.ReadUint32())
 	} else {
-		mediatime = s.ReadUint64()
+		mediatime = sr.ReadUint64()
 	}
 
-	p := &PrftBox{
+	p := PrftBox{
 		Version:      version,
 		Flags:        flags,
 		NTPTimestamp: ntp,
 		MediaTime:    mediatime,
 	}
-	return p, nil
+	return &p, sr.AccError()
 }
 
 // Type - return box type

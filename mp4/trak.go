@@ -47,8 +47,21 @@ func DecodeTrak(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	t := TrakBox{Children: make([]Box, 0, len(children))}
-	for _, child := range children {
-		t.AddChild(child)
+	for _, c := range children {
+		t.AddChild(c)
+	}
+	return &t, nil
+}
+
+// DecodeTrakSR - box-specific decode
+func DecodeTrakSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	t := TrakBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		t.AddChild(c)
 	}
 	return &t, nil
 }

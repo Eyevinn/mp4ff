@@ -21,7 +21,7 @@ func DecodeMfhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
+	s := bits.NewFixedSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
@@ -31,6 +31,19 @@ func DecodeMfhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Flags:          flags,
 		SequenceNumber: sequenceNumber,
 	}, nil
+}
+
+// DecodeMfhdSR - box-specific decode
+func DecodeMfhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	version := byte(versionAndFlags >> 24)
+	flags := versionAndFlags & flagsMask
+	sequenceNumber := sr.ReadUint32()
+	return &MfhdBox{
+		Version:        version,
+		Flags:          flags,
+		SequenceNumber: sequenceNumber,
+	}, sr.AccError()
 }
 
 // CreateMfhd - create an MfhdBox

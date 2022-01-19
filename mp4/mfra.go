@@ -33,6 +33,23 @@ func DecodeMfra(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return m, nil
 }
 
+// DecodeMfraSR - box-specific decode
+func DecodeMfraSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := &MfraBox{}
+	m.StartPos = startPos
+	for _, box := range children {
+		err := m.AddChild(box)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return m, nil
+}
+
 // AddChild - add child box
 func (m *MfraBox) AddChild(child Box) error {
 	switch child.Type() {

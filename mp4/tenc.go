@@ -27,30 +27,35 @@ func DecodeTenc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTencSR(hdr, startPos, sr)
+}
+
+// DecodeTencSR - box-specific decode
+func DecodeTencSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &TencBox{
+	b := TencBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	_ = s.ReadUint8() // Skip reserved == 0
+	_ = sr.ReadUint8() // Skip reserved == 0
 	if version == 0 {
-		_ = s.ReadUint8() // Skip reserved == 0
+		_ = sr.ReadUint8() // Skip reserved == 0
 	} else {
-		infoByte := s.ReadUint8()
+		infoByte := sr.ReadUint8()
 		b.DefaultCryptByteBlock = infoByte >> 4
 		b.DefaultSkipByteBlock = infoByte & 0x0f
 	}
-	b.DefaultIsProtected = s.ReadUint8()
-	b.DefaultPerSampleIVSize = s.ReadUint8()
-	b.DefaultKID = UUID(s.ReadBytes(16))
+	b.DefaultIsProtected = sr.ReadUint8()
+	b.DefaultPerSampleIVSize = sr.ReadUint8()
+	b.DefaultKID = UUID(sr.ReadBytes(16))
 	if b.DefaultIsProtected == 1 && b.DefaultPerSampleIVSize == 0 {
-		defaultConstantIVSize := int(s.ReadUint8())
-		b.DefaultConstantIV = s.ReadBytes(defaultConstantIVSize)
+		defaultConstantIVSize := int(sr.ReadUint8())
+		b.DefaultConstantIV = sr.ReadBytes(defaultConstantIVSize)
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type

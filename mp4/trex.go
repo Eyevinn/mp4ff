@@ -33,19 +33,24 @@ func DecodeTrex(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTrexSR(hdr, startPos, sr)
+}
 
-	b := &TrexBox{
+// DecodeTrexSR - box-specific decode
+func DecodeTrexSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+
+	b := TrexBox{
 		Version:                       byte(versionAndFlags >> 24),
 		Flags:                         versionAndFlags & flagsMask,
-		TrackID:                       s.ReadUint32(),
-		DefaultSampleDescriptionIndex: s.ReadUint32(),
-		DefaultSampleDuration:         s.ReadUint32(),
-		DefaultSampleSize:             s.ReadUint32(),
-		DefaultSampleFlags:            s.ReadUint32(), // interpreted as SampleFlags
+		TrackID:                       sr.ReadUint32(),
+		DefaultSampleDescriptionIndex: sr.ReadUint32(),
+		DefaultSampleDuration:         sr.ReadUint32(),
+		DefaultSampleSize:             sr.ReadUint32(),
+		DefaultSampleFlags:            sr.ReadUint32(), // interpreted as SampleFlags
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type

@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -58,29 +57,37 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 // DecodeHdlr - box-specific decode
 func DecodeHdlr(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
-
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	h := &HdlrBox{
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeHdlrSR(hdr, startPos, sr)
+}
+
+// DecodeHdlrSR - box-specific decode
+func DecodeHdlrSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	h := HdlrBox{
 		Version:     byte(versionAndFlags >> 24),
 		Flags:       versionAndFlags & flagsMask,
-		PreDefined:  binary.BigEndian.Uint32(data[4:8]),
-		HandlerType: string(data[8:12]),
+		PreDefined:  sr.ReadUint32(),
+		HandlerType: sr.ReadFixedLengthString(4),
 	}
-	if len(data) > 24 {
-		endPoint := len(data) - 1
-		lastChar := data[endPoint]
+	sr.SkipBytes(12) // 12 bytes of zero
+	nrBytesLeft := hdr.payloadLen() - 24
+	if nrBytesLeft > 0 {
+		bytesLeft := sr.ReadBytes(nrBytesLeft)
+		lastChar := bytesLeft[len(bytesLeft)-1]
 		if lastChar != 0 {
-			endPoint++
 			h.LacksNullTermination = true
+			h.Name = string(bytesLeft)
+		} else {
+			h.Name = string(bytesLeft[:len(bytesLeft)-1])
 		}
-		h.Name = string(data[24:endPoint])
 	} else {
 		h.LacksNullTermination = true
 	}
-	return h, nil
+	return &h, sr.AccError()
 }
 
 // Type - box type

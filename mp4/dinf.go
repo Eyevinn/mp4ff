@@ -37,6 +37,19 @@ func DecodeDinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return d, nil
 }
 
+// DecodeDinfSR - box-specific decode
+func DecodeDinfSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	d := &DinfBox{}
+	for _, c := range children {
+		d.AddChild(c)
+	}
+	return d, nil
+}
+
 // Type - box-specific type
 func (d *DinfBox) Type() string {
 	return "dinf"

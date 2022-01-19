@@ -34,7 +34,7 @@ func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
+	s := bits.NewFixedSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	sampleCount := s.ReadUint32()
 	t := &TrunBox{
@@ -74,6 +74,49 @@ func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	return t, nil
+}
+
+// DecodeTrun - box-specific decode
+func DecodeTrunSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	sampleCount := sr.ReadUint32()
+	t := &TrunBox{
+		Version:     byte(versionAndFlags >> 24),
+		flags:       versionAndFlags & flagsMask,
+		sampleCount: sampleCount,
+		Samples:     make([]Sample, sampleCount),
+	}
+
+	if t.HasDataOffset() {
+		t.DataOffset = sr.ReadInt32()
+	}
+
+	if t.HasFirstSampleFlags() {
+		t.firstSampleFlags = sr.ReadUint32()
+	}
+
+	var i uint32
+	for i = 0; i < t.sampleCount; i++ {
+		var dur, size, flags uint32
+		var cto int32
+		if t.HasSampleDuration() {
+			dur = sr.ReadUint32()
+		}
+		if t.HasSampleSize() {
+			size = sr.ReadUint32()
+		}
+		if t.HasSampleFlags() {
+			flags = sr.ReadUint32()
+		} else if t.HasFirstSampleFlags() && i == 0 {
+			flags = t.firstSampleFlags
+		}
+		if t.HasSampleCompositionTimeOffset() {
+			cto = sr.ReadInt32()
+		}
+		t.Samples[i] = Sample{flags, dur, size, cto}
+	}
+
+	return t, sr.AccError()
 }
 
 // CreateTrun - create a TrunBox for filling up with samples

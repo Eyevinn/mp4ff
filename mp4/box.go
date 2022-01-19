@@ -139,6 +139,10 @@ type boxHeader struct {
 	hdrlen int
 }
 
+func (b boxHeader) payloadLen() int {
+	return int(b.size) - b.hdrlen
+}
+
 // decodeHeader decodes a box header (size + box type + possiible largeSize)
 func decodeHeader(r io.Reader) (boxHeader, error) {
 	buf := make([]byte, boxHeaderSize)

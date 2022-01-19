@@ -32,6 +32,12 @@ func DecodeMdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &MdatBox{startPos, data, nil, 0, largeSize}, nil
 }
 
+// DecodeMdatSR - box-specific decode
+func DecodeMdatSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	largeSize := hdr.hdrlen > boxHeaderSize
+	return &MdatBox{startPos, sr.ReadBytes(hdr.payloadLen()), nil, 0, largeSize}, nil
+}
+
 // IsLazy - is the mdat data handled lazily (with separate writer/reader).
 func (m *MdatBox) IsLazy() bool {
 	return m.lazyDataSize > 0

@@ -26,16 +26,34 @@ func DecodeMoof(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := &MoofBox{Children: make([]Box, 0, len(children))}
+	m := MoofBox{Children: make([]Box, 0, len(children))}
 	m.StartPos = startPos
-	for _, box := range children {
-		err := m.AddChild(box)
+	for _, c := range children {
+		err := m.AddChild(c)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return m, nil
+	return &m, nil
+}
+
+// DecodeMoofSR - box-specific decode
+func DecodeMoofSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := MoofBox{Children: make([]Box, 0, len(children))}
+	m.StartPos = startPos
+	for _, c := range children {
+		err := m.AddChild(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &m, sr.AccError()
 }
 
 // AddChild - add child box

@@ -47,6 +47,32 @@ func DecodeContainerChildren(hdr boxHeader, startPos, endPos uint64, r io.Reader
 	}
 }
 
+// DecodeContainerChildren decodes a container box
+func DecodeContainerChildrenSR(hdr boxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
+	children := make([]Box, 0, 8) // Good initial size
+	pos := startPos
+	initPos := sr.GetPos()
+	for {
+		if pos > endPos {
+			return nil, fmt.Errorf("non matching children box sizes")
+		}
+		if pos == endPos {
+			break
+		}
+		child, err := DecodeBoxSR(pos, sr)
+		if err != nil {
+			return children, err
+		}
+		children = append(children, child)
+		pos += child.Size()
+		relPosFromSize := sr.GetPos() - initPos
+		if int(pos-startPos) != relPosFromSize {
+			return nil, fmt.Errorf("child %s size mismatch in %s: %d - %d\n", child.Type(), hdr.name, pos-startPos, relPosFromSize)
+		}
+	}
+	return children, nil
+}
+
 // EncodeContainer - marshal container c to w
 func EncodeContainer(c ContainerBox, w io.Writer) error {
 	err := EncodeHeader(c, w)

@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -30,21 +29,27 @@ func DecodeStsz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeStszSR(hdr, startPos, sr)
+}
+
+// DecodeStszSR - box-specific decode
+func DecodeStszSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 
 	b := StszBox{
 		Version:           byte(versionAndFlags >> 24),
 		Flags:             versionAndFlags & flagsMask,
-		SampleUniformSize: binary.BigEndian.Uint32(data[4:8]),
-		SampleNumber:      binary.BigEndian.Uint32(data[8:12]),
+		SampleUniformSize: sr.ReadUint32(),
+		SampleNumber:      sr.ReadUint32(),
 	}
 	if b.SampleNumber > 0 {
 		b.SampleSize = make([]uint32, b.SampleNumber)
 		for i := 0; i < int(b.SampleNumber); i++ {
-			b.SampleSize[i] = binary.BigEndian.Uint32(data[(12 + 4*i):(16 + 4*i)])
+			b.SampleSize[i] = sr.ReadUint32()
 		}
 	}
-	return &b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box-specific type

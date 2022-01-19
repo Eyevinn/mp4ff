@@ -45,20 +45,25 @@ func DecodeUUIDBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeUUIDBoxSR(hdr, startPos, sr)
+}
+
+// DecodeUUIDBoxSR - decode a UUID box including tfxd or tfrf
+func DecodeUUIDBoxSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := &UUIDBox{}
-	s := NewSliceReader(data)
-	b.UUID = string(s.ReadBytes(16))
+	b.UUID = string(sr.ReadBytes(16))
 	switch b.UUID {
 	case uuidTfxd:
 		b.SubType = "tfxd"
-		tfxd, err := decodeTfxd(s)
+		tfxd, err := decodeTfxd(sr)
 		if err != nil {
 			return nil, err
 		}
 		b.Tfxd = tfxd
 	case uuidTfrf:
 		b.SubType = "tfrf"
-		tfrf, err := decodeTfrf(s)
+		tfrf, err := decodeTfrf(sr)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +73,7 @@ func DecodeUUIDBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		// return nil, err
 	}
 
-	return b, err
+	return b, sr.AccError()
 }
 
 // Type - return box type
@@ -114,7 +119,7 @@ func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
 	return err
 }
 
-func decodeTfxd(s *SliceReader) (*TfxdData, error) {
+func decodeTfxd(s bits.SliceReader) (*TfxdData, error) {
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	var fragmentAbsoluteTime uint64
@@ -153,7 +158,7 @@ func (t *TfxdData) encode(sw bits.SliceWriter) error {
 	return sw.AccError()
 }
 
-func decodeTfrf(s *SliceReader) (*TfrfData, error) {
+func decodeTfrf(s bits.SliceReader) (*TfrfData, error) {
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	t := &TfrfData{

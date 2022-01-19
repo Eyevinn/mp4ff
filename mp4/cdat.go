@@ -25,6 +25,14 @@ func DecodeCdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// DecodeCdat - box-specific decode
+func DecodeCdatSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := &CdatBox{
+		Data: sr.ReadBytes(hdr.payloadLen()),
+	}
+	return b, sr.AccError()
+}
+
 // Type - box type
 func (b *CdatBox) Type() string {
 	return "cdat"

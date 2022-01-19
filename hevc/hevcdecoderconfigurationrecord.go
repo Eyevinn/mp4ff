@@ -100,7 +100,7 @@ func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, sp
 // DecodeHEVCDecConfRec - decode an HEVCDecConfRec
 func DecodeHEVCDecConfRec(data []byte) (DecConfRec, error) {
 	hdcr := DecConfRec{}
-	sr := bits.NewSliceReader(data)
+	sr := bits.NewFixedSliceReader(data)
 	hdcr.ConfigurationVersion = sr.ReadUint8()
 	if hdcr.ConfigurationVersion != 1 {
 		return DecConfRec{}, fmt.Errorf("HEVC decoder configuration record version %d unknown",

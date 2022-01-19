@@ -41,6 +41,22 @@ func DecodeTraf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return t, nil
 }
 
+// DecodeTrafSR - box-specific decode
+func DecodeTrafSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	t := &TrafBox{Children: make([]Box, 0, len(children))}
+	for _, child := range children {
+		err := t.AddChild(child)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return t, nil
+}
+
 // ContainsSencBox - is there a senc box in traf and is it parsed
 // If not parsed, call ParseReadSenc to parse it
 func (t *TrafBox) ContainsSencBox() (ok, parsed bool) {

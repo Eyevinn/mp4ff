@@ -25,26 +25,31 @@ func DecodeCslg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeCslgSR(hdr, startPos, sr)
+}
+
+// DecodeCslgSR - box-specific decode
+func DecodeCslgSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	b := CslgBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
 	if b.Version == 0 {
-		b.CompositionToDTSShift = int64(s.ReadInt32())
-		b.LeastDecodeToDisplayDelta = int64(s.ReadInt32())
-		b.GreatestDecodeToDisplayDelta = int64(s.ReadInt32())
-		b.CompositionStartTime = int64(s.ReadInt32())
-		b.CompositionEndTime = int64(s.ReadInt32())
+		b.CompositionToDTSShift = int64(sr.ReadInt32())
+		b.LeastDecodeToDisplayDelta = int64(sr.ReadInt32())
+		b.GreatestDecodeToDisplayDelta = int64(sr.ReadInt32())
+		b.CompositionStartTime = int64(sr.ReadInt32())
+		b.CompositionEndTime = int64(sr.ReadInt32())
 	} else {
-		b.CompositionToDTSShift = s.ReadInt64()
-		b.LeastDecodeToDisplayDelta = s.ReadInt64()
-		b.GreatestDecodeToDisplayDelta = s.ReadInt64()
-		b.CompositionStartTime = s.ReadInt64()
-		b.CompositionEndTime = s.ReadInt64()
+		b.CompositionToDTSShift = sr.ReadInt64()
+		b.LeastDecodeToDisplayDelta = sr.ReadInt64()
+		b.GreatestDecodeToDisplayDelta = sr.ReadInt64()
+		b.CompositionStartTime = sr.ReadInt64()
+		b.CompositionEndTime = sr.ReadInt64()
 	}
-	return &b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box type

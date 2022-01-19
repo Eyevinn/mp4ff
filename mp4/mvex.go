@@ -40,13 +40,26 @@ func (m *MvexBox) AddChild(box Box) {
 
 // DecodeMvex - box-specific decode
 func DecodeMvex(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
 	m := NewMvexBox()
-	for _, b := range l {
-		m.AddChild(b)
+	for _, c := range children {
+		m.AddChild(c)
+	}
+	return m, nil
+}
+
+// DecodeMvex - box-specific decode
+func DecodeMvexSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := NewMvexBox()
+	for _, c := range children {
+		m.AddChild(c)
 	}
 	return m, nil
 }

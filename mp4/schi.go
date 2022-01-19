@@ -34,6 +34,19 @@ func DecodeSchi(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// DecodeSchiSR - box-specific decode
+func DecodeSchiSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := &SchiBox{}
+	for _, child := range children {
+		b.AddChild(child)
+	}
+	return b, nil
+}
+
 // Type - box type
 func (b *SchiBox) Type() string {
 	return "schi"

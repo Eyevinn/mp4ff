@@ -63,6 +63,12 @@ func DecodeStyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &b, nil
 }
 
+// DecodeStypSR - box-specific decode
+func DecodeStypSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := StypBox{data: sr.ReadBytes(int(hdr.size) - hdr.hdrlen)}
+	return &b, sr.AccError()
+}
+
 // Type - return box type
 func (b *StypBox) Type() string {
 	return "styp"

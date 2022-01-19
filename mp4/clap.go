@@ -24,8 +24,13 @@ func DecodeClap(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	clap := &ClapBox{}
-	sr := NewSliceReader(data)
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeClapSR(hdr, startPos, sr)
+}
+
+// DecodeClapSR - box-specific decode
+func DecodeClapSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	clap := ClapBox{}
 	clap.CleanApertureWidthN = sr.ReadUint32()
 	clap.CleanApertureWidthD = sr.ReadUint32()
 	clap.CleanApertureHeightN = sr.ReadUint32()
@@ -34,7 +39,7 @@ func DecodeClap(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	clap.HorizOffD = sr.ReadUint32()
 	clap.VertOffN = sr.ReadUint32()
 	clap.VertOffD = sr.ReadUint32()
-	return clap, nil
+	return &clap, sr.AccError()
 }
 
 // Type - box type

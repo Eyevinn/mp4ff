@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -21,18 +20,25 @@ func DecodeMime(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMimeSR(hdr, startPos, sr)
+}
+
+// DecodeMimeSR - box-specific decode
+func DecodeMimeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	b := MimeBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
-	if data[len(data)-1] == 0 {
-		b.ContentType = string(data[4 : len(data)-1])
+	rest := sr.ReadBytes(hdr.payloadLen() - 4)
+	if rest[len(rest)-1] == 0 { // zero-termination
+		b.ContentType = string(rest[:len(rest)-1])
 	} else {
-		b.ContentType = string(data[4:])
+		b.ContentType = string(rest)
 		b.LacksZeroTermination = true
 	}
-	return &b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box type

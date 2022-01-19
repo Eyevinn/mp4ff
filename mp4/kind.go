@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -18,20 +19,24 @@ func DecodeKind(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	schemeURI, err := s.ReadZeroTerminatedString()
-	if err != nil {
-		return nil, err
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeKindSR(hdr, startPos, sr)
+}
+
+// DecodeKindSR - box-specific decode
+func DecodeKindSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	maxLen := hdr.payloadLen() - 1
+	schemeURI := sr.ReadZeroTerminatedString(maxLen)
+	maxLen = hdr.payloadLen() - 1
+	value := sr.ReadZeroTerminatedString(maxLen)
+	if err := sr.AccError(); err != nil {
+		return nil, fmt.Errorf("decode kind: %w", err)
 	}
-	value, err := s.ReadZeroTerminatedString()
-	if err != nil {
-		return nil, err
-	}
-	b := &KindBox{
+	b := KindBox{
 		SchemeURI: schemeURI,
 		Value:     value,
 	}
-	return b, nil
+	return &b, nil
 }
 
 // Type - box type

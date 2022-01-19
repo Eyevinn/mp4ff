@@ -23,25 +23,30 @@ func DecodeSaiz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSaizSR(hdr, startPos, sr)
+}
+
+// DecodeSaizSR - box-specific decode
+func DecodeSaizSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
-	b := &SaizBox{
+	b := SaizBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
 	if b.Flags&0x01 != 0 {
-		b.AuxInfoType = s.ReadFixedLengthString(4)
-		b.AuxInfoTypeParameter = s.ReadUint32()
+		b.AuxInfoType = sr.ReadFixedLengthString(4)
+		b.AuxInfoTypeParameter = sr.ReadUint32()
 	}
-	b.DefaultSampleInfoSize = s.ReadUint8()
-	b.SampleCount = s.ReadUint32()
+	b.DefaultSampleInfoSize = sr.ReadUint8()
+	b.SampleCount = sr.ReadUint32()
 	if b.DefaultSampleInfoSize == 0 {
 		for i := uint32(0); i < b.SampleCount; i++ {
-			b.SampleInfo = append(b.SampleInfo, s.ReadUint8())
+			b.SampleInfo = append(b.SampleInfo, sr.ReadUint8())
 		}
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type

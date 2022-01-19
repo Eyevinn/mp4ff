@@ -61,34 +61,39 @@ func DecodeSubs(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSubsSR(hdr, startPos, sr)
+}
+
+// DecodeSubsSR - box-specific decode
+func DecodeSubsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &SubsBox{
+	b := SubsBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	entryCount := s.ReadUint32()
+	entryCount := sr.ReadUint32()
 	for i := uint32(0); i < entryCount; i++ {
 		e := SubsEntry{}
-		e.SampleDelta = s.ReadUint32()
-		subsampleCount := s.ReadUint16()
+		e.SampleDelta = sr.ReadUint32()
+		subsampleCount := sr.ReadUint16()
 		for j := uint16(0); j < subsampleCount; j++ {
 			ss := SubsSample{}
 			if version == 1 {
-				ss.SubsampleSize = s.ReadUint32()
+				ss.SubsampleSize = sr.ReadUint32()
 			} else {
-				ss.SubsampleSize = uint32(s.ReadUint16())
+				ss.SubsampleSize = uint32(sr.ReadUint16())
 			}
-			ss.SubsamplePriority = s.ReadUint8()
-			ss.Discardable = s.ReadUint8()
-			ss.CodecSpecificParameters = s.ReadUint32()
+			ss.SubsamplePriority = sr.ReadUint8()
+			ss.Discardable = sr.ReadUint8()
+			ss.CodecSpecificParameters = sr.ReadUint32()
 			e.SubSamples = append(e.SubSamples, ss)
 		}
 		b.Entries = append(b.Entries, e)
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type

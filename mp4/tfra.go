@@ -33,62 +33,67 @@ func DecodeTfra(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTfraSR(hdr, startPos, sr)
+}
+
+// DecodeTfraSR - box-specific decode
+func DecodeTfraSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &TfraBox{
+	b := TfraBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.TrackID = s.ReadUint32()
-	sizesBlock := s.ReadUint32()
+	b.TrackID = sr.ReadUint32()
+	sizesBlock := sr.ReadUint32()
 	b.LengthSizeOfTrafNum = byte((sizesBlock >> 4) & 0x3)
 	b.LengthSizeOfTrunNum = byte((sizesBlock >> 2) & 0x3)
 	b.LengthSizeOfSampleNum = byte(sizesBlock & 0x3)
-	nrEntries := s.ReadUint32()
+	nrEntries := sr.ReadUint32()
 	for i := uint32(0); i < nrEntries; i++ {
 		te := TfraEntry{}
 		if b.Version == 1 {
-			te.Time = s.ReadInt64()
-			te.MoofOffset = s.ReadInt64()
+			te.Time = sr.ReadInt64()
+			te.MoofOffset = sr.ReadInt64()
 		} else {
-			te.Time = int64(s.ReadInt32())
-			te.MoofOffset = int64(s.ReadInt32())
+			te.Time = int64(sr.ReadInt32())
+			te.MoofOffset = int64(sr.ReadInt32())
 		}
 		switch b.LengthSizeOfTrafNum {
 		case 0:
-			te.TrafNumber = uint32(s.ReadUint8())
+			te.TrafNumber = uint32(sr.ReadUint8())
 		case 1:
-			te.TrafNumber = uint32(s.ReadUint16())
+			te.TrafNumber = uint32(sr.ReadUint16())
 		case 2:
-			te.TrafNumber = uint32(s.ReadUint24())
+			te.TrafNumber = uint32(sr.ReadUint24())
 		case 3:
-			te.TrafNumber = s.ReadUint32()
+			te.TrafNumber = sr.ReadUint32()
 		}
 		switch b.LengthSizeOfTrunNum {
 		case 0:
-			te.TrunNumber = uint32(s.ReadUint8())
+			te.TrunNumber = uint32(sr.ReadUint8())
 		case 1:
-			te.TrunNumber = uint32(s.ReadUint16())
+			te.TrunNumber = uint32(sr.ReadUint16())
 		case 2:
-			te.TrunNumber = uint32(s.ReadUint24())
+			te.TrunNumber = uint32(sr.ReadUint24())
 		case 3:
-			te.TrunNumber = s.ReadUint32()
+			te.TrunNumber = sr.ReadUint32()
 		}
 		switch b.LengthSizeOfSampleNum {
 		case 0:
-			te.SampleDelta = uint32(s.ReadUint8())
+			te.SampleDelta = uint32(sr.ReadUint8())
 		case 1:
-			te.SampleDelta = uint32(s.ReadUint16())
+			te.SampleDelta = uint32(sr.ReadUint16())
 		case 2:
-			te.SampleDelta = uint32(s.ReadUint24())
+			te.SampleDelta = uint32(sr.ReadUint24())
 		case 3:
-			te.SampleDelta = s.ReadUint32()
+			te.SampleDelta = sr.ReadUint32()
 		}
 		b.Entries = append(b.Entries, te)
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type

@@ -25,6 +25,19 @@ func DecodeCToo(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// DecodeCTooSR - box-specific decode
+func DecodeCTooSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := &CTooBox{}
+	for _, c := range children {
+		b.AddChild(c)
+	}
+	return b, nil
+}
+
 // AddChild - Add a child box and update SampleCount
 func (b *CTooBox) AddChild(child Box) {
 	b.Children = append(b.Children, child)
@@ -71,8 +84,13 @@ func DecodeData(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := DataBox{data[8:]}
-	return &b, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeDataSR(hdr, startPos, sr)
+}
+
+// DecodeDataSR - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
+func DecodeDataSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &DataBox{sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box type

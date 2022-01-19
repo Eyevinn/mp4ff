@@ -18,10 +18,16 @@ func DecodeFrma(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(data) != 4 {
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeFrmaSR(hdr, startPos, sr)
+}
+
+// DecodeFrmaSR - box-specific decode
+func DecodeFrmaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	if hdr.payloadLen() != 4 {
 		return nil, fmt.Errorf("Frma content length is not 4")
 	}
-	return &FrmaBox{DataFormat: string(data)}, nil
+	return &FrmaBox{DataFormat: string(sr.ReadFixedLengthString(4))}, sr.AccError()
 }
 
 // Type - return box type

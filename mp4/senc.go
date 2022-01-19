@@ -96,16 +96,36 @@ func DecodeSenc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &senc, nil
 }
 
+// DecodeSencSR - box-specific decode
+func DecodeSencSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	sampleCount := sr.ReadUint32()
+	senc := SencBox{
+		Version:          byte(versionAndFlags >> 24),
+		rawData:          sr.ReadBytes(hdr.payloadLen() - 8), // After the first 8 bytes of box content
+		Flags:            versionAndFlags & flagsMask,
+		StartPos:         startPos,
+		SampleCount:      sampleCount,
+		readButNotParsed: true,
+	}
+
+	if senc.SampleCount == 0 || len(senc.rawData) == 0 {
+		senc.readButNotParsed = false
+		return &senc, sr.AccError()
+	}
+	return &senc, sr.AccError()
+}
+
 // ParseReadBox - second phase when perSampleIVSize should be known from tenc or sgpd boxes
 // if perSampleIVSize is 0, we try to find the appropriate error given data length
 func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 	if !s.readButNotParsed {
 		return fmt.Errorf("senc box already parsed")
 	}
-	sr := NewSliceReader(s.rawData)
 	if perSampleIVSize != 0 {
 		s.perSampleIVSize = byte(perSampleIVSize)
 	}
+	sr := bits.NewFixedSliceReader(s.rawData)
 	nrBytesLeft := uint32(sr.NrRemainingBytes())
 
 	if s.Flags&UseSubSampleEncryption == 0 {
@@ -162,7 +182,7 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 }
 
 // parseAndFillSamples - parse and fill senc samples given perSampleIVSize
-func (s *SencBox) parseAndFillSamples(sr *SliceReader, perSampleIVSize byte) (ok bool) {
+func (s *SencBox) parseAndFillSamples(sr bits.SliceReader, perSampleIVSize byte) (ok bool) {
 	ok = true
 	s.SubSamples = make([][]SubSamplePattern, s.SampleCount)
 	for i := 0; i < int(s.SampleCount); i++ {

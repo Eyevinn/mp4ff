@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -23,22 +22,27 @@ func DecodeCtts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	entryCount := binary.BigEndian.Uint32(data[4:8])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeCttsSR(hdr, startPos, sr)
+}
+
+// DecodeCttsSR - box-specific decode
+func DecodeCttsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
+
 	b := &CttsBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		SampleCount:  make([]uint32, 0, entryCount),
-		SampleOffset: make([]int32, 0, entryCount),
+		SampleCount:  make([]uint32, entryCount),
+		SampleOffset: make([]int32, entryCount),
 	}
 
 	for i := 0; i < int(entryCount); i++ {
-		sCount := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
-		sOffset := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
-		b.SampleCount = append(b.SampleCount, sCount)
-		b.SampleOffset = append(b.SampleOffset, int32(sOffset)) // Cast will handle sign right
+		b.SampleCount[i] = sr.ReadUint32()
+		b.SampleOffset[i] = sr.ReadInt32()
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - box type

@@ -23,21 +23,26 @@ func DecodeURLBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeURLBoxSR(hdr, startPos, sr)
+}
+
+// DecodeURLBoxSR - box-specific decode
+func DecodeURLBoxSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
 	location := ""
 	if flags != dataIsSelfContainedFlag {
-		location, err = s.ReadZeroTerminatedString()
+		location = sr.ReadZeroTerminatedString(hdr.payloadLen() - 4)
 	}
 
-	b := &URLBox{
+	b := URLBox{
 		Version:  version,
 		Flags:    flags,
 		Location: location,
 	}
-	return b, err
+	return &b, sr.AccError()
 }
 
 // CreateURLBox - Create a self-referencing URL box

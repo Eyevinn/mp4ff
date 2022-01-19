@@ -38,7 +38,7 @@ func boxDiffAfterEncodeAndDecode(t *testing.T, box Box) {
 		t.Error(diff)
 	}
 
-	// Then do encode using writer
+	// Then do encode using io.Writer
 	midBuf := bytes.Buffer{}
 	err = box.Encode(&midBuf)
 	if err != nil {

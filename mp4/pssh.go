@@ -59,25 +59,30 @@ func DecodePssh(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodePsshSR(hdr, startPos, sr)
+}
+
+// DecodePsshSR - box-specific decode
+func DecodePsshSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &PsshBox{
+	b := PsshBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.SystemID = UUID(s.ReadFixedLengthString(16))
+	b.SystemID = UUID(sr.ReadFixedLengthString(16))
 	if b.Version > 0 {
-		kidCount := s.ReadUint32()
+		kidCount := sr.ReadUint32()
 		for i := uint32(0); i < kidCount; i++ {
-			b.KIDs = append(b.KIDs, UUID(s.ReadFixedLengthString(16)))
+			b.KIDs = append(b.KIDs, UUID(sr.ReadFixedLengthString(16)))
 
 		}
 	}
-	dataLength := int(s.ReadUint32())
-	b.Data = s.ReadBytes(dataLength)
-	return b, nil
+	dataLength := int(sr.ReadUint32())
+	b.Data = sr.ReadBytes(dataLength)
+	return &b, sr.AccError()
 }
 
 // Type - return box type

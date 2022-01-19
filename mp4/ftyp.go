@@ -59,8 +59,13 @@ func DecodeFtyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := FtypBox{data: data}
-	return &b, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeFtypSR(hdr, startPos, sr)
+}
+
+// DecodeFtypSR - box-specific decode
+func DecodeFtypSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &FtypBox{data: sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - return box type

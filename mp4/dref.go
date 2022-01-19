@@ -17,7 +17,7 @@ import (
 type DrefBox struct {
 	Version    byte
 	Flags      uint32
-	EntryCount int
+	EntryCount uint32
 	Children   []Box
 }
 
@@ -48,7 +48,7 @@ func DecodeDref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	// Note higher startPos for children since not simple container.
-	boxes, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +58,39 @@ func DecodeDref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Flags:   versionAndFlags & flagsMask,
 	}
 
-	for _, b := range boxes {
-		dref.AddChild(b)
+	for _, c := range children {
+		dref.AddChild(c)
 	}
-	if int(entryCount) != dref.EntryCount {
+	if entryCount != dref.EntryCount {
 		return nil, fmt.Errorf("Inconsistent entry count in Dref")
 	}
 	return dref, nil
+}
+
+// DecodeDrefSR - box-specific decode
+func DecodeDrefSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
+
+	// Note higher startPos for children since not simple container.
+	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+
+	dref := &DrefBox{
+		Version:    byte(versionAndFlags >> 24),
+		Flags:      versionAndFlags & flagsMask,
+		EntryCount: 0, // incremented by AddChild
+	}
+
+	for _, c := range children {
+		dref.AddChild(c)
+	}
+	if entryCount != dref.EntryCount {
+		return nil, fmt.Errorf("Inconsistent entry count in Dref")
+	}
+	return dref, sr.AccError()
 }
 
 // Type - box type

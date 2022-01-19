@@ -38,6 +38,15 @@ func DecodeAvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &AvcCBox{avcDecConfRec}, nil
 }
 
+// DecodeAvcCSR - box-specific decode
+func DecodeAvcCSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	avcDecConfRec, err := avc.DecodeAVCDecConfRec(sr.ReadBytes(hdr.payloadLen()))
+	if err != nil {
+		return nil, err
+	}
+	return &AvcCBox{avcDecConfRec}, nil
+}
+
 // Type - return box type
 func (a *AvcCBox) Type() string {
 	return "avcC"

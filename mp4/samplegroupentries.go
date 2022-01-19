@@ -21,7 +21,7 @@ type SampleGroupEntry interface {
 }
 
 // SampleGroupEntryDecoder is function signature of the SampleGroupEntry Decode method
-type SampleGroupEntryDecoder func(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error)
+type SampleGroupEntryDecoder func(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error)
 
 var sgeDecoders map[string]SampleGroupEntryDecoder
 
@@ -34,7 +34,7 @@ func init() {
 	}
 }
 
-func decodeSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+func decodeSampleGroupEntry(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error) {
 	decode, ok := sgeDecoders[name]
 	if ok {
 		return decode(name, length, sr)
@@ -55,7 +55,7 @@ type SeigSampleGroupEntry struct {
 }
 
 // DecodeSeigSampleGroupEntry - decode Common Encryption Sample Group Entry
-func DecodeSeigSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+func DecodeSeigSampleGroupEntry(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error) {
 	s := &SeigSampleGroupEntry{}
 	_ = sr.ReadUint8() // Reserved
 	byteTwo := sr.ReadUint8()
@@ -135,7 +135,7 @@ type UnknownSampleGroupEntry struct {
 }
 
 // DecodeUnknownSampleGroupEntry - decode an unknown sample group entry
-func DecodeUnknownSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+func DecodeUnknownSampleGroupEntry(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error) {
 	return &UnknownSampleGroupEntry{
 		Name: name,
 		Data: sr.ReadBytes(int(length)),
@@ -178,7 +178,7 @@ type RollSampleGroupEntry struct {
 }
 
 // DecodeRollSampleGroupEntry - decode Roll Sample Group Entry
-func DecodeRollSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+func DecodeRollSampleGroupEntry(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error) {
 	entry := &RollSampleGroupEntry{}
 	entry.RollDistance = sr.ReadInt16()
 	return entry, nil
@@ -215,7 +215,7 @@ type RapSampleGroupEntry struct {
 }
 
 // DecodeRapSampleGroupEntry - decode Rap Sample Sample Group Entry
-func DecodeRapSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+func DecodeRapSampleGroupEntry(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error) {
 	entry := &RapSampleGroupEntry{}
 	byt := sr.ReadUint8()
 	entry.NumLeadingSamplesKnown = byt >> 7
@@ -276,7 +276,7 @@ func (s *AlstSampleGroupEntry) Size() uint64 {
 }
 
 // DecodeAlstSampleGroupEntry - decode ALST Sample Group Entry
-func DecodeAlstSampleGroupEntry(name string, length uint32, sr *SliceReader) (SampleGroupEntry, error) {
+func DecodeAlstSampleGroupEntry(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error) {
 	entry := &AlstSampleGroupEntry{}
 	entry.RollCount = sr.ReadUint16()
 	entry.FirstOutputSample = sr.ReadUint16()

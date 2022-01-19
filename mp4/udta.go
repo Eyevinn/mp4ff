@@ -25,11 +25,24 @@ func DecodeUdta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &UdtaBox{}
-	for _, child := range children {
-		b.AddChild(child)
+	b := UdtaBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		b.AddChild(c)
 	}
-	return b, nil
+	return &b, nil
+}
+
+// DecodeUdtaSR - box-specific decode
+func DecodeUdtaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := UdtaBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		b.AddChild(c)
+	}
+	return &b, nil
 }
 
 // Type - box type

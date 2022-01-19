@@ -27,24 +27,29 @@ func DecodeSbgp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSbgpSR(hdr, startPos, sr)
+}
+
+// DecodeSbgpSR - box-specific decode
+func DecodeSbgpSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &SbgpBox{
+	b := SbgpBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.GroupingType = s.ReadFixedLengthString(4)
+	b.GroupingType = sr.ReadFixedLengthString(4)
 	if b.Version == 1 {
-		b.GroupingTypeParameter = s.ReadUint32()
+		b.GroupingTypeParameter = sr.ReadUint32()
 	}
-	entryCount := int(s.ReadUint32())
+	entryCount := int(sr.ReadUint32())
 	for i := 0; i < entryCount; i++ {
-		b.SampleCounts = append(b.SampleCounts, s.ReadUint32())
-		b.GroupDescriptionIndices = append(b.GroupDescriptionIndices, s.ReadUint32())
+		b.SampleCounts = append(b.SampleCounts, sr.ReadUint32())
+		b.GroupDescriptionIndices = append(b.GroupDescriptionIndices, sr.ReadUint32())
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type

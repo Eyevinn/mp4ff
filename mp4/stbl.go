@@ -80,15 +80,28 @@ func (s *StblBox) AddChild(box Box) {
 
 // DecodeStbl - box-specific decode
 func DecodeStbl(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
 	s := NewStblBox()
-	for _, b := range l {
-		s.AddChild(b)
+	for _, c := range children {
+		s.AddChild(c)
 	}
 	return s, nil
+}
+
+// DecodeStblSR - box-specific decode
+func DecodeStblSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	s := NewStblBox()
+	for _, c := range children {
+		s.AddChild(c)
+	}
+	return s, sr.AccError()
 }
 
 // Type - box-specific type

@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -26,19 +25,24 @@ func DecodeStco(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	entryCount := binary.BigEndian.Uint32(data[4:8])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeStcoSR(hdr, startPos, sr)
+}
+
+// DecodeStcoSR - box-specific decode
+func DecodeStcoSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
 	b := &StcoBox{
 		Version:     byte(versionAndFlags >> 24),
 		Flags:       versionAndFlags & flagsMask,
-		ChunkOffset: make([]uint32, 0, entryCount),
+		ChunkOffset: make([]uint32, entryCount),
 	}
 
 	for i := 0; i < int(entryCount); i++ {
-		chunk := binary.BigEndian.Uint32(data[(8 + 4*i):(12 + 4*i)])
-		b.ChunkOffset = append(b.ChunkOffset, chunk)
+		b.ChunkOffset[i] = sr.ReadUint32()
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - box-specific type

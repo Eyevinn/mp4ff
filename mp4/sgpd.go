@@ -24,37 +24,42 @@ func DecodeSgpd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSgpdSR(hdr, startPos, sr)
+}
+
+// DecodeSgpdSR - box-specific decode
+func DecodeSgpdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
 	b := &SgpdBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.GroupingType = s.ReadFixedLengthString(4)
+	b.GroupingType = sr.ReadFixedLengthString(4)
 
 	if b.Version >= 1 {
-		b.DefaultLength = s.ReadUint32()
+		b.DefaultLength = sr.ReadUint32()
 	}
 	if b.Version >= 2 {
-		b.DefaultGroupDescriptionIndex = s.ReadUint32()
+		b.DefaultGroupDescriptionIndex = sr.ReadUint32()
 	}
-	entryCount := int(s.ReadUint32())
+	entryCount := int(sr.ReadUint32())
 	for i := 0; i < entryCount; i++ {
 		var descriptionLength uint32 = b.DefaultLength
 		if b.Version >= 1 && b.DefaultLength == 0 {
-			descriptionLength = s.ReadUint32()
+			descriptionLength = sr.ReadUint32()
 			b.DescriptionLengths = append(b.DescriptionLengths, descriptionLength)
 		}
-		sgEntry, err := decodeSampleGroupEntry(b.GroupingType, descriptionLength, s)
+		sgEntry, err := decodeSampleGroupEntry(b.GroupingType, descriptionLength, sr)
 		if err != nil {
 			return nil, err
 		}
 		b.SampleGroupEntries = append(b.SampleGroupEntries, sgEntry)
 	}
 
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - return box type

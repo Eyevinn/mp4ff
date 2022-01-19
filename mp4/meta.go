@@ -57,6 +57,24 @@ func DecodeMeta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return b, nil
 }
 
+// DecodeMetaSR - box-specific decode
+func DecodeMetaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	//Note higher startPos below since not simple container
+	children, err := DecodeContainerChildrenSR(hdr, startPos+12, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := &MetaBox{
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
+	}
+	for _, child := range children {
+		b.AddChild(child)
+	}
+	return b, nil
+}
+
 // Type - box type
 func (b *MetaBox) Type() string {
 	return "meta"

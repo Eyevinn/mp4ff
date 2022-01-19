@@ -28,17 +28,22 @@ func DecodeVmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
-	b := &VmhdBox{
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeVmhdSR(hdr, startPos, sr)
+}
+
+// DecodeVmhdSR - box-specific decode
+func DecodeVmhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	b := VmhdBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		GraphicsMode: s.ReadUint16(),
+		GraphicsMode: sr.ReadUint16(),
 	}
 	for i := 0; i < 3; i++ {
-		b.OpColor[i] = s.ReadUint16()
+		b.OpColor[i] = sr.ReadUint16()
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box-specific type

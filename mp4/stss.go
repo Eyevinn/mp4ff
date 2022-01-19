@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -24,18 +23,23 @@ func DecodeStss(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	entryCount := binary.BigEndian.Uint32(data[4:8])
-	b := &StssBox{
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeStssSR(hdr, startPos, sr)
+}
+
+// DecodeStssSR - box-specific decode
+func DecodeStssSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
+	b := StssBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		SampleNumber: make([]uint32, 0, entryCount),
+		SampleNumber: make([]uint32, entryCount),
 	}
 	for i := 0; i < int(entryCount); i++ {
-		sample := binary.BigEndian.Uint32(data[(8 + 4*i):(12 + 4*i)])
-		b.SampleNumber = append(b.SampleNumber, sample)
+		b.SampleNumber[i] = sr.ReadUint32()
 	}
-	return b, nil
+	return &b, nil
 }
 
 // EntryCount - number of sync samples

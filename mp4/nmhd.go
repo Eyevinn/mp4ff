@@ -6,7 +6,7 @@ import (
 	"github.com/edgeware/mp4ff/bits"
 )
 
-// NmhdBox - Null Media Header Box (nmhd - often used instead ofsthd for subtitle tracks)
+// NmhdBox - Null Media Header Box (nmhd - often used instead of sthd for subtitle tracks)
 type NmhdBox struct {
 	Version byte
 	Flags   uint32
@@ -18,13 +18,19 @@ func DecodeNmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeNmhdSR(hdr, startPos, sr)
+}
+
+// DecodeNmhdSR - box-specific decode
+func DecodeNmhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+
+	versionAndFlags := sr.ReadUint32()
 	sb := &NmhdBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
-	return sb, nil
+	return sb, sr.AccError()
 }
 
 // Type - box-specific type

@@ -20,19 +20,24 @@ func DecodeMehd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMehdSR(hdr, startPos, sr)
+}
+
+// DecodeMehdSR - box-specific decode
+func DecodeMehdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := &MehdBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
 	if version == 0 {
-		b.FragmentDuration = int64(s.ReadInt32())
+		b.FragmentDuration = int64(sr.ReadInt32())
 	} else {
-		b.FragmentDuration = s.ReadInt64()
+		b.FragmentDuration = sr.ReadInt64()
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - return box type

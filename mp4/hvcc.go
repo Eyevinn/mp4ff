@@ -39,6 +39,12 @@ func DecodeHvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &HvcCBox{hevcDecConfRec}, nil
 }
 
+// DecodeHvcCSR - box-specific decode
+func DecodeHvcCSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	hevcDecConfRec, err := hevc.DecodeHEVCDecConfRec(sr.ReadBytes(hdr.payloadLen()))
+	return &HvcCBox{hevcDecConfRec}, err
+}
+
 // Type - return box type
 func (b *HvcCBox) Type() string {
 	return "hvcC"

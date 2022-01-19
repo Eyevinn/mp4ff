@@ -69,23 +69,22 @@ func DecodeAudioSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, e
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-
+	sr := bits.NewFixedSliceReader(data)
 	a := NewAudioSampleEntryBox(hdr.name)
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
-	s.SkipBytes(6) // Skip 6 reserved bytes
-	a.DataReferenceIndex = s.ReadUint16()
+	sr.SkipBytes(6) // Skip 6 reserved bytes
+	a.DataReferenceIndex = sr.ReadUint16()
 
 	// 14496-12 12.2.3.2 Audio Sample entry (20 bytes)
 
-	s.SkipBytes(8) //  reserved == 0
-	a.ChannelCount = s.ReadUint16()
-	a.SampleSize = s.ReadUint16()
-	s.SkipBytes(4) // Predefined + reserved
-	a.SampleRate = makeUint16FromFixed32(s.ReadUint32())
+	sr.SkipBytes(8) //  reserved == 0
+	a.ChannelCount = sr.ReadUint16()
+	a.SampleSize = sr.ReadUint16()
+	sr.SkipBytes(4) // Predefined + reserved
+	a.SampleRate = makeUint16FromFixed32(sr.ReadUint32())
 
-	remaining := s.RemainingBytes()
+	remaining := sr.RemainingBytes()
 	restReader := bytes.NewReader(remaining)
 
 	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
@@ -107,6 +106,40 @@ func DecodeAudioSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, e
 		}
 	}
 	return a, nil
+}
+
+// DecodeAudioSampleEntry - decode mp4a... box
+func DecodeAudioSampleEntrySR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	a := NewAudioSampleEntryBox(hdr.name)
+
+	// 14496-12 8.5.2.2 Sample entry (8 bytes)
+	sr.SkipBytes(6) // Skip 6 reserved bytes
+	a.DataReferenceIndex = sr.ReadUint16()
+
+	// 14496-12 12.2.3.2 Audio Sample entry (20 bytes)
+
+	sr.SkipBytes(8) //  reserved == 0
+	a.ChannelCount = sr.ReadUint16()
+	a.SampleSize = sr.ReadUint16()
+	sr.SkipBytes(4) // Predefined + reserved
+	a.SampleRate = makeUint16FromFixed32(sr.ReadUint32())
+
+	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
+	lastPos := startPos + hdr.size
+	for {
+		if pos >= lastPos {
+			break
+		}
+		box, err := DecodeBoxSR(pos, sr)
+		if err != nil {
+			return nil, err
+		}
+		if box != nil {
+			a.AddChild(box)
+			pos += box.Size()
+		}
+	}
+	return a, sr.AccError()
 }
 
 // Type - return box type

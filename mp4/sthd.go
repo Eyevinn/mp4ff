@@ -18,13 +18,18 @@ func DecodeSthd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSthdSR(hdr, startPos, sr)
+}
+
+// DecodeSthdSR - box-specific decode
+func DecodeSthdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	sb := &SthdBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
-	return sb, nil
+	return sb, sr.AccError()
 }
 
 // Type - box-specific type

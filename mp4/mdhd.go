@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -33,31 +32,34 @@ func DecodeMdhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMdhdSR(hdr, startPos, sr)
+}
+
+// DecodeMdhd - Decode box
+func DecodeMdhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
+	b := MdhdBox{
+		Version: version,
+		Flags:   versionAndFlags & flagsMask,
+	}
 	if version == 1 {
-		return &MdhdBox{
-			Version:          1,
-			Flags:            versionAndFlags & flagsMask,
-			CreationTime:     binary.BigEndian.Uint64(data[4:12]),
-			ModificationTime: binary.BigEndian.Uint64(data[12:20]),
-			Timescale:        binary.BigEndian.Uint32(data[20:24]),
-			Duration:         binary.BigEndian.Uint64(data[24:32]),
-			Language:         binary.BigEndian.Uint16(data[32:34]),
-		}, nil
+		b.CreationTime = sr.ReadUint64()
+		b.ModificationTime = sr.ReadUint64()
+		b.Timescale = sr.ReadUint32()
+		b.Duration = sr.ReadUint64()
 	} else if version == 0 {
-		return &MdhdBox{
-			Version:          0,
-			Flags:            versionAndFlags & flagsMask,
-			CreationTime:     uint64(binary.BigEndian.Uint32(data[4:8])),
-			ModificationTime: uint64(binary.BigEndian.Uint32(data[8:12])),
-			Timescale:        binary.BigEndian.Uint32(data[12:16]),
-			Duration:         uint64(binary.BigEndian.Uint32(data[16:20])),
-			Language:         binary.BigEndian.Uint16(data[20:22]),
-		}, nil
+		b.CreationTime = uint64(sr.ReadUint32())
+		b.ModificationTime = uint64(sr.ReadUint32())
+		b.Timescale = sr.ReadUint32()
+		b.Duration = uint64(sr.ReadUint32())
 	} else {
 		return nil, errors.New("Unknown mdhd version")
 	}
+	b.Language = sr.ReadUint16()
+	sr.SkipBytes(2)
+	return &b, sr.AccError()
 }
 
 // GetLanguage - Get three-byte language string

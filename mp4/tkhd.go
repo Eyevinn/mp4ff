@@ -42,39 +42,44 @@ func DecodeTkhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTkhdSR(hdr, startPos, sr)
+}
+
+// DecodeTkhdSR - box-specific decode
+func DecodeTkhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
 
-	t := &TkhdBox{
+	t := TkhdBox{
 		Version: version,
 		Flags:   flags,
 	}
 
 	if version == 1 {
-		t.CreationTime = s.ReadUint64()
-		t.ModificationTime = s.ReadUint64()
-		t.TrackID = s.ReadUint32()
-		s.SkipBytes(4) // Reserved = 0
-		t.Duration = s.ReadUint64()
+		t.CreationTime = sr.ReadUint64()
+		t.ModificationTime = sr.ReadUint64()
+		t.TrackID = sr.ReadUint32()
+		sr.SkipBytes(4) // Reserved = 0
+		t.Duration = sr.ReadUint64()
 	} else {
-		t.CreationTime = uint64(s.ReadUint32())
-		t.ModificationTime = uint64(s.ReadUint32())
-		t.TrackID = s.ReadUint32()
-		s.SkipBytes(4) // Reserved = 0
-		t.Duration = uint64(s.ReadUint32())
+		t.CreationTime = uint64(sr.ReadUint32())
+		t.ModificationTime = uint64(sr.ReadUint32())
+		t.TrackID = sr.ReadUint32()
+		sr.SkipBytes(4) // Reserved = 0
+		t.Duration = uint64(sr.ReadUint32())
 	}
-	s.SkipBytes(8) // Reserved 8 x 0
-	t.Layer = s.ReadInt16()
-	t.AlternateGroup = s.ReadInt16()
-	t.Volume = Fixed16(s.ReadInt16())
-	s.SkipBytes(2)
-	s.SkipBytes(36) // 3x3 matrixdata
-	t.Width = Fixed32(s.ReadUint32())
-	t.Height = Fixed32(s.ReadUint32())
+	sr.SkipBytes(8) // Reserved 8 x 0
+	t.Layer = sr.ReadInt16()
+	t.AlternateGroup = sr.ReadInt16()
+	t.Volume = Fixed16(sr.ReadInt16())
+	sr.SkipBytes(2)
+	sr.SkipBytes(36) // 3x3 matrixdata
+	t.Width = Fixed32(sr.ReadUint32())
+	t.Height = Fixed32(sr.ReadUint32())
 
-	return t, nil
+	return &t, sr.AccError()
 }
 
 // Type - box type

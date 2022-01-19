@@ -24,7 +24,12 @@ func DecodeCo64(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	sr := NewSliceReader(data)
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeCo64SR(hdr, startPos, sr)
+}
+
+// DecodeCo64 - box-specific decode
+func DecodeCo64SR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	nrEntries := sr.ReadUint32()
 	b := &Co64Box{
@@ -36,7 +41,7 @@ func DecodeCo64(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	for i := uint32(0); i < nrEntries; i++ {
 		b.ChunkOffset[i] = sr.ReadUint64()
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - box-specific type

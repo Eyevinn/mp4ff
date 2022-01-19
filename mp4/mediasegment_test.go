@@ -239,21 +239,3 @@ func BenchmarkDecodeEncodeMediaSegmentSliceWriter(b *testing.B) {
 		}
 	}
 }
-
-func BenchmarkEncodeSegmentSW(b *testing.B) {
-	inData, err := os.ReadFile("testdata/1.m4s")
-	if err != nil {
-		b.Error(err)
-	}
-	inBuf := bytes.NewBuffer(inData)
-	decFile, err := DecodeFile(inBuf)
-	if err != nil {
-		b.Error(err)
-	}
-
-	outData := make([]byte, len(inData))
-	for i := 0; i < b.N; i++ {
-		sw := bits.NewFixedSliceWriterFromSlice(outData)
-		_ = decFile.EncodeSW(sw)
-	}
-}

@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -32,33 +31,37 @@ func DecodeStsc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeStscSR(hdr, startPos, sr)
+}
 
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	entryCount := binary.BigEndian.Uint32(data[4:8])
+// DecodeStscSR - box-specific decode
+func DecodeStscSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
 	b := StscBox{
 		Version:         byte(versionAndFlags >> 24),
 		Flags:           versionAndFlags & flagsMask,
-		FirstChunk:      make([]uint32, 0, entryCount),
-		SamplesPerChunk: make([]uint32, 0, entryCount),
+		FirstChunk:      make([]uint32, entryCount),
+		SamplesPerChunk: make([]uint32, entryCount),
 	}
 
 	for i := 0; i < int(entryCount); i++ {
-		fc := binary.BigEndian.Uint32(data[(8 + 12*i):(12 + 12*i)])
-		spc := binary.BigEndian.Uint32(data[(12 + 12*i):(16 + 12*i)])
-		sdi := binary.BigEndian.Uint32(data[(16 + 12*i):(20 + 12*i)])
-		b.FirstChunk = append(b.FirstChunk, fc)
-		b.SamplesPerChunk = append(b.SamplesPerChunk, spc)
+		b.FirstChunk[i] = sr.ReadUint32()
+		b.SamplesPerChunk[i] = sr.ReadUint32()
+		sdi := sr.ReadUint32()
 		if i == 0 {
 			b.singleSampleDescriptionID = sdi
 		} else {
 			if sdi != b.singleSampleDescriptionID {
 				if b.singleSampleDescriptionID != 0 {
+					b.SampleDescriptionID = make([]uint32, entryCount)
 					for j := 0; j < i; j++ {
-						b.SampleDescriptionID = append(b.SampleDescriptionID, sdi)
+						b.SampleDescriptionID[i] = sdi
 					}
 					b.singleSampleDescriptionID = 0
 				}
-				b.SampleDescriptionID = append(b.SampleDescriptionID, sdi)
+				b.SampleDescriptionID[i] = sdi
 			}
 		}
 	}

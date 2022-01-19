@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -20,13 +19,18 @@ func DecodeBtrt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeBtrtSR(hdr, startPos, sr)
+}
 
+// DecodeBtrtSR - box-specific decode
+func DecodeBtrtSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := &BtrtBox{
-		BufferSizeDB: binary.BigEndian.Uint32(data[0:4]),
-		MaxBitrate:   binary.BigEndian.Uint32(data[4:8]),
-		AvgBitrate:   binary.BigEndian.Uint32(data[8:12]),
+		BufferSizeDB: sr.ReadUint32(),
+		MaxBitrate:   sr.ReadUint32(),
+		AvgBitrate:   sr.ReadUint32(),
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - return box type

@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"time"
@@ -28,19 +27,23 @@ func DecodeStts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSttsSR(hdr, startPos, sr)
+}
+
+// DecodeSttsSR - box-specific decode
+func DecodeSttsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
 	b := SttsBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
-	entryCount := binary.BigEndian.Uint32(data[4:8])
-	b.SampleCount = make([]uint32, 0, entryCount)
-	b.SampleTimeDelta = make([]uint32, 0, entryCount)
+	b.SampleCount = make([]uint32, entryCount)
+	b.SampleTimeDelta = make([]uint32, entryCount)
 	for i := 0; i < int(entryCount); i++ {
-		sCount := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
-		sDelta := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
-		b.SampleCount = append(b.SampleCount, sCount)
-		b.SampleTimeDelta = append(b.SampleTimeDelta, sDelta)
+		b.SampleCount[i] = sr.ReadUint32()
+		b.SampleTimeDelta[i] = sr.ReadUint32()
 	}
 	return &b, nil
 }
