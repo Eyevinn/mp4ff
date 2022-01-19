@@ -198,6 +198,15 @@ LoopBoxes:
 	return f, nil
 }
 
+// Size - total size of all boxes
+func (f *File) Size() uint64 {
+	var totSize uint64 = 0
+	for _, f := range f.Children {
+		totSize += f.Size()
+	}
+	return totSize
+}
+
 // AddChild - add child with start position
 func (f *File) AddChild(box Box, boxStartPos uint64) {
 	switch box.Type() {
