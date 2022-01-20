@@ -11,6 +11,37 @@ It is focused on fragmented files as used for streaming in DASH, MSS and HLS fMP
 progressive MP4 files. In particular, the tool `mp4ff-crop` can be
 used to crop a progressive file.
 
+
+## Command Line Tools
+
+Some useful command line tools are available in `cmd`.
+
+1. `mp4ff-info` prints a tree of the box hierarchy of a mp4 file with information
+    about the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes 
+	or `-l trun:1,stss:1` for specific boxes.
+2. `mp4ff-pslister` extracts and displays SPS and PPS for AVC in a mp4 file. Partial information is printed for HEVC.
+3. `mp4ff-nallister` lists NALUs and picture types for video in progressive or fragmented file
+4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
+5. `mp4ff-crop` shortens a progressive mp4 file to a specified duration
+
+You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
+
+    go install github.com/edgeware/mp4ff/cmd/mp4ff-info@latest
+
+## Example code
+
+Example code is available in the `examples` directory.
+The examples and their functions are:
+
+1. `initcreator` creates typical init segments (ftyp + moov) for video and audio
+2. `resegmenter` reads a segmented file (CMAF track) and resegments it with other
+    segment durations using `fullSample`
+3. `segmenter` takes a progressive mp4 file and creates init and media segments from it.
+    This tool has been extended to support generation of segments with multiple tracks as well
+	as reading and writing `mdat` in lazy mode
+4. `multitrack` parses a fragmented file with multiple tracks
+5. `decrypt-cenc` decrypts a segmented mp4 file encrypted in `cenc` mode
+
 ## Library
 
 The library has functions for parsing (called Decode) and writing (Encode) in the package `mp4ff/mp4`.
@@ -236,37 +267,6 @@ Following the ISOBMFF standard, sample numbers and other numbers start at 1 (one
 This applies to arguments of functions and methods.
 The actual storage in slices is zero-based, so
 sample nr 1 has index 0 in the corresponding slice.
-
-## Command Line Tools
-
-Some useful command line tools are available in `cmd`.
-
-1. `mp4ff-info` prints a tree of the box hierarchy of a mp4 file with information
-    about the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes 
-	or `-l trun:1,stss:1` for specific boxes.
-2. `mp4ff-pslister` extracts and displays SPS and PPS for AVC in a mp4 file. Partial information is printed for HEVC.
-3. `mp4ff-nallister` lists NALUs and picture types for video in progressive or fragmented file
-4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
-5. `mp4ff-crop` shortens a progressive mp4 file to a specified duration
-
-You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
-
-    go install github.com/edgeware/mp4ff/cmd/mp4ff-info@latest
-
-## Example code
-
-Example code is available in the `examples` directory.
-The examples and their functions are:
-
-1. `initcreator` creates typical init segments (ftyp + moov) for video and audio
-2. `resegmenter` reads a segmented file (CMAF track) and resegments it with other
-    segment durations using `fullSample`
-3. `segmenter` takes a progressive mp4 file and creates init and media segments from it.
-    This tool has been extended to support generation of segments with multiple tracks as well
-	as reading and writing `mdat` in lazy mode
-4. `multitrack` parses a fragmented file with multiple tracks
-5. `decrypt-cenc` decrypts a segmented mp4 file encrypted in `cenc` mode
-
 
 ## Stability
 The APIs should be fairly stable, but minor non-backwards-compatible changes may happen until version 1.
