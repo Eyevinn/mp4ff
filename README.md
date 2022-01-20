@@ -185,7 +185,7 @@ func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nr
 Example code for this, including lazy writing of `mdat`, can be found in `examples/segmenter`
 with the `lazy` mode set.
 
-## More efficient I/O using `mp4ff.bits.SliceReader` and `mp4ff.bits.SliceWriter`
+## More efficient I/O using SliceReader and SliceWriter
 
 The use of the interfaces `io.Reader` and `io.Writer` for reading and writing boxes gives a lot of
 flexibility, but is not optimal when it comes to memory allocation. In particular, the
@@ -203,7 +203,49 @@ which uses a fixed-size slice as underlying slice, but one could consider implem
 which would get its data from some external source.
 
 The memory allocation and speed improvements achieved by this may vary, but should be substantial,
-especially compared to versions before 0.27 which used an extra `io.LimitReader` layer. 
+especially compared to versions before 0.27 which used an extra `io.LimitReader` layer.
+
+### Benchmarks
+
+To investigate the efficiency of the new SliceReader and SliceWriter methods, benchmarks have been done. The benchmarks are defined in
+the file `mp4/benchmarks_test.go` and `mp4/benchmarks_srw_test.go`.
+For `DecodeFile`, one can see a big improvement by going from version
+0.26 to version 0.27 which both use the `io.Reader` interface
+but another big increase by using the `SliceReader` source.
+The latter benchmarks are called `BenchmarkDecodeFileSR` but have
+here been given the same name, for easy comparison.
+Note that the allocations here refers to the heap allocations
+that are done inside the benchmark loop. Outside that loop,
+a slice is allocated to keep the input data.
+
+For `EncodeFile`, one can see that v0.27 is actually worse
+than v0.26 when used with the `io.Writer` interface. That is
+because the code was restructured so that all writes go
+via the `SliceWriter` layer in order to reduce code duplication.
+However, if instead using the `SliceWriter` methods directly,
+there is a big relative gain in allocations as can be seen in
+the last column.
+
+| name \ time/op           |  v0.26 |  v0.27 | v0.27-srw |
+| ------------------------ | ------ | ------ | --------- |
+|DecodeFile/1.m4s-16       | 21.9µs |  6.7µs |    2.6µs  |
+|DecodeFile/prog_8s.mp4-16 |  143µs |   48µs |     16µs  |
+|EncodeFile/1.m4s-16       | 1.70µs | 2.14µs |   1.50µs  |
+|EncodeFile/prog_8s.mp4-16 | 15.7µs | 18.4µs |   12.9µs  |
+
+| name \ alloc/op          | v0.26 |  v0.27 | v0.27-srw |
+| ------------------------ |------ | ------ | --------- |
+DecodeFile/1.m4s-16     |    120kB |   28kB |       2kB |
+DecodeFile/prog_8s.mp4-16 |  906kB |  207kB |      12kB |
+EncodeFile/1.m4s-16       | 1.16kB | 1.39kB |    0.08kB |
+EncodeFile/prog_8s.mp4-16 | 6.84kB | 8.30kB |    0.05kB |
+
+| name \ allocs/op         | v0.26 | v0.27 | v0.27-srw |
+| ------------------------ |------ | ----- | --------- |
+|DecodeFile/1.m4s-16       |  98.0 |  42.0 |      34.0 |
+|DecodeFile/prog_8s.mp4-16 |   454 |   180 |       169 |
+|EncodeFile/1.m4s-16       |  15.0 |  15.0 |       3.0 |
+|EncodeFile/prog_8s.mp4-16 |   101 |    86 |         1 |
 
 ## Box structure and interface
 
