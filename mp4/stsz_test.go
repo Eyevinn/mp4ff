@@ -12,7 +12,7 @@ func TestStszEncDec(t *testing.T) {
 
 	stsz = StszBox{
 		SampleUniformSize: 512,
-		SampleNumber:      0,
+		SampleNumber:      1, // One sample with uniform size
 		SampleSize:        nil,
 	}
 	boxDiffAfterEncodeAndDecode(t, &stsz)
