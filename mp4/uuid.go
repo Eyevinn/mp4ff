@@ -3,7 +3,8 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const (
@@ -39,70 +40,86 @@ type TfrfData struct {
 }
 
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
-func DecodeUUIDBox(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeUUIDBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	u := &UUIDBox{}
-	s := NewSliceReader(data)
-	u.UUID = string(s.ReadBytes(16))
-	switch u.UUID {
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeUUIDBoxSR(hdr, startPos, sr)
+}
+
+// DecodeUUIDBoxSR - decode a UUID box including tfxd or tfrf
+func DecodeUUIDBoxSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := &UUIDBox{}
+	b.UUID = string(sr.ReadBytes(16))
+	switch b.UUID {
 	case uuidTfxd:
-		u.SubType = "tfxd"
-		tfxd, err := decodeTfxd(s)
+		b.SubType = "tfxd"
+		tfxd, err := decodeTfxd(sr)
 		if err != nil {
 			return nil, err
 		}
-		u.Tfxd = tfxd
+		b.Tfxd = tfxd
 	case uuidTfrf:
-		u.SubType = "tfrf"
-		tfrf, err := decodeTfrf(s)
+		b.SubType = "tfrf"
+		tfrf, err := decodeTfrf(sr)
 		if err != nil {
 			return nil, err
 		}
-		u.Tfrf = tfrf
+		b.Tfrf = tfrf
 	default:
-		// err := fmt.Errorf("Unknown uuid=%s", u.UUID)
+		// err := fmt.Errorf("Unknown uuid=%s", b.UUID)
 		// return nil, err
 	}
 
-	return u, err
+	return b, sr.AccError()
 }
 
 // Type - return box type
-func (u *UUIDBox) Type() string {
+func (b *UUIDBox) Type() string {
 	return "uuid"
 }
 
 // Size - return calculated size including tfxd/tfrf
-func (u *UUIDBox) Size() uint64 {
+func (b *UUIDBox) Size() uint64 {
 	var size uint64 = 8 + 16
-	switch u.SubType {
+	switch b.SubType {
 	case "tfxd":
-		size += u.Tfxd.size()
+		size += b.Tfxd.size()
 	case "tfrf":
-		size += u.Tfrf.size()
+		size += b.Tfrf.size()
 	}
 	return size
 }
 
-// Encode - write UUIDBox including tfxd or tfrf to w
-func (u *UUIDBox) Encode(w io.Writer) error {
-	err := EncodeHeader(u, w)
+// Encode - write box to w
+func (b *UUIDBox) Encode(w io.Writer) error {
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(u.UUID))
-	if u.SubType == "tfxd" {
-		err = u.Tfxd.encode(w)
-	} else if u.SubType == "tfrf" {
-		err = u.Tfrf.encode(w)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.UUID, false)
+	if b.SubType == "tfxd" {
+		err = b.Tfxd.encode(sw)
+	} else if b.SubType == "tfrf" {
+		err = b.Tfrf.encode(sw)
 	}
 	return err
 }
 
-func decodeTfxd(s *SliceReader) (*TfxdData, error) {
+func decodeTfxd(s bits.SliceReader) (*TfxdData, error) {
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	var fragmentAbsoluteTime uint64
@@ -128,9 +145,7 @@ func (t *TfxdData) size() uint64 {
 	return 4 + 8 + 8*uint64(t.Version)
 }
 
-func (t *TfxdData) encode(w io.Writer) error {
-	buf := make([]byte, t.size())
-	sw := NewSliceWriter(buf)
+func (t *TfxdData) encode(sw bits.SliceWriter) error {
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	if t.Version == 0 {
@@ -140,11 +155,10 @@ func (t *TfxdData) encode(w io.Writer) error {
 		sw.WriteUint64(t.FragmentAbsoluteTime)
 		sw.WriteUint64(t.FragmentAbsoluteDuration)
 	}
-	_, err := w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
-func decodeTfrf(s *SliceReader) (*TfrfData, error) {
+func decodeTfrf(s bits.SliceReader) (*TfrfData, error) {
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	t := &TfrfData{
@@ -170,9 +184,7 @@ func (t *TfrfData) size() uint64 {
 	return 4 + 1 + (8+8*uint64(t.Version))*uint64(t.FragmentCount)
 }
 
-func (t *TfrfData) encode(w io.Writer) error {
-	buf := make([]byte, t.size())
-	sw := NewSliceWriter(buf)
+func (t *TfrfData) encode(sw bits.SliceWriter) error {
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint8(t.FragmentCount)
@@ -187,23 +199,22 @@ func (t *TfrfData) encode(w io.Writer) error {
 			sw.WriteUint64(t.FragmentAbsoluteDurations[i])
 		}
 	}
-	_, err := w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - box-specific info
-func (u *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, u, -1, 0)
-	bd.write(" - uuid: %s", hex.EncodeToString([]byte(u.UUID)))
-	bd.write(" - subType: %s", u.SubType)
-	level := getInfoLevel(u, specificBoxLevels)
+func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - uuid: %s", hex.EncodeToString([]byte(b.UUID)))
+	bd.write(" - subType: %s", b.SubType)
+	level := getInfoLevel(b, specificBoxLevels)
 	if level > 0 {
-		switch u.SubType {
+		switch b.SubType {
 		case "tfxd":
-			bd.write(" - absTime=%d absDur=%d", u.Tfxd.FragmentAbsoluteTime, u.Tfxd.FragmentAbsoluteDuration)
+			bd.write(" - absTime=%d absDur=%d", b.Tfxd.FragmentAbsoluteTime, b.Tfxd.FragmentAbsoluteDuration)
 		case "tfrf":
-			for i := 0; i < int(u.Tfrf.FragmentCount); i++ {
-				bd.write(" - [%d]: absTime=%d absDur=%d", i+1, u.Tfrf.FragmentAbsoluteTimes[i], u.Tfrf.FragmentAbsoluteDurations[i])
+			for i := 0; i < int(b.Tfrf.FragmentCount); i++ {
+				bd.write(" - [%d]: absTime=%d absDur=%d", i+1, b.Tfrf.FragmentAbsoluteTimes[i], b.Tfrf.FragmentAbsoluteDurations[i])
 			}
 		}
 	}

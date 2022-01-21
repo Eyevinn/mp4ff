@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // UdtaBox - User Data Box is a container for User Data
 //
@@ -16,16 +20,29 @@ func (b *UdtaBox) AddChild(box Box) {
 }
 
 // DecodeUdta - box-specific decode
-func DecodeUdta(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeUdta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	b := &UdtaBox{}
-	for _, child := range children {
-		b.AddChild(child)
+	b := UdtaBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		b.AddChild(c)
 	}
-	return b, nil
+	return &b, nil
+}
+
+// DecodeUdtaSR - box-specific decode
+func DecodeUdtaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := UdtaBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		b.AddChild(c)
+	}
+	return &b, nil
 }
 
 // Type - box type
@@ -46,6 +63,11 @@ func (b *UdtaBox) GetChildren() []Box {
 // Encode - write udta container to w
 func (b *UdtaBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
+}
+
+// Encode - write udta container to sw
+func (b *UdtaBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

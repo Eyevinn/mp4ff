@@ -7,34 +7,98 @@ import (
 	"github.com/edgeware/mp4ff/mp4"
 )
 
-// Resegment file into two segments
-func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
+// Resegment file into multiple segments
+func Resegment(in *mp4.File, chunkDur uint64, verbose bool) (*mp4.File, error) {
 	if !in.IsFragmented() {
 		log.Fatalf("Non-segmented input file not supported")
 	}
-	var iSamples []mp4.FullSample
 
+	nrSamples := 0
 	for _, iSeg := range in.Segments {
 		for _, iFrag := range iSeg.Fragments {
-			fSamples, err := iFrag.GetFullSamples(in.Init.Moov.Mvex.Trex)
+			trun := iFrag.Moof.Traf.Trun
+			nrSamples += int(trun.SampleCount())
+		}
+	}
+	inSamples := make([]mp4.FullSample, 0, nrSamples)
+
+	trex := in.Init.Moov.Mvex.Trex
+	for _, iSeg := range in.Segments {
+		for _, iFrag := range iSeg.Fragments {
+			fSamples, err := iFrag.GetFullSamples(trex)
 			if err != nil {
 				return nil, err
 			}
-			iSamples = append(iSamples, fSamples...)
+			inSamples = append(inSamples, fSamples...)
 		}
 	}
 	inStyp := in.Segments[0].Styp
 	inMoof := in.Segments[0].Fragments[0].Moof
-	seqNr := inMoof.Mfhd.SequenceNumber
 	trackID := inMoof.Traf.Tfhd.TrackID
 
-	oFile := mp4.NewFile()
-	oFile.AddChild(in.Ftyp, 0)
+	nrChunksOut := uint64(nrSamples)*uint64(inSamples[0].Dur)/chunkDur + 1 // approximative, but good for allocation
 
+	oFile := mp4.NewFile()
+	oFile.Children = make([]mp4.Box, 0, 2+nrChunksOut*3) //  ftyp + moov + (styp+moof+mdat for each segment)
+	oFile.AddChild(in.Ftyp, 0)
 	oFile.AddChild(in.Moov, 0)
 
-	// Make first segment
-	oFile.AddChild(inStyp, 0)
+	currOutSeqNr := uint32(1)
+	frag, err := addNewSegment(oFile, inStyp, currOutSeqNr, trackID)
+	if err != nil {
+		return nil, err
+	}
+	if verbose {
+		fmt.Printf("Started segment %d at dts=%d pts=%d\n", 1, inSamples[0].DecodeTime, inSamples[0].PresentationTime())
+	}
+	nextSampleNrToWrite := 1
+
+	for nr, s := range inSamples {
+		if verbose && s.IsSync() {
+			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
+		}
+		if s.PresentationTime() >= chunkDur*uint64(currOutSeqNr) && s.IsSync() {
+			err = addSamplesToFrag(frag, inSamples, nextSampleNrToWrite, nr+1, trackID)
+			if err != nil {
+				return nil, err
+			}
+			nextSampleNrToWrite = nr + 1
+			currOutSeqNr++
+			frag, err = addNewSegment(oFile, inStyp, currOutSeqNr, trackID)
+			if err != nil {
+				return nil, err
+			}
+			if verbose {
+				fmt.Printf("Started segment %d at dts=%d pts=%d\n", currOutSeqNr, s.DecodeTime, s.PresentationTime())
+			}
+		}
+	}
+	err = addSamplesToFrag(frag, inSamples, nextSampleNrToWrite, len(inSamples)+1, trackID)
+	if err != nil {
+		return nil, err
+	}
+
+	return oFile, nil
+}
+
+func addSamplesToFrag(frag *mp4.Fragment, samples []mp4.FullSample, nextSampleNrToWrite, stopNr int, trackID uint32) error {
+	totSize := uint64(0)
+	for nr := nextSampleNrToWrite; nr < stopNr; nr++ {
+		totSize += uint64(samples[nr-1].Size)
+	}
+	frag.Mdat.Data = make([]byte, 0, totSize)
+	frag.Moof.Traf.Trun.Samples = make([]mp4.Sample, 0, stopNr-nextSampleNrToWrite+2)
+	for nr := nextSampleNrToWrite; nr < stopNr; nr++ {
+		err := frag.AddFullSampleToTrack(samples[nr-1], trackID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func addNewSegment(oFile *mp4.File, styp *mp4.StypBox, seqNr, trackID uint32) (*mp4.Fragment, error) {
+	oFile.AddChild(styp, 0)
 	frag, err := mp4.CreateFragment(seqNr, trackID)
 	if err != nil {
 		return nil, err
@@ -42,28 +106,5 @@ func Resegment(in *mp4.File, chunkDur uint64) (*mp4.File, error) {
 	for _, box := range frag.GetChildren() {
 		oFile.AddChild(box, 0)
 	}
-	nrSegments := 1
-	for nr, s := range iSamples {
-		if s.PresentationTime() >= chunkDur && s.IsSync() && nrSegments == 1 {
-			fmt.Printf("Started second segment at %d\n", s.PresentationTime())
-			oFile.AddChild(inStyp, 0)
-			frag, err = mp4.CreateFragment(seqNr+1, trackID)
-			if err != nil {
-				return nil, err
-			}
-			for _, box := range frag.GetChildren() {
-				oFile.AddChild(box, 0)
-			}
-			nrSegments++
-		}
-		err = frag.AddFullSampleToTrack(s, trackID)
-		if err != nil {
-			return nil, err
-		}
-		if s.IsSync() {
-			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
-		}
-	}
-
-	return oFile, nil
+	return frag, nil
 }

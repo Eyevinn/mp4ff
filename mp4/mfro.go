@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MfroBox - Movie Fragment Random Access Offset Box (mfro)
@@ -14,20 +15,25 @@ type MfroBox struct {
 }
 
 // DecodeMfro - box-specific decode
-func DecodeMfro(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeMfro(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMfroSR(hdr, startPos, sr)
+}
+
+// DecodeMfroSR - box-specific decode
+func DecodeMfroSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 
 	b := &MfroBox{
 		Version:    byte(versionAndFlags >> 24),
 		Flags:      versionAndFlags & flagsMask,
-		ParentSize: s.ReadUint32(),
+		ParentSize: sr.ReadUint32(),
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - return box type
@@ -42,17 +48,25 @@ func (b *MfroBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *MfroBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *MfroBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(b.ParentSize)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

@@ -3,7 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const (
@@ -21,29 +22,34 @@ type SbgpBox struct {
 }
 
 // DecodeSbgp - box-specific decode
-func DecodeSbgp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeSbgp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSbgpSR(hdr, startPos, sr)
+}
+
+// DecodeSbgpSR - box-specific decode
+func DecodeSbgpSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &SbgpBox{
+	b := SbgpBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.GroupingType = s.ReadFixedLengthString(4)
+	b.GroupingType = sr.ReadFixedLengthString(4)
 	if b.Version == 1 {
-		b.GroupingTypeParameter = s.ReadUint32()
+		b.GroupingTypeParameter = sr.ReadUint32()
 	}
-	entryCount := int(s.ReadUint32())
+	entryCount := int(sr.ReadUint32())
 	for i := 0; i < entryCount; i++ {
-		b.SampleCounts = append(b.SampleCounts, s.ReadUint32())
-		b.GroupDescriptionIndices = append(b.GroupDescriptionIndices, s.ReadUint32())
+		b.SampleCounts = append(b.SampleCounts, sr.ReadUint32())
+		b.GroupDescriptionIndices = append(b.GroupDescriptionIndices, sr.ReadUint32())
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type
@@ -63,12 +69,21 @@ func (b *SbgpBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SbgpBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SbgpBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteString(b.GroupingType, false)
@@ -81,8 +96,7 @@ func (b *SbgpBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.SampleCounts[i])
 		sw.WriteUint32(b.GroupDescriptionIndices[i])
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box info to w

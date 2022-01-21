@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 /*
@@ -53,43 +54,48 @@ type SidxRef struct {
 }
 
 // DecodeSidx - box-specific decode
-func DecodeSidx(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeSidx(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSidxSR(hdr, startPos, sr)
+}
+
+// DecodeSidxSR - box-specific decode
+func DecodeSidxSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
 	b := &SidxBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	b.ReferenceID = s.ReadUint32()
-	b.Timescale = s.ReadUint32()
+	b.ReferenceID = sr.ReadUint32()
+	b.Timescale = sr.ReadUint32()
 	if version == 0 {
-		b.EarliestPresentationTime = uint64(s.ReadUint32())
-		b.FirstOffset = uint64(s.ReadUint32())
+		b.EarliestPresentationTime = uint64(sr.ReadUint32())
+		b.FirstOffset = uint64(sr.ReadUint32())
 	} else {
-		b.EarliestPresentationTime = s.ReadUint64()
-		b.FirstOffset = s.ReadUint64()
+		b.EarliestPresentationTime = sr.ReadUint64()
+		b.FirstOffset = sr.ReadUint64()
 	}
-	s.SkipBytes(2)
-	refCount := s.ReadUint16()
+	sr.SkipBytes(2)
+	refCount := sr.ReadUint16()
 	for i := 0; i < int(refCount); i++ {
 		ref := SidxRef{}
-		work := s.ReadUint32()
+		work := sr.ReadUint32()
 		ref.ReferenceType = uint8(work >> 31)
 		ref.ReferencedSize = work & 0x7fffffff
-		ref.SubSegmentDuration = s.ReadUint32()
-		work = s.ReadUint32()
+		ref.SubSegmentDuration = sr.ReadUint32()
+		work = sr.ReadUint32()
 		ref.StartsWithSAP = uint8(work >> 31)
 		ref.SAPType = uint8((work >> 28) & 0x07)
 		ref.SAPDeltaTime = work & 0x0fffffff
 		b.SidxRefs = append(b.SidxRefs, ref)
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // CreateSidx - Create a new TfdtBox with baseMediaDecodeTime
@@ -117,12 +123,21 @@ func (b *SidxBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SidxBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SidxBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(b.ReferenceID)
@@ -142,8 +157,7 @@ func (b *SidxBox) Encode(w io.Writer) error {
 		sw.WriteUint32((uint32(ref.StartsWithSAP) << 31) | (uint32(ref.SAPType) << 28) |
 			ref.SAPDeltaTime)
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 //Info - more info for level 1

@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // VmhdBox - Video Media Header Box (vhmd - mandatory for video tracks)
@@ -22,22 +23,27 @@ func CreateVmhd() *VmhdBox {
 }
 
 // DecodeVmhd - box-specific decode
-func DecodeVmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeVmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
-	b := &VmhdBox{
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeVmhdSR(hdr, startPos, sr)
+}
+
+// DecodeVmhdSR - box-specific decode
+func DecodeVmhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	b := VmhdBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		GraphicsMode: s.ReadUint16(),
+		GraphicsMode: sr.ReadUint16(),
 	}
 	for i := 0; i < 3; i++ {
-		b.OpColor[i] = s.ReadUint16()
+		b.OpColor[i] = sr.ReadUint16()
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box-specific type
@@ -52,20 +58,28 @@ func (b *VmhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VmhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VmhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint16(b.GraphicsMode)
 	for i := 0; i < 3; i++ {
 		sw.WriteUint16(b.OpColor[i])
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

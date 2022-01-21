@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TkhdBox - Track Header Box (tkhd - mandatory)
@@ -36,44 +37,49 @@ func CreateTkhd() *TkhdBox {
 }
 
 // DecodeTkhd - box-specific decode
-func DecodeTkhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeTkhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTkhdSR(hdr, startPos, sr)
+}
+
+// DecodeTkhdSR - box-specific decode
+func DecodeTkhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
 
-	t := &TkhdBox{
+	t := TkhdBox{
 		Version: version,
 		Flags:   flags,
 	}
 
 	if version == 1 {
-		t.CreationTime = s.ReadUint64()
-		t.ModificationTime = s.ReadUint64()
-		t.TrackID = s.ReadUint32()
-		s.SkipBytes(4) // Reserved = 0
-		t.Duration = s.ReadUint64()
+		t.CreationTime = sr.ReadUint64()
+		t.ModificationTime = sr.ReadUint64()
+		t.TrackID = sr.ReadUint32()
+		sr.SkipBytes(4) // Reserved = 0
+		t.Duration = sr.ReadUint64()
 	} else {
-		t.CreationTime = uint64(s.ReadUint32())
-		t.ModificationTime = uint64(s.ReadUint32())
-		t.TrackID = s.ReadUint32()
-		s.SkipBytes(4) // Reserved = 0
-		t.Duration = uint64(s.ReadUint32())
+		t.CreationTime = uint64(sr.ReadUint32())
+		t.ModificationTime = uint64(sr.ReadUint32())
+		t.TrackID = sr.ReadUint32()
+		sr.SkipBytes(4) // Reserved = 0
+		t.Duration = uint64(sr.ReadUint32())
 	}
-	s.SkipBytes(8) // Reserved 8 x 0
-	t.Layer = s.ReadInt16()
-	t.AlternateGroup = s.ReadInt16()
-	t.Volume = Fixed16(s.ReadInt16())
-	s.SkipBytes(2)
-	s.SkipBytes(36) // 3x3 matrixdata
-	t.Width = Fixed32(s.ReadUint32())
-	t.Height = Fixed32(s.ReadUint32())
+	sr.SkipBytes(8) // Reserved 8 x 0
+	t.Layer = sr.ReadInt16()
+	t.AlternateGroup = sr.ReadInt16()
+	t.Volume = Fixed16(sr.ReadInt16())
+	sr.SkipBytes(2)
+	sr.SkipBytes(36) // 3x3 matrixdata
+	t.Width = Fixed32(sr.ReadUint32())
+	t.Height = Fixed32(sr.ReadUint32())
 
-	return t, nil
+	return &t, sr.AccError()
 }
 
 // Type - box type
@@ -91,12 +97,21 @@ func (b *TkhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *TkhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *TkhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	if b.Version == 0 {
@@ -121,9 +136,7 @@ func (b *TkhdBox) Encode(w io.Writer) error {
 	sw.WriteUint32(uint32(b.Width))
 	sw.WriteUint32(uint32(b.Height))
 
-	_, err = w.Write(buf)
-
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

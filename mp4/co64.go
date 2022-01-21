@@ -3,7 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // Co64Box - Chunk Large Offset Box
@@ -18,12 +19,17 @@ type Co64Box struct {
 }
 
 // DecodeCo64 - box-specific decode
-func DecodeCo64(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeCo64(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	sr := NewSliceReader(data)
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeCo64SR(hdr, startPos, sr)
+}
+
+// DecodeCo64 - box-specific decode
+func DecodeCo64SR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	nrEntries := sr.ReadUint32()
 	b := &Co64Box{
@@ -35,7 +41,7 @@ func DecodeCo64(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	for i := uint32(0); i < nrEntries; i++ {
 		b.ChunkOffset[i] = sr.ReadUint64()
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - box-specific type
@@ -48,22 +54,30 @@ func (b *Co64Box) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.ChunkOffset)*8)
 }
 
-// Encode - box-specific encode
+// Encode - write box to w
 func (b *Co64Box) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *Co64Box) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(uint32(len(b.ChunkOffset)))
 	for i := range b.ChunkOffset {
 		sw.WriteUint64(b.ChunkOffset[i])
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

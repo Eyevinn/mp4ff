@@ -1,11 +1,10 @@
 package mp4
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
+	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // Boxes needed for wvtt according to ISO/IEC 14496-30
@@ -46,40 +45,39 @@ func (b *WvttBox) AddChild(child Box) {
 const nrWvttBytesBeforeChildren = 16
 
 // DecodeWvtt - Decoder wvtt Sample Entry (wvtt)
-func DecodeWvtt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeWvtt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	w := &WvttBox{}
-	s := NewSliceReader(data)
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeWvttSR(hdr, startPos, sr)
+}
 
+// DecodeWvttSR - Decoder wvtt Sample Entry (wvtt)
+func DecodeWvttSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	w := WvttBox{}
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
-	s.SkipBytes(6) // Skip 6 reserved bytes
-	w.DataReferenceIndex = s.ReadUint16()
-
-	remaining := s.RemainingBytes()
-	restReader := bytes.NewReader(remaining)
-
+	sr.SkipBytes(6) // Skip 6 reserved bytes
+	w.DataReferenceIndex = sr.ReadUint16()
 	pos := startPos + nrWvttBytesBeforeChildren
+	endPos := startPos + uint64(hdr.hdrlen+hdr.payloadLen())
 	for {
-		box, err := DecodeBox(pos, restReader)
-		if err == io.EOF {
+		if pos >= endPos {
 			break
-		} else if err != nil {
+		}
+		box, err := DecodeBoxSR(pos, sr)
+		if err != nil {
 			return nil, err
 		}
 		if box != nil {
 			w.AddChild(box)
 			pos += box.Size()
-		}
-		if pos == startPos+hdr.size {
-			break
-		} else if pos > startPos+hdr.size {
-			return nil, errors.New("Bad size in wvtt")
+		} else {
+			return nil, fmt.Errorf("no child of wvtt")
 		}
 	}
-	return w, nil
+	return &w, nil
 }
 
 // Type - return box type
@@ -103,11 +101,11 @@ func (b *WvttBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	sw := bits.NewFixedSliceWriterFromSlice(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 
-	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
+	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
 	if err != nil {
 		return err
 	}
@@ -115,6 +113,25 @@ func (b *WvttBox) Encode(w io.Writer) error {
 	// Next output child boxes in order
 	for _, child := range b.Children {
 		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// EncodeSW - write box to w
+func (b *WvttBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteZeroBytes(6)
+	sw.WriteUint16(b.DataReferenceIndex)
+
+	// Next output child boxes in order
+	for _, child := range b.Children {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}
@@ -146,15 +163,18 @@ type VttCBox struct {
 }
 
 // DecodeVttC - box-specific decode
-func DecodeVttC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeVttC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	v := &VttCBox{
-		Config: string(data),
-	}
-	return v, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeVttCSR(hdr, startPos, sr)
+}
+
+// DecodeVttCSR - box-specific decode
+func DecodeVttCSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &VttCBox{Config: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -169,12 +189,23 @@ func (b *VttCBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VttCBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.Config))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VttCBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.Config, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -192,12 +223,18 @@ type VlabBox struct {
 }
 
 // DecodeVlab - box-specific decode
-func DecodeVlab(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeVlab(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &VlabBox{SourceLabel: string(data)}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeVlabSR(hdr, startPos, sr)
+}
+
+// DecodeVlabSR - box-specific decode
+func DecodeVlabSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &VlabBox{SourceLabel: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -212,12 +249,23 @@ func (b *VlabBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VlabBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.SourceLabel))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VlabBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.SourceLabel, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -242,7 +290,12 @@ func (b *VtteBox) Type() string {
 }
 
 // DecodeVtte - box-specific decode
-func DecodeVtte(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVtte(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	return &VtteBox{}, nil
+}
+
+// DecodeVtteSR - box-specific decode
+func DecodeVtteSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &VtteBox{}, nil
 }
 
@@ -254,6 +307,11 @@ func (b *VtteBox) Size() uint64 {
 // Encode - write box to w
 func (b *VtteBox) Encode(w io.Writer) error {
 	return EncodeHeader(b, w)
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VtteBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeHeaderSW(b, sw)
 }
 
 // Info - write box-specific information
@@ -295,7 +353,7 @@ func (b *VttcBox) AddChild(child Box) {
 }
 
 // DecodeVttc - box-specific decode
-func DecodeVttc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVttc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
@@ -303,6 +361,19 @@ func DecodeVttc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	b := VttcBox{}
 	for _, child := range children {
 		b.AddChild(child)
+	}
+	return &b, nil
+}
+
+// DecodeVttcSR - box-specific decode
+func DecodeVttcSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := VttcBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		b.AddChild(c)
 	}
 	return &b, nil
 }
@@ -327,6 +398,11 @@ func (b *VttcBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Encode - write vttc container to sw
+func (b *VttcBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
+}
+
 // Info - write box-specific information
 func (b *VttcBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
@@ -340,14 +416,18 @@ type VsidBox struct {
 }
 
 // DecodeVsid - box-specific decode
-func DecodeVsid(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeVsid(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &VsidBox{
-		SourceID: binary.BigEndian.Uint32(data[0:4]),
-	}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeVsidSR(hdr, startPos, sr)
+}
+
+// DecodeVsidSR - box-specific decode
+func DecodeVsidSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &VsidBox{SourceID: sr.ReadUint32()}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -362,14 +442,23 @@ func (b *VsidBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VsidBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, b.SourceID)
-	_, err = w.Write(buf)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VsidBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteUint32(b.SourceID)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -388,14 +477,18 @@ type CtimBox struct {
 }
 
 // DecodeCtim - box-specific decode
-func DecodeCtim(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeCtim(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &CtimBox{
-		CueCurrentTime: string(data),
-	}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeCtimSR(hdr, startPos, sr)
+}
+
+// DecodeCtimSR - box-specific decode
+func DecodeCtimSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &CtimBox{CueCurrentTime: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -410,12 +503,23 @@ func (b *CtimBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CtimBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueCurrentTime))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *CtimBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueCurrentTime, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -433,14 +537,18 @@ type IdenBox struct {
 }
 
 // DecodeIden - box-specific decode
-func DecodeIden(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeIden(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &IdenBox{
-		CueID: string(data),
-	}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeIdenSR(hdr, startPos, sr)
+}
+
+// DecodeIdenSR - box-specific decode
+func DecodeIdenSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &IdenBox{CueID: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -455,12 +563,23 @@ func (b *IdenBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *IdenBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueID))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *IdenBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueID, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -478,14 +597,18 @@ type SttgBox struct {
 }
 
 // DecodeSttg - box-specific decode
-func DecodeSttg(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeSttg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &SttgBox{
-		Settings: string(data),
-	}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSttgSR(hdr, startPos, sr)
+}
+
+// DecodeSttgSR - box-specific decode
+func DecodeSttgSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &SttgBox{Settings: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -500,12 +623,23 @@ func (b *SttgBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SttgBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.Settings))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SttgBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.Settings, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -523,14 +657,18 @@ type PaylBox struct {
 }
 
 // DecodePayl - box-specific decode
-func DecodePayl(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodePayl(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &PaylBox{
-		CueText: string(data),
-	}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodePaylSR(hdr, startPos, sr)
+}
+
+// DecodePaylSR - box-specific decode
+func DecodePaylSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &PaylBox{CueText: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -545,12 +683,23 @@ func (b *PaylBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *PaylBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueText))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *PaylBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueText, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information
@@ -568,14 +717,18 @@ type VttaBox struct {
 }
 
 // DecodeVtta - box-specific decode
-func DecodeVtta(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeVtta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &VttaBox{
-		CueAdditionalText: string(data),
-	}, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeVttaSR(hdr, startPos, sr)
+}
+
+// DecodeVttaSR - box-specific decode
+func DecodeVttaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &VttaBox{CueAdditionalText: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box-specific type
@@ -590,12 +743,23 @@ func (b *VttaBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *VttaBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.CueAdditionalText))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VttaBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.CueAdditionalText, false)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

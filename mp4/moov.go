@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MoovBox - Movie Box (moov - mandatory)
@@ -60,17 +62,37 @@ func (m *MoovBox) AddChild(box Box) {
 }
 
 // DecodeMoov - box-specific decode
-func DecodeMoov(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeMoov(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data := make([]byte, hdr.payloadLen())
+	_, err := r.Read(data)
 	if err != nil {
 		return nil, err
 	}
-	m := NewMoovBox()
-	m.StartPos = startPos
-	for _, b := range l {
-		m.AddChild(b)
+	sr := bits.NewFixedSliceReader(data)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
 	}
-	return m, err
+	m := MoovBox{Children: make([]Box, 0, len(children))}
+	m.StartPos = startPos
+	for _, c := range children {
+		m.AddChild(c)
+	}
+	return &m, err
+}
+
+// DecodeMoovSR - box-specific decode
+func DecodeMoovSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := MoovBox{Children: make([]Box, 0, len(children))}
+	m.StartPos = startPos
+	for _, c := range children {
+		m.AddChild(c)
+	}
+	return &m, err
 }
 
 // Type - box type
@@ -91,6 +113,11 @@ func (m *MoovBox) GetChildren() []Box {
 // Encode - write moov container to w
 func (m *MoovBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+// Encode - write moov container to sw
+func (m *MoovBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(m, sw)
 }
 
 // Info - write box-specific information

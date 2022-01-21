@@ -1,11 +1,11 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const charOffset = 0x60 // According to Section 8.4.2.3 of 14496-12
@@ -27,36 +27,39 @@ type MdhdBox struct {
 }
 
 // DecodeMdhd - Decode box
-func DecodeMdhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeMdhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMdhdSR(hdr, startPos, sr)
+}
+
+// DecodeMdhd - Decode box
+func DecodeMdhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
+	b := MdhdBox{
+		Version: version,
+		Flags:   versionAndFlags & flagsMask,
+	}
 	if version == 1 {
-		return &MdhdBox{
-			Version:          1,
-			Flags:            versionAndFlags & flagsMask,
-			CreationTime:     binary.BigEndian.Uint64(data[4:12]),
-			ModificationTime: binary.BigEndian.Uint64(data[12:20]),
-			Timescale:        binary.BigEndian.Uint32(data[20:24]),
-			Duration:         binary.BigEndian.Uint64(data[24:32]),
-			Language:         binary.BigEndian.Uint16(data[32:34]),
-		}, nil
+		b.CreationTime = sr.ReadUint64()
+		b.ModificationTime = sr.ReadUint64()
+		b.Timescale = sr.ReadUint32()
+		b.Duration = sr.ReadUint64()
 	} else if version == 0 {
-		return &MdhdBox{
-			Version:          0,
-			Flags:            versionAndFlags & flagsMask,
-			CreationTime:     uint64(binary.BigEndian.Uint32(data[4:8])),
-			ModificationTime: uint64(binary.BigEndian.Uint32(data[8:12])),
-			Timescale:        binary.BigEndian.Uint32(data[12:16]),
-			Duration:         uint64(binary.BigEndian.Uint32(data[16:20])),
-			Language:         binary.BigEndian.Uint16(data[20:22]),
-		}, nil
+		b.CreationTime = uint64(sr.ReadUint32())
+		b.ModificationTime = uint64(sr.ReadUint32())
+		b.Timescale = sr.ReadUint32()
+		b.Duration = uint64(sr.ReadUint32())
 	} else {
 		return nil, errors.New("Unknown mdhd version")
 	}
+	b.Language = sr.ReadUint16()
+	sr.SkipBytes(2)
+	return &b, sr.AccError()
 }
 
 // GetLanguage - Get three-byte language string
@@ -91,13 +94,21 @@ func (m *MdhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (m *MdhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(m, w)
+	sw := bits.NewFixedSliceWriter(int(m.Size()))
+	err := m.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(m)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
 
-	sw := NewSliceWriter(buf)
+// EncodeSW - box-specific encode to slicewriter
+func (m *MdhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(m, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(m.Version) << 24) + m.Flags
 	sw.WriteUint32(versionAndFlags)
 	if m.Version == 1 {
@@ -113,8 +124,7 @@ func (m *MdhdBox) Encode(w io.Writer) error {
 	}
 	sw.WriteUint16(m.Language)
 	sw.WriteUint16(0)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

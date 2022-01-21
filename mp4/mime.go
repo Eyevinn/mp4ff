@@ -1,9 +1,9 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MimeBox - MIME Box as defined in ISO/IEC 14496-12 2020 Section 12.3.3.2
@@ -15,23 +15,30 @@ type MimeBox struct {
 }
 
 // DecodeMime - box-specific decode
-func DecodeMime(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeMime(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMimeSR(hdr, startPos, sr)
+}
+
+// DecodeMimeSR - box-specific decode
+func DecodeMimeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	b := MimeBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
-	if data[len(data)-1] == 0 {
-		b.ContentType = string(data[4 : len(data)-1])
+	rest := sr.ReadBytes(hdr.payloadLen() - 4)
+	if rest[len(rest)-1] == 0 { // zero-termination
+		b.ContentType = string(rest[:len(rest)-1])
 	} else {
-		b.ContentType = string(data[4:])
+		b.ContentType = string(rest)
 		b.LacksZeroTermination = true
 	}
-	return &b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box type
@@ -50,17 +57,25 @@ func (b *MimeBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *MimeBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *MimeBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteString(b.ContentType, !b.LacksZeroTermination)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write specific box information

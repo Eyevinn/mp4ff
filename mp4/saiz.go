@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // SaizBox - Sample Auxiliary Information Sizes Box (saiz)  (in stbl or traf box)
@@ -17,30 +18,35 @@ type SaizBox struct {
 }
 
 // DecodeSaiz - box-specific decode
-func DecodeSaiz(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeSaiz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSaizSR(hdr, startPos, sr)
+}
+
+// DecodeSaizSR - box-specific decode
+func DecodeSaizSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
-	b := &SaizBox{
+	b := SaizBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
 	if b.Flags&0x01 != 0 {
-		b.AuxInfoType = s.ReadFixedLengthString(4)
-		b.AuxInfoTypeParameter = s.ReadUint32()
+		b.AuxInfoType = sr.ReadFixedLengthString(4)
+		b.AuxInfoTypeParameter = sr.ReadUint32()
 	}
-	b.DefaultSampleInfoSize = s.ReadUint8()
-	b.SampleCount = s.ReadUint32()
+	b.DefaultSampleInfoSize = sr.ReadUint8()
+	b.SampleCount = sr.ReadUint32()
 	if b.DefaultSampleInfoSize == 0 {
 		for i := uint32(0); i < b.SampleCount; i++ {
-			b.SampleInfo = append(b.SampleInfo, s.ReadUint8())
+			b.SampleInfo = append(b.SampleInfo, sr.ReadUint8())
 		}
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type
@@ -62,12 +68,21 @@ func (b *SaizBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SaizBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SaizBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	if b.Flags&0x01 != 0 {
@@ -81,8 +96,7 @@ func (b *SaizBox) Encode(w io.Writer) error {
 			sw.WriteUint8(b.SampleInfo[i])
 		}
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write SaizBox details. Get sampleInfo list with level >= 1

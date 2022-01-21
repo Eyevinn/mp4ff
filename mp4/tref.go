@@ -1,10 +1,10 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrefBox -  // TrackReferenceBox - ISO/IEC 14496-12 Ed. 9 Sec. 8.3
@@ -18,14 +18,27 @@ func (b *TrefBox) AddChild(box Box) {
 }
 
 // DecodeTref - box-specific decode
-func DecodeTref(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
 	b := TrefBox{}
-	for _, child := range children {
-		b.AddChild(child)
+	for _, c := range children {
+		b.AddChild(c)
+	}
+	return &b, nil
+}
+
+// DecodeTrefSR - box-specific decode
+func DecodeTrefSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := TrefBox{}
+	for _, c := range children {
+		b.AddChild(c)
 	}
 	return &b, nil
 }
@@ -50,6 +63,11 @@ func (b *TrefBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
+// Encode - write minf container to sw
+func (b *TrefBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
+}
+
 // Info - write box-specific information
 func (b *TrefBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
@@ -64,19 +82,26 @@ type TrefTypeBox struct {
 }
 
 // DecodeTrefType - box-specific decode
-func DecodeTrefType(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	b := TrefTypeBox{
-		Name: hdr.name,
-	}
-	data, err := ioutil.ReadAll(r)
+func DecodeTrefType(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	for i := 0; i < len(data); i += 4 {
-		trackID := binary.BigEndian.Uint32(data[i : i+4])
-		b.TrackIDs = append(b.TrackIDs, trackID)
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTrefTypeSR(hdr, startPos, sr)
+}
+
+// DecodeTrefTypeSR - box-specific decode
+func DecodeTrefTypeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	nrIds := hdr.payloadLen() / 4
+	b := TrefTypeBox{
+		Name:     hdr.name,
+		TrackIDs: make([]uint32, nrIds),
 	}
-	return &b, nil
+	for i := 0; i < nrIds; i++ {
+		b.TrackIDs[i] = sr.ReadUint32()
+	}
+	return &b, sr.AccError()
 }
 
 // Type - box type
@@ -90,18 +115,26 @@ func (b *TrefTypeBox) Size() uint64 {
 }
 
 // Encode - write box to w
-func (b *TrefTypeBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+func (t *TrefTypeBox) Encode(w io.Writer) error {
+	sw := bits.NewFixedSliceWriter(int(t.Size()))
+	err := t.EncodeSW(sw)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// Encode - write box to sw
+func (b *TrefTypeBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
 	if err != nil {
 		return err
 	}
 	for _, trackID := range b.TrackIDs {
-		err = binary.Write(w, binary.BigEndian, trackID)
-		if err != nil {
-			return err
-		}
+		sw.WriteUint32(trackID)
 	}
-	return nil
+	return sw.AccError()
 }
 
 // Info - write box-specific information

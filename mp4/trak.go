@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // DefaultTrakID - trakID used when generating new fragmented content
@@ -39,16 +41,29 @@ func (t *TrakBox) AddChild(box Box) {
 }
 
 // DecodeTrak - box-specific decode
-func DecodeTrak(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeTrak(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	t := NewTrakBox()
-	for _, b := range l {
-		t.AddChild(b)
+	t := TrakBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		t.AddChild(c)
 	}
-	return t, nil
+	return &t, nil
+}
+
+// DecodeTrakSR - box-specific decode
+func DecodeTrakSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	t := TrakBox{Children: make([]Box, 0, len(children))}
+	for _, c := range children {
+		t.AddChild(c)
+	}
+	return &t, nil
 }
 
 // Type - box type
@@ -69,6 +84,11 @@ func (t *TrakBox) GetChildren() []Box {
 // Encode - write trak container to w
 func (t *TrakBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
+}
+
+// Encode - write trak container to sw
+func (b *TrakBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box info to w

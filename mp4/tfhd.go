@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const baseDataOffsetPresent uint32 = 0x000001
@@ -28,40 +29,45 @@ type TfhdBox struct {
 }
 
 // DecodeTfhd - box-specific decode
-func DecodeTfhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeTfhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
 
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTfhdSR(hdr, startPos, sr)
+}
+
+// DecodeTfhdSR - box-specific decode
+func DecodeTfhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
 
 	t := &TfhdBox{
 		Version: version,
 		Flags:   flags,
-		TrackID: s.ReadUint32(),
+		TrackID: sr.ReadUint32(),
 	}
 
 	if t.HasBaseDataOffset() {
-		t.BaseDataOffset = s.ReadUint64()
+		t.BaseDataOffset = sr.ReadUint64()
 	}
 	if t.HasSampleDescriptionIndex() {
-		t.SampleDescriptionIndex = s.ReadUint32()
+		t.SampleDescriptionIndex = sr.ReadUint32()
 	}
 	if t.HasDefaultSampleDuration() {
-		t.DefaultSampleDuration = s.ReadUint32()
+		t.DefaultSampleDuration = sr.ReadUint32()
 	}
 	if t.HasDefaultSampleSize() {
-		t.DefaultSampleSize = s.ReadUint32()
+		t.DefaultSampleSize = sr.ReadUint32()
 	}
 	if t.HasDefaultSampleFlags() {
-		t.DefaultSampleFlags = s.ReadUint32()
+		t.DefaultSampleFlags = sr.ReadUint32()
 	}
 
-	return t, nil
+	return t, sr.AccError()
 }
 
 // CreateTfhd - Create a new TfdtBox with baseMediaDecodeTime
@@ -143,12 +149,21 @@ func (t *TfhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (t *TfhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
+	sw := bits.NewFixedSliceWriter(int(t.Size()))
+	err := t.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(t)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (t *TfhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(t, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(t.TrackID)
@@ -167,9 +182,7 @@ func (t *TfhdBox) Encode(w io.Writer) error {
 	if t.HasDefaultSampleFlags() {
 		sw.WriteUint32(t.DefaultSampleFlags)
 	}
-
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write specific box information

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/edgeware/mp4ff/bits"
 	"github.com/edgeware/mp4ff/hevc"
 )
 
@@ -26,12 +27,22 @@ func CreateHvcC(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete,
 }
 
 // DecodeHvcC - box-specific decode
-func DecodeHvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	hevcDecConfRec, err := hevc.DecodeHEVCDecConfRec(r)
+func DecodeHvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
+	if err != nil {
+		return nil, err
+	}
+	hevcDecConfRec, err := hevc.DecodeHEVCDecConfRec(data)
 	if err != nil {
 		return nil, err
 	}
 	return &HvcCBox{hevcDecConfRec}, nil
+}
+
+// DecodeHvcCSR - box-specific decode
+func DecodeHvcCSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	hevcDecConfRec, err := hevc.DecodeHEVCDecConfRec(sr.ReadBytes(hdr.payloadLen()))
+	return &HvcCBox{hevcDecConfRec}, err
 }
 
 // Type - return box type
@@ -51,6 +62,15 @@ func (b *HvcCBox) Encode(w io.Writer) error {
 		return err
 	}
 	return b.DecConfRec.Encode(w)
+}
+
+// Encode - write box to w
+func (b *HvcCBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	return b.DecConfRec.EncodeSW(sw)
 }
 
 // Info - box-specific Info

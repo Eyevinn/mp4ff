@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/edgeware/mp4ff/bits"
 	"github.com/go-test/deep"
 )
 
@@ -18,13 +19,32 @@ var (
 
 func boxDiffAfterEncodeAndDecode(t *testing.T, box Box) {
 	t.Helper()
-	buf := bytes.Buffer{}
-	err := box.Encode(&buf)
+
+	// First do encode in a slice via SliceWriter
+	size := box.Size()
+	sw := bits.NewFixedSliceWriter(int(size))
+	err := box.EncodeSW(sw)
+	if err != nil {
+		t.Error(err)
+	}
+	buf := bytes.NewBuffer(sw.Bytes())
+
+	boxDec, err := DecodeBox(0, buf)
 	if err != nil {
 		t.Error(err)
 	}
 
-	boxDec, err := DecodeBox(0, &buf)
+	if diff := deep.Equal(boxDec, box); diff != nil {
+		t.Error(diff)
+	}
+
+	// Then do encode using io.Writer
+	midBuf := bytes.Buffer{}
+	err = box.Encode(&midBuf)
+	if err != nil {
+		t.Error(err)
+	}
+	boxDec, err = DecodeBox(0, &midBuf)
 	if err != nil {
 		t.Error(err)
 	}

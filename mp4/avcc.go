@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/edgeware/mp4ff/avc"
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // AvcCBox - AVCConfigurationBox (ISO/IEC 14496-15 5.4.2.1.2 and 5.3.3.1.2)
@@ -25,8 +26,21 @@ func CreateAvcC(spsNALUs [][]byte, ppsNALUs [][]byte) (*AvcCBox, error) {
 }
 
 // DecodeAvcC - box-specific decode
-func DecodeAvcC(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	avcDecConfRec, err := avc.DecodeAVCDecConfRec(r)
+func DecodeAvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
+	if err != nil {
+		return nil, err
+	}
+	avcDecConfRec, err := avc.DecodeAVCDecConfRec(data)
+	if err != nil {
+		return nil, err
+	}
+	return &AvcCBox{avcDecConfRec}, nil
+}
+
+// DecodeAvcCSR - box-specific decode
+func DecodeAvcCSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	avcDecConfRec, err := avc.DecodeAVCDecConfRec(sr.ReadBytes(hdr.payloadLen()))
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +59,22 @@ func (a *AvcCBox) Size() uint64 {
 
 // Encode - write box to w
 func (a *AvcCBox) Encode(w io.Writer) error {
-	err := EncodeHeader(a, w)
+	sw := bits.NewFixedSliceWriter(int(a.Size()))
+	err := a.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	return a.DecConfRec.Encode(w)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (a *AvcCBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(a, sw)
+	if err != nil {
+		return err
+	}
+	return a.DecConfRec.EncodeSW(sw)
 }
 
 // Info - write box-specific information

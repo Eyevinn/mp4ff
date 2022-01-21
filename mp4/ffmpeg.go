@@ -3,7 +3,8 @@ package mp4
 // ffmpeg boxes according to https://kdenlive.org/en/project/adding-meta-data-to-mp4-video
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // CTooBox - ©too box defines the ffmpeg encoding tool information
@@ -12,8 +13,21 @@ type CTooBox struct {
 }
 
 // DecodeCToo - box-specific decode
-func DecodeCToo(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeCToo(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+	if err != nil {
+		return nil, err
+	}
+	b := &CTooBox{}
+	for _, c := range children {
+		b.AddChild(c)
+	}
+	return b, nil
+}
+
+// DecodeCTooSR - box-specific decode
+func DecodeCTooSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
 	if err != nil {
 		return nil, err
 	}
@@ -44,19 +58,14 @@ func (b *CTooBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - box-specific encode of stsd - not a usual container
+// Encode - write minf container to w
 func (b *CTooBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
-	if err != nil {
-		return err
-	}
-	for _, c := range b.Children {
-		err = c.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return EncodeContainer(b, w)
+}
+
+// Encode - write minf container to sw
+func (b *CTooBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - box-specific Info
@@ -70,13 +79,18 @@ type DataBox struct {
 }
 
 // DecodeData - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
-func DecodeData(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeData(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	b := DataBox{data[8:]}
-	return &b, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeDataSR(hdr, startPos, sr)
+}
+
+// DecodeDataSR - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
+func DecodeDataSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &DataBox{sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box type
@@ -91,17 +105,25 @@ func (b *DataBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *DataBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *DataBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	sw.WriteUint32(0x00000001)
 	sw.WriteUint32(0x00000000)
 	sw.WriteBytes(b.Data)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - box-specific Info

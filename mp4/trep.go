@@ -3,6 +3,8 @@ package mp4
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrepBox - Track Extension Properties Box (trep)
@@ -20,29 +22,34 @@ func (b *TrepBox) AddChild(child Box) {
 }
 
 // DecodeTrep - box-specific decode
-func DecodeTrep(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	var versionAndFlags uint32
-	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
+func DecodeTrep(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	b := &TrepBox{
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTrepSR(hdr, startPos, sr)
+}
+
+// DecodeTrepSR - box-specific decode
+func DecodeTrepSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	trackID := sr.ReadUint32()
+	b := TrepBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
-	}
-	err = binary.Read(r, binary.BigEndian, &b.TrackID)
-	if err != nil {
-		return nil, err
+		TrackID: trackID,
 	}
 	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.size, r)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.size, sr)
 	if err != nil {
 		return nil, err
 	}
-	for _, box := range children {
-		b.AddChild(box)
+	b.Children = make([]Box, 0, len(children))
+	for _, c := range children {
+		b.AddChild(c)
 	}
-	return b, nil
+	return &b, nil
 }
 
 // Type - box-specific type
@@ -72,6 +79,24 @@ func (b *TrepBox) Encode(w io.Writer) error {
 	}
 	for _, c := range b.Children {
 		err = c.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW- box-specific encode of stsd - not a usual container
+func (b *TrepBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(b.TrackID)
+	for _, c := range b.Children {
+		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

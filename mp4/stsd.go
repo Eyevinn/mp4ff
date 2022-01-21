@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // StsdBox - Sample Description Box (stsd - manatory)
@@ -75,7 +77,7 @@ func (s *StsdBox) GetSampleDescription(index int) (Box, error) {
 }
 
 // DecodeStsd - box-specific decode
-func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStsd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, sampleCount uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {
@@ -107,6 +109,33 @@ func DecodeStsd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return stsd, nil
 }
 
+// DecodeStsdSR - box-specific decode
+func DecodeStsdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	sampleCount := sr.ReadUint32()
+	//Note higher startPos below since not simple container
+	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	if len(children) != int(sampleCount) {
+		return nil, fmt.Errorf("Stsd sample count  mismatch")
+	}
+	stsd := StsdBox{
+		Version:     byte(versionAndFlags >> 24),
+		Flags:       versionAndFlags & flagsMask,
+		SampleCount: 0, // set by  AddChild
+		Children:    make([]Box, 0, len(children)),
+	}
+	for _, box := range children {
+		stsd.AddChild(box)
+	}
+	if stsd.SampleCount != sampleCount {
+		return nil, fmt.Errorf("Stsd sample count mismatch")
+	}
+	return &stsd, nil
+}
+
 // Type - box-specific type
 func (s *StsdBox) Type() string {
 	return "stsd"
@@ -134,6 +163,24 @@ func (s *StsdBox) Encode(w io.Writer) error {
 	}
 	for _, b := range s.Children {
 		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW - box-specific encode of stsd - not a usual container
+func (s *StsdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(s, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(s.Version) << 24) + s.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(s.SampleCount)
+	for _, c := range s.Children {
+		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

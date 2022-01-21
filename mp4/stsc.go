@@ -1,10 +1,10 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // StscBox - Sample To Chunk Box (stsc - mandatory)
@@ -26,37 +26,42 @@ type StscBox struct {
 }
 
 // DecodeStsc - box-specific decode
-func DecodeStsc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeStsc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeStscSR(hdr, startPos, sr)
+}
 
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+// DecodeStscSR - box-specific decode
+func DecodeStscSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
 	b := StscBox{
-		Version: byte(versionAndFlags >> 24),
-		Flags:   versionAndFlags & flagsMask,
+		Version:         byte(versionAndFlags >> 24),
+		Flags:           versionAndFlags & flagsMask,
+		FirstChunk:      make([]uint32, entryCount),
+		SamplesPerChunk: make([]uint32, entryCount),
 	}
-	entryCount := binary.BigEndian.Uint32(data[4:8])
-	b.FirstChunk = make([]uint32, 0, entryCount)
-	b.SamplesPerChunk = make([]uint32, 0, entryCount)
+
 	for i := 0; i < int(entryCount); i++ {
-		fc := binary.BigEndian.Uint32(data[(8 + 12*i):(12 + 12*i)])
-		spc := binary.BigEndian.Uint32(data[(12 + 12*i):(16 + 12*i)])
-		sdi := binary.BigEndian.Uint32(data[(16 + 12*i):(20 + 12*i)])
-		b.FirstChunk = append(b.FirstChunk, fc)
-		b.SamplesPerChunk = append(b.SamplesPerChunk, spc)
+		b.FirstChunk[i] = sr.ReadUint32()
+		b.SamplesPerChunk[i] = sr.ReadUint32()
+		sdi := sr.ReadUint32()
 		if i == 0 {
 			b.singleSampleDescriptionID = sdi
 		} else {
 			if sdi != b.singleSampleDescriptionID {
 				if b.singleSampleDescriptionID != 0 {
+					b.SampleDescriptionID = make([]uint32, entryCount)
 					for j := 0; j < i; j++ {
-						b.SampleDescriptionID = append(b.SampleDescriptionID, sdi)
+						b.SampleDescriptionID[i] = sdi
 					}
 					b.singleSampleDescriptionID = 0
 				}
-				b.SampleDescriptionID = append(b.SampleDescriptionID, sdi)
+				b.SampleDescriptionID[i] = sdi
 			}
 		}
 	}
@@ -73,14 +78,23 @@ func (b *StscBox) Size() uint64 {
 	return uint64(boxHeaderSize + 8 + len(b.FirstChunk)*12)
 }
 
-// Encode - box-specific encode
+// Encode - write box to w
 func (b *StscBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *StscBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(uint32(len(b.FirstChunk)))
@@ -93,8 +107,7 @@ func (b *StscBox) Encode(w io.Writer) error {
 			sw.WriteUint32(b.SampleDescriptionID[i])
 		}
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write specific box info to w

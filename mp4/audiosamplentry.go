@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // AudioSampleEntryBox according to ISO/IEC 14496-12
@@ -63,28 +64,27 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 const nrAudioSampleBytesBeforeChildren = 36
 
 // DecodeAudioSampleEntry - decode mp4a... box
-func DecodeAudioSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeAudioSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-
+	sr := bits.NewFixedSliceReader(data)
 	a := NewAudioSampleEntryBox(hdr.name)
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
-	s.SkipBytes(6) // Skip 6 reserved bytes
-	a.DataReferenceIndex = s.ReadUint16()
+	sr.SkipBytes(6) // Skip 6 reserved bytes
+	a.DataReferenceIndex = sr.ReadUint16()
 
 	// 14496-12 12.2.3.2 Audio Sample entry (20 bytes)
 
-	s.SkipBytes(8) //  reserved == 0
-	a.ChannelCount = s.ReadUint16()
-	a.SampleSize = s.ReadUint16()
-	s.SkipBytes(4) // Predefined + reserved
-	a.SampleRate = makeUint16FromFixed32(s.ReadUint32())
+	sr.SkipBytes(8) //  reserved == 0
+	a.ChannelCount = sr.ReadUint16()
+	a.SampleSize = sr.ReadUint16()
+	sr.SkipBytes(4) // Predefined + reserved
+	a.SampleRate = makeUint16FromFixed32(sr.ReadUint32())
 
-	remaining := s.RemainingBytes()
+	remaining := sr.RemainingBytes()
 	restReader := bytes.NewReader(remaining)
 
 	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
@@ -108,6 +108,40 @@ func DecodeAudioSampleEntry(hdr *boxHeader, startPos uint64, r io.Reader) (Box, 
 	return a, nil
 }
 
+// DecodeAudioSampleEntry - decode mp4a... box
+func DecodeAudioSampleEntrySR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	a := NewAudioSampleEntryBox(hdr.name)
+
+	// 14496-12 8.5.2.2 Sample entry (8 bytes)
+	sr.SkipBytes(6) // Skip 6 reserved bytes
+	a.DataReferenceIndex = sr.ReadUint16()
+
+	// 14496-12 12.2.3.2 Audio Sample entry (20 bytes)
+
+	sr.SkipBytes(8) //  reserved == 0
+	a.ChannelCount = sr.ReadUint16()
+	a.SampleSize = sr.ReadUint16()
+	sr.SkipBytes(4) // Predefined + reserved
+	a.SampleRate = makeUint16FromFixed32(sr.ReadUint32())
+
+	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
+	lastPos := startPos + hdr.size
+	for {
+		if pos >= lastPos {
+			break
+		}
+		box, err := DecodeBoxSR(pos, sr)
+		if err != nil {
+			return nil, err
+		}
+		if box != nil {
+			a.AddChild(box)
+			pos += box.Size()
+		}
+	}
+	return a, sr.AccError()
+}
+
 // Type - return box type
 func (a *AudioSampleEntryBox) Type() string {
 	return a.name
@@ -129,7 +163,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(a)
-	sw := NewSliceWriter(buf)
+	sw := bits.NewFixedSliceWriterFromSlice(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(a.DataReferenceIndex)
 	sw.WriteZeroBytes(8) // pre_defined and reserved
@@ -138,7 +172,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	sw.WriteZeroBytes(4)                          // Pre-defined and reserved
 	sw.WriteUint32(makeFixed32Uint(a.SampleRate)) // nrAudioSampleBytesBeforeChildren bytes this far
 
-	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
+	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
 	if err != nil {
 		return err
 	}
@@ -146,6 +180,30 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	// Next output child boxes in order
 	for _, child := range a.Children {
 		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// Encode - write box to sw
+func (a *AudioSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(a, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteZeroBytes(6)
+	sw.WriteUint16(a.DataReferenceIndex)
+	sw.WriteZeroBytes(8) // pre_defined and reserved
+	sw.WriteUint16(a.ChannelCount)
+	sw.WriteUint16(a.SampleSize)
+	sw.WriteZeroBytes(4)                          // Pre-defined and reserved
+	sw.WriteUint32(makeFixed32Uint(a.SampleRate)) // nrAudioSampleBytesBeforeChildren bytes this far
+
+	// Next output child boxes in order
+	for _, child := range a.Children {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

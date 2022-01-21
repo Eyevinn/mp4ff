@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // ClapBox - Clean Aperture Box, ISO/IEC 14496-12 2020 Sec. 12.1.4
@@ -18,13 +19,18 @@ type ClapBox struct {
 }
 
 // DecodeClap - box-specific decode
-func DecodeClap(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeClap(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	clap := &ClapBox{}
-	sr := NewSliceReader(data)
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeClapSR(hdr, startPos, sr)
+}
+
+// DecodeClapSR - box-specific decode
+func DecodeClapSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	clap := ClapBox{}
 	clap.CleanApertureWidthN = sr.ReadUint32()
 	clap.CleanApertureWidthD = sr.ReadUint32()
 	clap.CleanApertureHeightN = sr.ReadUint32()
@@ -33,7 +39,7 @@ func DecodeClap(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	clap.HorizOffD = sr.ReadUint32()
 	clap.VertOffN = sr.ReadUint32()
 	clap.VertOffD = sr.ReadUint32()
-	return clap, nil
+	return &clap, sr.AccError()
 }
 
 // Type - box type
@@ -48,12 +54,21 @@ func (b *ClapBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *ClapBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *ClapBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	sw.WriteUint32(b.CleanApertureWidthN)
 	sw.WriteUint32(b.CleanApertureWidthD)
 	sw.WriteUint32(b.CleanApertureHeightN)
@@ -62,8 +77,7 @@ func (b *ClapBox) Encode(w io.Writer) error {
 	sw.WriteUint32(b.HorizOffD)
 	sw.WriteUint32(b.VertOffN)
 	sw.WriteUint32(b.VertOffD)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

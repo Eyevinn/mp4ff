@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // File - an MPEG-4 file asset
@@ -85,6 +87,7 @@ func NewFile() *File {
 		FragEncMode: EncModeSegment,
 		EncOptimize: OptimizeNone,
 		fileDecMode: DecModeNormal,
+		Children:    make([]Box, 0, 8), // Reasonable number of children
 	}
 }
 
@@ -193,6 +196,15 @@ LoopBoxes:
 		boxStartPos += boxSize
 	}
 	return f, nil
+}
+
+// Size - total size of all boxes
+func (f *File) Size() uint64 {
+	var totSize uint64 = 0
+	for _, f := range f.Children {
+		totSize += f.Size()
+	}
+	return totSize
 }
 
 // AddChild - add child with start position
@@ -330,6 +342,55 @@ func (f *File) Encode(w io.Writer) error {
 	// Progressive file
 	for _, b := range f.Children {
 		err := b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW - encode a file to a SliceWriter
+// Fragmented files are encoded based on InitSegment and MediaSegments, unless EncodeVerbatim is set.
+func (f *File) EncodeSW(sw bits.SliceWriter) error {
+	if f.isFragmented {
+		switch f.FragEncMode {
+		case EncModeSegment:
+			if f.Init != nil {
+				err := f.Init.EncodeSW(sw)
+				if err != nil {
+					return err
+				}
+			}
+			if f.Sidx != nil {
+				err := f.Sidx.EncodeSW(sw)
+				if err != nil {
+					return err
+				}
+			}
+			for _, seg := range f.Segments {
+				if f.EncOptimize&OptimizeTrun != 0 {
+					seg.EncOptimize = f.EncOptimize
+				}
+				err := seg.EncodeSW(sw)
+				if err != nil {
+					return err
+				}
+			}
+		case EncModeBoxTree:
+			for _, b := range f.Children {
+				err := b.EncodeSW(sw)
+				if err != nil {
+					return err
+				}
+			}
+		default:
+			return fmt.Errorf("Unknown FragEncMode=%d", f.FragEncMode)
+		}
+		return nil
+	}
+	// Progressive file
+	for _, b := range f.Children {
+		err := b.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

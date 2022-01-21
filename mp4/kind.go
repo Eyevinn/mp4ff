@@ -1,8 +1,10 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // KindBox - Track Kind Box
@@ -12,25 +14,29 @@ type KindBox struct {
 }
 
 // DecodeKind - box-specific decode
-func DecodeKind(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeKind(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	schemeURI, err := s.ReadZeroTerminatedString()
-	if err != nil {
-		return nil, err
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeKindSR(hdr, startPos, sr)
+}
+
+// DecodeKindSR - box-specific decode
+func DecodeKindSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	maxLen := hdr.payloadLen() - 1
+	schemeURI := sr.ReadZeroTerminatedString(maxLen)
+	maxLen = hdr.payloadLen() - 1
+	value := sr.ReadZeroTerminatedString(maxLen)
+	if err := sr.AccError(); err != nil {
+		return nil, fmt.Errorf("decode kind: %w", err)
 	}
-	value, err := s.ReadZeroTerminatedString()
-	if err != nil {
-		return nil, err
-	}
-	b := &KindBox{
+	b := KindBox{
 		SchemeURI: schemeURI,
 		Value:     value,
 	}
-	return b, nil
+	return &b, nil
 }
 
 // Type - box type
@@ -45,16 +51,24 @@ func (b *KindBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *KindBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// Encode - write box to w
+func (b *KindBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	sw.WriteString(b.SchemeURI, true)
 	sw.WriteString(b.Value, true)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

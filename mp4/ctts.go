@@ -1,9 +1,9 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // CttsBox - Composition Time to Sample Box (ctts - optional)
@@ -17,27 +17,32 @@ type CttsBox struct {
 }
 
 // DecodeCtts - box-specific decode
-func DecodeCtts(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeCtts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeCttsSR(hdr, startPos, sr)
+}
+
+// DecodeCttsSR - box-specific decode
+func DecodeCttsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	entryCount := sr.ReadUint32()
+
 	b := &CttsBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		SampleCount:  []uint32{},
-		SampleOffset: []int32{},
+		SampleCount:  make([]uint32, entryCount),
+		SampleOffset: make([]int32, entryCount),
 	}
 
-	ec := binary.BigEndian.Uint32(data[4:8])
-	for i := 0; i < int(ec); i++ {
-		sCount := binary.BigEndian.Uint32(data[(8 + 8*i):(12 + 8*i)])
-		sOffset := binary.BigEndian.Uint32(data[(12 + 8*i):(16 + 8*i)])
-		b.SampleCount = append(b.SampleCount, sCount)
-		b.SampleOffset = append(b.SampleOffset, int32(sOffset)) // Cast will handle sign right
+	for i := 0; i < int(entryCount); i++ {
+		b.SampleCount[i] = sr.ReadUint32()
+		b.SampleOffset[i] = sr.ReadInt32()
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - box type
@@ -52,12 +57,21 @@ func (b *CttsBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CttsBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *CttsBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(uint32(len(b.SampleCount)))
@@ -65,8 +79,7 @@ func (b *CttsBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.SampleCount[i])
 		sw.WriteInt32(b.SampleOffset[i])
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // GetCompositionTimeOffset - composition time offset for (one-based) sampleNr in track timescale

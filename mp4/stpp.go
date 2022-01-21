@@ -3,8 +3,10 @@ package mp4
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // StppBox - XMLSubtitleSampleEntryr Box (stpp)
@@ -44,39 +46,33 @@ func (b *StppBox) AddChild(child Box) {
 }
 
 // DecodeStpp - Decode XMLSubtitleSampleEntry (stpp)
-func DecodeStpp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeStpp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
 	b := &StppBox{}
-	s := NewSliceReader(data)
+	sr := bits.NewFixedSliceReader(data)
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
-	s.SkipBytes(6) // Skip 6 reserved bytes
-	b.DataReferenceIndex = s.ReadUint16()
+	sr.SkipBytes(6) // Skip 6 reserved bytes
+	b.DataReferenceIndex = sr.ReadUint16()
 
-	b.Namespace, err = s.ReadZeroTerminatedString()
-	if err != nil {
-		return nil, err
+	b.Namespace = sr.ReadZeroTerminatedString(hdr.payloadLen())
+
+	if sr.NrRemainingBytes() > 0 {
+		b.SchemaLocation = sr.ReadZeroTerminatedString(hdr.payloadLen())
 	}
 
-	if s.NrRemainingBytes() > 0 {
-		b.SchemaLocation, err = s.ReadZeroTerminatedString()
-		if err != nil {
-			return nil, err
-		}
+	if sr.NrRemainingBytes() > 0 {
+		b.AuxiliaryMimeTypes = sr.ReadZeroTerminatedString(hdr.payloadLen())
+	}
+	if err := sr.AccError(); err != nil {
+		return nil, fmt.Errorf("DecodeStpp: %w", err)
 	}
 
-	if s.NrRemainingBytes() > 0 {
-		b.AuxiliaryMimeTypes, err = s.ReadZeroTerminatedString()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	pos := startPos + uint64(boxHeaderSize+s.GetPos())
-	remaining := s.RemainingBytes()
+	pos := startPos + uint64(boxHeaderSize+sr.GetPos())
+	remaining := sr.RemainingBytes()
 	restReader := bytes.NewReader(remaining)
 
 	for {
@@ -97,6 +93,51 @@ func DecodeStpp(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		}
 	}
 	return b, nil
+}
+
+// DecodeStppSR - Decode XMLSubtitleSampleEntry (stpp)
+func DecodeStppSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	payloadLen := hdr.payloadLen()
+
+	remainingBytes := func(sr bits.SliceReader, initPos, payloadLen int) int {
+		return payloadLen - (sr.GetPos() - initPos)
+	}
+
+	b := StppBox{}
+	// 14496-12 8.5.2.2 Sample entry (8 bytes)
+	initPos := sr.GetPos()
+	sr.SkipBytes(6) // Skip 6 reserved bytes
+	b.DataReferenceIndex = sr.ReadUint16()
+	b.Namespace = sr.ReadZeroTerminatedString(hdr.payloadLen() - 8)
+
+	if maxLen := remainingBytes(sr, initPos, payloadLen); maxLen > 0 {
+		b.SchemaLocation = sr.ReadZeroTerminatedString(maxLen)
+	}
+
+	if maxLen := remainingBytes(sr, initPos, payloadLen); maxLen > 0 {
+		b.AuxiliaryMimeTypes = sr.ReadZeroTerminatedString(maxLen)
+	}
+	if err := sr.AccError(); err != nil {
+		return nil, fmt.Errorf("DecodeStpp: %w", err)
+	}
+	pos := startPos + uint64(hdr.hdrlen+sr.GetPos()-initPos)
+	for {
+		rest := remainingBytes(sr, initPos, payloadLen)
+		if rest <= 0 {
+			break
+		}
+		box, err := DecodeBoxSR(pos, sr)
+		if err != nil {
+			return nil, err
+		}
+		if box != nil {
+			b.AddChild(box)
+			pos += box.Size()
+		} else {
+			return nil, fmt.Errorf("no stpp child")
+		}
+	}
+	return &b, sr.AccError()
 }
 
 // Type - return box type
@@ -127,7 +168,7 @@ func (b *StppBox) Encode(w io.Writer) error {
 		return err
 	}
 	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	sw := bits.NewFixedSliceWriterFromSlice(buf)
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteString(b.Namespace, true)
@@ -137,7 +178,7 @@ func (b *StppBox) Encode(w io.Writer) error {
 	if b.AuxiliaryMimeTypes != "" {
 		sw.WriteString(b.AuxiliaryMimeTypes, true)
 	}
-	_, err = w.Write(buf[:sw.pos]) // Only write written bytes
+	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
 	if err != nil {
 		return err
 	}
@@ -145,6 +186,32 @@ func (b *StppBox) Encode(w io.Writer) error {
 	// Next output child boxes in order
 	for _, child := range b.Children {
 		err = child.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// Encode - write box to w
+func (b *StppBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteZeroBytes(6)
+	sw.WriteUint16(b.DataReferenceIndex)
+	sw.WriteString(b.Namespace, true)
+	if b.SchemaLocation != "" {
+		sw.WriteString(b.SchemaLocation, true)
+	}
+	if b.AuxiliaryMimeTypes != "" {
+		sw.WriteString(b.AuxiliaryMimeTypes, true)
+	}
+
+	// Next output child boxes in order
+	for _, child := range b.Children {
+		err = child.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

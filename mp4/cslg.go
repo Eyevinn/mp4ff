@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // CslgBox - CompositionToDecodeBox -ISO/IEC 14496-12 2015 Sec. 8.6.1.4
@@ -19,31 +20,36 @@ type CslgBox struct {
 }
 
 // DecodeCslg - box-specific decode
-func DecodeCslg(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeCslg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeCslgSR(hdr, startPos, sr)
+}
+
+// DecodeCslgSR - box-specific decode
+func DecodeCslgSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	b := CslgBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
 	if b.Version == 0 {
-		b.CompositionToDTSShift = int64(s.ReadInt32())
-		b.LeastDecodeToDisplayDelta = int64(s.ReadInt32())
-		b.GreatestDecodeToDisplayDelta = int64(s.ReadInt32())
-		b.CompositionStartTime = int64(s.ReadInt32())
-		b.CompositionEndTime = int64(s.ReadInt32())
+		b.CompositionToDTSShift = int64(sr.ReadInt32())
+		b.LeastDecodeToDisplayDelta = int64(sr.ReadInt32())
+		b.GreatestDecodeToDisplayDelta = int64(sr.ReadInt32())
+		b.CompositionStartTime = int64(sr.ReadInt32())
+		b.CompositionEndTime = int64(sr.ReadInt32())
 	} else {
-		b.CompositionToDTSShift = s.ReadInt64()
-		b.LeastDecodeToDisplayDelta = s.ReadInt64()
-		b.GreatestDecodeToDisplayDelta = s.ReadInt64()
-		b.CompositionStartTime = s.ReadInt64()
-		b.CompositionEndTime = s.ReadInt64()
+		b.CompositionToDTSShift = sr.ReadInt64()
+		b.LeastDecodeToDisplayDelta = sr.ReadInt64()
+		b.GreatestDecodeToDisplayDelta = sr.ReadInt64()
+		b.CompositionStartTime = sr.ReadInt64()
+		b.CompositionEndTime = sr.ReadInt64()
 	}
-	return &b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box type
@@ -59,12 +65,21 @@ func (b *CslgBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CslgBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *CslgBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	if b.Version == 0 {
@@ -80,8 +95,7 @@ func (b *CslgBox) Encode(w io.Writer) error {
 		sw.WriteInt64(b.CompositionStartTime)
 		sw.WriteInt64(b.CompositionEndTime)
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - get details with specificBoxLevels cslg:1 or higher

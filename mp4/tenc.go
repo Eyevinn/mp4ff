@@ -3,7 +3,8 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TencBox - Track Encryption Box
@@ -21,35 +22,40 @@ type TencBox struct {
 }
 
 // DecodeTenc - box-specific decode
-func DecodeTenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeTenc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeTencSR(hdr, startPos, sr)
+}
+
+// DecodeTencSR - box-specific decode
+func DecodeTencSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &TencBox{
+	b := TencBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	_ = s.ReadUint8() // Skip reserved == 0
+	_ = sr.ReadUint8() // Skip reserved == 0
 	if version == 0 {
-		_ = s.ReadUint8() // Skip reserved == 0
+		_ = sr.ReadUint8() // Skip reserved == 0
 	} else {
-		infoByte := s.ReadUint8()
+		infoByte := sr.ReadUint8()
 		b.DefaultCryptByteBlock = infoByte >> 4
 		b.DefaultSkipByteBlock = infoByte & 0x0f
 	}
-	b.DefaultIsProtected = s.ReadUint8()
-	b.DefaultPerSampleIVSize = s.ReadUint8()
-	b.DefaultKID = UUID(s.ReadBytes(16))
+	b.DefaultIsProtected = sr.ReadUint8()
+	b.DefaultPerSampleIVSize = sr.ReadUint8()
+	b.DefaultKID = UUID(sr.ReadBytes(16))
 	if b.DefaultIsProtected == 1 && b.DefaultPerSampleIVSize == 0 {
-		defaultConstantIVSize := int(s.ReadUint8())
-		b.DefaultConstantIV = s.ReadBytes(defaultConstantIVSize)
+		defaultConstantIVSize := int(sr.ReadUint8())
+		b.DefaultConstantIV = sr.ReadBytes(defaultConstantIVSize)
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type
@@ -68,12 +74,21 @@ func (b *TencBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *TencBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *TencBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint8(0) // reserved
@@ -89,8 +104,7 @@ func (b *TencBox) Encode(w io.Writer) error {
 		sw.WriteUint8(byte(len(b.DefaultConstantIV)))
 		sw.WriteBytes(b.DefaultConstantIV)
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box info to w

@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MoofBox -  Movie Fragment Box (moof)
@@ -19,21 +21,45 @@ type MoofBox struct {
 }
 
 // DecodeMoof - box-specific decode
-func DecodeMoof(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeMoof(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data := make([]byte, hdr.payloadLen())
+	_, err := r.Read(data)
 	if err != nil {
 		return nil, err
 	}
-	m := &MoofBox{}
+	sr := bits.NewFixedSliceReader(data)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := MoofBox{Children: make([]Box, 0, len(children))}
 	m.StartPos = startPos
-	for _, box := range children {
-		err := m.AddChild(box)
+	for _, c := range children {
+		err := m.AddChild(c)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return m, nil
+	return &m, nil
+}
+
+// DecodeMoofSR - box-specific decode
+func DecodeMoofSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := MoofBox{Children: make([]Box, 0, len(children))}
+	m.StartPos = startPos
+	for _, c := range children {
+		err := m.AddChild(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &m, sr.AccError()
 }
 
 // AddChild - add child box
@@ -80,6 +106,26 @@ func (m *MoofBox) Encode(w io.Writer) error {
 	}
 	for _, b := range m.Children {
 		err = b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Encode - write moof after updating trun dataoffset
+func (m *MoofBox) EncodeSW(sw bits.SliceWriter) error {
+	for _, trun := range m.Traf.Truns {
+		if trun.HasDataOffset() && trun.DataOffset == 0 {
+			return fmt.Errorf("Dataoffset in trun not set")
+		}
+	}
+	err := EncodeHeaderSW(m, sw)
+	if err != nil {
+		return err
+	}
+	for _, c := range m.Children {
+		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

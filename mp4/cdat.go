@@ -3,7 +3,8 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // CdatBox - Closed Captioning Sample Data according to QuickTime spec:
@@ -13,8 +14,8 @@ type CdatBox struct {
 }
 
 // DecodeCdat - box-specific decode
-func DecodeCdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeCdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -22,6 +23,14 @@ func DecodeCdat(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Data: data,
 	}
 	return b, nil
+}
+
+// DecodeCdat - box-specific decode
+func DecodeCdatSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := &CdatBox{
+		Data: sr.ReadBytes(hdr.payloadLen()),
+	}
+	return b, sr.AccError()
 }
 
 // Type - box type
@@ -36,12 +45,23 @@ func (b *CdatBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *CdatBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(b.Data)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *CdatBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteBytes(b.Data)
+	return sw.AccError()
 }
 
 // Info - write specific box information

@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TfdtBox - Track Fragment Decode Time (tfdt)
@@ -15,12 +16,12 @@ type TfdtBox struct {
 }
 
 // DecodeTfdt - box-specific decode
-func DecodeTfdt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeTfdt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
+	s := bits.NewFixedSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	var baseMediaDecodeTime uint64
@@ -36,6 +37,25 @@ func DecodeTfdt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		BaseMediaDecodeTime: baseMediaDecodeTime,
 	}
 	return b, nil
+}
+
+// DecodeTfdtSR - box-specific decode
+func DecodeTfdtSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	version := byte(versionAndFlags >> 24)
+	var baseMediaDecodeTime uint64
+	if version == 0 {
+		baseMediaDecodeTime = uint64(sr.ReadUint32())
+	} else {
+		baseMediaDecodeTime = sr.ReadUint64()
+	}
+
+	b := TfdtBox{
+		Version:             version,
+		Flags:               versionAndFlags & flagsMask,
+		BaseMediaDecodeTime: baseMediaDecodeTime,
+	}
+	return &b, sr.AccError()
 }
 
 // CreateTfdt - Create a new TfdtBox with baseMediaDecodeTime
@@ -73,12 +93,21 @@ func (t *TfdtBox) Size() uint64 {
 
 // Encode - write box to w
 func (t *TfdtBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
+	sw := bits.NewFixedSliceWriter(int(t.Size()))
+	err := t.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(t)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (t *TfdtBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(t, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	if t.Version == 0 {
@@ -86,8 +115,7 @@ func (t *TfdtBox) Encode(w io.Writer) error {
 	} else {
 		sw.WriteUint64(t.BaseMediaDecodeTime)
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box info to w

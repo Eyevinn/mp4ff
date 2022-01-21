@@ -1,10 +1,10 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // HdlrBox - Handler Reference Box (hdlr - mandatory)
@@ -55,31 +55,39 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 }
 
 // DecodeHdlr - box-specific decode
-func DecodeHdlr(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
-
+func DecodeHdlr(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	h := &HdlrBox{
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeHdlrSR(hdr, startPos, sr)
+}
+
+// DecodeHdlrSR - box-specific decode
+func DecodeHdlrSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	h := HdlrBox{
 		Version:     byte(versionAndFlags >> 24),
 		Flags:       versionAndFlags & flagsMask,
-		PreDefined:  binary.BigEndian.Uint32(data[4:8]),
-		HandlerType: string(data[8:12]),
+		PreDefined:  sr.ReadUint32(),
+		HandlerType: sr.ReadFixedLengthString(4),
 	}
-	if len(data) > 24 {
-		endPoint := len(data) - 1
-		lastChar := data[endPoint]
+	sr.SkipBytes(12) // 12 bytes of zero
+	nrBytesLeft := hdr.payloadLen() - 24
+	if nrBytesLeft > 0 {
+		bytesLeft := sr.ReadBytes(nrBytesLeft)
+		lastChar := bytesLeft[len(bytesLeft)-1]
 		if lastChar != 0 {
-			endPoint++
 			h.LacksNullTermination = true
+			h.Name = string(bytesLeft)
+		} else {
+			h.Name = string(bytesLeft[:len(bytesLeft)-1])
 		}
-		h.Name = string(data[24:endPoint])
 	} else {
 		h.LacksNullTermination = true
 	}
-	return h, nil
+	return &h, sr.AccError()
 }
 
 // Type - box type
@@ -98,21 +106,28 @@ func (b *HdlrBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *HdlrBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	versionAndFlags := (uint32(b.Version) << 24) | b.Flags
-	binary.BigEndian.PutUint32(buf[0:], versionAndFlags)
-	binary.BigEndian.PutUint32(buf[4:], b.PreDefined)
-	strtobuf(buf[8:], b.HandlerType, 4)
-	strtobuf(buf[24:], b.Name, len(b.Name))
-	if !b.LacksNullTermination {
-		buf[len(buf)-1] = 0 // null-termination of string
-	}
-	_, err = w.Write(buf)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *HdlrBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	versionAndFlags := (uint32(b.Version) << 24) | b.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(b.PreDefined)
+	sw.WriteString(b.HandlerType, false)
+	sw.WriteZeroBytes(12)
+	sw.WriteString(b.Name, !b.LacksNullTermination)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

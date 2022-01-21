@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const (
@@ -137,15 +139,19 @@ type boxHeader struct {
 	hdrlen int
 }
 
+func (b boxHeader) payloadLen() int {
+	return int(b.size) - b.hdrlen
+}
+
 // decodeHeader decodes a box header (size + box type + possiible largeSize)
-func decodeHeader(r io.Reader) (*boxHeader, error) {
+func decodeHeader(r io.Reader) (boxHeader, error) {
 	buf := make([]byte, boxHeaderSize)
 	n, err := r.Read(buf)
 	if err != nil {
-		return nil, err
+		return boxHeader{}, err
 	}
 	if n != boxHeaderSize {
-		return nil, errors.New("Could not read full 8B header")
+		return boxHeader{}, errors.New("Could not read full 8B header")
 	}
 	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
 	headerLen := boxHeaderSize
@@ -153,17 +159,17 @@ func decodeHeader(r io.Reader) (*boxHeader, error) {
 		buf := make([]byte, largeSizeLen)
 		n, err := r.Read(buf)
 		if err != nil {
-			return nil, err
+			return boxHeader{}, err
 		}
 		if n != largeSizeLen {
-			return nil, fmt.Errorf("Could not read largeSize length field")
+			return boxHeader{}, fmt.Errorf("Could not read largeSize length field")
 		}
 		size = binary.BigEndian.Uint64(buf)
 		headerLen += largeSizeLen
 	} else if size == 0 {
-		return nil, fmt.Errorf("Size 0, meaning to end of file, not supported")
+		return boxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
-	return &boxHeader{string(buf[4:8]), size, headerLen}, nil
+	return boxHeader{string(buf[4:8]), size, headerLen}, nil
 }
 
 // EncodeHeader - encode a box header to a writer
@@ -191,15 +197,41 @@ func EncodeHeaderWithSize(boxType string, boxSize uint64, largeSize bool, w io.W
 	buf := make([]byte, headerSize)
 	if !largeSize {
 		binary.BigEndian.PutUint32(buf, uint32(boxSize))
+		strtobuf(buf[4:], boxType, 4)
 	} else {
-		binary.BigEndian.PutUint32(buf, 1)
-	}
-	strtobuf(buf[4:], boxType, 4)
-	if largeSize {
+		binary.BigEndian.PutUint32(buf, 1) // signals large size
+		strtobuf(buf[4:], boxType, 4)
 		binary.BigEndian.PutUint64(buf[8:], boxSize)
 	}
 	_, err := w.Write(buf)
 	return err
+}
+
+// EncodeHeaderSW - encode a box header to a SliceWriter
+func EncodeHeaderSW(b Box, sw bits.SliceWriter) error {
+	boxType, boxSize := b.Type(), b.Size()
+	if boxSize >= 1<<32 {
+		return fmt.Errorf("Box size %d is too big for normal 4-byte size field", boxSize)
+	}
+	sw.WriteUint32(uint32(boxSize))
+	sw.WriteString(boxType, false)
+	return nil
+}
+
+// EncodeHeaderWithSize - encode a box header to a writer and allow for largeSize
+func EncodeHeaderWithSizeSW(boxType string, boxSize uint64, largeSize bool, sw bits.SliceWriter) error {
+	if !largeSize && boxSize >= 1<<32 {
+		return fmt.Errorf("Box size %d is too big for normal 4-byte size field", boxSize)
+	}
+	if !largeSize {
+		sw.WriteUint32(uint32(boxSize))
+		sw.WriteString(boxType, false)
+	} else {
+		sw.WriteUint32(1) // signals large size
+		sw.WriteString(boxType, false)
+		sw.WriteUint64(boxSize)
+	}
+	return sw.AccError()
 }
 
 // Box is the general interface to any ISOBMFF box or similar
@@ -210,6 +242,8 @@ type Box interface {
 	Size() uint64
 	// Encode box to writer
 	Encode(w io.Writer) error
+	// Encode box to SliceWriter
+	EncodeSW(sw bits.SliceWriter) error
 	// Info - write box details
 	//   spedificBoxLevels is a comma-separated list box:level or all:level where level >= 0.
 	//   Higher levels give more details. 0 is default
@@ -229,7 +263,7 @@ type Informer interface {
 }
 
 // BoxDecoder is function signature of the Box Decode method
-type BoxDecoder func(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error)
+type BoxDecoder func(hdr boxHeader, startPos uint64, r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
 func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
@@ -243,13 +277,10 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 
 	d, ok := decoders[h.name]
 
-	remainingLength := int64(h.size) - int64(h.hdrlen)
-
 	if !ok {
-		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
-
+		b, err = DecodeUnknown(h, startPos, r)
 	} else {
-		b, err = d(h, startPos, io.LimitReader(r, remainingLength))
+		b, err = d(h, startPos, r)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("decode %s: %w", h.name, err)
@@ -273,7 +304,7 @@ func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 	remainingLength := int64(h.size) - int64(h.hdrlen)
 
 	if !ok {
-		b, err = DecodeUnknown(h, startPos, io.LimitReader(r, remainingLength))
+		b, err = DecodeUnknown(h, startPos, r)
 	} else {
 		switch h.name {
 		case "mdat":
@@ -282,7 +313,7 @@ func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 				_, err = r.Seek(remainingLength, io.SeekCurrent)
 			}
 		default:
-			b, err = d(h, startPos, io.LimitReader(r, remainingLength))
+			b, err = d(h, startPos, r)
 		}
 	}
 	if err != nil {
@@ -306,8 +337,7 @@ func (f Fixed32) String() string {
 	return fmt.Sprintf("%d.%d", uint32(f)>>16, uint32(f)&15)
 }
 
-func strtobuf(out []byte, str string, l int) {
-	in := []byte(str)
+func strtobuf(out []byte, in string, l int) {
 	if l < len(in) {
 		copy(out, in)
 	} else {
@@ -317,4 +347,21 @@ func strtobuf(out []byte, str string, l int) {
 
 func makebuf(b Box) []byte {
 	return make([]byte, b.Size()-boxHeaderSize)
+}
+
+// readBoxBody - read box body and check length
+func readBoxBody(r io.Reader, h boxHeader) ([]byte, error) {
+	bodyLen := h.size - uint64(h.hdrlen)
+	if bodyLen == 0 {
+		return nil, nil
+	}
+	body := make([]byte, bodyLen)
+	n, err := r.Read(body)
+	if err != nil {
+		return nil, err
+	}
+	if n != int(bodyLen) {
+		return nil, fmt.Errorf("too few bytes")
+	}
+	return body, nil
 }

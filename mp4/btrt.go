@@ -1,9 +1,9 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // BtrtBox - BitRateBox - ISO/IEC 14496-12 Section 8.5.2.2
@@ -14,18 +14,23 @@ type BtrtBox struct {
 }
 
 // DecodeBtrt - box-specific decode
-func DecodeBtrt(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeBtrt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeBtrtSR(hdr, startPos, sr)
+}
 
+// DecodeBtrtSR - box-specific decode
+func DecodeBtrtSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := &BtrtBox{
-		BufferSizeDB: binary.BigEndian.Uint32(data[0:4]),
-		MaxBitrate:   binary.BigEndian.Uint32(data[4:8]),
-		AvgBitrate:   binary.BigEndian.Uint32(data[8:12]),
+		BufferSizeDB: sr.ReadUint32(),
+		MaxBitrate:   sr.ReadUint32(),
+		AvgBitrate:   sr.ReadUint32(),
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - return box type
@@ -40,25 +45,25 @@ func (b *BtrtBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *BtrtBox) Encode(w io.Writer) error {
-	var err error
-
-	err = EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-
-	write := func(b uint32) {
-		if err != nil {
-			return
-		}
-		err = binary.Write(w, binary.BigEndian, b)
-	}
-
-	write(b.BufferSizeDB)
-	write(b.MaxBitrate)
-	write(b.AvgBitrate)
-
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *BtrtBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteUint32(b.BufferSizeDB)
+	sw.WriteUint32(b.MaxBitrate)
+	sw.WriteUint32(b.AvgBitrate)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

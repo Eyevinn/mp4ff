@@ -5,7 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // UseSubSampleEncryption - flag for subsample encryption
@@ -70,8 +71,8 @@ func (s *SencBox) AddSample(sample SencSample) error {
 }
 
 // DecodeSenc - box-specific decode
-func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeSenc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -95,16 +96,36 @@ func DecodeSenc(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &senc, nil
 }
 
+// DecodeSencSR - box-specific decode
+func DecodeSencSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	sampleCount := sr.ReadUint32()
+	senc := SencBox{
+		Version:          byte(versionAndFlags >> 24),
+		rawData:          sr.ReadBytes(hdr.payloadLen() - 8), // After the first 8 bytes of box content
+		Flags:            versionAndFlags & flagsMask,
+		StartPos:         startPos,
+		SampleCount:      sampleCount,
+		readButNotParsed: true,
+	}
+
+	if senc.SampleCount == 0 || len(senc.rawData) == 0 {
+		senc.readButNotParsed = false
+		return &senc, sr.AccError()
+	}
+	return &senc, sr.AccError()
+}
+
 // ParseReadBox - second phase when perSampleIVSize should be known from tenc or sgpd boxes
 // if perSampleIVSize is 0, we try to find the appropriate error given data length
 func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 	if !s.readButNotParsed {
 		return fmt.Errorf("senc box already parsed")
 	}
-	sr := NewSliceReader(s.rawData)
 	if perSampleIVSize != 0 {
 		s.perSampleIVSize = byte(perSampleIVSize)
 	}
+	sr := bits.NewFixedSliceReader(s.rawData)
 	nrBytesLeft := uint32(sr.NrRemainingBytes())
 
 	if s.Flags&UseSubSampleEncryption == 0 {
@@ -161,7 +182,7 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 }
 
 // parseAndFillSamples - parse and fill senc samples given perSampleIVSize
-func (s *SencBox) parseAndFillSamples(sr *SliceReader, perSampleIVSize byte) (ok bool) {
+func (s *SencBox) parseAndFillSamples(sr bits.SliceReader, perSampleIVSize byte) (ok bool) {
 	ok = true
 	s.SubSamples = make([][]SubSamplePattern, s.SampleCount)
 	for i := 0; i < int(s.SampleCount); i++ {
@@ -202,6 +223,16 @@ func (s *SencBox) Type() string {
 	return "senc"
 }
 
+//setSubSamplesUsedFlag - set flag if subsamples are used
+func (s *SencBox) setSubSamplesUsedFlag() {
+	for _, subSamples := range s.SubSamples {
+		if len(subSamples) > 0 {
+			s.Flags |= UseSubSampleEncryption
+			break
+		}
+	}
+}
+
 // Size - box-specific type
 func (s *SencBox) Size() uint64 {
 	if s.readButNotParsed {
@@ -218,20 +249,26 @@ func (s *SencBox) Size() uint64 {
 	return uint64(totalSize)
 }
 
-// Encode - box-specific encode
+// Encode - write box to w
 func (s *SencBox) Encode(w io.Writer) error {
 	// First check if subsamplencryption is to be used since it influences the box size
-	for _, subSamples := range s.SubSamples {
-		if len(subSamples) > 0 {
-			s.Flags |= UseSubSampleEncryption
-		}
-	}
-	err := EncodeHeader(s, w)
+	s.setSubSamplesUsedFlag()
+	sw := bits.NewFixedSliceWriter(int(s.Size()))
+	err := s.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(s)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (s *SencBox) EncodeSW(sw bits.SliceWriter) error {
+	s.setSubSamplesUsedFlag()
+	err := EncodeHeaderSW(s, sw)
+	if err != nil {
+		return err
+	}
 
 	versionAndFlags := (uint32(s.Version) << 24) + s.Flags
 	sw.WriteUint32(versionAndFlags)
@@ -249,8 +286,7 @@ func (s *SencBox) Encode(w io.Writer) error {
 			}
 		}
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

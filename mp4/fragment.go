@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"sort"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
@@ -24,7 +26,7 @@ func NewFragment() *Fragment {
 
 // CreateFragment - create single track empty fragment
 func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
-	f := NewFragment()
+	f := Fragment{Children: make([]Box, 0, 2)}
 	moof := &MoofBox{}
 	f.AddChild(moof)
 	mfhd := CreateMfhd(seqNumber)
@@ -41,7 +43,7 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	mdat := &MdatBox{}
 	f.AddChild(mdat)
 
-	return f, nil
+	return &f, nil
 }
 
 // CreateMultiTrackFragment - create multi-track empty fragment without trun
@@ -277,6 +279,31 @@ func (f *Fragment) Encode(w io.Writer) error {
 	return nil
 }
 
+// EncodeSW - write fragment via SliceWriter
+func (f *Fragment) EncodeSW(sw bits.SliceWriter) error {
+	if f.Moof == nil {
+		return fmt.Errorf("moof not set in fragment")
+	}
+	traf := f.Moof.Traf
+	if f.EncOptimize&OptimizeTrun != 0 {
+		err := traf.OptimizeTfhdTrun()
+		if err != nil {
+			return err
+		}
+	}
+	if f.Mdat == nil {
+		return fmt.Errorf("mdat not set in fragment")
+	}
+	f.SetTrunDataOffsets()
+	for _, c := range f.Children {
+		err := c.EncodeSW(sw)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Info - write box-specific information
 func (f *Fragment) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	for _, box := range f.Children {
@@ -365,6 +392,6 @@ func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
 		traf.Tfdt.BaseMediaDecodeTime = sItvl.FirstDecodeTime
 	}
 	trun.AddSamples(sItvl.Samples)
-	f.Mdat.AddSampleData(sItvl.Data)
+	f.Mdat.AddSampleDataPart(sItvl.Data)
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/edgeware/mp4ff/aac"
 	"github.com/edgeware/mp4ff/avc"
+	"github.com/edgeware/mp4ff/bits"
 	"github.com/edgeware/mp4ff/hevc"
 )
 
@@ -49,6 +50,17 @@ func (s *InitSegment) Size() uint64 {
 func (s *InitSegment) Encode(w io.Writer) error {
 	for _, b := range s.Children {
 		err := b.Encode(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeSW - encode an initsegment to a SliceWriter
+func (s *InitSegment) EncodeSW(sw bits.SliceWriter) error {
+	for _, b := range s.Children {
+		err := b.EncodeSW(sw)
 		if err != nil {
 			return err
 		}

@@ -2,6 +2,8 @@ package mp4
 
 import (
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // SinfBox -  Protection Scheme Information Box according to ISO/IEC 23001-7
@@ -26,16 +28,29 @@ func (b *SinfBox) AddChild(box Box) {
 }
 
 // DecodeSinf - box-specific decode
-func DecodeSinf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	b := &SinfBox{}
-	for _, child := range children {
-		b.AddChild(child)
+	b := SinfBox{}
+	for _, c := range children {
+		b.AddChild(c)
 	}
-	return b, nil
+	return &b, nil
+}
+
+// DecodeSinfSR - box-specific decode
+func DecodeSinfSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	b := SinfBox{}
+	for _, c := range children {
+		b.AddChild(c)
+	}
+	return &b, sr.AccError()
 }
 
 // Type - box type
@@ -56,6 +71,11 @@ func (b *SinfBox) GetChildren() []Box {
 // Encode - write minf container to w
 func (b *SinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
+}
+
+// Encode - write minf container to sw
+func (b *SinfBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

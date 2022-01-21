@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // AVC parsing errors
@@ -51,12 +52,7 @@ func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*DecConfRec, err
 }
 
 // DecodeAVCDecConfRec - decode an AVCDecConfRec
-func DecodeAVCDecConfRec(r io.Reader) (DecConfRec, error) {
-
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return DecConfRec{}, err
-	}
+func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 	configurationVersion := data[0] // Should be 1
 	if configurationVersion != 1 {
 		return DecConfRec{}, fmt.Errorf("AVC decoder configuration record version %d unknown",
@@ -142,61 +138,53 @@ func (a *DecConfRec) Size() uint64 {
 	return uint64(totalSize)
 }
 
-// Encode - write an AVCDecConfRec to w
+// Encode - write box to w
 func (a *DecConfRec) Encode(w io.Writer) error {
-	var errWrite error
-	writeByte := func(b byte) {
-		if errWrite != nil {
-			return
-		}
-		errWrite = binary.Write(w, binary.BigEndian, b)
+	sw := bits.NewFixedSliceWriter(int(a.Size()))
+	err := a.EncodeSW(sw)
+	if err != nil {
+		return err
 	}
-	writeSlice := func(s []byte) {
-		if errWrite != nil {
-			return
-		}
-		_, errWrite = w.Write(s)
-	}
-	writeUint16 := func(u uint16) {
-		if errWrite != nil {
-			return
-		}
-		errWrite = binary.Write(w, binary.BigEndian, u)
-	}
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// Encode - write an AVCDecConfRec to w
+func (a *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
 
 	var configurationVersion byte = 1
-	writeByte(configurationVersion)
-	writeByte(a.AVCProfileIndication)
-	writeByte(a.ProfileCompatibility)
-	writeByte(a.AVCLevelIndication)
-	writeByte(0xff) // Set length to 4
+	sw.WriteUint8(configurationVersion)
+	sw.WriteUint8(a.AVCProfileIndication)
+	sw.WriteUint8(a.ProfileCompatibility)
+	sw.WriteUint8(a.AVCLevelIndication)
+	sw.WriteUint8(0xff) // Set length to 4
 
 	var nrSPS byte = byte(len(a.SPSnalus)) | 0xe0 // Added reserved 3 bits
-	writeByte(nrSPS)
+	sw.WriteUint8(nrSPS)
 	for _, sps := range a.SPSnalus {
 		var length uint16 = uint16(len(sps))
-		writeUint16(length)
-		writeSlice(sps)
+		sw.WriteUint16(length)
+		sw.WriteBytes(sps)
 	}
 	var nrPPS byte = byte(len(a.PPSnalus))
-	writeByte(nrPPS)
+	sw.WriteUint8(nrPPS)
 	for _, pps := range a.PPSnalus {
 		var length uint16 = uint16(len(pps))
-		writeUint16(length)
-		writeSlice(pps)
+		sw.WriteUint16(length)
+		sw.WriteBytes(pps)
 	}
 	switch a.AVCProfileIndication {
 	case 100, 110, 122, 144: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
 		if a.NoTrailingInfo { // Strange content, but consistent with Size()
-			return errWrite
+			return sw.AccError()
 		}
-		writeByte(0xfc | a.ChromaFormat)
-		writeByte(0xf8 | a.BitDepthLumaMinus1)
-		writeByte(0xf8 | a.BitDepthChromaMinus1)
-		writeByte(a.NumSPSExt)
+		sw.WriteUint8(0xfc | a.ChromaFormat)
+		sw.WriteUint8(0xf8 | a.BitDepthLumaMinus1)
+		sw.WriteUint8(0xf8 | a.BitDepthChromaMinus1)
+		sw.WriteUint8(a.NumSPSExt)
 	default:
 		//Nothing more to write
 	}
 
-	return errWrite
+	return sw.AccError()
 }

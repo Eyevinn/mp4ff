@@ -3,7 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // EmsgBox - DASHEventMessageBox as defined in ISO/IEC 23009-1
@@ -20,49 +21,46 @@ type EmsgBox struct {
 }
 
 // DecodeEmsg - box-specific decode
-func DecodeEmsg(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeEmsg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeEmsgSR(hdr, startPos, sr)
+}
+
+// DecodeEmsgSR - box-specific decode
+func DecodeEmsgSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	initPos := sr.GetPos()
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := &EmsgBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-
 	if version == 1 {
-		b.TimeScale = s.ReadUint32()
-		b.PresentationTime = s.ReadUint64()
-		b.EventDuration = s.ReadUint32()
-		b.ID = s.ReadUint32()
-		b.SchemeIDURI, err = s.ReadZeroTerminatedString()
-		if err != nil {
-			return nil, fmt.Errorf("Read schemedIDUri error in emsg")
-		}
-		b.Value, err = s.ReadZeroTerminatedString()
-		if err != nil {
-			return nil, fmt.Errorf("Read schemedIDUri error in emsg")
-		}
+		b.TimeScale = sr.ReadUint32()
+		b.PresentationTime = sr.ReadUint64()
+		b.EventDuration = sr.ReadUint32()
+		b.ID = sr.ReadUint32()
+		maxLen := hdr.payloadLen() - (sr.GetPos() - initPos) - 1
+		b.SchemeIDURI = sr.ReadZeroTerminatedString(maxLen)
+		maxLen = hdr.payloadLen() - (sr.GetPos() - initPos)
+		b.Value = sr.ReadZeroTerminatedString(maxLen)
 	} else if version == 0 {
-		b.SchemeIDURI, err = s.ReadZeroTerminatedString()
-		if err != nil {
-			return nil, fmt.Errorf("Read schemedIDUri error in emsg")
-		}
-		b.Value, err = s.ReadZeroTerminatedString()
-		if err != nil {
-			return nil, fmt.Errorf("Read schemedIDUri error in emsg")
-		}
-		b.TimeScale = s.ReadUint32()
-		b.PresentationTimeDelta = s.ReadUint32()
-		b.EventDuration = s.ReadUint32()
-		b.ID = s.ReadUint32()
+		maxLen := hdr.payloadLen() - (sr.GetPos() - initPos) - 17
+		b.SchemeIDURI = sr.ReadZeroTerminatedString(maxLen)
+		maxLen = hdr.payloadLen() - (sr.GetPos() - initPos) - 16
+		b.Value = sr.ReadZeroTerminatedString(maxLen)
+		b.TimeScale = sr.ReadUint32()
+		b.PresentationTimeDelta = sr.ReadUint32()
+		b.EventDuration = sr.ReadUint32()
+		b.ID = sr.ReadUint32()
 	} else {
 		return nil, fmt.Errorf("Unknown version for emsg")
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - box type
@@ -80,12 +78,21 @@ func (b *EmsgBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *EmsgBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, b.Size()-boxHeaderSize)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *EmsgBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	if b.Version == 1 {
@@ -103,9 +110,7 @@ func (b *EmsgBox) Encode(w io.Writer) error {
 		sw.WriteUint32(b.EventDuration)
 		sw.WriteUint32(b.ID)
 	}
-
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

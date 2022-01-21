@@ -1,5 +1,5 @@
 // resegmenter - resegment mp4 files into concatenated segments with new duration.
-// Works even without init segment, since chunkDur is in ticks.
+// Works even without timescale from init segment, since chunkDur is in ticks.
 package main
 
 import (
@@ -35,7 +35,7 @@ func main() {
 	if *chunkDur <= 0 {
 		log.Fatalln("Chunk duration must be positive.")
 	}
-	newMp4, err := Resegment(parsedMp4, uint64(*chunkDur))
+	newMp4, err := Resegment(parsedMp4, uint64(*chunkDur), true)
 	if err != nil {
 		log.Fatalln(err)
 	}

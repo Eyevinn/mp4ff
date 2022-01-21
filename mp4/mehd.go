@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // MehdBox - Movie Extends Header Box
@@ -14,24 +15,29 @@ type MehdBox struct {
 }
 
 // DecodeMehd - box-specific decode
-func DecodeMehd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeMehd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMehdSR(hdr, startPos, sr)
+}
+
+// DecodeMehdSR - box-specific decode
+func DecodeMehdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := &MehdBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
 	if version == 0 {
-		b.FragmentDuration = int64(s.ReadInt32())
+		b.FragmentDuration = int64(sr.ReadInt32())
 	} else {
-		b.FragmentDuration = s.ReadInt64()
+		b.FragmentDuration = sr.ReadInt64()
 	}
-	return b, nil
+	return b, sr.AccError()
 }
 
 // Type - return box type
@@ -52,12 +58,21 @@ func (b *MehdBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *MehdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *MehdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	if b.Version == 0 {
@@ -66,8 +81,7 @@ func (b *MehdBox) Encode(w io.Writer) error {
 	} else {
 		sw.WriteUint64(uint64(b.FragmentDuration))
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // ElngBox - Extended Language Box
@@ -16,8 +17,8 @@ func CreateElng(language string) *ElngBox {
 }
 
 // DecodeElng - box-specific decode
-func DecodeElng(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeElng(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -25,6 +26,14 @@ func DecodeElng(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		Language: string(data[:len(data)-1]),
 	}
 	return b, nil
+}
+
+// DecodeElngSR - box-specific decode
+func DecodeElngSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := &ElngBox{
+		Language: string(sr.ReadZeroTerminatedString(hdr.payloadLen())),
+	}
+	return b, sr.AccError()
 }
 
 // Type - box type
@@ -39,16 +48,23 @@ func (b *ElngBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *ElngBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.Language))
-	if err != nil {
-		return err
-	}
-	_, err = w.Write([]byte{0})
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *ElngBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.Language, true)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

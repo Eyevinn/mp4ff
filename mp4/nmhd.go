@@ -2,28 +2,35 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
-// NmhdBox - Null Media Header Box (nmhd - often used instead ofsthd for subtitle tracks)
+// NmhdBox - Null Media Header Box (nmhd - often used instead of sthd for subtitle tracks)
 type NmhdBox struct {
 	Version byte
 	Flags   uint32
 }
 
 // DecodeNmhd - box-specific decode
-func DecodeNmhd(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeNmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeNmhdSR(hdr, startPos, sr)
+}
+
+// DecodeNmhdSR - box-specific decode
+func DecodeNmhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+
+	versionAndFlags := sr.ReadUint32()
 	sb := &NmhdBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
-	return sb, nil
+	return sb, sr.AccError()
 }
 
 // Type - box-specific type
@@ -38,16 +45,24 @@ func (b *NmhdBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *NmhdBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *NmhdBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

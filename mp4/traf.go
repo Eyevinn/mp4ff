@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrafBox - Track Fragment Box (traf)
@@ -24,14 +26,30 @@ type TrafBox struct {
 }
 
 // DecodeTraf - box-specific decode
-func DecodeTraf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTraf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
-	t := &TrafBox{}
-	for _, b := range children {
-		err := t.AddChild(b)
+	t := &TrafBox{Children: make([]Box, 0, len(children))}
+	for _, child := range children {
+		err := t.AddChild(child)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return t, nil
+}
+
+// DecodeTrafSR - box-specific decode
+func DecodeTrafSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	t := &TrafBox{Children: make([]Box, 0, len(children))}
+	for _, child := range children {
+		err := t.AddChild(child)
 		if err != nil {
 			return nil, err
 		}
@@ -137,6 +155,11 @@ func (t *TrafBox) GetChildren() []Box {
 // Encode - write box to w
 func (t *TrafBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
+}
+
+// Encode - write minf container to sw
+func (b *TrafBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
 }
 
 // Info - write box-specific information

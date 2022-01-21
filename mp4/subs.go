@@ -3,7 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 /*
@@ -55,39 +56,44 @@ type SubsSample struct {
 }
 
 // DecodeSubs - box-specific decode
-func DecodeSubs(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeSubs(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
-	versionAndFlags := s.ReadUint32()
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSubsSR(hdr, startPos, sr)
+}
+
+// DecodeSubsSR - box-specific decode
+func DecodeSubsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
-	b := &SubsBox{
+	b := SubsBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	entryCount := s.ReadUint32()
+	entryCount := sr.ReadUint32()
 	for i := uint32(0); i < entryCount; i++ {
 		e := SubsEntry{}
-		e.SampleDelta = s.ReadUint32()
-		subsampleCount := s.ReadUint16()
+		e.SampleDelta = sr.ReadUint32()
+		subsampleCount := sr.ReadUint16()
 		for j := uint16(0); j < subsampleCount; j++ {
 			ss := SubsSample{}
 			if version == 1 {
-				ss.SubsampleSize = s.ReadUint32()
+				ss.SubsampleSize = sr.ReadUint32()
 			} else {
-				ss.SubsampleSize = uint32(s.ReadUint16())
+				ss.SubsampleSize = uint32(sr.ReadUint16())
 			}
-			ss.SubsamplePriority = s.ReadUint8()
-			ss.Discardable = s.ReadUint8()
-			ss.CodecSpecificParameters = s.ReadUint32()
+			ss.SubsamplePriority = sr.ReadUint8()
+			ss.Discardable = sr.ReadUint8()
+			ss.CodecSpecificParameters = sr.ReadUint32()
 			e.SubSamples = append(e.SubSamples, ss)
 		}
 		b.Entries = append(b.Entries, e)
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - return box type
@@ -113,12 +119,21 @@ func (b *SubsBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *SubsBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *SubsBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(uint32(len(b.Entries)))
@@ -136,8 +151,7 @@ func (b *SubsBox) Encode(w io.Writer) error {
 			sw.WriteUint32(s.CodecSpecificParameters)
 		}
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - specificBoxLevels dump:1 gives details

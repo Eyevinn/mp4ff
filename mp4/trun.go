@@ -3,7 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // TrunBox - Track Fragment Run Box (trun)
@@ -28,17 +29,19 @@ const sampleFlagsPresentFlag uint32 = 0x400
 const sampleCompositionTimeOffsetPresentFlag uint32 = 0x800
 
 // DecodeTrun - box-specific decode
-func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	s := NewSliceReader(data)
+	s := bits.NewFixedSliceReader(data)
 	versionAndFlags := s.ReadUint32()
+	sampleCount := s.ReadUint32()
 	t := &TrunBox{
 		Version:     byte(versionAndFlags >> 24),
 		flags:       versionAndFlags & flagsMask,
-		sampleCount: s.ReadUint32(),
+		sampleCount: sampleCount,
+		Samples:     make([]Sample, sampleCount),
 	}
 
 	if t.HasDataOffset() {
@@ -67,11 +70,53 @@ func DecodeTrun(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		if t.HasSampleCompositionTimeOffset() {
 			cto = s.ReadInt32()
 		}
-		sample := NewSample(flags, dur, size, cto)
-		t.Samples = append(t.Samples, sample)
+		t.Samples[i] = Sample{flags, dur, size, cto}
 	}
 
 	return t, nil
+}
+
+// DecodeTrun - box-specific decode
+func DecodeTrunSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+	sampleCount := sr.ReadUint32()
+	t := &TrunBox{
+		Version:     byte(versionAndFlags >> 24),
+		flags:       versionAndFlags & flagsMask,
+		sampleCount: sampleCount,
+		Samples:     make([]Sample, sampleCount),
+	}
+
+	if t.HasDataOffset() {
+		t.DataOffset = sr.ReadInt32()
+	}
+
+	if t.HasFirstSampleFlags() {
+		t.firstSampleFlags = sr.ReadUint32()
+	}
+
+	var i uint32
+	for i = 0; i < t.sampleCount; i++ {
+		var dur, size, flags uint32
+		var cto int32
+		if t.HasSampleDuration() {
+			dur = sr.ReadUint32()
+		}
+		if t.HasSampleSize() {
+			size = sr.ReadUint32()
+		}
+		if t.HasSampleFlags() {
+			flags = sr.ReadUint32()
+		} else if t.HasFirstSampleFlags() && i == 0 {
+			flags = t.firstSampleFlags
+		}
+		if t.HasSampleCompositionTimeOffset() {
+			cto = sr.ReadInt32()
+		}
+		t.Samples[i] = Sample{flags, dur, size, cto}
+	}
+
+	return t, sr.AccError()
 }
 
 // CreateTrun - create a TrunBox for filling up with samples
@@ -215,12 +260,21 @@ func (t *TrunBox) Size() uint64 {
 
 // Encode - write box to w
 func (t *TrunBox) Encode(w io.Writer) error {
-	err := EncodeHeader(t, w)
+	sw := bits.NewFixedSliceWriter(int(t.Size()))
+	err := t.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(t)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (t *TrunBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(t, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(t.Version) << 24) + t.flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(t.sampleCount)
@@ -249,8 +303,7 @@ func (t *TrunBox) Encode(w io.Writer) error {
 		}
 
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - specificBoxLevels trun:1 gives details

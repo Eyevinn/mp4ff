@@ -2,7 +2,8 @@ package mp4
 
 import (
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // FreeBox - Free Space Box (free or skip)
@@ -12,12 +13,17 @@ type FreeBox struct {
 }
 
 // DecodeFree - box-specific decode
-func DecodeFree(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeFree(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
 	return &FreeBox{Name: hdr.name, notDecoded: data}, nil
+}
+
+// DecodeFreeSR - box-specific decode
+func DecodeFreeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &FreeBox{Name: hdr.name, notDecoded: sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box type
@@ -32,12 +38,23 @@ func (b *FreeBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *FreeBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(b.notDecoded)
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *FreeBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteBytes(b.notDecoded)
+	return sw.AccError()
 }
 
 // Info - write box-specific information

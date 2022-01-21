@@ -3,7 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // FrmaBox - Original Format Box
@@ -12,15 +13,21 @@ type FrmaBox struct {
 }
 
 // DecodeFrma - box-specific decode
-func DecodeFrma(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeFrma(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	if len(data) != 4 {
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeFrmaSR(hdr, startPos, sr)
+}
+
+// DecodeFrmaSR - box-specific decode
+func DecodeFrmaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	if hdr.payloadLen() != 4 {
 		return nil, fmt.Errorf("Frma content length is not 4")
 	}
-	return &FrmaBox{DataFormat: string(data)}, nil
+	return &FrmaBox{DataFormat: string(sr.ReadFixedLengthString(4))}, sr.AccError()
 }
 
 // Type - return box type
@@ -35,12 +42,23 @@ func (b *FrmaBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *FrmaBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write([]byte(b.DataFormat))
+	_, err = w.Write(sw.Bytes())
 	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *FrmaBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
+	sw.WriteString(b.DataFormat, false)
+	return sw.AccError()
 }
 
 // Info - write box info to w

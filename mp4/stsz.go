@@ -1,10 +1,10 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 // StszBox - Sample Size Box (stsz - mandatory)
@@ -24,27 +24,32 @@ type StszBox struct {
 }
 
 // DecodeStsz - box-specific decode
-func DecodeStsz(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+func DecodeStsz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeStszSR(hdr, startPos, sr)
+}
 
-	b := &StszBox{
+// DecodeStszSR - box-specific decode
+func DecodeStszSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	versionAndFlags := sr.ReadUint32()
+
+	b := StszBox{
 		Version:           byte(versionAndFlags >> 24),
 		Flags:             versionAndFlags & flagsMask,
-		SampleUniformSize: binary.BigEndian.Uint32(data[4:8]),
-		SampleNumber:      binary.BigEndian.Uint32(data[8:12]),
-		SampleSize:        []uint32{},
+		SampleUniformSize: sr.ReadUint32(),
+		SampleNumber:      sr.ReadUint32(),
 	}
-	if len(data) > 12 {
+	if b.SampleNumber > 0 {
+		b.SampleSize = make([]uint32, b.SampleNumber)
 		for i := 0; i < int(b.SampleNumber); i++ {
-			sz := binary.BigEndian.Uint32(data[(12 + 4*i):(16 + 4*i)])
-			b.SampleSize = append(b.SampleSize, sz)
+			b.SampleSize[i] = sr.ReadUint32()
 		}
 	}
-	return b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box-specific type
@@ -59,12 +64,21 @@ func (b *StszBox) Size() uint64 {
 
 // Encode - write box to w
 func (b *StszBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := NewSliceWriter(buf)
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *StszBox) EncodeSW(sw bits.SliceWriter) error {
+	err := EncodeHeaderSW(b, sw)
+	if err != nil {
+		return err
+	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(b.SampleUniformSize)
@@ -76,8 +90,7 @@ func (b *StszBox) Encode(w io.Writer) error {
 			sw.WriteUint32(b.SampleSize[i])
 		}
 	}
-	_, err = w.Write(buf)
-	return err
+	return sw.AccError()
 }
 
 // Info - write box-specific information

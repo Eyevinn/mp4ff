@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // MdiaBox - Media Box (mdia)
 //
@@ -35,7 +39,7 @@ func (m *MdiaBox) AddChild(box Box) {
 }
 
 // DecodeMdia - box-specific decode
-func DecodeMdia(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMdia(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
@@ -43,6 +47,19 @@ func DecodeMdia(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	m := NewMdiaBox()
 	for _, b := range l {
 		m.AddChild(b)
+	}
+	return m, nil
+}
+
+// DecodeMdiaSR - box-specific decode
+func DecodeMdiaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := NewMdiaBox()
+	for _, c := range children {
+		m.AddChild(c)
 	}
 	return m, nil
 }
@@ -62,9 +79,14 @@ func (m *MdiaBox) GetChildren() []Box {
 	return m.Children
 }
 
-// Encode - write mdia container to w
+// EncodeSW - write mdia container to w
 func (m *MdiaBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+// Encode - write mdia container via sw
+func (m *MdiaBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(m, sw)
 }
 
 // Info - write box-specific information

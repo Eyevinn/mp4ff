@@ -2,8 +2,11 @@ package mp4
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/edgeware/mp4ff/bits"
 )
 
 func TestDecodeFileWithLazyMdatOption(t *testing.T) {
@@ -95,5 +98,27 @@ func TestCopyTrackSampleData(t *testing.T) {
 				t.Errorf("Got %d bytes instead of %d", sampleData.Len(), totSize)
 			}
 		}
+	}
+}
+
+func TestDecodeEncodeProgressiveSliceWriter(t *testing.T) {
+	// load a segment
+	rawInput, err := ioutil.ReadFile("./testdata/prog_8s.mp4")
+	if err != nil {
+		t.Error(err)
+	}
+	rawOutput := make([]byte, len(rawInput))
+	inBuf := bytes.NewBuffer(rawInput)
+	parsedFile, err := DecodeFile(inBuf)
+	if err != nil {
+		t.Error(err)
+	}
+	sw := bits.NewFixedSliceWriterFromSlice(rawOutput)
+	err = parsedFile.EncodeSW(sw)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(rawOutput, rawInput) {
+		t.Errorf("output differs from input")
 	}
 }

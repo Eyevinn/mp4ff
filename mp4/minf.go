@@ -1,6 +1,10 @@
 package mp4
 
-import "io"
+import (
+	"io"
+
+	"github.com/edgeware/mp4ff/bits"
+)
 
 // MinfBox -  Media Information Box (minf - mandatory)
 //
@@ -39,14 +43,27 @@ func (m *MinfBox) AddChild(box Box) {
 }
 
 // DecodeMinf - box-specific decode
-func DecodeMinf(hdr *boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeMinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
 	if err != nil {
 		return nil, err
 	}
 	m := NewMinfBox()
-	for _, b := range l {
-		m.AddChild(b)
+	for _, c := range children {
+		m.AddChild(c)
+	}
+	return m, nil
+}
+
+// DecodeMinfSR - box-specific decode
+func DecodeMinfSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := NewMinfBox()
+	for _, c := range children {
+		m.AddChild(c)
 	}
 	return m, nil
 }
@@ -69,6 +86,11 @@ func (m *MinfBox) GetChildren() []Box {
 // Encode - write minf container to w
 func (m *MinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
+}
+
+// Encode - write minf container to sw
+func (m *MinfBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(m, sw)
 }
 
 // Info - write box-specific information
