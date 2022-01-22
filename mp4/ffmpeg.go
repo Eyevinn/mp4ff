@@ -90,7 +90,9 @@ func DecodeData(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeDataSR - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
 func DecodeDataSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	return &DataBox{sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
+	_ = sr.ReadUint32() // Should be 1
+	_ = sr.ReadUint32() // Should be 0
+	return &DataBox{sr.ReadBytes(hdr.payloadLen() - 8)}, sr.AccError()
 }
 
 // Type - box type
