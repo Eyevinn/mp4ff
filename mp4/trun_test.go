@@ -40,7 +40,7 @@ func TestGetSampleNrForRelativeTime(t *testing.T) {
 		{0, 1024, 100, 0},
 		{0, 1024, 100, 0},
 	})
-	trun.flags |= sampleSizePresentFlag | sampleDurationPresentFlag
+	trun.Flags |= sampleSizePresentFlag | sampleDurationPresentFlag
 
 	testCases := []struct {
 		sampleTime     uint64
@@ -61,7 +61,7 @@ func TestGetSampleNrForRelativeTime(t *testing.T) {
 	const defaultSampleDuration = 1024
 
 	for i, tc := range testCases {
-		trun.flags = tc.trunFlags
+		trun.Flags = tc.trunFlags
 		gotSampleNr, err := trun.GetSampleNrForRelativeTime(tc.sampleTime, defaultSampleDuration)
 		if tc.wantedError {
 			if err == nil {
