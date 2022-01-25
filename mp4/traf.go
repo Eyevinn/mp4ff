@@ -193,7 +193,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 			// Set defaultSampleDuration in tfhd and remove from trun
 			tfhd.Flags = tfhd.Flags | defaultSampleDurationPresent
 			tfhd.DefaultSampleDuration = commonDur
-			trun.flags = trun.flags & ^sampleDurationPresentFlag
+			trun.Flags = trun.Flags & ^TrunSampleDurationPresentFlag
 		}
 	}
 
@@ -210,7 +210,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 			// Set defaultSampleSize in tfhd and remove from trun
 			tfhd.Flags = tfhd.Flags | defaultSampleSizePresent
 			tfhd.DefaultSampleSize = commonSize
-			trun.flags = trun.flags & ^sampleSizePresentFlag
+			trun.Flags = trun.Flags & ^TrunSampleSizePresentFlag
 		}
 	}
 
@@ -232,7 +232,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 			}
 			tfhd.Flags = tfhd.Flags | defaultSampleFlagsPresent
 			tfhd.DefaultSampleFlags = commonSampleFlags
-			trun.flags = trun.flags & ^sampleFlagsPresentFlag
+			trun.Flags = trun.Flags & ^TrunSampleFlagsPresentFlag
 		}
 	}
 
@@ -245,7 +245,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 			}
 		}
 		if allZeroCTO {
-			trun.flags = trun.flags & ^sampleCompositionTimeOffsetPresentFlag
+			trun.Flags = trun.Flags & ^TrunSampleCompositionTimeOffsetPresentFlag
 		}
 	}
 	return nil

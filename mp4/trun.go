@@ -13,7 +13,7 @@ import (
 //
 type TrunBox struct {
 	Version          byte
-	flags            uint32
+	Flags            uint32
 	sampleCount      uint32
 	DataOffset       int32
 	firstSampleFlags uint32 // interpreted same way as SampleFlags
@@ -21,12 +21,12 @@ type TrunBox struct {
 	writeOrderNr     uint32 // Used for multi trun offsets
 }
 
-const dataOffsetPresentFlag uint32 = 0x01
-const firstSampleFlagsPresentFlag uint32 = 0x04
-const sampleDurationPresentFlag uint32 = 0x100
-const sampleSizePresentFlag uint32 = 0x200
-const sampleFlagsPresentFlag uint32 = 0x400
-const sampleCompositionTimeOffsetPresentFlag uint32 = 0x800
+const TrunDataOffsetPresentFlag uint32 = 0x01
+const TrunFirstSampleFlagsPresentFlag uint32 = 0x04
+const TrunSampleDurationPresentFlag uint32 = 0x100
+const TrunSampleSizePresentFlag uint32 = 0x200
+const TrunSampleFlagsPresentFlag uint32 = 0x400
+const TrunSampleCompositionTimeOffsetPresentFlag uint32 = 0x800
 
 // DecodeTrun - box-specific decode
 func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
@@ -39,7 +39,7 @@ func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	sampleCount := s.ReadUint32()
 	t := &TrunBox{
 		Version:     byte(versionAndFlags >> 24),
-		flags:       versionAndFlags & flagsMask,
+		Flags:       versionAndFlags & flagsMask,
 		sampleCount: sampleCount,
 		Samples:     make([]Sample, sampleCount),
 	}
@@ -82,7 +82,7 @@ func DecodeTrunSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	sampleCount := sr.ReadUint32()
 	t := &TrunBox{
 		Version:     byte(versionAndFlags >> 24),
-		flags:       versionAndFlags & flagsMask,
+		Flags:       versionAndFlags & flagsMask,
 		sampleCount: sampleCount,
 		Samples:     make([]Sample, sampleCount),
 	}
@@ -123,7 +123,7 @@ func DecodeTrunSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 func CreateTrun(writeOrderNr uint32) *TrunBox {
 	trun := &TrunBox{
 		Version:          1,     // Signed composition_time_offset
-		flags:            0xf01, // Data offset and all sample data present
+		Flags:            0xf01, // Data offset and all sample data present
 		sampleCount:      0,
 		DataOffset:       0,
 		firstSampleFlags: 0,
@@ -177,19 +177,19 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) (totalDur
 
 // FirstSampleFlags - return firstSampleFlags and indicator if present
 func (t *TrunBox) FirstSampleFlags() (flags uint32, present bool) {
-	return t.firstSampleFlags, t.flags&firstSampleFlagsPresentFlag != 0
+	return t.firstSampleFlags, t.Flags&TrunFirstSampleFlagsPresentFlag != 0
 }
 
 // SetFirstSampleFlags - set firstSampleFlags and bit indicating its presence
 func (t *TrunBox) SetFirstSampleFlags(flags uint32) {
 	t.firstSampleFlags = flags
-	t.flags |= firstSampleFlagsPresentFlag
+	t.Flags |= TrunFirstSampleFlagsPresentFlag
 }
 
 // RemoveFirstSampleFlags - remove firstSampleFlags and its indicator
 func (t *TrunBox) RemoveFirstSampleFlags() {
 	t.firstSampleFlags = 0
-	t.flags &= ^firstSampleFlagsPresentFlag
+	t.Flags &= ^TrunFirstSampleFlagsPresentFlag
 }
 
 // SampleCount - return how many samples are defined
@@ -199,32 +199,32 @@ func (t *TrunBox) SampleCount() uint32 {
 
 // HasDataOffset - interpreted dataOffsetPresent flag
 func (t *TrunBox) HasDataOffset() bool {
-	return t.flags&dataOffsetPresentFlag != 0
+	return t.Flags&TrunDataOffsetPresentFlag != 0
 }
 
 // HasFirstSampleFlags - interpreted firstSampleFlagsPresent flag
 func (t *TrunBox) HasFirstSampleFlags() bool {
-	return t.flags&firstSampleFlagsPresentFlag != 0
+	return t.Flags&TrunFirstSampleFlagsPresentFlag != 0
 }
 
 // HasSampleDuration - interpreted sampleDurationPresent flag
 func (t *TrunBox) HasSampleDuration() bool {
-	return t.flags&sampleDurationPresentFlag != 0
+	return t.Flags&TrunSampleDurationPresentFlag != 0
 }
 
 // HasSampleFlags - interpreted sampleFlagsPresent flag
 func (t *TrunBox) HasSampleFlags() bool {
-	return t.flags&sampleFlagsPresentFlag != 0
+	return t.Flags&TrunSampleFlagsPresentFlag != 0
 }
 
 // HasSampleSize - interpreted sampleSizePresent flag
 func (t *TrunBox) HasSampleSize() bool {
-	return t.flags&sampleSizePresentFlag != 0
+	return t.Flags&TrunSampleSizePresentFlag != 0
 }
 
 // HasSampleCompositionTimeOffset - interpreted sampleCompositionTimeOffset flag
 func (t *TrunBox) HasSampleCompositionTimeOffset() bool {
-	return t.flags&sampleCompositionTimeOffsetPresentFlag != 0
+	return t.Flags&TrunSampleCompositionTimeOffsetPresentFlag != 0
 }
 
 // Type - return box type
@@ -275,7 +275,7 @@ func (t *TrunBox) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
-	versionAndFlags := (uint32(t.Version) << 24) + t.flags
+	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(t.sampleCount)
 	if t.HasDataOffset() {
@@ -308,7 +308,7 @@ func (t *TrunBox) EncodeSW(sw bits.SliceWriter) error {
 
 // Info - specificBoxLevels trun:1 gives details
 func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, t, int(t.Version), t.flags)
+	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
 	bd.write(" - sampleCount: %d", t.sampleCount)
 	level := getInfoLevel(t, specificBoxLevels)
 	if level > 0 {
