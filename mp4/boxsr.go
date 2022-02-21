@@ -130,7 +130,7 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 	var err error
 	var b Box
 
-	h, err := decodeHeaderSR(sr)
+	h, err := DecodeHeaderSR(sr)
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +149,8 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 	return b, nil
 }
 
-// decodeHeaderSR - decode a box header (size + box type + possible largeSize) from sr
-func decodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
+// DecodeHeaderSR - decode a box header (size + box type + possible largeSize) from sr
+func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
 	size := uint64(sr.ReadUint32())
 	boxType := sr.ReadFixedLengthString(4)
 	headerLen := boxHeaderSize
