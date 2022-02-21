@@ -20,7 +20,7 @@ type StcoBox struct {
 }
 
 // DecodeStco - box-specific decode
-func DecodeStco(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStco(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func DecodeStco(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeStcoSR - box-specific decode
-func DecodeStcoSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeStcoSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	entryCount := sr.ReadUint32()
 	b := &StcoBox{

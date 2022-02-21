@@ -54,7 +54,7 @@ func NewStyp(majorBrand string, minorVersion uint32, compatibleBrands []string) 
 }
 
 // DecodeStyp - box-specific decode
-func DecodeStyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStyp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -64,8 +64,8 @@ func DecodeStyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeStypSR - box-specific decode
-func DecodeStypSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	b := StypBox{data: sr.ReadBytes(int(hdr.size) - hdr.hdrlen)}
+func DecodeStypSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := StypBox{data: sr.ReadBytes(int(hdr.Size) - hdr.Hdrlen)}
 	return &b, sr.AccError()
 }
 

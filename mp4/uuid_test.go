@@ -14,7 +14,7 @@ func TestTfxd(t *testing.T) {
 
 	inRawBox, _ := hex.DecodeString(uuidTfxdRaw)
 	inbuf := bytes.NewBuffer(inRawBox)
-	hdr, err := decodeHeader(inbuf)
+	hdr, err := DecodeHeader(inbuf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -44,7 +44,7 @@ func TestTfrf(t *testing.T) {
 
 	inRawBox, _ := hex.DecodeString(uuidTfrfRaw)
 	inbuf := bytes.NewBuffer(inRawBox)
-	hdr, err := decodeHeader(inbuf)
+	hdr, err := DecodeHeader(inbuf)
 	if err != nil {
 		t.Error(err)
 	}

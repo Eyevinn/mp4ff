@@ -29,7 +29,7 @@ const TrunSampleFlagsPresentFlag uint32 = 0x400
 const TrunSampleCompositionTimeOffsetPresentFlag uint32 = 0x800
 
 // DecodeTrun - box-specific decode
-func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrun(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func DecodeTrun(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTrun - box-specific decode
-func DecodeTrunSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	sampleCount := sr.ReadUint32()
 	t := &TrunBox{

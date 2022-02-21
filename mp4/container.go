@@ -26,7 +26,7 @@ func containerSize(children []Box) uint64 {
 }
 
 // DecodeContainerChildren decodes a container box
-func DecodeContainerChildren(hdr boxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
+func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
 	children := make([]Box, 0, 8)
 	pos := startPos
 	for {
@@ -48,7 +48,7 @@ func DecodeContainerChildren(hdr boxHeader, startPos, endPos uint64, r io.Reader
 }
 
 // DecodeContainerChildren decodes a container box
-func DecodeContainerChildrenSR(hdr boxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
+func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
 	children := make([]Box, 0, 8) // Good initial size
 	pos := startPos
 	initPos := sr.GetPos()
@@ -67,7 +67,7 @@ func DecodeContainerChildrenSR(hdr boxHeader, startPos, endPos uint64, sr bits.S
 		pos += child.Size()
 		relPosFromSize := sr.GetPos() - initPos
 		if int(pos-startPos) != relPosFromSize {
-			return nil, fmt.Errorf("child %s size mismatch in %s: %d - %d\n", child.Type(), hdr.name, pos-startPos, relPosFromSize)
+			return nil, fmt.Errorf("child %s size mismatch in %s: %d - %d\n", child.Type(), hdr.Name, pos-startPos, relPosFromSize)
 		}
 	}
 	return children, nil

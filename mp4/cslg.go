@@ -20,7 +20,7 @@ type CslgBox struct {
 }
 
 // DecodeCslg - box-specific decode
-func DecodeCslg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeCslg(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func DecodeCslg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeCslgSR - box-specific decode
-func DecodeCslgSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeCslgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	b := CslgBox{
 		Version: byte(versionAndFlags >> 24),

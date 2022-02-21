@@ -25,8 +25,8 @@ func (d *DinfBox) AddChild(box Box) {
 }
 
 // DecodeDinf - box-specific decode
-func DecodeDinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeDinf(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -38,8 +38,8 @@ func DecodeDinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeDinfSR - box-specific decode
-func DecodeDinfSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeDinfSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

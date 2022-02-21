@@ -45,7 +45,7 @@ func (b *WvttBox) AddChild(child Box) {
 const nrWvttBytesBeforeChildren = 16
 
 // DecodeWvtt - Decoder wvtt Sample Entry (wvtt)
-func DecodeWvtt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeWvtt(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -55,13 +55,13 @@ func DecodeWvtt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeWvttSR - Decoder wvtt Sample Entry (wvtt)
-func DecodeWvttSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeWvttSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	w := WvttBox{}
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	sr.SkipBytes(6) // Skip 6 reserved bytes
 	w.DataReferenceIndex = sr.ReadUint16()
 	pos := startPos + nrWvttBytesBeforeChildren
-	endPos := startPos + uint64(hdr.hdrlen+hdr.payloadLen())
+	endPos := startPos + uint64(hdr.Hdrlen+hdr.payloadLen())
 	for {
 		if pos >= endPos {
 			break
@@ -163,7 +163,7 @@ type VttCBox struct {
 }
 
 // DecodeVttC - box-specific decode
-func DecodeVttC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVttC(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -173,7 +173,7 @@ func DecodeVttC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeVttCSR - box-specific decode
-func DecodeVttCSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeVttCSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &VttCBox{Config: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
@@ -223,7 +223,7 @@ type VlabBox struct {
 }
 
 // DecodeVlab - box-specific decode
-func DecodeVlab(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVlab(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -233,7 +233,7 @@ func DecodeVlab(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeVlabSR - box-specific decode
-func DecodeVlabSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeVlabSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &VlabBox{SourceLabel: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
@@ -290,12 +290,12 @@ func (b *VtteBox) Type() string {
 }
 
 // DecodeVtte - box-specific decode
-func DecodeVtte(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVtte(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &VtteBox{}, nil
 }
 
 // DecodeVtteSR - box-specific decode
-func DecodeVtteSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeVtteSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &VtteBox{}, nil
 }
 
@@ -353,8 +353,8 @@ func (b *VttcBox) AddChild(child Box) {
 }
 
 // DecodeVttc - box-specific decode
-func DecodeVttc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeVttc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -366,8 +366,8 @@ func DecodeVttc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeVttcSR - box-specific decode
-func DecodeVttcSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeVttcSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +416,7 @@ type VsidBox struct {
 }
 
 // DecodeVsid - box-specific decode
-func DecodeVsid(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVsid(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -426,7 +426,7 @@ func DecodeVsid(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeVsidSR - box-specific decode
-func DecodeVsidSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeVsidSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &VsidBox{SourceID: sr.ReadUint32()}, sr.AccError()
 }
 
@@ -477,7 +477,7 @@ type CtimBox struct {
 }
 
 // DecodeCtim - box-specific decode
-func DecodeCtim(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeCtim(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -487,7 +487,7 @@ func DecodeCtim(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeCtimSR - box-specific decode
-func DecodeCtimSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeCtimSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &CtimBox{CueCurrentTime: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
@@ -537,7 +537,7 @@ type IdenBox struct {
 }
 
 // DecodeIden - box-specific decode
-func DecodeIden(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeIden(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -547,7 +547,7 @@ func DecodeIden(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeIdenSR - box-specific decode
-func DecodeIdenSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeIdenSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &IdenBox{CueID: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
@@ -597,7 +597,7 @@ type SttgBox struct {
 }
 
 // DecodeSttg - box-specific decode
-func DecodeSttg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSttg(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -607,7 +607,7 @@ func DecodeSttg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSttgSR - box-specific decode
-func DecodeSttgSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSttgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &SttgBox{Settings: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
@@ -657,7 +657,7 @@ type PaylBox struct {
 }
 
 // DecodePayl - box-specific decode
-func DecodePayl(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodePayl(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -667,7 +667,7 @@ func DecodePayl(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodePaylSR - box-specific decode
-func DecodePaylSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodePaylSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &PaylBox{CueText: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 
@@ -717,7 +717,7 @@ type VttaBox struct {
 }
 
 // DecodeVtta - box-specific decode
-func DecodeVtta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVtta(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -727,7 +727,7 @@ func DecodeVtta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeVttaSR - box-specific decode
-func DecodeVttaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeVttaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &VttaBox{CueAdditionalText: sr.ReadFixedLengthString(hdr.payloadLen())}, sr.AccError()
 }
 

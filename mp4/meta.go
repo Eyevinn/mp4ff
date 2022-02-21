@@ -36,14 +36,14 @@ func (b *MetaBox) AddChild(box Box) {
 }
 
 // DecodeMeta - box-specific decode
-func DecodeMeta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMeta(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {
 		return nil, err
 	}
 	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildren(hdr, startPos+12, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+12, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -58,10 +58,10 @@ func DecodeMeta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeMetaSR - box-specific decode
-func DecodeMetaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeMetaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildrenSR(hdr, startPos+12, startPos+hdr.size, sr)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+12, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

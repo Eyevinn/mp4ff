@@ -37,7 +37,7 @@ func CreateTkhd() *TkhdBox {
 }
 
 // DecodeTkhd - box-specific decode
-func DecodeTkhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTkhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func DecodeTkhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTkhdSR - box-specific decode
-func DecodeTkhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeTkhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask

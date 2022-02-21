@@ -10,10 +10,10 @@ func TestTfdtReadingV0(t *testing.T) {
 	byteData, _ := hex.DecodeString("00000010746664740000000000ffffff")
 
 	r := bytes.NewReader(byteData[8:]) // Don't include header
-	bHdr := boxHeader{
-		name:   "tfdt",
-		size:   uint64(len(byteData)),
-		hdrlen: 8,
+	bHdr := BoxHeader{
+		Name:   "tfdt",
+		Size:   uint64(len(byteData)),
+		Hdrlen: 8,
 	}
 	box, _ := DecodeTfdt(bHdr, 0, r)
 	tfdt := box.(*TfdtBox)
@@ -30,10 +30,10 @@ func TestTfdtReadingV1(t *testing.T) {
 	byteData, _ := hex.DecodeString("0000001474666474010000000000000000ffffff")
 
 	r := bytes.NewReader(byteData[8:]) // Don't include header
-	bHdr := boxHeader{
-		name:   "tfdt",
-		size:   uint64(len(byteData)),
-		hdrlen: 8,
+	bHdr := BoxHeader{
+		Name:   "tfdt",
+		Size:   uint64(len(byteData)),
+		Hdrlen: 8,
 	}
 	box, _ := DecodeTfdt(bHdr, 0, r)
 	tfdt := box.(*TfdtBox)
@@ -50,10 +50,10 @@ func TestTfdtWriteV1(t *testing.T) {
 	byteData, _ := hex.DecodeString("0000001474666474010000000000000000ffffff")
 
 	r := bytes.NewReader(byteData[8:]) // Don't include header
-	bHdr := boxHeader{
-		name:   "tfdt",
-		size:   uint64(len(byteData)),
-		hdrlen: 8,
+	bHdr := BoxHeader{
+		Name:   "tfdt",
+		Size:   uint64(len(byteData)),
+		Hdrlen: 8,
 	}
 	box, err := DecodeTfdt(bHdr, 0, r)
 	if err != nil {

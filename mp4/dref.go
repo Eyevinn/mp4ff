@@ -36,7 +36,7 @@ func (d *DrefBox) AddChild(box Box) {
 }
 
 // DecodeDref - box-specific decode
-func DecodeDref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeDref(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, entryCount uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {
@@ -48,7 +48,7 @@ func DecodeDref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	// Note higher startPos for children since not simple container.
-	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -68,12 +68,12 @@ func DecodeDref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeDrefSR - box-specific decode
-func DecodeDrefSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeDrefSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	entryCount := sr.ReadUint32()
 
 	// Note higher startPos for children since not simple container.
-	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.size, sr)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

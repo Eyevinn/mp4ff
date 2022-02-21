@@ -22,7 +22,7 @@ func CreateSmhd() *SmhdBox {
 }
 
 // DecodeSmhd - box-specific decode
-func DecodeSmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSmhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func DecodeSmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSmhdSR - box-specific decode
-func DecodeSmhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSmhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	b := SmhdBox{
 		Version: byte(versionAndFlags >> 24),

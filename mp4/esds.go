@@ -84,7 +84,7 @@ func CreateEsdsBox(decConfig []byte) *EsdsBox {
 const fixedPartLen = 37
 
 // DecodeEsds - box-specific decode
-func DecodeEsds(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeEsds(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func DecodeEsds(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeEsdsSR - box-specific decode
-func DecodeEsdsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeEsdsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 

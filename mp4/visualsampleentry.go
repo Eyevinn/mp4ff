@@ -73,7 +73,7 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 }
 
 // DecodeVisualSampleEntry - decode avc1/avc3/... box
-func DecodeVisualSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -83,8 +83,8 @@ func DecodeVisualSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, 
 }
 
 // DecodeVisualSampleEntrySR - decode avc1/avc3/hvc1/hev1... box
-func DecodeVisualSampleEntrySR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	b := VisualSampleEntryBox{name: hdr.name}
+func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	b := VisualSampleEntryBox{name: hdr.Name}
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	sr.SkipBytes(6) // Skip 6 reserved bytes
@@ -114,7 +114,7 @@ func DecodeVisualSampleEntrySR(hdr boxHeader, startPos uint64, sr bits.SliceRead
 	// Now there may be clap and pasp boxes
 	// 14496-15  5.4.2.1.2 avcC should be inside avc1, avc3 box
 	pos := startPos + 86 // Size of all previous data
-	endPos := startPos + uint64(hdr.hdrlen) + uint64(hdr.payloadLen())
+	endPos := startPos + uint64(hdr.Hdrlen) + uint64(hdr.payloadLen())
 	for {
 		if pos >= endPos {
 			break

@@ -14,7 +14,7 @@ type CdatBox struct {
 }
 
 // DecodeCdat - box-specific decode
-func DecodeCdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeCdat(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func DecodeCdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeCdat - box-specific decode
-func DecodeCdatSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeCdatSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := &CdatBox{
 		Data: sr.ReadBytes(hdr.payloadLen()),
 	}

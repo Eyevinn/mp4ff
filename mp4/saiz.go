@@ -18,7 +18,7 @@ type SaizBox struct {
 }
 
 // DecodeSaiz - box-specific decode
-func DecodeSaiz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSaiz(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func DecodeSaiz(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSaizSR - box-specific decode
-func DecodeSaizSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSaizSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := SaizBox{

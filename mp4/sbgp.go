@@ -22,7 +22,7 @@ type SbgpBox struct {
 }
 
 // DecodeSbgp - box-specific decode
-func DecodeSbgp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSbgp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func DecodeSbgp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSbgpSR - box-specific decode
-func DecodeSbgpSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSbgpSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 

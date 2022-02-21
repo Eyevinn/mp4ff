@@ -13,7 +13,7 @@ type SthdBox struct {
 }
 
 // DecodeSthd - box-specific decode
-func DecodeSthd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSthd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func DecodeSthd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSthdSR - box-specific decode
-func DecodeSthdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSthdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	sb := &SthdBox{
 		Version: byte(versionAndFlags >> 24),

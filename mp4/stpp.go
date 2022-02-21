@@ -46,7 +46,7 @@ func (b *StppBox) AddChild(child Box) {
 }
 
 // DecodeStpp - Decode XMLSubtitleSampleEntry (stpp)
-func DecodeStpp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStpp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -86,9 +86,9 @@ func DecodeStpp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 			b.AddChild(box)
 			pos += box.Size()
 		}
-		if pos == startPos+hdr.size {
+		if pos == startPos+hdr.Size {
 			break
-		} else if pos > startPos+hdr.size {
+		} else if pos > startPos+hdr.Size {
 			return nil, errors.New("Bad size in stpp")
 		}
 	}
@@ -96,7 +96,7 @@ func DecodeStpp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeStppSR - Decode XMLSubtitleSampleEntry (stpp)
-func DecodeStppSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeStppSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	payloadLen := hdr.payloadLen()
 
 	remainingBytes := func(sr bits.SliceReader, initPos, payloadLen int) int {
@@ -120,7 +120,7 @@ func DecodeStppSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if err := sr.AccError(); err != nil {
 		return nil, fmt.Errorf("DecodeStpp: %w", err)
 	}
-	pos := startPos + uint64(hdr.hdrlen+sr.GetPos()-initPos)
+	pos := startPos + uint64(hdr.Hdrlen+sr.GetPos()-initPos)
 	for {
 		rest := remainingBytes(sr, initPos, payloadLen)
 		if rest <= 0 {

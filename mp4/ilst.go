@@ -18,8 +18,8 @@ func (b *IlstBox) AddChild(child Box) {
 }
 
 // DecodeIlstSR - box-specific decode
-func DecodeIlstSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeIlstSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +31,8 @@ func DecodeIlstSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 }
 
 // DecodeIlst - box-specific decode
-func DecodeIlst(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeIlst(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}

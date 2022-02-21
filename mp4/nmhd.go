@@ -13,7 +13,7 @@ type NmhdBox struct {
 }
 
 // DecodeNmhd - box-specific decode
-func DecodeNmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeNmhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func DecodeNmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeNmhdSR - box-specific decode
-func DecodeNmhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeNmhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 
 	versionAndFlags := sr.ReadUint32()
 	sb := &NmhdBox{

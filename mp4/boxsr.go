@@ -123,7 +123,7 @@ func init() {
 }
 
 // BoxDecoderSR is function signature of the Box DecodeSR method
-type BoxDecoderSR func(hdr boxHeader, startPos uint64, sw bits.SliceReader) (Box, error)
+type BoxDecoderSR func(hdr BoxHeader, startPos uint64, sw bits.SliceReader) (Box, error)
 
 // DecodeBoxSR - decode a box from SliceReader
 func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
@@ -135,7 +135,7 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 		return nil, err
 	}
 
-	d, ok := decodersSR[h.name]
+	d, ok := decodersSR[h.Name]
 
 	if !ok {
 		b, err = DecodeUnknownSR(h, startPos, sr)
@@ -143,14 +143,14 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 		b, err = d(h, startPos, sr)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("decode %s: %w", h.name, err)
+		return nil, fmt.Errorf("decode %s: %w", h.Name, err)
 	}
 
 	return b, nil
 }
 
 // decodeHeaderSR - decode a box header (size + box type + possible largeSize) from sr
-func decodeHeaderSR(sr bits.SliceReader) (boxHeader, error) {
+func decodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
 	size := uint64(sr.ReadUint32())
 	boxType := sr.ReadFixedLengthString(4)
 	headerLen := boxHeaderSize
@@ -158,9 +158,9 @@ func decodeHeaderSR(sr bits.SliceReader) (boxHeader, error) {
 		size = sr.ReadUint64()
 		headerLen += largeSizeLen
 	} else if size == 0 {
-		return boxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
+		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
-	return boxHeader{boxType, size, headerLen}, nil
+	return BoxHeader{boxType, size, headerLen}, nil
 }
 
 // DecodeFile - parse and decode a file from reader r with optional file options.

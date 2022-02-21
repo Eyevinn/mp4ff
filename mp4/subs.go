@@ -56,7 +56,7 @@ type SubsSample struct {
 }
 
 // DecodeSubs - box-specific decode
-func DecodeSubs(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSubs(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func DecodeSubs(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSubsSR - box-specific decode
-func DecodeSubsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSubsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 

@@ -13,7 +13,7 @@ type PaspBox struct {
 }
 
 // DecodePasp - box-specific decode
-func DecodePasp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodePasp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func DecodePasp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodePaspSR - box-specific decode
-func DecodePaspSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodePaspSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	pasp := &PaspBox{}
 	pasp.HSpacing = sr.ReadUint32()
 	pasp.VSpacing = sr.ReadUint32()

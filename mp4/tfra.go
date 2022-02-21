@@ -28,7 +28,7 @@ type TfraEntry struct {
 }
 
 // DecodeTfra - box-specific decode
-func DecodeTfra(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTfra(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func DecodeTfra(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTfraSR - box-specific decode
-func DecodeTfraSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeTfraSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 

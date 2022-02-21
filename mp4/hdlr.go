@@ -55,7 +55,7 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 }
 
 // DecodeHdlr - box-specific decode
-func DecodeHdlr(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeHdlr(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func DecodeHdlr(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeHdlrSR - box-specific decode
-func DecodeHdlrSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeHdlrSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	h := HdlrBox{
 		Version:     byte(versionAndFlags >> 24),

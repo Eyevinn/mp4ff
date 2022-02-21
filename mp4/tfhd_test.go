@@ -14,7 +14,7 @@ func TestTfhd(t *testing.T) {
 
 	inRawBox, _ := hex.DecodeString(tfhdRawBox)
 	inbuf := bytes.NewBuffer(inRawBox)
-	hdr, err := decodeHeader(inbuf)
+	hdr, err := DecodeHeader(inbuf)
 	if err != nil {
 		t.Error(err)
 	}

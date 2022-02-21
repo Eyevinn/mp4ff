@@ -19,7 +19,7 @@ type Co64Box struct {
 }
 
 // DecodeCo64 - box-specific decode
-func DecodeCo64(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeCo64(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func DecodeCo64(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeCo64 - box-specific decode
-func DecodeCo64SR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeCo64SR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	nrEntries := sr.ReadUint32()
 	b := &Co64Box{

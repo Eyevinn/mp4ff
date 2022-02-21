@@ -62,14 +62,14 @@ func (m *MoovBox) AddChild(box Box) {
 }
 
 // DecodeMoov - box-specific decode
-func DecodeMoov(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMoov(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data := make([]byte, hdr.payloadLen())
 	_, err := r.Read(data)
 	if err != nil {
 		return nil, err
 	}
 	sr := bits.NewFixedSliceReader(data)
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +82,8 @@ func DecodeMoov(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeMoovSR - box-specific decode
-func DecodeMoovSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeMoovSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

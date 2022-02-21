@@ -14,7 +14,7 @@ type KindBox struct {
 }
 
 // DecodeKind - box-specific decode
-func DecodeKind(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeKind(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func DecodeKind(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeKindSR - box-specific decode
-func DecodeKindSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeKindSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	maxLen := hdr.payloadLen() - 1
 	schemeURI := sr.ReadZeroTerminatedString(maxLen)
 	maxLen = hdr.payloadLen() - 1

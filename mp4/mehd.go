@@ -15,7 +15,7 @@ type MehdBox struct {
 }
 
 // DecodeMehd - box-specific decode
-func DecodeMehd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMehd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func DecodeMehd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeMehdSR - box-specific decode
-func DecodeMehdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeMehdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := &MehdBox{

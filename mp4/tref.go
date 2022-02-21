@@ -18,8 +18,8 @@ func (b *TrefBox) AddChild(box Box) {
 }
 
 // DecodeTref - box-specific decode
-func DecodeTref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeTref(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +31,8 @@ func DecodeTref(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTrefSR - box-specific decode
-func DecodeTrefSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeTrefSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ type TrefTypeBox struct {
 }
 
 // DecodeTrefType - box-specific decode
-func DecodeTrefType(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrefType(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -92,10 +92,10 @@ func DecodeTrefType(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTrefTypeSR - box-specific decode
-func DecodeTrefTypeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeTrefTypeSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	nrIds := hdr.payloadLen() / 4
 	b := TrefTypeBox{
-		Name:     hdr.name,
+		Name:     hdr.Name,
 		TrackIDs: make([]uint32, nrIds),
 	}
 	for i := 0; i < nrIds; i++ {

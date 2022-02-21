@@ -19,7 +19,7 @@ type ClapBox struct {
 }
 
 // DecodeClap - box-specific decode
-func DecodeClap(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeClap(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func DecodeClap(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeClapSR - box-specific decode
-func DecodeClapSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeClapSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	clap := ClapBox{}
 	clap.CleanApertureWidthN = sr.ReadUint32()
 	clap.CleanApertureWidthD = sr.ReadUint32()

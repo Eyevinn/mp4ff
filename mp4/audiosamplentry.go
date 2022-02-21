@@ -64,13 +64,13 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 const nrAudioSampleBytesBeforeChildren = 36
 
 // DecodeAudioSampleEntry - decode mp4a... box
-func DecodeAudioSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
 	sr := bits.NewFixedSliceReader(data)
-	a := NewAudioSampleEntryBox(hdr.name)
+	a := NewAudioSampleEntryBox(hdr.Name)
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	sr.SkipBytes(6) // Skip 6 reserved bytes
@@ -99,18 +99,18 @@ func DecodeAudioSampleEntry(hdr boxHeader, startPos uint64, r io.Reader) (Box, e
 			a.AddChild(box)
 			pos += box.Size()
 		}
-		if pos == startPos+hdr.size {
+		if pos == startPos+hdr.Size {
 			break
-		} else if pos > startPos+hdr.size {
-			return nil, fmt.Errorf("Bad size when decoding %s", hdr.name)
+		} else if pos > startPos+hdr.Size {
+			return nil, fmt.Errorf("Bad size when decoding %s", hdr.Name)
 		}
 	}
 	return a, nil
 }
 
 // DecodeAudioSampleEntry - decode mp4a... box
-func DecodeAudioSampleEntrySR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	a := NewAudioSampleEntryBox(hdr.name)
+func DecodeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	a := NewAudioSampleEntryBox(hdr.Name)
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	sr.SkipBytes(6) // Skip 6 reserved bytes
@@ -125,7 +125,7 @@ func DecodeAudioSampleEntrySR(hdr boxHeader, startPos uint64, sr bits.SliceReade
 	a.SampleRate = makeUint16FromFixed32(sr.ReadUint32())
 
 	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
-	lastPos := startPos + hdr.size
+	lastPos := startPos + hdr.Size
 	for {
 		if pos >= lastPos {
 			break

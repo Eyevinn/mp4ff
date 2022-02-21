@@ -18,8 +18,8 @@ type EdtsBox struct {
 }
 
 // DecodeEdts - box-specific decode
-func DecodeEdts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeEdts(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	l, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -37,8 +37,8 @@ func DecodeEdts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeEdtsSR - box-specific decode
-func DecodeEdtsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeEdtsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

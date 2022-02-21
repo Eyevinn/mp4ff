@@ -16,7 +16,7 @@ type SaioBox struct {
 }
 
 // DecodeSaio - box-specific decode
-func DecodeSaio(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSaio(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func DecodeSaio(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSaioSR - box-specific decode
-func DecodeSaioSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSaioSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := SaioBox{

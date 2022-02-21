@@ -16,7 +16,7 @@ type TfdtBox struct {
 }
 
 // DecodeTfdt - box-specific decode
-func DecodeTfdt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTfdt(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func DecodeTfdt(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTfdtSR - box-specific decode
-func DecodeTfdtSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeTfdtSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	var baseMediaDecodeTime uint64

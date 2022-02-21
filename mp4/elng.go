@@ -17,7 +17,7 @@ func CreateElng(language string) *ElngBox {
 }
 
 // DecodeElng - box-specific decode
-func DecodeElng(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeElng(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func DecodeElng(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeElngSR - box-specific decode
-func DecodeElngSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeElngSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := &ElngBox{
 		Language: string(sr.ReadZeroTerminatedString(hdr.payloadLen())),
 	}
