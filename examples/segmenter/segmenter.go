@@ -156,12 +156,9 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 				return nil, err
 			}
 			sampleData = make([]byte, size)
-			n, err := rs.Read(sampleData)
+			_, err = io.ReadFull(rs, sampleData)
 			if err != nil {
 				return nil, err
-			}
-			if n != int(size) {
-				return nil, fmt.Errorf("Read %d bytes instead of %d", n, size)
 			}
 		} else {
 			offsetInMdatData := uint64(offset) - mdatPayloadStart
