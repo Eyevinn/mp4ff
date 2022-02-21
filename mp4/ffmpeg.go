@@ -13,8 +13,8 @@ type CTooBox struct {
 }
 
 // DecodeCToo - box-specific decode
-func DecodeCToo(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeCToo(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -26,8 +26,8 @@ func DecodeCToo(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeCTooSR - box-specific decode
-func DecodeCTooSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeCTooSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ type DataBox struct {
 }
 
 // DecodeData - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
-func DecodeData(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeData(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func DecodeData(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeDataSR - decode Data (from mov_write_string_data_tag in movenc.c in ffmpeg)
-func DecodeDataSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeDataSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	_ = sr.ReadUint32() // Should be 1
 	_ = sr.ReadUint32() // Should be 0
 	return &DataBox{sr.ReadBytes(hdr.payloadLen() - 8)}, sr.AccError()

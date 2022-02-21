@@ -18,7 +18,7 @@ type StssBox struct {
 }
 
 // DecodeStss - box-specific decode
-func DecodeStss(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStss(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func DecodeStss(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeStssSR - box-specific decode
-func DecodeStssSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeStssSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	entryCount := sr.ReadUint32()
 	b := StssBox{

@@ -27,7 +27,7 @@ type MdhdBox struct {
 }
 
 // DecodeMdhd - Decode box
-func DecodeMdhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMdhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func DecodeMdhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeMdhd - Decode box
-func DecodeMdhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeMdhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := MdhdBox{

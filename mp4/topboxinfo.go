@@ -21,18 +21,18 @@ func GetTopBoxInfoList(rs io.ReadSeeker, stopBoxType string) ([]TopBoxInfo, erro
 	var topBoxList []TopBoxInfo
 
 	for {
-		h, err := decodeHeader(rs)
+		h, err := DecodeHeader(rs)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
-		if h.name == stopBoxType {
+		if h.Name == stopBoxType {
 			break
 		}
-		topBoxList = append(topBoxList, TopBoxInfo{h.name, h.size, pos})
-		nextBoxStart := pos + h.size
+		topBoxList = append(topBoxList, TopBoxInfo{h.Name, h.Size, pos})
+		nextBoxStart := pos + h.Size
 		ipos, err := rs.Seek(int64(nextBoxStart), io.SeekStart)
 		if err != nil {
 			return nil, err

@@ -79,8 +79,8 @@ func (s *StblBox) AddChild(box Box) {
 }
 
 // DecodeStbl - box-specific decode
-func DecodeStbl(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeStbl(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +92,8 @@ func DecodeStbl(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeStblSR - box-specific decode
-func DecodeStblSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeStblSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

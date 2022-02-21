@@ -21,7 +21,7 @@ type EmsgBox struct {
 }
 
 // DecodeEmsg - box-specific decode
-func DecodeEmsg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeEmsg(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func DecodeEmsg(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeEmsgSR - box-specific decode
-func DecodeEmsgSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeEmsgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	initPos := sr.GetPos()
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)

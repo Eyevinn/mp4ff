@@ -13,17 +13,17 @@ type FreeBox struct {
 }
 
 // DecodeFree - box-specific decode
-func DecodeFree(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeFree(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	return &FreeBox{Name: hdr.name, notDecoded: data}, nil
+	return &FreeBox{Name: hdr.Name, notDecoded: data}, nil
 }
 
 // DecodeFreeSR - box-specific decode
-func DecodeFreeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	return &FreeBox{Name: hdr.name, notDecoded: sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
+func DecodeFreeSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &FreeBox{Name: hdr.Name, notDecoded: sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - box type

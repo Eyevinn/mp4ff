@@ -40,7 +40,7 @@ type TfrfData struct {
 }
 
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
-func DecodeUUIDBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeUUIDBox(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func DecodeUUIDBox(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeUUIDBoxSR - decode a UUID box including tfxd or tfrf
-func DecodeUUIDBoxSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := &UUIDBox{}
 	b.UUID = string(sr.ReadBytes(16))
 	switch b.UUID {

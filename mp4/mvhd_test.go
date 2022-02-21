@@ -20,7 +20,7 @@ func TestMvhd(t *testing.T) {
 	}
 
 	reader := &buf
-	hdr, err := decodeHeader(reader)
+	hdr, err := DecodeHeader(reader)
 	if err != nil {
 		t.Error(err)
 	}

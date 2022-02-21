@@ -43,8 +43,8 @@ func (m *MinfBox) AddChild(box Box) {
 }
 
 // DecodeMinf - box-specific decode
-func DecodeMinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeMinf(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +56,8 @@ func DecodeMinf(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeMinfSR - box-specific decode
-func DecodeMinfSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeMinfSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

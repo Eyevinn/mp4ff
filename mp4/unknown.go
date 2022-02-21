@@ -15,7 +15,7 @@ type UnknownBox struct {
 }
 
 // DecodeUnknown - decode an unknown box
-func DecodeUnknown(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeUnknown(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -25,8 +25,8 @@ func DecodeUnknown(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeUnknown - decode an unknown box
-func DecodeUnknownSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	return &UnknownBox{hdr.name, hdr.size, sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
+func DecodeUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &UnknownBox{hdr.Name, hdr.Size, sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - return box type

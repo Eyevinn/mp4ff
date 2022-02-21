@@ -77,7 +77,7 @@ func (s *StsdBox) GetSampleDescription(index int) (Box, error) {
 }
 
 // DecodeStsd - box-specific decode
-func DecodeStsd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeStsd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	var versionAndFlags, sampleCount uint32
 	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
 	if err != nil {
@@ -88,7 +88,7 @@ func DecodeStsd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.size, r)
+	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -110,11 +110,11 @@ func DecodeStsd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeStsdSR - box-specific decode
-func DecodeStsdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeStsdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	sampleCount := sr.ReadUint32()
 	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.size, sr)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

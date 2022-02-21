@@ -23,18 +23,18 @@ type MdatBox struct {
 const maxNormalPayloadSize = (1 << 32) - 1 - 8
 
 // DecodeMdat - box-specific decode
-func DecodeMdat(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMdat(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	largeSize := hdr.hdrlen > boxHeaderSize
+	largeSize := hdr.Hdrlen > boxHeaderSize
 	return &MdatBox{startPos, data, nil, 0, largeSize}, nil
 }
 
 // DecodeMdatSR - box-specific decode
-func DecodeMdatSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	largeSize := hdr.hdrlen > boxHeaderSize
+func DecodeMdatSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	largeSize := hdr.Hdrlen > boxHeaderSize
 	return &MdatBox{startPos, sr.ReadBytes(hdr.payloadLen()), nil, 0, largeSize}, nil
 }
 
@@ -44,9 +44,9 @@ func (m *MdatBox) IsLazy() bool {
 }
 
 // DecodeMdatLazily - box-specific decode but Data is not in memory
-func DecodeMdatLazily(hdr boxHeader, startPos uint64) (Box, error) {
-	largeSize := hdr.hdrlen > boxHeaderSize
-	decLazyDataSize := hdr.size - uint64(hdr.hdrlen)
+func DecodeMdatLazily(hdr BoxHeader, startPos uint64) (Box, error) {
+	largeSize := hdr.Hdrlen > boxHeaderSize
+	decLazyDataSize := hdr.Size - uint64(hdr.Hdrlen)
 	return &MdatBox{startPos, nil, nil, decLazyDataSize, largeSize}, nil
 }
 

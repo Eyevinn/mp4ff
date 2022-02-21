@@ -54,7 +54,7 @@ type PsshBox struct {
 }
 
 // DecodePssh - box-specific decode
-func DecodePssh(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodePssh(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func DecodePssh(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodePsshSR - box-specific decode
-func DecodePsshSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodePsshSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 

@@ -71,7 +71,7 @@ func (s *SencBox) AddSample(sample SencSample) error {
 }
 
 // DecodeSenc - box-specific decode
-func DecodeSenc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func DecodeSenc(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeSencSR - box-specific decode
-func DecodeSencSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeSencSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	sampleCount := sr.ReadUint32()
 	senc := SencBox{

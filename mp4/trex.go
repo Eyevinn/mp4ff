@@ -28,7 +28,7 @@ func CreateTrex(trackID uint32) *TrexBox {
 }
 
 // DecodeTrex - box-specific decode
-func DecodeTrex(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrex(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func DecodeTrex(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTrexSR - box-specific decode
-func DecodeTrexSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeTrexSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 
 	b := TrexBox{

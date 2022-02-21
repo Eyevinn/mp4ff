@@ -54,7 +54,7 @@ func NewFtyp(majorBrand string, minorVersion uint32, compatibleBrands []string) 
 }
 
 // DecodeFtyp - box-specific decode
-func DecodeFtyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeFtyp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func DecodeFtyp(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeFtypSR - box-specific decode
-func DecodeFtypSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeFtypSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &FtypBox{data: sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 

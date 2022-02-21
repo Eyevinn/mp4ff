@@ -26,7 +26,7 @@ func CreateAvcC(spsNALUs [][]byte, ppsNALUs [][]byte) (*AvcCBox, error) {
 }
 
 // DecodeAvcC - box-specific decode
-func DecodeAvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeAvcC(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func DecodeAvcC(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeAvcCSR - box-specific decode
-func DecodeAvcCSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeAvcCSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	avcDecConfRec, err := avc.DecodeAVCDecConfRec(sr.ReadBytes(hdr.payloadLen()))
 	if err != nil {
 		return nil, err

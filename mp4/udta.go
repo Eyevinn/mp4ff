@@ -20,8 +20,8 @@ func (b *UdtaBox) AddChild(box Box) {
 }
 
 // DecodeUdta - box-specific decode
-func DecodeUdta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.size, r)
+func DecodeUdta(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
 	}
@@ -33,8 +33,8 @@ func DecodeUdta(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeUdtaSR - box-specific decode
-func DecodeUdtaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.size, sr)
+func DecodeUdtaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

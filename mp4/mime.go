@@ -15,7 +15,7 @@ type MimeBox struct {
 }
 
 // DecodeMime - box-specific decode
-func DecodeMime(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMime(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func DecodeMime(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeMimeSR - box-specific decode
-func DecodeMimeSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeMimeSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	b := MimeBox{
 		Version: byte(versionAndFlags >> 24),

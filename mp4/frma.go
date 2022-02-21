@@ -13,7 +13,7 @@ type FrmaBox struct {
 }
 
 // DecodeFrma - box-specific decode
-func DecodeFrma(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeFrma(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func DecodeFrma(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeFrmaSR - box-specific decode
-func DecodeFrmaSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeFrmaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	if hdr.payloadLen() != 4 {
 		return nil, fmt.Errorf("Frma content length is not 4")
 	}

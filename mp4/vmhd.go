@@ -23,7 +23,7 @@ func CreateVmhd() *VmhdBox {
 }
 
 // DecodeVmhd - box-specific decode
-func DecodeVmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeVmhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func DecodeVmhd(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeVmhdSR - box-specific decode
-func DecodeVmhdSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeVmhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	b := VmhdBox{
 		Version:      byte(versionAndFlags >> 24),

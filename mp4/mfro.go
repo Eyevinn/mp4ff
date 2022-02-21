@@ -15,7 +15,7 @@ type MfroBox struct {
 }
 
 // DecodeMfro - box-specific decode
-func DecodeMfro(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeMfro(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func DecodeMfro(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeMfroSR - box-specific decode
-func DecodeMfroSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeMfroSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 
 	b := &MfroBox{

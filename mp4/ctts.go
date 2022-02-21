@@ -17,7 +17,7 @@ type CttsBox struct {
 }
 
 // DecodeCtts - box-specific decode
-func DecodeCtts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeCtts(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func DecodeCtts(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeCttsSR - box-specific decode
-func DecodeCttsSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeCttsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	entryCount := sr.ReadUint32()
 

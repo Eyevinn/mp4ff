@@ -22,7 +22,7 @@ func (b *TrepBox) AddChild(child Box) {
 }
 
 // DecodeTrep - box-specific decode
-func DecodeTrep(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeTrep(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func DecodeTrep(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeTrepSR - box-specific decode
-func DecodeTrepSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeTrepSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	trackID := sr.ReadUint32()
 	b := TrepBox{
@@ -41,7 +41,7 @@ func DecodeTrepSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		TrackID: trackID,
 	}
 	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.size, sr)
+	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}

@@ -24,7 +24,7 @@ type ElstEntry struct {
 }
 
 // DecodeElst - box-specific decode
-func DecodeElst(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
+func DecodeElst(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func DecodeElst(hdr boxHeader, startPos uint64, r io.Reader) (Box, error) {
 }
 
 // DecodeElstSR - box-specific decode
-func DecodeElstSR(hdr boxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+func DecodeElstSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	entryCount := sr.ReadUint32()
