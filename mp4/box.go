@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
@@ -146,23 +145,17 @@ func (b BoxHeader) payloadLen() int {
 // DecodeHeader decodes a box header (size + box type + possiible largeSize)
 func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	buf := make([]byte, boxHeaderSize)
-	n, err := r.Read(buf)
+	_, err := io.ReadFull(r, buf)
 	if err != nil {
 		return BoxHeader{}, err
-	}
-	if n != boxHeaderSize {
-		return BoxHeader{}, errors.New("Could not read full 8B header")
 	}
 	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
 	headerLen := boxHeaderSize
 	if size == 1 {
 		buf := make([]byte, largeSizeLen)
-		n, err := r.Read(buf)
+		_, err = io.ReadFull(r, buf)
 		if err != nil {
 			return BoxHeader{}, err
-		}
-		if n != largeSizeLen {
-			return BoxHeader{}, fmt.Errorf("Could not read largeSize length field")
 		}
 		size = binary.BigEndian.Uint64(buf)
 		headerLen += largeSizeLen
@@ -356,12 +349,9 @@ func readBoxBody(r io.Reader, h BoxHeader) ([]byte, error) {
 		return nil, nil
 	}
 	body := make([]byte, bodyLen)
-	n, err := r.Read(body)
+	_, err := io.ReadFull(r, body)
 	if err != nil {
 		return nil, err
-	}
-	if n != int(bodyLen) {
-		return nil, fmt.Errorf("too few bytes")
 	}
 	return body, nil
 }

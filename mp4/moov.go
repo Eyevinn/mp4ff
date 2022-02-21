@@ -64,7 +64,7 @@ func (m *MoovBox) AddChild(box Box) {
 // DecodeMoov - box-specific decode
 func DecodeMoov(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data := make([]byte, hdr.payloadLen())
-	_, err := r.Read(data)
+	_, err := io.ReadFull(r, data)
 	if err != nil {
 		return nil, err
 	}

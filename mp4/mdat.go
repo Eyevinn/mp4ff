@@ -190,12 +190,9 @@ func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) 
 		}
 
 		buf := make([]byte, size)
-		n, err := rs.Read(buf)
+		_, err = io.ReadFull(rs, buf)
 		if err != nil {
 			return nil, err
-		}
-		if int64(n) != size {
-			return nil, fmt.Errorf("lazy mdat mode - expects to read %d bytes, but only read %d bytes", size, n)
 		}
 		return buf, nil
 	}
