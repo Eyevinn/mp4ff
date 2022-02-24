@@ -37,7 +37,7 @@ var usage = func(msg string) {
 
 func main() {
 	verbose := flag.Bool("v", false, "Verbose output -> details. On for hex input")
-	inFile := flag.String("i", "", "mp4 for bytestream file")
+	inFile := flag.String("i", "", "mp4 or bytestream file")
 	vpsHex := flag.String("vps", "", "VPS in hex format (HEVC only)")
 	spsHex := flag.String("sps", "", "SPS in hex format")
 	ppsHex := flag.String("pps", "", "PPS in hex format")
@@ -94,7 +94,7 @@ func main() {
 		}
 		if *codec == "avc" {
 			for _, nalu := range nalus {
-				switch avc.NaluType(nalu[0]) {
+				switch avc.GetNaluType(nalu[0]) {
 				case avc.NALU_SPS:
 					if len(ppsNalus) > 0 {
 						break // SPS coming back again
