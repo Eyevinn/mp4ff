@@ -2,6 +2,7 @@ package hevc
 
 import (
 	"encoding/hex"
+	"math/bits"
 	"testing"
 )
 
@@ -34,4 +35,20 @@ func TestCodecString(t *testing.T) {
 		}
 	}
 
+}
+
+func TestReverseUint32bits(t *testing.T) {
+	testCases := []struct {
+		bits uint32
+		rev  uint32
+	}{
+		{0x00000002, 0x40000000},
+		{0x12345678, 0x1e6a2c48},
+	}
+	for _, tc := range testCases {
+		got := bits.Reverse32(tc.bits)
+		if got != tc.rev {
+			t.Errorf("Got %04x instead of %04x for %04x", got, tc.rev, tc.bits)
+		}
+	}
 }

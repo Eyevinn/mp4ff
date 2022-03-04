@@ -37,7 +37,7 @@ var usage = func(msg string) {
 
 func main() {
 	verbose := flag.Bool("v", false, "Verbose output -> details. On for hex input")
-	inFile := flag.String("i", "", "mp4 for bytestream file")
+	inFile := flag.String("i", "", "mp4 or bytestream file")
 	vpsHex := flag.String("vps", "", "VPS in hex format (HEVC only)")
 	spsHex := flag.String("sps", "", "SPS in hex format")
 	ppsHex := flag.String("pps", "", "PPS in hex format")
@@ -94,7 +94,7 @@ func main() {
 		}
 		if *codec == "avc" {
 			for _, nalu := range nalus {
-				switch avc.NaluType(nalu[0]) {
+				switch avc.GetNaluType(nalu[0]) {
 				case avc.NALU_SPS:
 					if len(ppsNalus) > 0 {
 						break // SPS coming back again
@@ -212,6 +212,9 @@ func parseMp4File(r io.Reader, verbose bool) {
 				ppsNalus := stsd.AvcX.AvcC.PPSnalus
 				printAvcPS(spsNalus, ppsNalus, verbose)
 			case "hevc":
+				if stsd.HvcX.Type() == "hev1" {
+					fmt.Printf("Warning: there should be no parameter sets in sample descriptor hev1\n")
+				}
 				vpsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_VPS)
 				spsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_SPS)
 				ppsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_PPS)
@@ -242,6 +245,8 @@ func printAvcPS(spsNalus, ppsNalus [][]byte, verbose bool) {
 		}
 		printPS("PPS", i+1, ppsNalu, ppsInfo, verbose)
 	}
+	sps, _ := avc.ParseSPSNALUnit(spsNalus[0], true /*fullVui*/)
+	fmt.Printf("Codecs parameter (assuming avc1): %s\n", avc.CodecString("avc1", sps))
 }
 
 func printHevcPS(vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) {
@@ -259,6 +264,8 @@ func printHevcPS(vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) {
 	for i, pps := range ppsNalus {
 		printPS("PPS", i+1, pps, nil, false)
 	}
+	sps, _ := hevc.ParseSPSNALUnit(spsNalus[0])
+	fmt.Printf("Codecs parameter (assuming hvc1): %s\n", hevc.CodecString("hvc1", sps))
 }
 
 func printPS(name string, nr int, ps []byte, psInfo interface{}, verbose bool) {
