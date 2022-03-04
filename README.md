@@ -19,7 +19,8 @@ Some useful command line tools are available in `cmd`.
 1. `mp4ff-info` prints a tree of the box hierarchy of a mp4 file with information
     about the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes 
 	or `-l trun:1,stss:1` for specific boxes.
-2. `mp4ff-pslister` extracts and displays SPS and PPS for AVC in a mp4 file. Partial information is printed for HEVC.
+2. `mp4ff-pslister` extracts and displays SPS and PPS for AVC or HEVC in a mp4 or a bytestream (Annex B) file.
+    Partial information is printed for HEVC.
 3. `mp4ff-nallister` lists NALUs and picture types for video in progressive or fragmented file
 4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
 5. `mp4ff-crop` shortens a progressive mp4 file to a specified duration
