@@ -56,13 +56,14 @@ func cropStts(b *mp4.SttsBox, lastSampleNr uint32) {
 
 func cropStss(b *mp4.StssBox, lastSampleNr uint32) {
 	nrEntries := b.EntryCount()
+	nrEntriesToKeep := 0
 	for i := uint32(0); i < nrEntries; i++ {
 		if b.SampleNumber[i] > lastSampleNr {
 			break
 		}
-		nrEntries = i + 1
+		nrEntriesToKeep++
 	}
-	b.SampleNumber = b.SampleNumber[:nrEntries]
+	b.SampleNumber = b.SampleNumber[:nrEntriesToKeep]
 }
 
 func cropCtts(b *mp4.CttsBox, lastSampleNr uint32) {

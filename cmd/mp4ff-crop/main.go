@@ -16,45 +16,57 @@ import (
 	"github.com/edgeware/mp4ff/mp4"
 )
 
-var usg = `Usage of mp4ff-crop:
+var usg = `Usage of %s:
 
-mp4ff-crop crops a (progressive) mp4 file to just before a sync frame after specified number of milliseconds.
-The intension is that the structure of the file shall be left intact except for cropping of samples and
+%s crops a (progressive) mp4 file to just before a sync frame after specified number of milliseconds.
+The goal is to leave the file structure intact except for cropping of samples and
 moving mdat to the end of the file, if not already there.
 `
 
-var usage = func() {
-	parts := strings.Split(os.Args[0], "/")
-	name := parts[len(parts)-1]
-	fmt.Fprintln(os.Stderr, usg)
-	fmt.Fprintf(os.Stderr, "%s [-d duration] <inFile> <outFile>\n", name)
-	flag.PrintDefaults()
+var opts struct {
+	durationMS int
+	version    bool
+}
+
+func parseOptions() {
+	flag.IntVar(&opts.durationMS, "d", 0, "Duration in milliseconds")
+	flag.BoolVar(&opts.version, "version", false, "Get mp4ff version")
+	flag.Parse()
+
+	flag.Usage = func() {
+		parts := strings.Split(os.Args[0], "/")
+		name := parts[len(parts)-1]
+		fmt.Fprintf(os.Stderr, usg, name, name)
+		fmt.Fprintf(os.Stderr, "%s [-d duration] <inFile> <outFile>\n", name)
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
 }
 
 func main() {
-	durationMS := flag.Int("d", 0, "Duration in milliseconds")
-	version := flag.Bool("version", false, "Get mp4ff version")
-	flag.Parse()
 
-	if *version {
+	parseOptions()
+
+	if opts.version {
 		fmt.Printf("mp4ff-crop %s\n", mp4.GetVersion())
 		os.Exit(0)
 	}
 
-	if *durationMS <= 0 {
-		usage()
+	if opts.durationMS <= 0 {
+		flag.Usage()
 		os.Exit(1)
 	}
 
 	var inFilePath = flag.Arg(0)
 	if inFilePath == "" {
-		usage()
+		flag.Usage()
 		os.Exit(1)
 	}
 
 	var outFilePath = flag.Arg(1)
 	if outFilePath == "" {
-		usage()
+		flag.Usage()
 		os.Exit(1)
 	}
 
@@ -74,7 +86,7 @@ func main() {
 	}
 	defer ofh.Close()
 
-	err = cropMP4(parsedMp4, *durationMS, ofh, ifh)
+	err = cropMP4(parsedMp4, opts.durationMS, ofh, ifh)
 	if err != nil {
 		log.Fatal(err)
 	}
