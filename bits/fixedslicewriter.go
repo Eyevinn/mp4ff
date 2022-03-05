@@ -6,6 +6,8 @@ import "encoding/binary"
 type FixedSliceWriter struct {
 	buf      []byte
 	off      int
+	n        int  // current number of bits
+	v        uint // current accumulated value for bits
 	accError error
 }
 
@@ -17,6 +19,8 @@ func NewFixedSliceWriterFromSlice(data []byte) *FixedSliceWriter {
 	return &FixedSliceWriter{
 		buf:      data,
 		off:      0,
+		n:        0,
+		v:        0,
 		accError: nil,
 	}
 }
@@ -26,6 +30,8 @@ func NewFixedSliceWriter(size int) *FixedSliceWriter {
 	return &FixedSliceWriter{
 		buf:      make([]byte, size),
 		off:      0,
+		n:        0,
+		v:        0,
 		accError: nil,
 	}
 }
@@ -204,4 +210,31 @@ func (b *FixedSliceWriter) WriteUnityMatrix() {
 	b.WriteUint32(0)
 	b.WriteUint32(0)
 	b.WriteUint32(0x40000000) // = 1 fixed 2.30
+}
+
+func (sw *FixedSliceWriter) WriteBits(bits uint, n int) {
+	if sw.accError != nil {
+		return
+	}
+	sw.v <<= uint(n)
+	sw.v |= bits & mask(n)
+	sw.n += n
+	for sw.n >= 8 {
+		b := byte((sw.v >> (uint(sw.n) - 8)) & mask(8))
+		sw.WriteUint8(b)
+		sw.n -= 8
+	}
+	sw.v &= mask(8)
+}
+
+// FlushBits - write remaining bits to the underlying .Writer.
+// bits will be left-shifted.
+func (sw *FixedSliceWriter) FlushBits() {
+	if sw.accError != nil {
+		return
+	}
+	if sw.n != 0 {
+		b := byte((sw.v << (8 - uint(sw.n))) & mask(8))
+		sw.WriteUint8(b)
+	}
 }
