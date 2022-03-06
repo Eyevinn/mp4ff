@@ -13,7 +13,7 @@
 //
 // init.mp4 and media_<n>.m4s
 //
-// Codecs supported are AVC/HEVC for video and AAC for audio
+// Codecs supported are AVC and HEVC for video and AAC and AC-3 for audio
 package main
 
 import (

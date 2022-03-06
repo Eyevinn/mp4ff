@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/edgeware/mp4ff)](https://goreportcard.com/report/github.com/edgeware/mp4ff)
 [![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.md)
 
-Package mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC audio and stpp/wvtt subtitles.
+Package mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC and AC-3 audio,  and stpp and wvtt subtitles.
 It is focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4, but can also decode and encode all boxes needed for
 progressive MP4 files. In particular, the tool `mp4ff-crop` can be
 used to crop a progressive file.

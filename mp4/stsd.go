@@ -19,6 +19,8 @@ type StsdBox struct {
 	AvcX        *VisualSampleEntryBox
 	HvcX        *VisualSampleEntryBox
 	Mp4a        *AudioSampleEntryBox
+	AC3         *AudioSampleEntryBox
+	EC3         *AudioSampleEntryBox
 	Wvtt        *WvttBox
 	Children    []Box
 }
@@ -37,6 +39,10 @@ func (s *StsdBox) AddChild(box Box) {
 		s.HvcX = box.(*VisualSampleEntryBox)
 	case "mp4a":
 		s.Mp4a = box.(*AudioSampleEntryBox)
+	case "ac-3":
+		s.AC3 = box.(*AudioSampleEntryBox)
+	case "ec-3":
+		s.EC3 = box.(*AudioSampleEntryBox)
 	case "wvtt":
 		s.Wvtt = box.(*WvttBox)
 	}

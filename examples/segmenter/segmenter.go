@@ -78,12 +78,17 @@ func (s *Segmenter) MakeInitSegments() ([]*mp4.InitSegment, error) {
 		outStsd := outTrak.Mdia.Minf.Stbl.Stsd
 		switch tr.trackType {
 		case "audio":
-			outStsd.AddChild(inStsd.Mp4a)
+			if inStsd.Mp4a != nil {
+				outStsd.AddChild(inStsd.Mp4a)
+			} else if inStsd.AC3 != nil {
+				outStsd.AddChild(inStsd.AC3)
+			} else if inStsd.EC3 != nil {
+				outStsd.AddChild(inStsd.EC3)
+			}
 		case "video":
 			if inStsd.AvcX != nil {
 				outStsd.AddChild(inStsd.AvcX)
-			}
-			if inStsd.HvcX != nil {
+			} else if inStsd.HvcX != nil {
 				outStsd.AddChild(inStsd.HvcX)
 			}
 		default:
@@ -105,12 +110,17 @@ func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 		outStsd := outTrak.Mdia.Minf.Stbl.Stsd
 		switch tr.trackType {
 		case "audio":
-			outStsd.AddChild(inStsd.Mp4a)
+			if inStsd.Mp4a != nil {
+				outStsd.AddChild(inStsd.Mp4a)
+			} else if inStsd.AC3 != nil {
+				outStsd.AddChild(inStsd.AC3)
+			} else if inStsd.EC3 != nil {
+				outStsd.AddChild(inStsd.EC3)
+			}
 		case "video":
 			if inStsd.AvcX != nil {
 				outStsd.AddChild(inStsd.AvcX)
-			}
-			if inStsd.HvcX != nil {
+			} else if inStsd.HvcX != nil {
 				outStsd.AddChild(inStsd.HvcX)
 			}
 		default:

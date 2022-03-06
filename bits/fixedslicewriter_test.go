@@ -19,7 +19,6 @@ func TestFixedSliceWriter(t *testing.T) {
 			break
 		}
 		expected[i] = 0xff
-
 	}
 	if !bytes.Equal(expected, sw.Bytes()) {
 		t.Errorf("bytes differ: %v %v", expected, sw.Bytes())
@@ -28,4 +27,20 @@ func TestFixedSliceWriter(t *testing.T) {
 	if sw.AccError() == nil {
 		t.Errorf("no overflow error")
 	}
+}
+
+func TestWriteBits(t *testing.T) {
+	sw := NewFixedSliceWriter(4)
+	sw.WriteBits(0xf, 4)
+	sw.WriteBits(0x2, 4)
+	sw.WriteBits(0x5, 4)
+	sw.FlushBits()
+	if sw.AccError() != nil {
+		t.Errorf("unexpected error writing bits")
+	}
+	result := sw.Bytes()
+	if !(result[0] == 0xf2 && result[1] == 0x50) {
+		t.Errorf("got %02x%02x instead of 0xf250", result[0], result[1])
+	}
+	sw.WriteUint16(0xffff)
 }

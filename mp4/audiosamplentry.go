@@ -16,6 +16,8 @@ type AudioSampleEntryBox struct {
 	SampleSize         uint16
 	SampleRate         uint16 // Integer part
 	Esds               *EsdsBox
+	Dac3               *Dac3Box
+	Dec3               *Dec3Box
 	Sinf               *SinfBox
 	Children           []Box
 }
@@ -54,6 +56,10 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 	switch child.Type() {
 	case "esds":
 		a.Esds = child.(*EsdsBox)
+	case "dac3":
+		a.Dac3 = child.(*Dac3Box)
+	case "dec3":
+		a.Dec3 = child.(*Dec3Box)
 	case "sinf":
 		a.Sinf = child.(*SinfBox)
 	}

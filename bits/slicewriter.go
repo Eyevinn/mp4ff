@@ -23,6 +23,8 @@ type SliceWriter interface {
 	WriteZeroBytes(n int)
 	WriteBytes(byteSlice []byte)
 	WriteUnityMatrix()
+	WriteBits(bits uint, n int)
+	FlushBits()
 }
 
 var SliceWriterError = errors.New("overflow in SliceWriter")
