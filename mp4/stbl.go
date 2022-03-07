@@ -58,6 +58,8 @@ func (s *StblBox) AddChild(box Box) {
 		s.Stco = box.(*StcoBox)
 	case "co64":
 		s.Co64 = box.(*Co64Box)
+	case "sdtp":
+		s.Sdtp = box.(*SdtpBox)
 	case "sbgp":
 		if s.Sbgp == nil {
 			s.Sbgp = box.(*SbgpBox)
