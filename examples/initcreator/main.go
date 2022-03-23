@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/edgeware/mp4ff/aac"
+	"github.com/edgeware/mp4ff/bits"
 	"github.com/edgeware/mp4ff/mp4"
 )
 
@@ -30,6 +31,14 @@ func main() {
 		log.Fatalln(err)
 	}
 	err = writeAudioAACInitSegment()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = writeAudioAC3InitSegment()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = writeAudioEC3InitSegment()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -101,6 +110,54 @@ func writeAudioAACInitSegment() error {
 		return err
 	}
 	err = writeToFile(init, "audio_aac_init.cmfa")
+	return err
+}
+
+func writeAudioAC3InitSegment() error {
+	dac3Hex := "0000000b646163330c3dc0"
+	dac3Bytes, err := hex.DecodeString(dac3Hex)
+	if err != nil {
+		return err
+	}
+	sr := bits.NewFixedSliceReader(dac3Bytes)
+	box, err := mp4.DecodeBoxSR(0, sr)
+	if err != nil {
+		return err
+	}
+	dac3 := box.(*mp4.Dac3Box)
+	init := mp4.CreateEmptyInit()
+	samplingRate := mp4.AC3SampleRates[dac3.FSCod]
+	init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
+	trak := init.Moov.Trak
+	err = trak.SetAC3Descriptor(dac3)
+	if err != nil {
+		return err
+	}
+	err = writeToFile(init, "audio_ac3_init.cmfa")
+	return err
+}
+
+func writeAudioEC3InitSegment() error {
+	dec3Hex := "0000000e646563330c00200f0202"
+	dec3Bytes, err := hex.DecodeString(dec3Hex)
+	if err != nil {
+		return err
+	}
+	sr := bits.NewFixedSliceReader(dec3Bytes)
+	box, err := mp4.DecodeBoxSR(0, sr)
+	if err != nil {
+		return err
+	}
+	dec3 := box.(*mp4.Dec3Box)
+	init := mp4.CreateEmptyInit()
+	samplingRate := mp4.AC3SampleRates[dec3.EC3Subs[0].FSCod]
+	init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
+	trak := init.Moov.Trak
+	err = trak.SetEC3Descriptor(dec3)
+	if err != nil {
+		return err
+	}
+	err = writeToFile(init, "audio_ec3_init.cmfa")
 	return err
 }
 

@@ -273,6 +273,33 @@ func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
 	return nil
 }
 
+// SetAC3Descriptor  - Modify a TrakBox by adding AC-3 SampleDescriptor
+func (t *TrakBox) SetAC3Descriptor(dac3 *Dac3Box) error {
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	nrChannels, _ := dac3.ChannelInfo()
+	samplingFrequency := AC3SampleRates[dac3.FSCod]
+
+	ac3 := CreateAudioSampleEntryBox("ac-3",
+		uint16(nrChannels), //  Not to be used, but we set it anyway
+		16, uint16(samplingFrequency), dac3)
+	stsd.AddChild(ac3)
+	return nil
+}
+
+// SetEC3Descriptor  - Modify a TrakBox by adding EC-3 SampleDescriptor
+func (t *TrakBox) SetEC3Descriptor(dec3 *Dec3Box) error {
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	nrChannels, _ := dec3.ChannelInfo()
+	fscod := dec3.EC3Subs[0].FSCod
+	samplingFrequency := AC3SampleRates[fscod]
+
+	ec3 := CreateAudioSampleEntryBox("ec-3",
+		uint16(nrChannels), //  Not to be used, but we set it anyway
+		16, uint16(samplingFrequency), dec3)
+	stsd.AddChild(ec3)
+	return nil
+}
+
 // SetWvttDescriptor - Set wvtt descriptor with a vttC box. config should start with WEBVTT or be empty.
 func (t *TrakBox) SetWvttDescriptor(config string) error {
 	if config == "" {
