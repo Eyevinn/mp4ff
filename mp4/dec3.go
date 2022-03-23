@@ -175,9 +175,14 @@ func (b *Dec3Box) EncodeSW(sw bits.SliceWriter) error {
 
 func (b *Dec3Box) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
-	bd.write("- dataRate=%d, nrSubstreams=%d", b.DataRate, len(b.EC3Subs))
+	bd.write(" - bitrate=%dkbps", b.DataRate)
+	fscod := b.EC3Subs[0].FSCod
+	bd.write(" - sampleRateCode=%d => sampleRate=%d", fscod, AC3SampleRates[fscod])
+	nrChannels, chanmap := b.ChannelInfo()
+	bd.write(" - nrChannels=%d, chanmap=%04x", nrChannels, chanmap)
+	bd.write(" - nrSubstreams=%d", len(b.EC3Subs))
 	for i, es := range b.EC3Subs {
-		bd.write("  - %2d fscod=%d bsid=%d asvc=%d bsmod=%d acmod=%d lfeon=%d num_dep_sub=%d chan_loc=%x",
+		bd.write("   - %d fscod=%d bsid=%d asvc=%d bsmod=%d acmod=%d lfeon=%d num_dep_sub=%d chan_loc=%x",
 			i+1, es.FSCod, es.BSID, es.ASVC, es.BSMod, es.ACMod, es.LFEOn, es.NumDepSub, es.ChanLoc)
 	}
 	return bd.err
