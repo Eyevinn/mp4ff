@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
+	"github.com/edgeware/mp4ff/hevc"
 )
 
 // VisualSampleEntryBox - Video Sample Description box (avc1/avc3)
@@ -138,6 +139,11 @@ func (b *VisualSampleEntryBox) Type() string {
 	return b.name
 }
 
+// SetType - set the type (name) of the box
+func (b *VisualSampleEntryBox) SetType(name string) {
+	b.name = name
+}
+
 // Size - return calculated size
 func (b *VisualSampleEntryBox) Size() uint64 {
 	totalSize := uint64(boxHeaderSize + 78)
@@ -259,4 +265,27 @@ func (b *VisualSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
 	}
 	b.name = sinf.Frma.DataFormat
 	return sinf, nil
+}
+
+// ConvertHev1ToHvc1 - contert visual sample entry box type and insert VPS, SPS, and PPS parameter sets
+func (b *VisualSampleEntryBox) ConvertHev1ToHvc1(vpss [][]byte, spss [][]byte, ppss [][]byte) error {
+	if b.Type() != "hev1" {
+		return fmt.Errorf("type is %s and not hev1", b.Type())
+	}
+	b.SetType("hvc1")
+	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, *hevc.NewNaluArray(true, hevc.NALU_VPS, vpss))
+	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, *hevc.NewNaluArray(true, hevc.NALU_SPS, spss))
+	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, *hevc.NewNaluArray(true, hevc.NALU_PPS, ppss))
+	return nil
+}
+
+// ConvertAvc3ToHvc1 - contert visual sample entry box type and insert SPS and PPS parameter sets
+func (b *VisualSampleEntryBox) ConvertAvc3ToAvc1(spss [][]byte, ppss [][]byte) error {
+	if b.Type() != "avc3" {
+		return fmt.Errorf("type is %s and not avc3", b.Type())
+	}
+	b.SetType("avc1")
+	b.AvcC.DecConfRec.SPSnalus = spss
+	b.AvcC.DecConfRec.PPSnalus = ppss
+	return nil
 }
