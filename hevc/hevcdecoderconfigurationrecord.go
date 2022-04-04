@@ -48,10 +48,11 @@ func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
 	if complete {
 		completeBit = 0x80
 	}
-	return &NaluArray{
+	na := NaluArray{
 		completeAndType: completeBit | byte(naluType),
-		Nalus:           nalus,
+		Nalus:           nil,
 	}
+	return &na
 }
 
 // NaluType - return NaluType for NaluArray
@@ -65,15 +66,18 @@ func (n *NaluArray) Complete() byte {
 }
 
 // CreateHEVCDecConfRec - extract information from vps, sps, pps and fill HEVCDecConfRec with that
-func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete, ppsComplete bool) (DecConfRec, error) {
+func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte,
+	vpsComplete, spsComplete, ppsComplete, includePS bool) (DecConfRec, error) {
 	sps, err := ParseSPSNALUnit(spsNalus[0])
 	if err != nil {
 		return DecConfRec{}, err
 	}
 	var naluArrays []NaluArray
-	naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
-	naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
-	naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
+	if includePS {
+		naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
+		naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
+		naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
+	}
 	ptf := sps.ProfileTierLevel
 	return DecConfRec{
 		ConfigurationVersion:             1,

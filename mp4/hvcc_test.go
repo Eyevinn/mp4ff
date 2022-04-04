@@ -24,7 +24,8 @@ func TestHvcC(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	hvcC, err := CreateHvcC([][]byte{vpsNalu}, [][]byte{spsNalu}, [][]byte{ppsNalu}, true, true, true)
+	includePS := true
+	hvcC, err := CreateHvcC([][]byte{vpsNalu}, [][]byte{spsNalu}, [][]byte{ppsNalu}, true, true, true, includePS)
 	if err != nil {
 		t.Error(err)
 	}
