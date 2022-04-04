@@ -178,9 +178,12 @@ func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *Tra
 }
 
 // SetAVCDescriptor - Set AVC SampleDescriptor based on SPS and PPS
-func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs, ppsNALUs [][]byte) error {
+func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs, ppsNALUs [][]byte, includePS bool) error {
 	if sampleDescriptorType != "avc1" && sampleDescriptorType != "avc3" {
 		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
+	}
+	if sampleDescriptorType == "avc1" && !includePS {
+		return fmt.Errorf("cannot make avc1 descriptor without parameter sets")
 	}
 	avcSPS, err := avc.ParseSPSNALUnit(spsNALUs[0], false)
 	if err != nil {
@@ -190,7 +193,7 @@ func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs, ppsNAL
 	t.Tkhd.Height = Fixed32(avcSPS.Height << 16) // This is display height
 	stsd := t.Mdia.Minf.Stbl.Stsd
 
-	avcC, err := CreateAvcC(spsNALUs, ppsNALUs)
+	avcC, err := CreateAvcC(spsNALUs, ppsNALUs, includePS)
 	if err != nil {
 		return err
 	}

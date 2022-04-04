@@ -62,7 +62,8 @@ func writeVideoAVCInitSegment() error {
 	init := mp4.CreateEmptyInit()
 	init.AddEmptyTrack(videoTimescale, "video", "und")
 	trak := init.Moov.Trak
-	err := trak.SetAVCDescriptor("avc1", spsNALUs, ppsNALUs)
+	includePS := true
+	err := trak.SetAVCDescriptor("avc1", spsNALUs, ppsNALUs, includePS)
 	if err != nil {
 		return err
 	}
