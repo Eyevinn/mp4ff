@@ -10,7 +10,7 @@ import (
 
 // HEVC errors
 var (
-	ErrLengthSize = errors.New("Can only handle 4byte NALU length size")
+	ErrLengthSize = errors.New("can only handle 4byte NALU length size")
 )
 
 // DecConfRec - HEVCDecoderConfigurationRecord
@@ -65,9 +65,12 @@ func (n *NaluArray) Complete() byte {
 	return n.completeAndType >> 7
 }
 
-// CreateHEVCDecConfRec - extract information from vps, sps, pps and fill HEVCDecConfRec with that
+// CreateHEVCDecConfRec - extract information from sps and insert vps, sps, pps if includePS set
 func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte,
 	vpsComplete, spsComplete, ppsComplete, includePS bool) (DecConfRec, error) {
+	if len(spsNalus) == 0 {
+		return DecConfRec{}, fmt.Errorf("no SPS NALU supported. Needed to extract fundamental information")
+	}
 	sps, err := ParseSPSNALUnit(spsNalus[0])
 	if err != nil {
 		return DecConfRec{}, err

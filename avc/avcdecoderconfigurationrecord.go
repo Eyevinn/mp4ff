@@ -29,10 +29,13 @@ type DecConfRec struct {
 	NoTrailingInfo       bool // To handle strange cases where trailing info is missing
 }
 
-// CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
-func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte, includePS bool) (*DecConfRec, error) {
+// CreateAVCDecConfRec - extract information from sps and insert sps, pps if includePS set
+func CreateAVCDecConfRec(spsNalus [][]byte, ppsNalus [][]byte, includePS bool) (*DecConfRec, error) {
+	if len(spsNalus) == 0 {
+		return nil, fmt.Errorf("no SPS NALU supported. Needed to extract fundamental information")
+	}
 
-	sps, err := ParseSPSNALUnit(spsNALUs[0], false) // false -> parse only start of VUI
+	sps, err := ParseSPSNALUnit(spsNalus[0], false) // false -> parse only start of VUI
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +53,8 @@ func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte, includePS bool) (
 		NoTrailingInfo:       false,
 	}
 	if includePS {
-		drc.SPSnalus = spsNALUs
-		drc.PPSnalus = ppsNALUs
+		drc.SPSnalus = spsNalus
+		drc.PPSnalus = ppsNalus
 	}
 	return &drc, nil
 }
