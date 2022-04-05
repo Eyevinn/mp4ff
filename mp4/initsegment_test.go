@@ -157,7 +157,7 @@ func TestGenerateInitSegment(t *testing.T) {
 	init := CreateEmptyInit()
 	init.AddEmptyTrack(180000, "video", "und")
 	trak := init.Moov.Trak
-	err := trak.SetAVCDescriptor("avc3", spsData, ppsData)
+	err := trak.SetAVCDescriptor("avc3", spsData, ppsData, true)
 	if err != nil {
 		t.Error(err)
 	}

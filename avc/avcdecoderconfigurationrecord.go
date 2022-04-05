@@ -29,26 +29,34 @@ type DecConfRec struct {
 	NoTrailingInfo       bool // To handle strange cases where trailing info is missing
 }
 
-// CreateAVCDecConfRec - Create an AVCDecConfRec based on SPS and PPS
-func CreateAVCDecConfRec(spsNALUs [][]byte, ppsNALUs [][]byte) (*DecConfRec, error) {
+// CreateAVCDecConfRec - extract information from sps and insert sps, pps if includePS set
+func CreateAVCDecConfRec(spsNalus [][]byte, ppsNalus [][]byte, includePS bool) (*DecConfRec, error) {
+	if len(spsNalus) == 0 {
+		return nil, fmt.Errorf("no SPS NALU supported. Needed to extract fundamental information")
+	}
 
-	sps, err := ParseSPSNALUnit(spsNALUs[0], false) // false -> parse only start of VUI
+	sps, err := ParseSPSNALUnit(spsNalus[0], false) // false -> parse only start of VUI
 	if err != nil {
 		return nil, err
 	}
 
-	return &DecConfRec{
+	drc := DecConfRec{
 		AVCProfileIndication: byte(sps.Profile),
 		ProfileCompatibility: byte(sps.ProfileCompatibility),
 		AVCLevelIndication:   byte(sps.Level),
-		SPSnalus:             spsNALUs,
-		PPSnalus:             ppsNALUs,
+		SPSnalus:             nil,
+		PPSnalus:             nil,
 		ChromaFormat:         1,
 		BitDepthLumaMinus1:   0,
 		BitDepthChromaMinus1: 0,
 		NumSPSExt:            0,
 		NoTrailingInfo:       false,
-	}, nil
+	}
+	if includePS {
+		drc.SPSnalus = spsNalus
+		drc.PPSnalus = ppsNalus
+	}
+	return &drc, nil
 }
 
 // DecodeAVCDecConfRec - decode an AVCDecConfRec

@@ -10,7 +10,7 @@ import (
 
 // HEVC errors
 var (
-	ErrLengthSize = errors.New("Can only handle 4byte NALU length size")
+	ErrLengthSize = errors.New("can only handle 4byte NALU length size")
 )
 
 // DecConfRec - HEVCDecoderConfigurationRecord
@@ -48,10 +48,11 @@ func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
 	if complete {
 		completeBit = 0x80
 	}
-	return &NaluArray{
+	na := NaluArray{
 		completeAndType: completeBit | byte(naluType),
-		Nalus:           nalus,
+		Nalus:           nil,
 	}
+	return &na
 }
 
 // NaluType - return NaluType for NaluArray
@@ -64,16 +65,22 @@ func (n *NaluArray) Complete() byte {
 	return n.completeAndType >> 7
 }
 
-// CreateHEVCDecConfRec - extract information from vps, sps, pps and fill HEVCDecConfRec with that
-func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete, ppsComplete bool) (DecConfRec, error) {
+// CreateHEVCDecConfRec - extract information from sps and insert vps, sps, pps if includePS set
+func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte,
+	vpsComplete, spsComplete, ppsComplete, includePS bool) (DecConfRec, error) {
+	if len(spsNalus) == 0 {
+		return DecConfRec{}, fmt.Errorf("no SPS NALU supported. Needed to extract fundamental information")
+	}
 	sps, err := ParseSPSNALUnit(spsNalus[0])
 	if err != nil {
 		return DecConfRec{}, err
 	}
 	var naluArrays []NaluArray
-	naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
-	naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
-	naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
+	if includePS {
+		naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
+		naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
+		naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
+	}
 	ptf := sps.ProfileTierLevel
 	return DecConfRec{
 		ConfigurationVersion:             1,
