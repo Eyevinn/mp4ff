@@ -37,7 +37,7 @@ func CreateAVCDecConfRec(spsNalus [][]byte, ppsNalus [][]byte, includePS bool) (
 
 	sps, err := ParseSPSNALUnit(spsNalus[0], false) // false -> parse only start of VUI
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse SPS nalu: %w", err)
 	}
 
 	drc := DecConfRec{
