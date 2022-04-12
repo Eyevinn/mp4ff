@@ -14,6 +14,16 @@ const (
 func TestSPSParser1(t *testing.T) {
 	byteData, _ := hex.DecodeString(spsNalu)
 
+	wantedVUI := VUIParameters{
+		SampleAspectRatioWidth:     1,
+		SampleAspectRatioHeight:    1,
+		VideoSignalTypePresentFlag: true,
+		VideoFormat:                5,
+		ColourDescriptionFlag:      true,
+		ColourPrimaries:            1,
+		TransferCharacteristics:    1,
+		MatrixCoefficients:         1,
+	}
 	wanted := SPS{
 		VpsID:                 0,
 		MaxSubLayersMinus1:    0,
@@ -65,15 +75,100 @@ func TestSPSParser1(t *testing.T) {
 		SampleAdaptiveOffsetEnabledFlag:      false,
 		PCMEnabledFlag:                       false,
 		NumShortTermRefPicSets:               9,
-		LongTermRefPicsPresentFlag:           false,
-		SpsTemporalMvpEnabledFlag:            false,
-		StrongIntraSmoothingEnabledFlag:      false,
-		VUIParametersPresentFlag:             false,
+		ShortTermRefPicSets: []ShortTermRPS{
+			{
+				DeltaPocS0:      []uint32{8, 8},
+				DeltaPocS1:      []uint32{},
+				UsedByCurrPicS0: []bool{true, true},
+				UsedByCurrPicS1: []bool{},
+				NumNegativePics: 2,
+				NumPositivePics: 0,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{1},
+				DeltaPocS1:      []uint32{7},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{true},
+				NumNegativePics: 1,
+				NumPositivePics: 1,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{2},
+				DeltaPocS1:      []uint32{6},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{true},
+				NumNegativePics: 1,
+				NumPositivePics: 1,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{3},
+				DeltaPocS1:      []uint32{5},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{true},
+				NumNegativePics: 1,
+				NumPositivePics: 1,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{4},
+				DeltaPocS1:      []uint32{4},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{true},
+				NumNegativePics: 1,
+				NumPositivePics: 1,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{5},
+				DeltaPocS1:      []uint32{3},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{true},
+				NumNegativePics: 1,
+				NumPositivePics: 1,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{6},
+				DeltaPocS1:      []uint32{2},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{true},
+				NumNegativePics: 1,
+				NumPositivePics: 1,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{7},
+				DeltaPocS1:      []uint32{1},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{true},
+				NumNegativePics: 1,
+				NumPositivePics: 1,
+				NumDeltaPocs:    2,
+			},
+			{
+				DeltaPocS0:      []uint32{8},
+				DeltaPocS1:      []uint32{},
+				UsedByCurrPicS0: []bool{true},
+				UsedByCurrPicS1: []bool{},
+				NumNegativePics: 1,
+				NumPositivePics: 0,
+				NumDeltaPocs:    1,
+			},
+		},
+		LongTermRefPicsPresentFlag:      false,
+		SpsTemporalMvpEnabledFlag:       false,
+		StrongIntraSmoothingEnabledFlag: false,
+		VUIParametersPresentFlag:        true,
+		VUI:                             &wantedVUI,
 	}
 	got, err := ParseSPSNALUnit(byteData)
 	if err != nil {
 		t.Error("Error parsing SPS")
 	}
+
 	if diff := deep.Equal(*got, wanted); diff != nil {
 		t.Error(diff)
 	}

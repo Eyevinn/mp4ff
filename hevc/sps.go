@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/edgeware/mp4ff/avc"
 	"github.com/edgeware/mp4ff/bits"
 )
 
@@ -37,11 +38,18 @@ type SPS struct {
 	AmpEnabledFlag                       bool
 	SampleAdaptiveOffsetEnabledFlag      bool
 	PCMEnabledFlag                       bool
+	PcmSampleBitDepthLumaMinus1          byte
+	PcmSampleBitDepthChromaMinus1        byte
+	Log2MinPcmLumaCodingBlockSize        uint16
+	Log2DiffMaxMinPcmLumaCodingBlockSize uint16
+	PcmLoopFilterDisabledFlag            bool
 	NumShortTermRefPicSets               byte
+	ShortTermRefPicSets                  []ShortTermRPS
 	LongTermRefPicsPresentFlag           bool
 	SpsTemporalMvpEnabledFlag            bool
 	StrongIntraSmoothingEnabledFlag      bool
 	VUIParametersPresentFlag             bool
+	VUI                                  *VUIParameters
 }
 
 // ProfileTierLevel according to ISO/IEC 23008-2 Section 7.3.3
@@ -74,6 +82,52 @@ type SubLayerOrderingInfo struct {
 	MaxDecPicBufferingMinus1 byte
 	MaxNumReorderPics        byte
 	MaxLatencyIncreasePlus1  byte
+}
+
+// VUIParameters - Visual Usability Information as defined in Section E.2
+type VUIParameters struct {
+	SampleAspectRatioWidth         uint
+	SampleAspectRatioHeight        uint
+	OverscanInfoPresentFlag        bool
+	OverscanAppropriateFlag        bool
+	VideoSignalTypePresentFlag     bool
+	VideoFormat                    byte
+	VideoFullRangeFlag             bool
+	ColourDescriptionFlag          bool
+	ColourPrimaries                byte
+	TransferCharacteristics        byte
+	MatrixCoefficients             byte
+	ChromaLocInfoPresentFlag       bool
+	ChromaSampleLocTypeTopField    uint
+	ChromaSampleLocTypeBottomField uint
+	NeutralChromaIndicationFlag    bool
+	FieldSeqFlag                   bool
+	FrameFieldInfoPresentFlag      bool
+	DefaultDisplayWindowFlag       bool
+	DefDispWinLeftOffset           uint
+	DefDispWinRightOffset          uint
+	DefDispWinTopOffset            uint
+	DefDispWinBottomOffset         uint
+	TimingInfoPresentFlag          bool
+	NumUnitsInTick                 uint
+	TimeScale                      uint
+	PocProportionalToTimingFlag    bool
+	NumTicksPocDiffOneMinus1       uint
+	HrdParametersPresentFlag       bool
+	BitstreamRestrictionFlag       bool
+	BitstreamResctrictions         *BitstreamRestrictions
+}
+
+// BitstreamRestrictrictions - optional information
+type BitstreamRestrictions struct {
+	TilesFixedStructureFlag     bool
+	MVOverPicBoundariesFlag     bool
+	RestrictedRefsPicsListsFlag bool
+	MinSpatialSegmentationIDC   uint
+	MaxBytesPerPicDenom         uint
+	MaxBitsPerMinCuDenom        uint
+	Log2MaxMvLengthHorizontal   uint
+	Log2MaxMvLengthVertical     uint
 }
 
 // ParseSPSNALUnit - Parse HEVC SPS NAL unit starting with NAL unit header
@@ -143,28 +197,41 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps.MaxTransformHierarchyDepthIntra = byte(r.ReadExpGolomb())
 	sps.ScalingListEnabledFlag = r.ReadFlag()
 	if sps.ScalingListEnabledFlag {
-		sps.ScalingListDataPresentFlag = r.ReadFlag()
-		if sps.ScalingListDataPresentFlag {
-			return sps, r.AccError() // Doesn't get any further now
-		}
+		readPastScalingList(r)
 	}
 	sps.AmpEnabledFlag = r.ReadFlag()
 	sps.SampleAdaptiveOffsetEnabledFlag = r.ReadFlag()
 	sps.PCMEnabledFlag = r.ReadFlag()
 	if sps.PCMEnabledFlag {
-		return sps, r.AccError() // Doesn't get any further now
+		sps.PcmSampleBitDepthLumaMinus1 = byte(r.Read(4))
+		sps.PcmSampleBitDepthChromaMinus1 = byte(r.Read(4))
+		sps.Log2MinPcmLumaCodingBlockSize = uint16(r.ReadExpGolomb())
+		sps.Log2DiffMaxMinPcmLumaCodingBlockSize = uint16(r.ReadExpGolomb())
+		sps.PcmLoopFilterDisabledFlag = r.ReadFlag()
 	}
 	sps.NumShortTermRefPicSets = byte(r.ReadExpGolomb())
-	if sps.NumShortTermRefPicSets != 0 {
-		return sps, r.AccError() // Doesn't get any further for now
+	for idx := byte(0); idx < sps.NumShortTermRefPicSets; idx++ {
+		sps.ShortTermRefPicSets = append(sps.ShortTermRefPicSets, parseShortTermRPS(r, idx, sps.NumShortTermRefPicSets, sps))
+		if r.AccError() != nil { // Don't continue if we have an issue
+			return sps, r.AccError()
+		}
 	}
+
 	sps.LongTermRefPicsPresentFlag = r.ReadFlag()
 	if sps.LongTermRefPicsPresentFlag {
-		return sps, r.AccError() // Does't get any further for now
+		// Get passed this without storing the information
+		numLongTermRefPics := r.ReadExpGolomb()
+		for i := uint(0); i < numLongTermRefPics; i++ {
+			/* ltRefPicPocLsbSps[i] */ _ = r.Read(int(sps.Log2MaxPicOrderCntLsbMinus4 + 4))
+			/* usedByCurrPicLtSps = */ _ = r.ReadFlag()
+		}
 	}
 	sps.SpsTemporalMvpEnabledFlag = r.ReadFlag()
 	sps.StrongIntraSmoothingEnabledFlag = r.ReadFlag()
 	sps.VUIParametersPresentFlag = r.ReadFlag()
+	if sps.VUIParametersPresentFlag {
+		sps.VUI = parseVUI(r)
+	}
 
 	return sps, r.AccError()
 }
@@ -182,4 +249,191 @@ func (s *SPS) ImageSize() (width, height uint32) {
 	width = encWidth - (s.ConformanceWindow.LeftOffset+s.ConformanceWindow.RightOffset)*subWidthC
 	height = encHeight - (s.ConformanceWindow.TopOffset+s.ConformanceWindow.BottomOffset)*subHeightC
 	return width, height
+}
+
+// parseVUI - parse VUI (Visual Usability Information)
+// if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
+func parseVUI(r *bits.AccErrEBSPReader) *VUIParameters {
+	vui := &VUIParameters{}
+	aspectRatioInfoPresentFlag := r.ReadFlag()
+	if aspectRatioInfoPresentFlag {
+		aspectRatioIDC := r.Read(8)
+		if aspectRatioIDC == avc.ExtendedSAR {
+			vui.SampleAspectRatioWidth = r.Read(16)
+			vui.SampleAspectRatioHeight = r.Read(16)
+		} else {
+			var err error
+			vui.SampleAspectRatioWidth, vui.SampleAspectRatioHeight, err = avc.GetSARfromIDC(aspectRatioIDC)
+			if err != nil {
+				r.SetError(fmt.Errorf("GetSARFromIDC: %w", err))
+			}
+		}
+	}
+	vui.OverscanInfoPresentFlag = r.ReadFlag()
+	if vui.OverscanInfoPresentFlag {
+		vui.OverscanAppropriateFlag = r.ReadFlag()
+	}
+	vui.VideoSignalTypePresentFlag = r.ReadFlag()
+	if vui.VideoSignalTypePresentFlag {
+		vui.VideoFormat = byte(r.Read(3))
+		vui.VideoFullRangeFlag = r.ReadFlag()
+		vui.ColourDescriptionFlag = r.ReadFlag()
+		if vui.ColourDescriptionFlag {
+			vui.ColourPrimaries = byte(r.Read(8))
+			vui.TransferCharacteristics = byte(r.Read(8))
+			vui.MatrixCoefficients = byte(r.Read(8))
+		}
+	}
+	vui.ChromaLocInfoPresentFlag = r.ReadFlag()
+	if vui.ChromaLocInfoPresentFlag {
+		vui.ChromaSampleLocTypeTopField = r.ReadExpGolomb()
+		vui.ChromaSampleLocTypeBottomField = r.ReadExpGolomb()
+	}
+	vui.NeutralChromaIndicationFlag = r.ReadFlag()
+	vui.FieldSeqFlag = r.ReadFlag()
+	vui.FrameFieldInfoPresentFlag = r.ReadFlag()
+	vui.DefaultDisplayWindowFlag = r.ReadFlag()
+	if vui.DefaultDisplayWindowFlag {
+		vui.DefDispWinLeftOffset = r.ReadExpGolomb()
+		vui.DefDispWinRightOffset = r.ReadExpGolomb()
+		vui.DefDispWinTopOffset = r.ReadExpGolomb()
+		vui.DefDispWinBottomOffset = r.ReadExpGolomb()
+	}
+	vui.TimingInfoPresentFlag = r.ReadFlag()
+	if vui.TimingInfoPresentFlag {
+		vui.NumUnitsInTick = r.Read(32)
+		vui.TimeScale = r.Read(32)
+		vui.PocProportionalToTimingFlag = r.ReadFlag()
+		if vui.PocProportionalToTimingFlag {
+			vui.NumTicksPocDiffOneMinus1 = r.ReadExpGolomb()
+		}
+		vui.HrdParametersPresentFlag = r.ReadFlag()
+		if vui.HrdParametersPresentFlag {
+			//TODO.  Add HrdParameters parsing according to E.3.2 if needed
+			return vui
+		}
+	}
+	vui.BitstreamRestrictionFlag = r.ReadFlag()
+	if vui.BitstreamRestrictionFlag {
+		vui.BitstreamResctrictions = parseBitstreamRestrictions(r)
+	}
+
+	return vui
+}
+
+func parseBitstreamRestrictions(r *bits.AccErrEBSPReader) *BitstreamRestrictions {
+	br := BitstreamRestrictions{}
+	br.TilesFixedStructureFlag = r.ReadFlag()
+	br.MVOverPicBoundariesFlag = r.ReadFlag()
+	br.RestrictedRefsPicsListsFlag = r.ReadFlag()
+	br.MinSpatialSegmentationIDC = r.ReadExpGolomb()
+	br.MaxBytesPerPicDenom = r.ReadExpGolomb()
+	br.MaxBitsPerMinCuDenom = r.ReadExpGolomb()
+	br.Log2MaxMvLengthHorizontal = r.ReadExpGolomb()
+	br.Log2MaxMvLengthVertical = r.ReadExpGolomb()
+	return &br
+}
+
+// ShortTermRPS - Short term Reference Picture Set
+type ShortTermRPS struct {
+	// Delta Picture Order Count
+	DeltaPocS0      []uint32
+	DeltaPocS1      []uint32
+	UsedByCurrPicS0 []bool
+	UsedByCurrPicS1 []bool
+	NumNegativePics byte
+	NumPositivePics byte
+	NumDeltaPocs    byte
+}
+
+const maxSTRefPics = 16
+
+// parseShortTermRPS - short-term refrence pictures et syntax from 7.3.7.
+// Focus is on reading/parsing beyond this structure in SPS (and possibly in slice header)
+func parseShortTermRPS(r *bits.AccErrEBSPReader, idx, numSTRefPicSets byte, sps *SPS) ShortTermRPS {
+	stps := ShortTermRPS{}
+
+	interRPSPredFlag := false
+
+	if idx > 0 {
+		interRPSPredFlag = r.ReadFlag()
+	}
+	if interRPSPredFlag {
+		deltaIdx := byte(1)
+		if idx == numSTRefPicSets { // Slice header
+			deltaIdx = byte(r.ReadExpGolomb() + 1)
+			// parse delta_idx_minus1
+		}
+		if deltaIdx > idx {
+			r.SetError(fmt.Errorf("deltaIdx > idx in parseShortTermRPS"))
+		}
+		/* deltaRpsSign */ _ = r.Read(1)
+		/* absDeltaRpsMinus1*/ _ = r.ReadExpGolomb()
+		//deltaRps := (1 - (deltaRpsSign << 1)) * (absDeltaRpsMinus1 + 1)
+		refIdx := idx - deltaIdx
+		numDeltaPocs := sps.ShortTermRefPicSets[refIdx].NumDeltaPocs
+		for j := byte(0); j < numDeltaPocs; j++ {
+			usedByCurrPicFlag := r.ReadFlag()
+			useDeltaFlag := false
+			if !usedByCurrPicFlag {
+				useDeltaFlag = r.ReadFlag()
+			}
+			if usedByCurrPicFlag || useDeltaFlag {
+				stps.NumDeltaPocs++
+			}
+		}
+	} else {
+		stps.NumNegativePics = byte(r.ReadExpGolomb())
+		stps.NumPositivePics = byte(r.ReadExpGolomb())
+		if stps.NumNegativePics > maxSTRefPics || stps.NumPositivePics > maxSTRefPics {
+			r.SetError(fmt.Errorf("more than %d short term reference pictures", maxSTRefPics))
+			return stps
+		}
+		stps.NumDeltaPocs = stps.NumNegativePics + stps.NumPositivePics
+		stps.DeltaPocS0 = make([]uint32, stps.NumNegativePics)
+		stps.UsedByCurrPicS0 = make([]bool, stps.NumNegativePics)
+		for i := byte(0); i < stps.NumNegativePics; i++ {
+			stps.DeltaPocS0[i] = uint32(r.ReadExpGolomb() + 1)
+			stps.UsedByCurrPicS0[i] = r.ReadFlag()
+		}
+		stps.DeltaPocS1 = make([]uint32, stps.NumPositivePics)
+		stps.UsedByCurrPicS1 = make([]bool, stps.NumPositivePics)
+		for i := byte(0); i < stps.NumPositivePics; i++ {
+			stps.DeltaPocS1[i] = uint32(r.ReadExpGolomb() + 1)
+			stps.UsedByCurrPicS1[i] = r.ReadFlag()
+		}
+	}
+
+	return stps
+}
+
+// readPastScalingList - read and parse all bits of scaling list, without storing values
+func readPastScalingList(r *bits.AccErrEBSPReader) {
+	for sizeId := 0; sizeId < 4; sizeId++ {
+		nrMatrixIds := 6
+		if sizeId == 3 {
+			nrMatrixIds = 2
+		}
+		for matrixId := 0; matrixId < nrMatrixIds; matrixId++ {
+			flag := r.ReadFlag() // scaling_list_pred_mode_flag[sizeId][matrixId]
+			if !flag {
+				_ = r.ReadExpGolomb() // scaling_list_pred_matrix_id_delta[sizeId][matrixId]
+			} else {
+				// nextCoef = 8;
+				coefNum := (1 << (4 + (sizeId << 1)))
+				if coefNum > 64 {
+					coefNum = 64
+				}
+				if sizeId > 1 {
+					_ = r.ReadExpGolomb // scaling_list_dc_coef_minus8[sizeId − 2][matrixId]
+					// nextCoef = scaling_list_dc_coef_minus8[sizeId − 2][matrixId] + 8
+				}
+				for i := 0; i < coefNum; i++ {
+					_ = r.ReadExpGolomb() // scaling_list_delta_coef
+					// nextCoef = ( nextCoef + scaling_list_delta_coef + 256 ) % 256
+					// ScalingList[sizeId][matrixId][i] = nextCoef
+				}
+			}
+		}
+	}
 }
