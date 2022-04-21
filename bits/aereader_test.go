@@ -42,15 +42,15 @@ func TestBadAccErrReader(t *testing.T) {
 	reader := NewAccErrReader(rd)
 
 	cases := []struct {
+		err  error
 		n    int
 		want uint
-		err  error
 	}{
-		{2, 3, nil},     // 11
-		{3, 7, nil},     // 111
-		{12, 0, io.EOF}, // 0 because of error
-		{3, 0, io.EOF},  // 0 because of acc error
-		{3, 0, io.EOF},  // 0 because of acc error
+		{nil, 2, 3},     // 11
+		{nil, 3, 7},     // 111
+		{io.EOF, 12, 0}, // 0 because of error
+		{io.EOF, 3, 0},  // 0 because of acc error
+		{io.EOF, 3, 0},  // 0 because of acc error
 	}
 
 	for _, tc := range cases {

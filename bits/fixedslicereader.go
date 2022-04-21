@@ -10,10 +10,10 @@ import (
 // Accumulates error, and the first error can be retrieved.
 // If err != nil, 0 or empty string is returned
 type FixedSliceReader struct {
+	err   error
 	slice []byte
 	pos   int
 	len   int
-	err   error
 }
 
 // bits.NewFixedSliceReader - create a new slice reader reading from data

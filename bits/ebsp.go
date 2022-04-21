@@ -26,11 +26,10 @@ func NewEBSPReader(rd io.Reader) *EBSPReader {
 
 // EBSPReader - Reader that drops start code emulation 0x03 after two bytes of 0x00
 type EBSPReader struct {
-	n   int  // current number of bits
-	v   uint // current accumulated value
-	pos int
-
 	rd        io.Reader
+	n         int  // current number of bits
+	v         uint // current accumulated value
+	pos       int
 	zeroCount int // Count number of zero bytes read
 }
 

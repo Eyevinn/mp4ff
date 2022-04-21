@@ -8,13 +8,14 @@ import (
 // Cease writing at first error.
 // Errors that have occurred can later be checked with AccError().
 type EBSPWriter struct {
-	n   int    // current number of bits
-	v   uint   // current accumulated value
-	err error  // The first error caused by any write operation
-	nr0 int    // Number preceding zero bytes
-	out []byte // Slice of length 1 to avoid allocation at output
+	wr  io.Writer // underlying writer
+	err error     // The first error caused by any write operation
+	out []byte    // Slice of length 1 to avoid allocation at output
 
-	wr io.Writer
+	n   int  // current number of bits
+	v   uint // current accumulated value
+	nr0 int  // Number preceding zero bytes
+
 }
 
 // NewEBSPWriter - returns a new Writer

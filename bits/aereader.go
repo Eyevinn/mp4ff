@@ -10,11 +10,10 @@ import (
 // AccErrReader - bit reader that accumulates error
 // First error can be fetched as reader.AccError()
 type AccErrReader struct {
+	rd     io.Reader
+	err    error
 	nrBits int  // current number of bits
 	value  uint // current accumulated value
-	err    error
-
-	rd io.Reader
 }
 
 // AccError - accumulated error is first error that occurred

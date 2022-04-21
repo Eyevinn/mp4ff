@@ -8,13 +8,12 @@ import (
 
 // AccErrEBSPReader - Reader that drops start code emulation 0x03 after two bytes of 0x00
 type AccErrEBSPReader struct {
-	n   int  // current number of bits
-	v   uint // current accumulated value
-	pos int
-
 	rd        io.Reader
-	zeroCount int // Count number of zero bytes read
 	err       error
+	n         int  // current number of bits
+	v         uint // current accumulated value
+	pos       int
+	zeroCount int // Count number of zero bytes read
 }
 
 // NewAccErrEBSPReader - return a new reader accumulating errors.
