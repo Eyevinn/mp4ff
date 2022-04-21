@@ -8,8 +8,8 @@ import (
 	"github.com/edgeware/mp4ff/bits"
 )
 
-// extendedSAR - Extended Sample Aspect Ratio Code
-const extendedSAR = 255
+// ExtendedSAR - Extended Sample Aspect Ratio Code
+const ExtendedSAR = 255
 
 // SPS errors
 var (
@@ -117,34 +117,19 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	sps := &SPS{}
 
 	rd := bytes.NewReader(data)
-	reader := bits.NewEBSPReader(rd)
+	reader := bits.NewAccErrEBSPReader(rd)
 	// Note! First byte is NAL Header
 
-	nalHdr, err := reader.Read(8)
-	if err != nil {
-		return nil, err
-	}
+	nalHdr := reader.Read(8)
 	nalType := GetNaluType(byte(nalHdr))
 	if nalType != NALU_SPS {
 		return nil, ErrNotSPS
 	}
 
-	sps.Profile, err = reader.Read(8)
-	if err != nil {
-		return nil, err
-	}
-	sps.ProfileCompatibility, err = reader.Read(8)
-	if err != nil {
-		return nil, err
-	}
-	sps.Level, err = reader.Read(8)
-	if err != nil {
-		return nil, err
-	}
-	sps.ParameterID, err = reader.ReadExpGolomb()
-	if err != nil {
-		return nil, err
-	}
+	sps.Profile = reader.Read(8)
+	sps.ProfileCompatibility = reader.Read(8)
+	sps.Level = reader.Read(8)
+	sps.ParameterID = reader.ReadExpGolomb()
 	sps.ChromaFormatIDC = 1 // Default value if no explicit value present
 
 	if sps.Profile == 138 {
@@ -154,32 +139,14 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	// The following table is from 14496-10:2020 Section 7.3.2.1.1
 	switch sps.Profile {
 	case 100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135:
-		sps.ChromaFormatIDC, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
+		sps.ChromaFormatIDC = reader.ReadExpGolomb()
 		if sps.ChromaFormatIDC == 3 {
-			sps.SeparateColourPlaneFlag, err = reader.ReadFlag()
-			if err != nil {
-				return nil, err
-			}
+			sps.SeparateColourPlaneFlag = reader.ReadFlag()
 		}
-		sps.BitDepthLumaMinus8, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		sps.BitDepthChromaMinus8, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		sps.QPPrimeYZeroTransformBypassFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
-		sps.SeqScalingMatrixPresentFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
+		sps.BitDepthLumaMinus8 = reader.ReadExpGolomb()
+		sps.BitDepthChromaMinus8 = reader.ReadExpGolomb()
+		sps.QPPrimeYZeroTransformBypassFlag = reader.ReadFlag()
+		sps.SeqScalingMatrixPresentFlag = reader.ReadFlag()
 		if sps.SeqScalingMatrixPresentFlag {
 			nrScalingLists := 12
 			if sps.ChromaFormatIDC != 3 {
@@ -188,10 +155,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 			sps.SeqScalingLists = make([]ScalingList, nrScalingLists)
 
 			for i := 0; i < nrScalingLists; i++ {
-				seqScalingPresent, err := reader.ReadFlag()
-				if err != nil {
-					return nil, err
-				}
+				seqScalingPresent := reader.ReadFlag()
 				if !seqScalingPresent {
 					sps.SeqScalingLists[i] = nil
 					continue
@@ -200,94 +164,43 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 				if i >= 6 {
 					sizeOfScalingList = 64 // 8x8 for i >= 6
 				}
-				sps.SeqScalingLists[i], err = readScalingList(reader, sizeOfScalingList)
-				if err != nil {
-					return nil, err
-				}
+				sps.SeqScalingLists[i] = readScalingList(reader, sizeOfScalingList)
 			}
 		}
 	default:
 		// Empty
 	}
 
-	sps.Log2MaxFrameNumMinus4, err = reader.ReadExpGolomb()
-	if err != nil {
-		return nil, err
-	}
-	sps.PicOrderCntType, err = reader.ReadExpGolomb()
-	if err != nil {
-		return nil, err
-	}
+	sps.Log2MaxFrameNumMinus4 = reader.ReadExpGolomb()
+	sps.PicOrderCntType = reader.ReadExpGolomb()
 	if sps.PicOrderCntType == 0 {
-		sps.Log2MaxPicOrderCntLsbMinus4, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
+		sps.Log2MaxPicOrderCntLsbMinus4 = reader.ReadExpGolomb()
 	} else if sps.PicOrderCntType == 1 {
-		sps.DeltaPicOrderAlwaysZeroFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
-		sps.OffsetForNonRefPic, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		sps.OffsetForTopToBottomField, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		numRefFramesInPicOrderCntCycle, err := reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
+		sps.DeltaPicOrderAlwaysZeroFlag = reader.ReadFlag()
+		sps.OffsetForNonRefPic = reader.ReadExpGolomb()
+		sps.OffsetForTopToBottomField = reader.ReadExpGolomb()
+		numRefFramesInPicOrderCntCycle := reader.ReadExpGolomb()
 		sps.RefFramesInPicOrderCntCycle = make([]uint, numRefFramesInPicOrderCntCycle)
 		for i := 0; i < int(numRefFramesInPicOrderCntCycle); i++ {
-			sps.RefFramesInPicOrderCntCycle[i], err = reader.ReadExpGolomb()
-			if err != nil {
-				return nil, err
-			}
+			sps.RefFramesInPicOrderCntCycle[i] = reader.ReadExpGolomb()
 		}
 	}
 
-	sps.NumRefFrames, err = reader.ReadExpGolomb()
-	if err != nil {
-		return nil, err
-	}
-	sps.GapsInFrameNumValueAllowedFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	sps.NumRefFrames = reader.ReadExpGolomb()
+	sps.GapsInFrameNumValueAllowedFlag = reader.ReadFlag()
 
-	picWidthInMbsUnitsMinus1, err := reader.ReadExpGolomb()
-	if err != nil {
-		return nil, err
-	}
-	picHeightInMbsUnitsMinus1, err := reader.ReadExpGolomb()
-	if err != nil {
-		return nil, err
-	}
+	picWidthInMbsUnitsMinus1 := reader.ReadExpGolomb()
+	picHeightInMbsUnitsMinus1 := reader.ReadExpGolomb()
 
 	sps.Width = (picWidthInMbsUnitsMinus1 + 1) * 16
 	sps.Height = (picHeightInMbsUnitsMinus1 + 1) * 16
 
-	sps.FrameMbsOnlyFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	sps.FrameMbsOnlyFlag = reader.ReadFlag()
 	if !sps.FrameMbsOnlyFlag {
-		sps.MbAdaptiveFrameFieldFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
+		sps.MbAdaptiveFrameFieldFlag = reader.ReadFlag()
 	}
-	sps.Direct8x8InferenceFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
-	sps.FrameCroppingFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	sps.Direct8x8InferenceFlag = reader.ReadFlag()
+	sps.FrameCroppingFlag = reader.ReadFlag()
 	var cropUnitX, cropUnitY uint
 	var frameMbsOnly uint = 0
 	if sps.FrameMbsOnlyFlag {
@@ -307,22 +220,10 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 			return nil, fmt.Errorf("Non-vaild chroma_format_idc value: %d", sps.ChromaFormatIDC)
 		}
 
-		sps.FrameCropLeftOffset, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		sps.FrameCropRightOffset, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		sps.FrameCropTopOffset, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		sps.FrameCropBottomOffset, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
+		sps.FrameCropLeftOffset = reader.ReadExpGolomb()
+		sps.FrameCropRightOffset = reader.ReadExpGolomb()
+		sps.FrameCropTopOffset = reader.ReadExpGolomb()
+		sps.FrameCropBottomOffset = reader.ReadExpGolomb()
 
 		frameCropWidth := sps.FrameCropLeftOffset + sps.FrameCropRightOffset
 		frameCropHeight := sps.FrameCropTopOffset + sps.FrameCropBottomOffset
@@ -331,21 +232,14 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		sps.Height -= frameCropHeight * cropUnitY
 	}
 
-	vuiParametersPresentFlag, err := reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vuiParametersPresentFlag := reader.ReadFlag()
 	sps.NrBytesBeforeVUI = reader.NrBytesRead()
 	if vuiParametersPresentFlag {
-		vui, err := parseVUI(reader, parseVUIBeyondAspectRatio)
-		if err != nil {
-			return nil, fmt.Errorf("parse VUI: %w", err)
-		}
-		sps.VUI = vui
+		sps.VUI = parseVUI(reader, parseVUIBeyondAspectRatio)
 	}
 	sps.NrBytesRead = reader.NrBytesRead()
 
-	return sps, nil
+	return sps, reader.AccError()
 }
 
 // CpbDbpDelaysPresent signals if Cpb and Dbp can be found in Picture Timing SEI
@@ -367,230 +261,95 @@ func (s *SPS) PicStructPresent() bool {
 
 // parseVUI - parse VUI (Visual Usability Information)
 // if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
-func parseVUI(reader *bits.EBSPReader, parseVUIBeyondAspectRatio bool) (*VUIParameters, error) {
+func parseVUI(reader *bits.AccErrEBSPReader, parseVUIBeyondAspectRatio bool) *VUIParameters {
 	vui := &VUIParameters{}
 	var err error
-	aspectRatioInfoPresentFlag, err := reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	aspectRatioInfoPresentFlag := reader.ReadFlag()
 	if aspectRatioInfoPresentFlag {
-		aspectRatioIDC, err := reader.Read(8)
-		if err != nil {
-			return nil, err
-		}
-		if aspectRatioIDC == extendedSAR {
-			vui.SampleAspectRatioWidth, err = reader.Read(16)
-			if err != nil {
-				return nil, err
-			}
-			vui.SampleAspectRatioHeight, err = reader.Read(16)
-			if err != nil {
-				return nil, err
-			}
+		aspectRatioIDC := reader.Read(8)
+		if aspectRatioIDC == ExtendedSAR {
+			vui.SampleAspectRatioWidth = reader.Read(16)
+			vui.SampleAspectRatioHeight = reader.Read(16)
 		} else {
-			vui.SampleAspectRatioWidth, vui.SampleAspectRatioHeight, err = getSAR(aspectRatioIDC)
+			vui.SampleAspectRatioWidth, vui.SampleAspectRatioHeight, err = GetSARfromIDC(aspectRatioIDC)
 			if err != nil {
-				return nil, err
+				reader.SetError(fmt.Errorf("GetSARFromIDC: %w", err))
 			}
 		}
 	}
 	if !parseVUIBeyondAspectRatio {
-		return vui, nil
+		return vui
 	}
-	vui.OverscanInfoPresentFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vui.OverscanInfoPresentFlag = reader.ReadFlag()
 	if vui.OverscanInfoPresentFlag {
-		vui.OverscanAppropriateFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
+		vui.OverscanAppropriateFlag = reader.ReadFlag()
 	}
-	vui.VideoSignalTypePresentFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vui.VideoSignalTypePresentFlag = reader.ReadFlag()
 	if vui.VideoSignalTypePresentFlag {
-		vui.VideoFormat, err = reader.Read(3)
-		if err != nil {
-			return nil, err
-		}
-		vui.VideoFullRangeFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
-		vui.ColourDescriptionFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
+		vui.VideoFormat = reader.Read(3)
+		vui.VideoFullRangeFlag = reader.ReadFlag()
+		vui.ColourDescriptionFlag = reader.ReadFlag()
 		if vui.ColourDescriptionFlag {
-			vui.ColourPrimaries, err = reader.Read(8)
-			if err != nil {
-				return nil, err
-			}
-			vui.TransferCharacteristics, err = reader.Read(8)
-			if err != nil {
-				return nil, err
-			}
-			vui.MatrixCoefficients, err = reader.Read(8)
-			if err != nil {
-				return nil, err
-			}
+			vui.ColourPrimaries = reader.Read(8)
+			vui.TransferCharacteristics = reader.Read(8)
+			vui.MatrixCoefficients = reader.Read(8)
 		}
 	}
-	vui.ChromaLocInfoPresentFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vui.ChromaLocInfoPresentFlag = reader.ReadFlag()
 	if vui.ChromaLocInfoPresentFlag {
-		vui.ChromaSampleLocTypeTopField, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		vui.ChromaSampleLocTypeBottomField, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
+		vui.ChromaSampleLocTypeTopField = reader.ReadExpGolomb()
+		vui.ChromaSampleLocTypeBottomField = reader.ReadExpGolomb()
 	}
-	vui.TimingInfoPresentFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vui.TimingInfoPresentFlag = reader.ReadFlag()
 	if vui.TimingInfoPresentFlag {
-		vui.NumUnitsInTick, err = reader.Read(32)
-		if err != nil {
-			return nil, err
-		}
-		vui.TimeScale, err = reader.Read(32)
-		if err != nil {
-			return nil, err
-		}
-		vui.FixedFrameRateFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
+		vui.NumUnitsInTick = reader.Read(32)
+		vui.TimeScale = reader.Read(32)
+		vui.FixedFrameRateFlag = reader.ReadFlag()
 	}
-	vui.NalHrdParametersPresentFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vui.NalHrdParametersPresentFlag = reader.ReadFlag()
 	if vui.NalHrdParametersPresentFlag {
-		hrdParams, err := parseHrdParameters(reader)
-		if err != nil {
-			return nil, fmt.Errorf("parse NalHrdParameters: %w", err)
-		}
-		vui.NalHrdParameters = hrdParams
+		vui.NalHrdParameters = parseHrdParameters(reader)
 	}
-	vui.VclHrdParametersPresentFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vui.VclHrdParametersPresentFlag = reader.ReadFlag()
 	if vui.VclHrdParametersPresentFlag {
-		hrdParams, err := parseHrdParameters(reader)
-		if err != nil {
-			return nil, fmt.Errorf("parse VclHrdParameters: %w", err)
-		}
-		vui.VclHrdParameters = hrdParams
+		vui.VclHrdParameters = parseHrdParameters(reader)
 	}
 	if vui.NalHrdParametersPresentFlag || vui.VclHrdParametersPresentFlag {
-		vui.LowDelayHrdFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
+		vui.LowDelayHrdFlag = reader.ReadFlag()
 	}
-	vui.PicStructPresentFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
-	vui.BitstreamRestrictionFlag, err = reader.ReadFlag()
-	if err != nil {
-		return nil, err
-	}
+	vui.PicStructPresentFlag = reader.ReadFlag()
+	vui.BitstreamRestrictionFlag = reader.ReadFlag()
 	if vui.BitstreamRestrictionFlag {
-		vui.MotionVectorsOverPicBoundariesFlag, err = reader.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
-		vui.MaxBytesPerPicDenom, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		vui.MaxBitsPerMbDenom, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		vui.Log2MaxMvLengthHorizontal, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		vui.Log2MaxMvLengthVertical, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		vui.MaxNumReorderFrames, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		vui.MaxDecFrameBuffering, err = reader.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
+		vui.MotionVectorsOverPicBoundariesFlag = reader.ReadFlag()
+		vui.MaxBytesPerPicDenom = reader.ReadExpGolomb()
+		vui.MaxBitsPerMbDenom = reader.ReadExpGolomb()
+		vui.Log2MaxMvLengthHorizontal = reader.ReadExpGolomb()
+		vui.Log2MaxMvLengthVertical = reader.ReadExpGolomb()
+		vui.MaxNumReorderFrames = reader.ReadExpGolomb()
+		vui.MaxDecFrameBuffering = reader.ReadExpGolomb()
 	}
 
-	return vui, nil
+	return vui
 }
 
-func parseHrdParameters(r *bits.EBSPReader) (*HrdParameters, error) {
+func parseHrdParameters(r *bits.AccErrEBSPReader) *HrdParameters {
 	hp := &HrdParameters{}
-	var err error
-	hp.CpbCountMinus1, err = r.ReadExpGolomb()
-	if err != nil {
-		return nil, err
-	}
+	hp.CpbCountMinus1 = r.ReadExpGolomb()
 
-	hp.BitRateScale, err = r.Read(4)
-	if err != nil {
-		return nil, err
-	}
-	hp.CpbSizeScale, err = r.Read(4)
-	if err != nil {
-		return nil, err
-	}
+	hp.BitRateScale = r.Read(4)
+	hp.CpbSizeScale = r.Read(4)
 	for schedSelIdx := uint(0); schedSelIdx <= hp.CpbCountMinus1; schedSelIdx++ {
 		ce := CpbEntry{}
-		ce.BitRateValueMinus1, err = r.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		ce.CpbSizeValueMinus1, err = r.ReadExpGolomb()
-		if err != nil {
-			return nil, err
-		}
-		ce.CbrFlag, err = r.ReadFlag()
-		if err != nil {
-			return nil, err
-		}
+		ce.BitRateValueMinus1 = r.ReadExpGolomb()
+		ce.CpbSizeValueMinus1 = r.ReadExpGolomb()
+		ce.CbrFlag = r.ReadFlag()
 		hp.CpbEntries = append(hp.CpbEntries, ce)
 	}
-	hp.InitialCpbRemovalDelayLengthMinus1, err = r.Read(5)
-	if err != nil {
-		return nil, err
-	}
-	hp.CpbRemovalDelayLengthMinus1, err = r.Read(5)
-	if err != nil {
-		return nil, err
-	}
-	hp.DpbOutpuDelayLengthMinus1, err = r.Read(5)
-	if err != nil {
-		return nil, err
-	}
-	hp.TimeOffsetLength, err = r.Read(5)
-	if err != nil {
-		return nil, err
-	}
-	return hp, err
+	hp.InitialCpbRemovalDelayLengthMinus1 = r.Read(5)
+	hp.CpbRemovalDelayLengthMinus1 = r.Read(5)
+	hp.DpbOutpuDelayLengthMinus1 = r.Read(5)
+	hp.TimeOffsetLength = r.Read(5)
+	return hp
 }
 
 // ConstraintFlags - return the four ConstraintFlag bits
@@ -598,8 +357,8 @@ func (a *SPS) ConstraintFlags() byte {
 	return byte(a.ProfileCompatibility >> 4)
 }
 
-// getSAR - get Sample Aspect Ratio
-func getSAR(index uint) (uint, uint, error) {
+// GetSARfromIDC - get Sample Aspect Ratio from IDC index
+func GetSARfromIDC(index uint) (uint, uint, error) {
 	if index < 1 || index > 16 {
 		return 0, 0, fmt.Errorf("SAR bad index %d", index)
 	}
@@ -611,16 +370,13 @@ func getSAR(index uint) (uint, uint, error) {
 	return aspectRatioTable[index-1][0], aspectRatioTable[index-1][1], nil
 }
 
-func readScalingList(reader *bits.EBSPReader, sizeOfScalingList int) (ScalingList, error) {
+func readScalingList(reader *bits.AccErrEBSPReader, sizeOfScalingList int) ScalingList {
 	scalingList := make([]int, sizeOfScalingList)
 	lastScale := 8
 	nextScale := 8
 	for j := 0; j < sizeOfScalingList; j++ {
 		if nextScale != 0 {
-			deltaScale, err := reader.ReadSignedGolomb()
-			if err != nil {
-				return nil, err
-			}
+			deltaScale := reader.ReadSignedGolomb()
 			nextScale = (lastScale + deltaScale + 256) % 256
 		}
 		if nextScale == 0 {
@@ -630,5 +386,5 @@ func readScalingList(reader *bits.EBSPReader, sizeOfScalingList int) (ScalingLis
 		}
 		lastScale = scalingList[j]
 	}
-	return scalingList, nil
+	return scalingList
 }

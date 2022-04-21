@@ -151,7 +151,7 @@ func (r *AccErrEBSPReader) IsSeeker() bool {
 	return ok
 }
 
-// MoreRbspData - false if next bit is 1 and last 1 in fullSlice
+// MoreRbspData - false if next bit is 1 and last 1 in fullSlice.
 // Underlying reader must support ReadSeeker interface to reset after check
 // Return false, nil if underlying error
 func (r *AccErrEBSPReader) MoreRbspData() (bool, error) {
@@ -239,5 +239,12 @@ func (r *AccErrEBSPReader) ReadRbspTrailingBits() error {
 		if b == 1 {
 			return fmt.Errorf("Another 1 in RbspTrailingBits")
 		}
+	}
+}
+
+// SetError - set an error if not already set.
+func (r *AccErrEBSPReader) SetError(err error) {
+	if r.err != nil {
+		r.err = err
 	}
 }
