@@ -4,11 +4,11 @@ import "encoding/binary"
 
 // FixedSliceWriter - write numbers to a fixed []byte slice
 type FixedSliceWriter struct {
+	accError error
 	buf      []byte
 	off      int
 	n        int  // current number of bits
 	v        uint // current accumulated value for bits
-	accError error
 }
 
 // NewFixedSliceWriter - create writer around slice.

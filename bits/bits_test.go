@@ -38,17 +38,17 @@ func TestReader(t *testing.T) {
 
 func TestWriter(t *testing.T) {
 	cases := []struct {
-		size   int
 		inputs []uint
 		want   []byte
+		size   int
 	}{
-		{8, []uint{255}, []byte{0xff}},
-		{4, []uint{15, 15}, []byte{0xff}},
-		{2, []uint{3, 3, 3, 3}, []byte{0xff}},
-		{1, []uint{1, 1, 1, 1, 1, 1, 1, 1}, []byte{0xff}},
+		{[]uint{255}, []byte{0xff}, 8},
+		{[]uint{15, 15}, []byte{0xff}, 4},
+		{[]uint{3, 3, 3, 3}, []byte{0xff}, 2},
+		{[]uint{1, 1, 1, 1, 1, 1, 1, 1}, []byte{0xff}, 1},
 
-		{4, []uint{15, 15, 15}, []byte{0xff, 0xf0}},
-		{2, []uint{3, 3, 3, 3, 3, 3}, []byte{0xff, 0xf0}},
+		{[]uint{15, 15, 15}, []byte{0xff, 0xf0}, 4},
+		{[]uint{3, 3, 3, 3, 3, 3}, []byte{0xff, 0xf0}, 2},
 	}
 
 	for _, tc := range cases {
@@ -77,12 +77,12 @@ func TestWriter(t *testing.T) {
 
 func TestMask(t *testing.T) {
 	cases := []struct {
-		input int
 		want  string
+		input int
 	}{
-		{8, "11111111"},
-		{4, "00001111"},
-		{2, "00000011"},
+		{"11111111", 8},
+		{"00001111", 4},
+		{"00000011", 2},
 	}
 
 	for _, tc := range cases {
