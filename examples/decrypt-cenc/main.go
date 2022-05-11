@@ -22,6 +22,8 @@ func main() {
 	outFilePath := flag.String("o", "", "Required: Output file")
 	hexKey := flag.String("k", "", "Required: key (hex)")
 
+	flag.Parse()
+
 	ifh, err := os.Open(*inFilePath)
 	if err != nil {
 		log.Fatal(err)
