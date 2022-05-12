@@ -45,7 +45,6 @@ func parseOptions() {
 }
 
 func main() {
-
 	parseOptions()
 
 	if opts.version {
@@ -54,12 +53,14 @@ func main() {
 	}
 
 	if opts.durationMS <= 0 {
+		fmt.Printf("error: duration must be larger than 0\n\n")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	var inFilePath = flag.Arg(0)
 	if inFilePath == "" {
+		fmt.Printf("error: no infile path specified\n\n")
 		flag.Usage()
 		os.Exit(1)
 	}
