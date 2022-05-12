@@ -152,7 +152,5 @@ func updateStco(b *mp4.StcoBox, offsets []uint64) {
 
 func updateCo64(b *mp4.Co64Box, offsets []uint64) {
 	b.ChunkOffset = make([]uint64, len(offsets))
-	for i := range offsets {
-		b.ChunkOffset[i] = offsets[i]
-	}
+	_ = copy(b.ChunkOffset, offsets)
 }
