@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.28.0 | Full HEVC SPS parsing. Better video sample entry generation. More AC-3/EC-3 support. Extended EBSPWriter. Bug fixes |
 | 0.27.0 | New more efficient SliceReader/SliceWriter based Box methods. Add AC-3 and Enhanced AC-3 support. Public trun flag bits and DecodeHeader. mp4ff-nallister now takes Annex byte stream. Bug fixes |
 | 0.26.1 | fix: don't move trak boxes to be before mvex |
 | 0.26.0 | New example code for decrypting segment. New tool for cropping mp4 file. SEI parsing for H.264. Interpret timestamps |
