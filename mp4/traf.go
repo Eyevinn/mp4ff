@@ -266,6 +266,8 @@ func (t *TrafBox) RemoveEncryptionBoxes() uint64 {
 		case "senc":
 			nrBytesRemoved += ch.Size()
 			t.Senc = nil
+		case "uuid":
+			nrBytesRemoved += ch.Size()
 		default:
 			remainingChildren = append(remainingChildren, ch)
 		}

@@ -10,6 +10,7 @@ import (
 const (
 	uuidTfxd = "\x6d\x1d\x9b\x05\x42\xd5\x44\xe6\x80\xe2\x14\x1d\xaf\xf7\x57\xb2"
 	uuidTfrf = "\xd4\x80\x7e\xf2\xca\x39\x46\x95\x8e\x54\x26\xcb\x9e\x46\xa7\x9f"
+	uuidPIFF = "\xa2\x39\x4f\x52\x5a\x9b\x4f\x14\xa2\x44\x6c\x42\x7c\x64\x8d\xf4"
 )
 
 // UUIDBox - Used as container for MSS boxes tfxd and tfrf
@@ -18,6 +19,7 @@ type UUIDBox struct {
 	SubType string
 	Tfxd    *TfxdData
 	Tfrf    *TfrfData
+	PIFF	PiffData
 }
 
 // TfxdData - MSS TfxdBox data after UUID part
@@ -38,6 +40,8 @@ type TfrfData struct {
 	FragmentAbsoluteTimes     []uint64
 	FragmentAbsoluteDurations []uint64
 }
+
+type PiffData []byte
 
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
 func DecodeUUIDBox(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
@@ -68,6 +72,9 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 			return nil, err
 		}
 		b.Tfrf = tfrf
+	case uuidPIFF:
+		b.SubType = "piff"
+		b.PIFF = sr.ReadBytes(int(hdr.Size) - 16 - 8)
 	default:
 		// err := fmt.Errorf("Unknown uuid=%s", b.UUID)
 		// return nil, err
@@ -89,6 +96,8 @@ func (b *UUIDBox) Size() uint64 {
 		size += b.Tfxd.size()
 	case "tfrf":
 		size += b.Tfrf.size()
+	case "piff":
+		size += b.PIFF.size()
 	}
 	return size
 }
@@ -200,6 +209,10 @@ func (t *TfrfData) encode(sw bits.SliceWriter) error {
 		}
 	}
 	return sw.AccError()
+}
+
+func (p PiffData) size() uint64 {
+	return uint64(len(p))
 }
 
 // Info - box-specific info
