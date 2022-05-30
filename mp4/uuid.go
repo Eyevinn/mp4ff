@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -69,8 +70,8 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 		}
 		b.Tfrf = tfrf
 	default:
-		// err := fmt.Errorf("Unknown uuid=%s", b.UUID)
-		// return nil, err
+		err := fmt.Errorf("unknown uuid=%q", hex.EncodeToString([]byte(b.UUID)))
+		return nil, err
 	}
 
 	return b, sr.AccError()
