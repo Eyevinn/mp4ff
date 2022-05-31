@@ -36,8 +36,8 @@ func TestUUIDVariants(t *testing.T) {
 			t.Error(err)
 		}
 		uBox := uuidRead.(*UUIDBox)
-		if uBox.SubType != ti.expectedSubType {
-			t.Errorf("got subtype %s instead of %s", uBox.SubType, ti.expectedSubType)
+		if uBox.SubType() != ti.expectedSubType {
+			t.Errorf("got subtype %s instead of %s", uBox.SubType(), ti.expectedSubType)
 		}
 
 		outbuf := &bytes.Buffer{}
@@ -54,6 +54,36 @@ func TestUUIDVariants(t *testing.T) {
 				fmt.Printf("%3d %02x %02x\n", i, inRawBox[i], outRawBox[i])
 			}
 			t.Errorf("%s: Non-matching in and out binaries", ti.expectedSubType)
+		}
+	}
+}
+
+func TestSetUUID(t *testing.T) {
+	testCases := []struct {
+		uuidStr    string
+		expected   uuid
+		shouldFail bool
+	}{
+		{
+			uuidStr:    "6d1d9b05-42d5-44e6-80e2-141daff757b2",
+			shouldFail: false,
+		},
+		{
+			uuidStr:    "6d1d9b05-42d5-44e6-80e2-141daff757",
+			shouldFail: true,
+		},
+	}
+	for i, tc := range testCases {
+		u := UUIDBox{}
+		err := u.SetUUID(tc.uuidStr)
+		if tc.shouldFail {
+			if err == nil {
+				t.Errorf("case %d did not fail as expected", i)
+			}
+			continue
+		}
+		if u.UUID() != tc.uuidStr {
+			t.Errorf("got %s instead of %s", u.UUID(), tc.uuidStr)
 		}
 	}
 }
