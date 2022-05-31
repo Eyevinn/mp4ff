@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/hex"
-	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -14,11 +13,13 @@ const (
 )
 
 // UUIDBox - Used as container for MSS boxes tfxd and tfrf
+// If not known UUID, the data is stored as UnknownData
 type UUIDBox struct {
-	UUID    string // 16 bytes
-	SubType string
-	Tfxd    *TfxdData
-	Tfrf    *TfrfData
+	UUID           string // 16 bytes
+	SubType        string
+	Tfxd           *TfxdData
+	Tfrf           *TfrfData
+	UnknownPayload []byte
 }
 
 // TfxdData - MSS TfxdBox data after UUID part
@@ -70,8 +71,8 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 		}
 		b.Tfrf = tfrf
 	default:
-		err := fmt.Errorf("unknown uuid=%q", hex.EncodeToString([]byte(b.UUID)))
-		return nil, err
+		b.SubType = "unknown"
+		b.UnknownPayload = sr.ReadBytes(int(hdr.Size) - 8 - 16)
 	}
 
 	return b, sr.AccError()
@@ -90,6 +91,8 @@ func (b *UUIDBox) Size() uint64 {
 		size += b.Tfxd.size()
 	case "tfrf":
 		size += b.Tfrf.size()
+	default:
+		size += uint64(len(b.UnknownPayload))
 	}
 	return size
 }
@@ -112,12 +115,18 @@ func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
 		return err
 	}
 	sw.WriteString(b.UUID, false)
-	if b.SubType == "tfxd" {
+	switch b.SubType {
+	case "tfxd":
 		err = b.Tfxd.encode(sw)
-	} else if b.SubType == "tfrf" {
+	case "tfrf":
 		err = b.Tfrf.encode(sw)
+	default:
+		sw.WriteBytes(b.UnknownPayload)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return sw.AccError()
 }
 
 func decodeTfxd(s bits.SliceReader) (*TfxdData, error) {
@@ -217,6 +226,8 @@ func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			for i := 0; i < int(b.Tfrf.FragmentCount); i++ {
 				bd.write(" - [%d]: absTime=%d absDur=%d", i+1, b.Tfrf.FragmentAbsoluteTimes[i], b.Tfrf.FragmentAbsoluteDurations[i])
 			}
+		default:
+			bd.write(" - payload: %s", hex.EncodeToString(b.UnknownPayload))
 		}
 	}
 	return bd.err
