@@ -1,23 +1,81 @@
 package mp4
 
 import (
+	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/edgeware/mp4ff/bits"
 )
 
 const (
-	uuidTfxd = "\x6d\x1d\x9b\x05\x42\xd5\x44\xe6\x80\xe2\x14\x1d\xaf\xf7\x57\xb2"
-	uuidTfrf = "\xd4\x80\x7e\xf2\xca\x39\x46\x95\x8e\x54\x26\xcb\x9e\x46\xa7\x9f"
+	// UUIDTfxd - MSS tfxd UUID
+	UUIDTfxd = "6d1d9b05-42d5-44e6-80e2-141daff757b2"
+
+	// UUIDTfrf - MSS tfrf UUID
+	UUIDTfrf = "d4807ef2-ca39-4695-8e54-26cb9e46a79f"
+)
+
+//uuid - compact representation of UUID
+type uuid [16]byte
+
+// String - UUID-formatted string
+func (u uuid) String() string {
+	hexStr := hex.EncodeToString(u[:])
+	return fmt.Sprintf("%s-%s-%s-%s-%s", hexStr[:8], hexStr[8:12], hexStr[12:16], hexStr[16:20], hexStr[20:])
+}
+
+// Equal - compare with other uuid
+func (u uuid) Equal(a uuid) bool {
+	return bytes.Equal(u[:], a[:])
+}
+
+// createUUID - create uuid from string
+func createUUID(u string) (uuid, error) {
+	var a uuid
+	stripped := strings.ReplaceAll(u, "-", "")
+	b, err := hex.DecodeString(stripped)
+	if err != nil || len(b) != 16 {
+		return a, fmt.Errorf("bad uuid string: %s", u)
+	}
+	_ = copy(a[:], b)
+	return a, nil
+}
+
+// mustCreateUUID - create uuid from string. Panic for bad string
+func mustCreateUUID(u string) uuid {
+	b, err := createUUID(u)
+	if err != nil {
+		panic(err.Error())
+	}
+	return b
+}
+
+var (
+	uuidTfxd uuid = mustCreateUUID(UUIDTfxd)
+	uuidTfrf uuid = mustCreateUUID(UUIDTfrf)
 )
 
 // UUIDBox - Used as container for MSS boxes tfxd and tfrf
+// For unknown UUID, the data after the UUID is stored as UnknownPayload
 type UUIDBox struct {
-	UUID    string // 16 bytes
-	SubType string
-	Tfxd    *TfxdData
-	Tfrf    *TfrfData
+	uuid           uuid
+	Tfxd           *TfxdData
+	Tfrf           *TfrfData
+	UnknownPayload []byte
+}
+
+// UUID - Return UUID as formatted string
+func (u *UUIDBox) UUID() string {
+	return u.uuid.String()
+}
+
+// UUID - Set UUID from string
+func (u *UUIDBox) SetUUID(uuid string) (err error) {
+	u.uuid, err = createUUID(uuid)
+	return err
 }
 
 // TfxdData - MSS TfxdBox data after UUID part
@@ -52,25 +110,22 @@ func DecodeUUIDBox(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 // DecodeUUIDBoxSR - decode a UUID box including tfxd or tfrf
 func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := &UUIDBox{}
-	b.UUID = string(sr.ReadBytes(16))
-	switch b.UUID {
-	case uuidTfxd:
-		b.SubType = "tfxd"
+	copy(b.uuid[:], sr.ReadBytes(16))
+	switch b.UUID() {
+	case UUIDTfxd:
 		tfxd, err := decodeTfxd(sr)
 		if err != nil {
 			return nil, err
 		}
 		b.Tfxd = tfxd
-	case uuidTfrf:
-		b.SubType = "tfrf"
+	case UUIDTfrf:
 		tfrf, err := decodeTfrf(sr)
 		if err != nil {
 			return nil, err
 		}
 		b.Tfrf = tfrf
 	default:
-		// err := fmt.Errorf("Unknown uuid=%s", b.UUID)
-		// return nil, err
+		b.UnknownPayload = sr.ReadBytes(int(hdr.Size) - 8 - 16)
 	}
 
 	return b, sr.AccError()
@@ -84,11 +139,13 @@ func (b *UUIDBox) Type() string {
 // Size - return calculated size including tfxd/tfrf
 func (b *UUIDBox) Size() uint64 {
 	var size uint64 = 8 + 16
-	switch b.SubType {
-	case "tfxd":
+	switch u := b.uuid; {
+	case u.Equal(uuidTfxd):
 		size += b.Tfxd.size()
-	case "tfrf":
+	case u.Equal(uuidTfrf):
 		size += b.Tfrf.size()
+	default:
+		size += uint64(len(b.UnknownPayload))
 	}
 	return size
 }
@@ -110,13 +167,31 @@ func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
-	sw.WriteString(b.UUID, false)
-	if b.SubType == "tfxd" {
+	sw.WriteBytes(b.uuid[:])
+	switch u := b.uuid; {
+	case u.Equal(uuidTfxd):
 		err = b.Tfxd.encode(sw)
-	} else if b.SubType == "tfrf" {
+	case u.Equal(uuidTfrf):
 		err = b.Tfrf.encode(sw)
+	default:
+		sw.WriteBytes(b.UnknownPayload)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return sw.AccError()
+}
+
+// SubType - interpret the UUID as a known sub type or unknown
+func (b *UUIDBox) SubType() string {
+	switch u := b.uuid; {
+	case u.Equal(uuidTfxd):
+		return "tfxd"
+	case u.Equal(uuidTfrf):
+		return "tfrf"
+	default:
+		return "unknown"
+	}
 }
 
 func decodeTfxd(s bits.SliceReader) (*TfxdData, error) {
@@ -205,17 +280,19 @@ func (t *TfrfData) encode(sw bits.SliceWriter) error {
 // Info - box-specific info
 func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
-	bd.write(" - uuid: %s", hex.EncodeToString([]byte(b.UUID)))
-	bd.write(" - subType: %s", b.SubType)
+	bd.write(" - uuid: %s", b.uuid)
+	bd.write(" - subType: %s", b.SubType())
 	level := getInfoLevel(b, specificBoxLevels)
 	if level > 0 {
-		switch b.SubType {
+		switch b.SubType() {
 		case "tfxd":
 			bd.write(" - absTime=%d absDur=%d", b.Tfxd.FragmentAbsoluteTime, b.Tfxd.FragmentAbsoluteDuration)
 		case "tfrf":
 			for i := 0; i < int(b.Tfrf.FragmentCount); i++ {
 				bd.write(" - [%d]: absTime=%d absDur=%d", i+1, b.Tfrf.FragmentAbsoluteTimes[i], b.Tfrf.FragmentAbsoluteDurations[i])
 			}
+		default:
+			bd.write(" - payload: %s", hex.EncodeToString(b.UnknownPayload))
 		}
 	}
 	return bd.err
