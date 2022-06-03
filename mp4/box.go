@@ -146,7 +146,7 @@ func (b BoxHeader) payloadLen() int {
 	return int(b.Size) - b.Hdrlen
 }
 
-// DecodeHeader decodes a box header (size + box type + possiible largeSize)
+// DecodeHeader decodes a box header (size + box type + possible largeSize)
 func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	buf := make([]byte, boxHeaderSize)
 	_, err := io.ReadFull(r, buf)
