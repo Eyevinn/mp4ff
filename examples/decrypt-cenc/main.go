@@ -99,6 +99,9 @@ func decryptMP4withCenc(r io.Reader, key []byte, w io.Writer) error {
 				if err != nil {
 					return err
 				}
+				if sinf.Schm.SchemeType != "cenc" {
+					return fmt.Errorf("enryption scheme is %s and not cenc", sinf.Schm.SchemeType)
+				}
 				tracks = append(tracks, trackInfo{
 					trackID: trackID,
 					sinf:    sinf,
@@ -108,6 +111,9 @@ func decryptMP4withCenc(r io.Reader, key []byte, w io.Writer) error {
 				sinf, err := enca.RemoveEncryption()
 				if err != nil {
 					return err
+				}
+				if sinf.Schm.SchemeType != "cenc" {
+					return fmt.Errorf("enryption scheme is %s and not cenc", sinf.Schm.SchemeType)
 				}
 				tracks = append(tracks, trackInfo{
 					trackID: trackID,
