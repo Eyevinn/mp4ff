@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-// DecryptBytesCTR - decrypt or encrypt sample using CTR mode, provided key, iv and sumsamplePattern
+// DecryptBytesCTR - decrypt or encrypt sample using CTR mode
 func DecryptBytesCTR(data []byte, key []byte, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -27,7 +27,7 @@ func DecryptBytesCTR(data []byte, key []byte, iv []byte) ([]byte, error) {
 	return outBuf.Bytes(), nil
 }
 
-// DecryptSampleCenc - decrypt cenc-mode encrypted sample
+// DecryptSampleCenc - decrypt cenc-schema encrypted sample provided key, iv, and subSamplePatterns
 func DecryptSampleCenc(sample []byte, key []byte, iv []byte, subSamplePatterns []SubSamplePattern) ([]byte, error) {
 	decSample := make([]byte, 0, len(sample))
 	if len(subSamplePatterns) != 0 {
