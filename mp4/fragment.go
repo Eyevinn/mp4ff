@@ -320,9 +320,23 @@ func (f *Fragment) GetChildren() []Box {
 	return f.Children
 }
 
-// SetTrunDataOffsets - set DataOffset in trun depending on size and writeOrder
+// SetTrunDataOffsets - if writeOrder available, sort and set dataOffset in truns
 func (f *Fragment) SetTrunDataOffsets() {
-	var truns []*TrunBox
+	nrTruns := 0
+	writeOrderSet := false
+	for _, traf := range f.Moof.Trafs {
+		for _, trun := range traf.Truns {
+			nrTruns++
+			if trun.writeOrderNr != 0 {
+				writeOrderSet = true
+			}
+		}
+	}
+	if !writeOrderSet && nrTruns > 1 {
+		return
+	}
+
+	truns := make([]*TrunBox, 0, nrTruns)
 	for _, traf := range f.Moof.Trafs {
 		truns = append(truns, traf.Truns...)
 	}
