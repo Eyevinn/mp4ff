@@ -27,6 +27,12 @@ func TestDecryptFiles(t *testing.T) {
 			expectedOutFile: "../../mp4/testdata/cbcsdec.mp4",
 			hexKey:          "22bdb0063805260307ee5045c0f3835a",
 		},
+		{
+			name:            "cbcs audio",
+			inFile:          "../../mp4/testdata/cbcs_audio.mp4",
+			expectedOutFile: "../../mp4/testdata/cbcs_audiodec.mp4",
+			hexKey:          "5ffd93861fa776e96cccd934898fc1c8",
+		},
 	}
 
 	for _, tc := range testCases {

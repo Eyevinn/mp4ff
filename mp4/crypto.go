@@ -69,10 +69,12 @@ func DecryptSampleCbcs(sample []byte, key []byte, iv []byte, subSamplePatterns [
 			ss := subSamplePatterns[j]
 			nrClear := uint32(ss.BytesOfClearData)
 			pos += nrClear
-			err := cbcsDecrypt(sample[pos:pos+ss.BytesOfProtectedData], key,
-				iv, nrInCryptBlock, nrInSkipBlock)
-			if err != nil {
-				return err
+			if ss.BytesOfProtectedData > 0 {
+				err := cbcsDecrypt(sample[pos:pos+ss.BytesOfProtectedData], key,
+					iv, nrInCryptBlock, nrInSkipBlock)
+				if err != nil {
+					return err
+				}
 			}
 			pos += ss.BytesOfProtectedData
 		}
@@ -85,7 +87,7 @@ func DecryptSampleCbcs(sample []byte, key []byte, iv []byte, subSamplePatterns [
 	return nil
 }
 
-// cbcDecrypt - in place striped CBC decryption
+// cbcDecrypt - in place striped or full CBC decryption. Full if nrInSkipBlock == 0
 func cbcsDecrypt(data []byte, key []byte, iv []byte, nrInCryptBlock, nrInSkipBlock int) error {
 	pos := 0
 	size := len(data) // This is the bytes that we should stripe decrypt
@@ -94,6 +96,11 @@ func cbcsDecrypt(data []byte, key []byte, iv []byte, nrInCryptBlock, nrInSkipBlo
 		return err
 	}
 	dec := cipher.NewCBCDecrypter(aesCbcCrypto, iv)
+	if nrInSkipBlock == 0 {
+		nrToDecrypt := size & ^0xf // Drops 4 last bits -> multiple of 16
+		dec.CryptBlocks(data[:nrToDecrypt], data[:nrToDecrypt])
+		return nil
+	}
 	for {
 		if size-pos < nrInCryptBlock { // Leave the rest
 			break
