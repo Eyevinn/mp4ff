@@ -55,15 +55,17 @@ func TestDecryptFiles(t *testing.T) {
 
 func BenchmarkDecodeCenc(b *testing.B) {
 	inFile := "../../mp4/testdata/prog_8s_enc_dashinit.mp4"
-	hexString := "63cb5f7184dd4b689a5c5ff11ee6a328"
+	hexKey := "63cb5f7184dd4b689a5c5ff11ee6a328"
 	raw, err := ioutil.ReadFile(inFile)
 	if err != nil {
 		b.Error(err)
 	}
+	outData := make([]byte, 0, len(raw))
+	outBuf := bytes.NewBuffer(outData)
 	for i := 0; i < b.N; i++ {
 		inBuf := bytes.NewBuffer(raw)
-		outBuf := bytes.Buffer{}
-		err = start(inBuf, &outBuf, hexString)
+		outBuf.Reset()
+		err = start(inBuf, outBuf, hexKey)
 		if err != nil {
 			b.Error(err)
 		}
