@@ -71,9 +71,13 @@ func (s *Segmenter) MakeInitSegments() ([]*mp4.InitSegment, error) {
 	var inits []*mp4.InitSegment
 	for _, tr := range s.tracks {
 		init := mp4.CreateEmptyInit()
+		init.Moov.Mvhd.Timescale = s.inFile.Moov.Mvhd.Timescale
+		inMovieDuration := s.inFile.Moov.Mvhd.Duration
+		init.Moov.Mvex.AddChild(&mp4.MehdBox{FragmentDuration: int64(inMovieDuration)})
 		init.AddEmptyTrack(tr.timeScale, tr.trackType, tr.lang)
 		outTrak := init.Moov.Trak
 		tr.trackID = outTrak.Tkhd.TrackID
+
 		inStsd := tr.inTrak.Mdia.Minf.Stbl.Stsd
 		outStsd := outTrak.Mdia.Minf.Stbl.Stsd
 		switch tr.trackType {
@@ -102,6 +106,8 @@ func (s *Segmenter) MakeInitSegments() ([]*mp4.InitSegment, error) {
 // MakeMuxedInitSegment - initialized and return one init segments for all the tracks
 func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 	init := mp4.CreateEmptyInit()
+	inMovieDuration := s.inFile.Moov.Mvhd.Duration
+	init.Moov.Mvex.AddChild(&mp4.MehdBox{FragmentDuration: int64(inMovieDuration)})
 	for _, tr := range s.tracks {
 		init.AddEmptyTrack(tr.timeScale, tr.trackType, tr.lang)
 		outTrak := init.Moov.Traks[len(init.Moov.Traks)-1]
