@@ -144,11 +144,11 @@ func (m *MoofBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 }
 
 // RemovePsshs - remove and return all psshs children boxes
-func (m *MoofBox) RemovePsshs() []*PsshBox {
+func (m *MoofBox) RemovePsshs() (psshs []*PsshBox, totalSize uint64) {
 	if m.Pssh == nil {
-		return nil
+		return nil, 0
 	}
-	psshs := m.Psshs
+	psshs = m.Psshs
 	newChildren := make([]Box, 0, len(m.Children)-len(m.Psshs))
 	for i := range m.Children {
 		if m.Children[i].Type() != "pssh" {
@@ -159,5 +159,9 @@ func (m *MoofBox) RemovePsshs() []*PsshBox {
 	m.Pssh = nil
 	m.Psshs = nil
 
-	return psshs
+	for _, pssh := range psshs {
+		totalSize += pssh.Size()
+	}
+
+	return psshs, totalSize
 }

@@ -307,7 +307,7 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	level := getInfoLevel(s, specificBoxLevels)
 	if level > 0 {
 		for i := 0; i < int(s.SampleCount); i++ {
-			line := fmt.Sprintf(" - sample[%d]: ", i+1)
+			line := fmt.Sprintf(" - sample[%d]:", i+1)
 			if perSampleIVSize > 0 {
 				line += fmt.Sprintf(" iv=%s", hex.EncodeToString(s.IVs[i]))
 			}
