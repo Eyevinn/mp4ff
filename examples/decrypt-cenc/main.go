@@ -264,11 +264,10 @@ func decryptSamplesInPlace(schemeType string, samples []mp4.FullSample, key []by
 		}
 		switch schemeType {
 		case "cenc":
-			decryptedSample, err := mp4.DecryptSampleCenc(encSample, key, iv, subSamplePatterns)
+			err := mp4.DecryptSampleCenc(encSample, key, iv, subSamplePatterns)
 			if err != nil {
 				return err
 			}
-			_ = copy(samples[i].Data, decryptedSample)
 		case "cbcs":
 			err := mp4.DecryptSampleCbcs(encSample, key, iv, subSamplePatterns, tenc)
 			if err != nil {
