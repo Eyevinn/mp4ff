@@ -55,19 +55,19 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry B
 
 // AddChild - add a child box (avcC normally, but clap and pasp could be part of visual entry)
 func (b *VisualSampleEntryBox) AddChild(child Box) {
-	switch child.Type() {
-	case "avcC":
-		b.AvcC = child.(*AvcCBox)
-	case "hvcC":
-		b.HvcC = child.(*HvcCBox)
-	case "btrt":
-		b.Btrt = child.(*BtrtBox)
-	case "clap":
-		b.Clap = child.(*ClapBox)
-	case "pasp":
-		b.Pasp = child.(*PaspBox)
-	case "sinf":
-		b.Sinf = child.(*SinfBox)
+	switch box := child.(type) {
+	case *AvcCBox:
+		b.AvcC = box
+	case *HvcCBox:
+		b.HvcC = box
+	case *BtrtBox:
+		b.Btrt = box
+	case *ClapBox:
+		b.Clap = box
+	case *PaspBox:
+		b.Pasp = box
+	case *SinfBox:
+		b.Sinf = box
 	}
 
 	b.Children = append(b.Children, child)

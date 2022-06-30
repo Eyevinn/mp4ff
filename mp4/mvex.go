@@ -24,18 +24,17 @@ func NewMvexBox() *MvexBox {
 }
 
 // AddChild - Add a child box
-func (m *MvexBox) AddChild(box Box) {
-
-	switch box.Type() {
-	case "mehd":
-		m.Mehd = box.(*MehdBox)
-	case "trex":
+func (m *MvexBox) AddChild(child Box) {
+	switch box := child.(type) {
+	case *MehdBox:
+		m.Mehd = box
+	case *TrexBox:
 		if m.Trex == nil {
-			m.Trex = box.(*TrexBox)
+			m.Trex = box
 		}
-		m.Trexs = append(m.Trexs, box.(*TrexBox))
+		m.Trexs = append(m.Trexs, box)
 	}
-	m.Children = append(m.Children, box)
+	m.Children = append(m.Children, child)
 }
 
 // DecodeMvex - box-specific decode

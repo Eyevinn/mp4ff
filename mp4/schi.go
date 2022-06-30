@@ -13,12 +13,12 @@ type SchiBox struct {
 }
 
 // AddChild - Add a child box
-func (b *SchiBox) AddChild(box Box) {
-	switch box.Type() {
-	case "tenc":
-		b.Tenc = box.(*TencBox)
+func (b *SchiBox) AddChild(child Box) {
+	switch box := child.(type) {
+	case *TencBox:
+		b.Tenc = box
 	}
-	b.Children = append(b.Children, box)
+	b.Children = append(b.Children, child)
 }
 
 // DecodeSchi - box-specific decode

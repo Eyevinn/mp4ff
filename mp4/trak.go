@@ -28,16 +28,16 @@ func NewTrakBox() *TrakBox {
 }
 
 // AddChild - Add a child box
-func (t *TrakBox) AddChild(box Box) {
-	switch box.Type() {
-	case "tkhd":
-		t.Tkhd = box.(*TkhdBox)
-	case "mdia":
-		t.Mdia = box.(*MdiaBox)
-	case "edts":
-		t.Edts = box.(*EdtsBox)
+func (t *TrakBox) AddChild(child Box) {
+	switch box := child.(type) {
+	case *TkhdBox:
+		t.Tkhd = box
+	case *MdiaBox:
+		t.Mdia = box
+	case *EdtsBox:
+		t.Edts = box
 	}
-	t.Children = append(t.Children, box)
+	t.Children = append(t.Children, child)
 }
 
 // DecodeTrak - box-specific decode

@@ -25,21 +25,20 @@ func NewMinfBox() *MinfBox {
 }
 
 // AddChild - Add a child box
-func (m *MinfBox) AddChild(box Box) {
-
-	switch box.Type() {
-	case "vmhd":
-		m.Vmhd = box.(*VmhdBox)
-	case "smhd":
-		m.Smhd = box.(*SmhdBox)
-	case "sthd":
-		m.Sthd = box.(*SthdBox)
-	case "dinf":
-		m.Dinf = box.(*DinfBox)
-	case "stbl":
-		m.Stbl = box.(*StblBox)
+func (m *MinfBox) AddChild(child Box) {
+	switch box := child.(type) {
+	case *VmhdBox:
+		m.Vmhd = box
+	case *SmhdBox:
+		m.Smhd = box
+	case *SthdBox:
+		m.Sthd = box
+	case *DinfBox:
+		m.Dinf = box
+	case *StblBox:
+		m.Stbl = box
 	}
-	m.Children = append(m.Children, box)
+	m.Children = append(m.Children, child)
 }
 
 // DecodeMinf - box-specific decode

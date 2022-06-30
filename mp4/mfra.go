@@ -52,14 +52,14 @@ func DecodeMfraSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 
 // AddChild - add child box
 func (m *MfraBox) AddChild(child Box) error {
-	switch child.Type() {
-	case "tfra":
+	switch box := child.(type) {
+	case *TfraBox:
 		if m.Tfra == nil {
-			m.Tfra = child.(*TfraBox)
+			m.Tfra = box
 		}
-		m.Tfras = append(m.Tfras, child.(*TfraBox))
-	case "mfro":
-		m.Mfro = child.(*MfroBox)
+		m.Tfras = append(m.Tfras, box)
+	case *MfroBox:
+		m.Mfro = box
 	}
 	m.Children = append(m.Children, child)
 	return nil

@@ -39,45 +39,45 @@ func NewStblBox() *StblBox {
 }
 
 // AddChild - Add a child box
-func (s *StblBox) AddChild(box Box) {
+func (s *StblBox) AddChild(child Box) {
 	// Same order as in Table 1 in ISO/IEC 14496-12 Ed.6 2020
-	switch box.Type() {
-	case "stsd":
-		s.Stsd = box.(*StsdBox)
-	case "stts":
-		s.Stts = box.(*SttsBox)
-	case "ctts":
-		s.Ctts = box.(*CttsBox)
-	case "stsc":
-		s.Stsc = box.(*StscBox)
-	case "stsz":
-		s.Stsz = box.(*StszBox)
-	case "stss":
-		s.Stss = box.(*StssBox)
-	case "stco":
-		s.Stco = box.(*StcoBox)
-	case "co64":
-		s.Co64 = box.(*Co64Box)
-	case "sdtp":
-		s.Sdtp = box.(*SdtpBox)
-	case "sbgp":
+	switch box := child.(type) {
+	case *StsdBox:
+		s.Stsd = box
+	case *SttsBox:
+		s.Stts = box
+	case *CttsBox:
+		s.Ctts = box
+	case *StscBox:
+		s.Stsc = box
+	case *StszBox:
+		s.Stsz = box
+	case *StssBox:
+		s.Stss = box
+	case *StcoBox:
+		s.Stco = box
+	case *Co64Box:
+		s.Co64 = box
+	case *SdtpBox:
+		s.Sdtp = box
+	case *SbgpBox:
 		if s.Sbgp == nil {
-			s.Sbgp = box.(*SbgpBox)
+			s.Sbgp = box
 		}
-		s.Sbgps = append(s.Sbgps, box.(*SbgpBox))
-	case "sgpd":
+		s.Sbgps = append(s.Sbgps, box)
+	case *SgpdBox:
 		if s.Sgpd == nil {
-			s.Sgpd = box.(*SgpdBox)
+			s.Sgpd = box
 		}
-		s.Sgpds = append(s.Sgpds, box.(*SgpdBox))
-	case "subs":
-		s.Subs = box.(*SubsBox)
-	case "saiz":
-		s.Saiz = box.(*SaizBox)
-	case "saio":
-		s.Saio = box.(*SaioBox)
+		s.Sgpds = append(s.Sgpds, box)
+	case *SubsBox:
+		s.Subs = box
+	case *SaizBox:
+		s.Saiz = box
+	case *SaioBox:
+		s.Saio = box
 	}
-	s.Children = append(s.Children, box)
+	s.Children = append(s.Children, child)
 }
 
 // DecodeStbl - box-specific decode

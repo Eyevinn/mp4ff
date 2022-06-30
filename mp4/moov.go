@@ -26,18 +26,17 @@ func NewMoovBox() *MoovBox {
 }
 
 // AddChild - Add a child box
-func (m *MoovBox) AddChild(box Box) {
-	switch box.Type() {
-	case "mvhd":
-		m.Mvhd = box.(*MvhdBox)
-	case "trak":
-		trak := box.(*TrakBox)
+func (m *MoovBox) AddChild(child Box) {
+	switch box := child.(type) {
+	case *MvhdBox:
+		m.Mvhd = box
+	case *TrakBox:
 		if m.Trak == nil {
-			m.Trak = trak
+			m.Trak = box
 		}
-		m.Traks = append(m.Traks, trak)
+		m.Traks = append(m.Traks, box)
 		// Possibley re-order to keep traks together on same
-		// side of mvex or similar. Put this trak after last previous trak
+		// side of mvex or similar. Put this trak box after last previous trak
 		lastTrakIdx := 0
 		for i, child := range m.Children {
 			if child.Type() == "trak" {
@@ -46,19 +45,18 @@ func (m *MoovBox) AddChild(box Box) {
 		}
 		if lastTrakIdx != 0 && lastTrakIdx != len(m.Children)-1 { // last one in middle
 			m.Children = append(m.Children[:lastTrakIdx+2], m.Children[lastTrakIdx+1:]...)
-			m.Children[lastTrakIdx+1] = trak
+			m.Children[lastTrakIdx+1] = box
 			return
 		}
-	case "mvex":
-		m.Mvex = box.(*MvexBox)
-	case "pssh":
-		pssh := box.(*PsshBox)
+	case *MvexBox:
+		m.Mvex = box
+	case *PsshBox:
 		if m.Pssh == nil {
-			m.Pssh = pssh
+			m.Pssh = box
 		}
-		m.Psshs = append(m.Psshs, pssh)
+		m.Psshs = append(m.Psshs, box)
 	}
-	m.Children = append(m.Children, box)
+	m.Children = append(m.Children, child)
 }
 
 // DecodeMoov - box-specific decode
@@ -149,11 +147,11 @@ func (m *MoovBox) GetSinf(trackID uint32) *SinfBox {
 		if trak.Tkhd.TrackID == trackID {
 			stsd := trak.Mdia.Minf.Stbl.Stsd
 			sd := stsd.Children[0] // Get first (and only)
-			if visual, ok := sd.(*VisualSampleEntryBox); ok {
-				return visual.Sinf
-			}
-			if audio, ok := sd.(*AudioSampleEntryBox); ok {
-				return audio.Sinf
+			switch box := sd.(type) {
+			case *VisualSampleEntryBox:
+				return box.Sinf
+			case *AudioSampleEntryBox:
+				return box.Sinf
 			}
 		}
 	}
