@@ -254,8 +254,8 @@ func printAVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSe
 			}
 		}
 		if nrRaw > 0 {
-			msg += fmt.Sprintf(" %s %s(%dB)\n", naluType, imgType, len(nalu))
-			msg += hex.EncodeToString(getStart(nalu, nrRaw)) + "\n"
+			msg += fmt.Sprintf("\n %s %s(%dB)", naluType, imgType, len(nalu))
+			msg += fmt.Sprintf(" raw: %s", bytesToStringN(nalu, nrRaw))
 		} else {
 			msg += fmt.Sprintf(" %s %s(%dB)", naluType, imgType, len(nalu))
 		}
@@ -286,10 +286,9 @@ func printHEVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterS
 			msg += ","
 		}
 		naluType := hevc.GetNaluType(nalu[0])
-		msg += fmt.Sprintf(" %s (%dB)", naluType, len(nalu))
 		if nrRaw > 0 {
-			msg += fmt.Sprintf(" %s (%dB)\n", naluType, len(nalu))
-			msg += hex.EncodeToString(getStart(nalu, nrRaw)) + "\n"
+			msg += fmt.Sprintf("\n %s (%dB)", naluType, len(nalu))
+			msg += fmt.Sprintf(" raw: %s", bytesToStringN(nalu, nrRaw))
 		} else {
 			msg += fmt.Sprintf(" %s (%dB)", naluType, len(nalu))
 		}
@@ -352,9 +351,9 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 	}
 }
 
-func getStart(data []byte, maxNrBytes int) []byte {
+func bytesToStringN(data []byte, maxNrBytes int) string {
 	if len(data) > maxNrBytes {
-		return data[:maxNrBytes]
+		return hex.EncodeToString(data[:maxNrBytes]) + "..."
 	}
-	return data
+	return hex.EncodeToString(data)
 }
