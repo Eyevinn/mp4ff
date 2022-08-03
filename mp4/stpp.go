@@ -1,8 +1,6 @@
 package mp4
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"io"
 
@@ -51,48 +49,9 @@ func DecodeStpp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &StppBox{}
 	sr := bits.NewFixedSliceReader(data)
+	return DecodeStppSR(hdr, startPos, sr)
 
-	// 14496-12 8.5.2.2 Sample entry (8 bytes)
-	sr.SkipBytes(6) // Skip 6 reserved bytes
-	b.DataReferenceIndex = sr.ReadUint16()
-
-	b.Namespace = sr.ReadZeroTerminatedString(hdr.payloadLen())
-
-	if sr.NrRemainingBytes() > 0 {
-		b.SchemaLocation = sr.ReadZeroTerminatedString(hdr.payloadLen())
-	}
-
-	if sr.NrRemainingBytes() > 0 {
-		b.AuxiliaryMimeTypes = sr.ReadZeroTerminatedString(hdr.payloadLen())
-	}
-	if err := sr.AccError(); err != nil {
-		return nil, fmt.Errorf("DecodeStpp: %w", err)
-	}
-
-	pos := startPos + uint64(boxHeaderSize+sr.GetPos())
-	remaining := sr.RemainingBytes()
-	restReader := bytes.NewReader(remaining)
-
-	for {
-		box, err := DecodeBox(pos, restReader)
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-		if box != nil {
-			b.AddChild(box)
-			pos += box.Size()
-		}
-		if pos == startPos+hdr.Size {
-			break
-		} else if pos > startPos+hdr.Size {
-			return nil, errors.New("Bad size in stpp")
-		}
-	}
-	return b, nil
 }
 
 // DecodeStppSR - Decode XMLSubtitleSampleEntry (stpp)
