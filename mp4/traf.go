@@ -110,30 +110,30 @@ func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 }
 
 // AddChild - add child box
-func (t *TrafBox) AddChild(b Box) error {
-	switch b.Type() {
-	case "tfhd":
-		t.Tfhd = b.(*TfhdBox)
-	case "tfdt":
-		t.Tfdt = b.(*TfdtBox)
-	case "saiz":
-		t.Saiz = b.(*SaizBox)
-	case "saio":
-		t.Saio = b.(*SaioBox)
-	case "sbgp":
-		t.Sbgp = b.(*SbgpBox)
-	case "sgpd":
-		t.Sgpd = b.(*SgpdBox)
-	case "senc":
-		t.Senc = b.(*SencBox)
-	case "trun":
+func (t *TrafBox) AddChild(child Box) error {
+	switch box := child.(type) {
+	case *TfhdBox:
+		t.Tfhd = box
+	case *TfdtBox:
+		t.Tfdt = box
+	case *SaizBox:
+		t.Saiz = box
+	case *SaioBox:
+		t.Saio = box
+	case *SbgpBox:
+		t.Sbgp = box
+	case *SgpdBox:
+		t.Sgpd = box
+	case *SencBox:
+		t.Senc = box
+	case *TrunBox:
 		if t.Trun == nil {
-			t.Trun = b.(*TrunBox)
+			t.Trun = box
 		}
-		t.Truns = append(t.Truns, b.(*TrunBox))
+		t.Truns = append(t.Truns, box)
 	default:
 	}
-	t.Children = append(t.Children, b)
+	t.Children = append(t.Children, child)
 	return nil
 }
 

@@ -15,16 +15,16 @@ type SinfBox struct {
 }
 
 // AddChild - Add a child box
-func (b *SinfBox) AddChild(box Box) {
-	switch box.Type() {
-	case "frma":
-		b.Frma = box.(*FrmaBox)
-	case "schm":
-		b.Schm = box.(*SchmBox)
-	case "schi":
-		b.Schi = box.(*SchiBox)
+func (b *SinfBox) AddChild(child Box) {
+	switch box := child.(type) {
+	case *FrmaBox:
+		b.Frma = box
+	case *SchmBox:
+		b.Schm = box
+	case *SchiBox:
+		b.Schi = box
 	}
-	b.Children = append(b.Children, box)
+	b.Children = append(b.Children, child)
 }
 
 // DecodeSinf - box-specific decode

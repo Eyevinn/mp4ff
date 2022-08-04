@@ -63,23 +63,22 @@ func DecodeMoofSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 }
 
 // AddChild - add child box
-func (m *MoofBox) AddChild(b Box) error {
-	switch b.Type() {
-	case "mfhd":
-		m.Mfhd = b.(*MfhdBox)
-	case "traf":
+func (m *MoofBox) AddChild(child Box) error {
+	switch box := child.(type) {
+	case *MfhdBox:
+		m.Mfhd = box
+	case *TrafBox:
 		if m.Traf == nil {
-			m.Traf = b.(*TrafBox)
+			m.Traf = box
 		}
-		m.Trafs = append(m.Trafs, b.(*TrafBox))
-	case "pssh":
-		pssh := b.(*PsshBox)
+		m.Trafs = append(m.Trafs, box)
+	case *PsshBox:
 		if m.Pssh == nil {
-			m.Pssh = pssh
+			m.Pssh = box
 		}
-		m.Psshs = append(m.Psshs, pssh)
+		m.Psshs = append(m.Psshs, box)
 	}
-	m.Children = append(m.Children, b)
+	m.Children = append(m.Children, child)
 	return nil
 }
 

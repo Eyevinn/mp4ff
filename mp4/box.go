@@ -314,7 +314,7 @@ func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("decode %s: %w", h.Name, err)
+		return nil, fmt.Errorf("decode box %q: %w", h.Name, err)
 	}
 
 	return b, nil

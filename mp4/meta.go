@@ -26,13 +26,12 @@ func CreateMetaBox(version byte, hdlr *HdlrBox) *MetaBox {
 }
 
 // AddChild - Add a child box
-func (b *MetaBox) AddChild(box Box) {
-
-	switch box.Type() {
-	case "hdlr":
-		b.Hdlr = box.(*HdlrBox)
+func (b *MetaBox) AddChild(child Box) {
+	switch box := child.(type) {
+	case *HdlrBox:
+		b.Hdlr = box
 	}
-	b.Children = append(b.Children, box)
+	b.Children = append(b.Children, child)
 }
 
 // DecodeMeta - box-specific decode
