@@ -4,10 +4,12 @@ import "testing"
 
 func TestCtts(t *testing.T) {
 	ctts := &CttsBox{
-		Version:      0,
-		Flags:        0,
-		SampleCount:  []uint32{12, 35},
-		SampleOffset: []int32{-2000, 2000},
+		Version: 0,
+		Flags:   0,
+	}
+	err := ctts.AddSampleCountsAndOffset([]uint32{12, 35}, []int32{-2000, 2000})
+	if err != nil {
+		t.Error(err)
 	}
 
 	boxDiffAfterEncodeAndDecode(t, ctts)
@@ -15,10 +17,12 @@ func TestCtts(t *testing.T) {
 
 func TestGetCompositionTimeOffset(t *testing.T) {
 	ctts := &CttsBox{
-		Version:      0,
-		Flags:        0,
-		SampleCount:  []uint32{2, 1, 3, 1},
-		SampleOffset: []int32{0, -1000, 1000, 0},
+		Version: 0,
+		Flags:   0,
+	}
+	err := ctts.AddSampleCountsAndOffset([]uint32{2, 1, 3, 1}, []int32{0, -1000, 1000, 0})
+	if err != nil {
+		t.Error(err)
 	}
 
 	testCases := []struct {

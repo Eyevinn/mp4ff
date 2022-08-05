@@ -1,6 +1,8 @@
 package main
 
 import (
+	"sort"
+
 	"github.com/edgeware/mp4ff/mp4"
 )
 
@@ -67,24 +69,11 @@ func cropStss(b *mp4.StssBox, lastSampleNr uint32) {
 }
 
 func cropCtts(b *mp4.CttsBox, lastSampleNr uint32) {
-	var countedSamples uint32 = 0
-	var nrEntries int
-	for i := 0; i < len(b.SampleCount); i++ {
-		if countedSamples+b.SampleCount[i] <= lastSampleNr {
-			countedSamples += b.SampleCount[i]
-			nrEntries = i + 1
-			continue
-		}
-		// Now 0 or more remains in a last entry
-		remaining := lastSampleNr - countedSamples
-		if remaining > 0 {
-			b.SampleCount[i] = remaining
-			nrEntries = i + 1
-		}
-		break
-	}
-	b.SampleCount = b.SampleCount[:nrEntries]
-	b.SampleOffset = b.SampleOffset[:nrEntries]
+	lastIdx := sort.Search(len(b.EndSampleNr), func(i int) bool { return b.EndSampleNr[i] >= lastSampleNr })
+	// Finally cut down the endSampleNr for this index
+	b.EndSampleNr[lastIdx] = lastSampleNr
+	b.EndSampleNr = b.EndSampleNr[:lastIdx+1]
+	b.SampleOffset = b.SampleOffset[:lastIdx]
 }
 
 func cropStsc(b *mp4.StscBox, lastSampleNr uint32) {

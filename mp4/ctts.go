@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/edgeware/mp4ff/bits"
@@ -10,9 +11,11 @@ import (
 //
 // Contained in: Sample Table Box (stbl)
 type CttsBox struct {
-	Version      byte
-	Flags        uint32
-	SampleCount  []uint32
+	Version byte
+	Flags   uint32
+	// EndSampleNr - number (1-based) of last sample in chunk. Starts with 0 for index 0
+	EndSampleNr []uint32
+	// SampleOffeset - offset of first sample in chunk.
 	SampleOffset []int32 // int32 to handle version 1
 }
 
@@ -34,12 +37,15 @@ func DecodeCttsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	b := &CttsBox{
 		Version:      byte(versionAndFlags >> 24),
 		Flags:        versionAndFlags & flagsMask,
-		SampleCount:  make([]uint32, entryCount),
+		EndSampleNr:  make([]uint32, entryCount+1),
 		SampleOffset: make([]int32, entryCount),
 	}
 
+	var endSampleNr uint32 = 0
+	b.EndSampleNr[0] = endSampleNr
 	for i := 0; i < int(entryCount); i++ {
-		b.SampleCount[i] = sr.ReadUint32()
+		endSampleNr += sr.ReadUint32() // Adding sampleCount
+		b.EndSampleNr[i+1] = endSampleNr
 		b.SampleOffset[i] = sr.ReadInt32()
 	}
 	return b, sr.AccError()
@@ -52,7 +58,7 @@ func (b *CttsBox) Type() string {
 
 // Size - calculated size of box
 func (b *CttsBox) Size() uint64 {
-	return uint64(boxHeaderSize + 8 + len(b.SampleCount)*8)
+	return uint64(boxHeaderSize + 8 + len(b.SampleOffset)*8)
 }
 
 // Encode - write box to w
@@ -74,12 +80,41 @@ func (b *CttsBox) EncodeSW(sw bits.SliceWriter) error {
 	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
-	sw.WriteUint32(uint32(len(b.SampleCount)))
-	for i := range b.SampleCount {
-		sw.WriteUint32(b.SampleCount[i])
+	sw.WriteUint32(uint32(len(b.SampleOffset)))
+	for i := 0; i < b.NrSampleCount(); i++ {
+		sampleCount := b.EndSampleNr[i+1] - b.EndSampleNr[i]
+		sw.WriteUint32(sampleCount)
 		sw.WriteInt32(b.SampleOffset[i])
 	}
 	return sw.AccError()
+}
+
+// NrSampleCount - the number of SampleCount entries in box
+func (b *CttsBox) NrSampleCount() int {
+	return len(b.SampleOffset)
+}
+
+// SampleCount - return sample count i (zero-based)
+func (b *CttsBox) SampleCount(i int) uint32 {
+	return b.EndSampleNr[i+1] - b.EndSampleNr[i]
+
+}
+
+// AddSampleCountsAndOffsets - populate this box with data. Need the same number of entries in both
+func (b *CttsBox) AddSampleCountsAndOffset(counts []uint32, offsets []int32) error {
+	if len(counts) != len(offsets) {
+		return fmt.Errorf("not same number of sampleCounts %d and sampleOffsets %d", len(counts), len(offsets))
+	}
+	b.SampleOffset = append(b.SampleOffset, offsets...)
+	if len(b.EndSampleNr) == 0 {
+		b.EndSampleNr = append(b.EndSampleNr, 0)
+	}
+	endSampleNr := b.EndSampleNr[len(b.EndSampleNr)-1]
+	for i := 0; i < len(counts); i++ {
+		endSampleNr += counts[i]
+		b.EndSampleNr = append(b.EndSampleNr, endSampleNr)
+	}
+	return nil
 }
 
 // GetCompositionTimeOffset - composition time offset for (one-based) sampleNr in track timescale
@@ -87,26 +122,28 @@ func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
 	if sampleNr == 0 {
 		// This is bad index input. Should never happen
 		panic("CttsBox.GetCompositionTimeOffset called with sampleNr == 0, although one-based")
-
 	}
-	sampleNr-- // one-based
-	for i := range b.SampleCount {
-		if sampleNr >= b.SampleCount[i] {
-			sampleNr -= b.SampleCount[i]
+	// The following is essentially the sort.Search() code specialized to this case
+	i, j := 0, len(b.EndSampleNr)
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		// i ≤ h < j
+		if b.EndSampleNr[h] < sampleNr {
+			i = h + 1
 		} else {
-			return b.SampleOffset[i]
+			j = h
 		}
 	}
-	return 0 // Should never get here, but a harmless return value
+	return b.SampleOffset[i-1]
 }
 
 // Info - get all info with specificBoxLevels ctts:1 or higher
 func (b *CttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
-	bd.write(" - sampleCount: %d", len(b.SampleCount))
+	bd.write(" - sampleCount: %d", b.NrSampleCount())
 	if getInfoLevel(b, specificBoxLevels) > 0 {
-		for i := range b.SampleCount {
-			bd.write(" - entry[%d]: sampleCount=%d sampleOffset=%d", i+1, b.SampleCount[i], b.SampleOffset[i])
+		for i := 0; i < b.NrSampleCount(); i++ {
+			bd.write(" - entry[%d]: sampleCount=%d sampleOffset=%d", i+1, b.SampleCount(i), b.SampleOffset[i])
 		}
 	}
 	return bd.err
