@@ -18,11 +18,11 @@ var (
 
 // SPS - AVC SPS parameters
 type SPS struct {
-	Profile                         uint
-	ProfileCompatibility            uint
-	Level                           uint
-	ParameterID                     uint
-	ChromaFormatIDC                 uint
+	Profile                         uint32
+	ProfileCompatibility            uint32
+	Level                           uint32
+	ParameterID                     uint32
+	ChromaFormatIDC                 byte
 	SeparateColourPlaneFlag         bool
 	BitDepthLumaMinus8              uint
 	BitDepthChromaMinus8            uint
@@ -126,10 +126,10 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		return nil, ErrNotSPS
 	}
 
-	sps.Profile = reader.Read(8)
-	sps.ProfileCompatibility = reader.Read(8)
-	sps.Level = reader.Read(8)
-	sps.ParameterID = reader.ReadExpGolomb()
+	sps.Profile = uint32(reader.Read(8))
+	sps.ProfileCompatibility = uint32(reader.Read(8))
+	sps.Level = uint32(reader.Read(8))
+	sps.ParameterID = uint32(reader.ReadExpGolomb())
 	sps.ChromaFormatIDC = 1 // Default value if no explicit value present
 
 	if sps.Profile == 138 {
@@ -139,7 +139,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	// The following table is from 14496-10:2020 Section 7.3.2.1.1
 	switch sps.Profile {
 	case 100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135:
-		sps.ChromaFormatIDC = reader.ReadExpGolomb()
+		sps.ChromaFormatIDC = byte(reader.ReadExpGolomb())
 		if sps.ChromaFormatIDC == 3 {
 			sps.SeparateColourPlaneFlag = reader.ReadFlag()
 		}
@@ -257,6 +257,14 @@ func (s *SPS) PicStructPresent() bool {
 		return false
 	}
 	return s.VUI.PicStructPresentFlag
+}
+
+// ChromaArrayType as defined in Section 7.4.2.1.1
+func (s *SPS) ChromaArrayType() byte {
+	if s.SeparateColourPlaneFlag {
+		return byte(s.ChromaFormatIDC)
+	}
+	return 0
 }
 
 // parseVUI - parse VUI (Visual Usability Information)

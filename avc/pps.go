@@ -11,8 +11,8 @@ import (
 
 // PPS - Picture Parameter Set
 type PPS struct {
-	PicParameterSetID                     uint
-	SeqParameterSetID                     uint
+	PicParameterSetID                     uint32
+	SeqParameterSetID                     uint32
 	EntropyCodingModeFlag                 bool
 	BottomFieldPicOrderInFramePresentFlag bool
 	NumSliceGroupsMinus1                  uint
@@ -46,8 +46,7 @@ var (
 )
 
 // ParsePPSNALUnit - Parse AVC PPS NAL unit starting with NAL header
-func ParsePPSNALUnit(data []byte, sps *SPS) (*PPS, error) {
-
+func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	var err error
 
 	pps := &PPS{}
@@ -62,8 +61,8 @@ func ParsePPSNALUnit(data []byte, sps *SPS) (*PPS, error) {
 		return nil, ErrNotPPS
 	}
 
-	pps.PicParameterSetID = reader.ReadExpGolomb()
-	pps.SeqParameterSetID = reader.ReadExpGolomb()
+	pps.PicParameterSetID = uint32(reader.ReadExpGolomb())
+	pps.SeqParameterSetID = uint32(reader.ReadExpGolomb())
 	pps.EntropyCodingModeFlag = reader.ReadFlag()
 	pps.BottomFieldPicOrderInFramePresentFlag = reader.ReadFlag()
 	pps.NumSliceGroupsMinus1 = reader.ReadExpGolomb()
@@ -117,12 +116,14 @@ func ParsePPSNALUnit(data []byte, sps *SPS) (*PPS, error) {
 		}
 		return nil, err
 	}
+
 	if moreRbsp {
 		pps.Transform8x8ModeFlag = reader.ReadFlag()
 		pps.PicScalingMatrixPresentFlag = reader.ReadFlag()
 		if pps.PicScalingMatrixPresentFlag {
-			if sps == nil {
-				return pps, fmt.Errorf("Need SPS to decode PPS PicScalings")
+			sps, ok := spsMap[pps.SeqParameterSetID]
+			if !ok {
+				return pps, fmt.Errorf("sps ID %d not found in map", pps.SeqParameterSetID)
 			}
 			nrScalingLists := 6
 			if pps.Transform8x8ModeFlag {
