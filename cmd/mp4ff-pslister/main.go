@@ -228,17 +228,18 @@ func parseMp4File(r io.Reader, verbose bool) {
 }
 
 func printAvcPS(spsNalus, ppsNalus [][]byte, verbose bool) {
-	var spsInfo *avc.SPS
+	spsMap := make(map[uint32]*avc.SPS)
 	for i, spsNalu := range spsNalus {
-		spsInfo, err := avc.ParseSPSNALUnit(spsNalu, true /*fullVui*/)
+		sps, err := avc.ParseSPSNALUnit(spsNalu, true /*fullVui*/)
 		if err != nil {
 			fmt.Println("Could not parse SPS")
 			return
 		}
-		printPS("SPS", i+1, spsNalu, spsInfo, verbose)
+		printPS("SPS", i+1, spsNalu, sps, verbose)
+		spsMap[sps.ParameterID] = sps
 	}
 	for i, ppsNalu := range ppsNalus {
-		ppsInfo, err := avc.ParsePPSNALUnit(ppsNalu, spsInfo)
+		ppsInfo, err := avc.ParsePPSNALUnit(ppsNalu, spsMap)
 		if err != nil {
 			fmt.Println("Could not parse PPS")
 			return
@@ -246,7 +247,7 @@ func printAvcPS(spsNalus, ppsNalus [][]byte, verbose bool) {
 		printPS("PPS", i+1, ppsNalu, ppsInfo, verbose)
 	}
 	sps, _ := avc.ParseSPSNALUnit(spsNalus[0], true /*fullVui*/)
-	fmt.Printf("Codecs parameter (assuming avc1): %s\n", avc.CodecString("avc1", sps))
+	fmt.Printf("Codecs parameter (assuming avc1) from SPS id %d: %s\n", sps.ParameterID, avc.CodecString("avc1", sps))
 }
 
 func printHevcPS(vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) {
@@ -265,7 +266,7 @@ func printHevcPS(vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) {
 		printPS("PPS", i+1, pps, nil, false)
 	}
 	sps, _ := hevc.ParseSPSNALUnit(spsNalus[0])
-	fmt.Printf("Codecs parameter (assuming hvc1): %s\n", hevc.CodecString("hvc1", sps))
+	fmt.Printf("Codecs parameter (assuming hvc1) from SPS id %d: %s\n", sps.SpsID, hevc.CodecString("hvc1", sps))
 }
 
 func printPS(name string, nr int, ps []byte, psInfo interface{}, verbose bool) {
