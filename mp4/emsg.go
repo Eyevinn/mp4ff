@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -18,6 +19,7 @@ type EmsgBox struct {
 	ID                    uint32
 	SchemeIDURI           string
 	Value                 string
+	MessageData           []byte
 }
 
 // DecodeEmsg - box-specific decode
@@ -36,8 +38,9 @@ func DecodeEmsgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	b := &EmsgBox{
-		Version: version,
-		Flags:   versionAndFlags & flagsMask,
+		Version:     version,
+		Flags:       versionAndFlags & flagsMask,
+		MessageData: nil,
 	}
 	if version == 1 {
 		b.TimeScale = sr.ReadUint32()
@@ -60,6 +63,15 @@ func DecodeEmsgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	} else {
 		return nil, fmt.Errorf("Unknown version for emsg")
 	}
+
+	currPos := sr.GetPos()
+	nrBytesRead := currPos - initPos + boxHeaderSize
+	remainingBytes := int(hdr.Size) - nrBytesRead
+
+	if remainingBytes > 0 {
+		b.MessageData = sr.ReadBytes(remainingBytes)
+	}
+
 	return b, sr.AccError()
 }
 
@@ -71,9 +83,9 @@ func (b *EmsgBox) Type() string {
 // Size - calculated size of box
 func (b *EmsgBox) Size() uint64 {
 	if b.Version == 1 {
-		return uint64(boxHeaderSize + 4 + 4 + 8 + 4 + 4 + len(b.SchemeIDURI) + 1 + len(b.Value) + 1)
+		return uint64(boxHeaderSize + 4 + 4 + 8 + 4 + 4 + len(b.SchemeIDURI) + 1 + len(b.Value) + 1 + len(b.MessageData))
 	}
-	return uint64(boxHeaderSize + 4 + len(b.SchemeIDURI) + 1 + len(b.Value) + 1 + 4 + 4 + 4 + 4) // m.Version == 0
+	return uint64(boxHeaderSize + 4 + len(b.SchemeIDURI) + 1 + len(b.Value) + 1 + 4 + 4 + 4 + 4 + len(b.MessageData)) // m.Version == 0
 }
 
 // Encode - write box to w
@@ -110,6 +122,9 @@ func (b *EmsgBox) EncodeSW(sw bits.SliceWriter) error {
 		sw.WriteUint32(b.EventDuration)
 		sw.WriteUint32(b.ID)
 	}
+	if len(b.MessageData) > 0 {
+		sw.WriteBytes(b.MessageData)
+	}
 	return sw.AccError()
 }
 
@@ -127,5 +142,16 @@ func (b *EmsgBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	if b.Version == 0 {
 		bd.write(" - presentationTimeDelta: %d", b.PresentationTimeDelta)
 	}
+	level := getInfoLevel(b, specificBoxLevels)
+	msgDataLen := len(b.MessageData)
+
+	if msgDataLen > 0 {
+		if level > 0 {
+			bd.write(" - messageData size=%d: %s", msgDataLen, hex.EncodeToString(b.MessageData))
+		} else {
+			bd.write(" - messageData size=%d", msgDataLen)
+		}
+	}
+
 	return bd.err
 }
