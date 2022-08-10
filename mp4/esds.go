@@ -50,7 +50,7 @@ func DecodeEsdsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	var err error
 	e.ESDescriptor, err = DecodeESDescriptor(sr, descSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("DecodeESDecriptor: %w", err)
 	}
 	return e, sr.AccError()
 }
