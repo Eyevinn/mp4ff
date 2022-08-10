@@ -69,30 +69,39 @@ func main() {
 		// Don't just print hex again
 		*verbose = true
 	}
+	err := run(*inFile, *vpsHex, *spsHex, *ppsHex, *codec, *version, *verbose)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
 
+func run(inFile, vpsHex, spsHex, ppsHex, codec string, version, verbose bool) error {
 	var vpsNalus [][]byte
 	var spsNalus [][]byte
 	var ppsNalus [][]byte
 
-	if *inFile != "" {
-		ifd, err := os.Open(*inFile)
+	if inFile != "" {
+		ifd, err := os.Open(inFile)
 		if err != nil {
-			log.Fatalln(err)
+			return err
 		}
 		defer ifd.Close()
 		mp4Extensions := []string{".mp4", ".m4v", ".cmfv"}
 		for _, ext := range mp4Extensions {
-			if strings.HasSuffix(*inFile, ext) {
-				parseMp4File(ifd, *verbose)
-				return
+			if strings.HasSuffix(inFile, ext) {
+				err := parseMp4File(ifd, codec, verbose)
+				if err != nil {
+					return err
+				}
+				return nil
 			}
 		}
 		// Assume bytestream
 		nalus, err := getNalusFromBytestream(ifd)
 		if err != nil {
-			log.Fatalln(err)
+			return err
 		}
-		if *codec == "avc" {
+		if codec == "avc" {
 			for _, nalu := range nalus {
 				switch avc.GetNaluType(nalu[0]) {
 				case avc.NALU_SPS:
@@ -104,8 +113,8 @@ func main() {
 					ppsNalus = append(ppsNalus, nalu)
 				}
 			}
-			printAvcPS(spsNalus, ppsNalus, *verbose)
-			return
+			printAvcPS(spsNalus, ppsNalus, verbose)
+			return nil
 		}
 
 		// hevc
@@ -122,49 +131,50 @@ func main() {
 				ppsNalus = append(ppsNalus, nalu)
 			}
 		}
-		printHevcPS(vpsNalus, spsNalus, ppsNalus, *verbose)
-		return
+		printHevcPS(vpsNalus, spsNalus, ppsNalus, verbose)
+		return nil
 	}
 	// Now we have hex case left
-	switch *codec {
+	switch codec {
 	case "avc":
-		spsNalu, err := hex.DecodeString(*spsHex)
+		spsNalu, err := hex.DecodeString(spsHex)
 		if err != nil {
-			log.Fatalln("Could not parse sps")
+			return err
 		}
 		spsNalus = append(spsNalus, spsNalu)
-		if *ppsHex != "" {
-			ppsNalu, err := hex.DecodeString(*ppsHex)
+		if ppsHex != "" {
+			ppsNalu, err := hex.DecodeString(ppsHex)
 			if err != nil {
-				log.Fatalln("Could not parse pps")
+				return err
 			}
 			ppsNalus = append(ppsNalus, ppsNalu)
 		}
-		printAvcPS(spsNalus, ppsNalus, *verbose)
+		printAvcPS(spsNalus, ppsNalus, verbose)
 	case "hevc":
-		vpsNalu, err := hex.DecodeString(*vpsHex)
+		vpsNalu, err := hex.DecodeString(vpsHex)
 		if err != nil {
-			log.Fatalln("Could not parse vps")
+			return err
 		}
 		vpsNalus = append(vpsNalus, vpsNalu)
-		spsNalu, err := hex.DecodeString(*spsHex)
+		spsNalu, err := hex.DecodeString(spsHex)
 		if err != nil {
-			log.Fatalln("Could not parse sps")
+			return err
 		}
 		if len(spsNalu) > 0 {
 			spsNalus = append(spsNalus, spsNalu)
 		}
-		ppsNalu, err := hex.DecodeString(*ppsHex)
+		ppsNalu, err := hex.DecodeString(ppsHex)
 		if err != nil {
-			log.Fatalln("Could not parse pps")
+			return err
 		}
 		if len(ppsNalu) > 0 {
 			ppsNalus = append(ppsNalus, ppsNalu)
 		}
-		printHevcPS(vpsNalus, spsNalus, ppsNalus, *verbose)
+		printHevcPS(vpsNalus, spsNalus, ppsNalus, verbose)
 	default:
-		log.Fatalln("Unknown codec ", *codec)
+		return fmt.Errorf("Unknown codec %s", codec)
 	}
+	return nil
 }
 
 func getNalusFromBytestream(f io.Reader) ([][]byte, error) {
@@ -179,16 +189,27 @@ func getNalusFromBytestream(f io.Reader) ([][]byte, error) {
 	return nalus, nil
 }
 
-func parseMp4File(r io.Reader, verbose bool) {
+func parseMp4File(r io.Reader, codec string, verbose bool) error {
 	parsedMp4, err := mp4.DecodeFile(r)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("DecodeFile: %w", err)
 	}
 
-	if parsedMp4.Moov == nil {
-		log.Fatalln("No moov box found in file")
+	if parsedMp4.Moov != nil {
+		err := parseMp4Init(parsedMp4, verbose)
+		if err != nil {
+			return fmt.Errorf("parseMp4Init: %w", err)
+		}
+		return nil
 	}
+	err = parseMp4Fragment(parsedMp4, codec, verbose)
+	if err != nil {
+		return fmt.Errorf("parseMp4Fragment: %w", err)
+	}
+	return nil
+}
 
+func parseMp4Init(parsedMp4 *mp4.File, verbose bool) error {
 	found := false
 	codec := ""
 	for _, trak := range parsedMp4.Moov.Traks {
@@ -223,8 +244,41 @@ func parseMp4File(r io.Reader, verbose bool) {
 		}
 	}
 	if !found {
-		fmt.Println("No parsable video track found")
+		return fmt.Errorf("No parsable video track found")
 	}
+	return nil
+}
+
+func parseMp4Fragment(parsedMp4 *mp4.File, codec string, verbose bool) error {
+	found := false
+	if len(parsedMp4.Segments) == 0 || len(parsedMp4.Segments[0].Fragments) == 0 {
+		return fmt.Errorf("no moov or fragment found in mp4 file")
+	}
+	frag := parsedMp4.Segments[0].Fragments[0]
+	samples, err := frag.GetFullSamples(nil)
+	if err != nil {
+		return fmt.Errorf("GetFullSamples: %w", err)
+	}
+	if len(samples) == 0 {
+		return fmt.Errorf("no samples in fragment")
+	}
+	fs := samples[0]
+	switch codec {
+	case "avc":
+		found = true
+		spsNalus, ppsNalus := avc.GetParameterSets(fs.Data)
+		printAvcPS(spsNalus, ppsNalus, verbose)
+	case "hevc":
+		found = true
+		vpsNalus, spsNalus, ppsNalus := hevc.GetParameterSets(fs.Data)
+		printHevcPS(vpsNalus, spsNalus, ppsNalus, verbose)
+	default:
+		return fmt.Errorf("unknown codec: %s", codec)
+	}
+	if !found {
+		return fmt.Errorf("no parameter sets found")
+	}
+	return nil
 }
 
 func printAvcPS(spsNalus, ppsNalus [][]byte, verbose bool) {
