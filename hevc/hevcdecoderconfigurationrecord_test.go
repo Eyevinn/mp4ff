@@ -46,6 +46,13 @@ func TestCreateDecConfRec(t *testing.T) {
 			if len(dcr.NaluArrays) != 3 {
 				t.Errorf("got %d NALU arrays instead of 3", len(dcr.NaluArrays))
 			}
+			for i, naluArray := range dcr.NaluArrays {
+				if naluArray.Complete() != 0 {
+					if len(naluArray.Nalus) == 0 {
+						t.Errorf("missing NALUs in naluArray %d", i)
+					}
+				}
+			}
 		}
 	}
 }

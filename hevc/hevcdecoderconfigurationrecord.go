@@ -50,7 +50,7 @@ func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
 	}
 	na := NaluArray{
 		completeAndType: completeBit | byte(naluType),
-		Nalus:           nil,
+		Nalus:           nalus,
 	}
 	return &na
 }
