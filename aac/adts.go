@@ -25,7 +25,7 @@ func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, p
 	if objectType != AAClc {
 		return nil, fmt.Errorf("Must use AAC-LC (type 2) not %d", objectType)
 	}
-	sfi, ok := reverseFrequencies[samplingFrequency]
+	sfi, ok := ReverseFrequencies[samplingFrequency]
 	if !ok {
 		return nil, fmt.Errorf("Sampling frequency %d not supported", samplingFrequency)
 	}
@@ -109,4 +109,9 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	}
 
 	return ah, offset, nil
+}
+
+// Frequency looks up the sampling frequency for index in ADTSHeader
+func (a ADTSHeader) Frequency() uint16 {
+	return uint16(FrequencyTable[a.SamplingFrequencyIndex])
 }
