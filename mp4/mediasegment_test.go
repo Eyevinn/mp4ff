@@ -22,7 +22,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 	goldenFragDumpPath := "testdata/golden_1_frag_m4s_dump.txt"
 	fd, err := os.Open(inFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	defer fd.Close()
 
@@ -44,7 +44,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 
 	inSeg, err := ioutil.ReadFile(inFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	diff := deep.Equal(inSeg, bufInSeg.Bytes())
@@ -108,7 +108,7 @@ func TestDoubleDecodeEncodeOptimize(t *testing.T) {
 
 	fd, err := os.Open(inFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	defer fd.Close()
 
@@ -127,7 +127,7 @@ func TestDecodeEncodeNoOptimize(t *testing.T) {
 
 	data, err := ioutil.ReadFile(inFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	buf0 := bytes.NewBuffer(data)
 	enc := decodeEncode(t, buf0, OptimizeNone)
@@ -140,7 +140,7 @@ func TestDecodeEncodeNoOptimize(t *testing.T) {
 func decodeEncode(t *testing.T, r io.Reader, optimize EncOptimize) []byte {
 	f, err := DecodeFile(r)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	buf := bytes.Buffer{}
@@ -158,7 +158,7 @@ func TestMoofEncrypted(t *testing.T) {
 	inFileGoldenDumpPath := "testdata/golden_moof_enc_m4s_dump.txt"
 	fd, err := os.Open(inFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	defer fd.Close()
 
@@ -176,7 +176,7 @@ func TestMoofEncrypted(t *testing.T) {
 
 	inSeg, err := ioutil.ReadFile(inFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	diff := deep.Equal(inSeg, bufOut.Bytes())
@@ -199,7 +199,7 @@ func TestMoofEncrypted(t *testing.T) {
 func TestDecodeEncodeCencFragmentedFile(t *testing.T) {
 	inData, err := ioutil.ReadFile("testdata/prog_8s_enc_dashinit.mp4")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	inBuf := bytes.NewBuffer(inData)
 	decFile, err := DecodeFile(inBuf)

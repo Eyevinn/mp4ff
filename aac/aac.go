@@ -28,7 +28,8 @@ type AudioSpecificConfig struct {
 	PSPresentFlag        bool
 }
 
-var frequencyTable = map[byte]int{
+// FrequencyTable maps frequency index to sample rate in Hz
+var FrequencyTable = map[byte]int{
 	0:  96000,
 	1:  88200,
 	2:  64000,
@@ -44,7 +45,8 @@ var frequencyTable = map[byte]int{
 	12: 7350,
 }
 
-var reverseFrequencies = map[int]byte{
+// ReversFrequencies converts sample frequency to index
+var ReverseFrequencies = map[int]byte{
 	96000: 0,
 	88200: 1,
 	64000: 2,
@@ -127,7 +129,7 @@ func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 	}
 	bw := bits.NewWriter(w)
 	bw.Write(uint(a.ObjectType), 5)
-	samplingIndex, ok := reverseFrequencies[a.SamplingFrequency]
+	samplingIndex, ok := ReverseFrequencies[a.SamplingFrequency]
 	if ok {
 		bw.Write(uint(samplingIndex), 4)
 	} else {
@@ -137,7 +139,7 @@ func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 	bw.Write(uint(a.ChannelConfiguration), 4)
 	switch a.ObjectType {
 	case HEAACv1, HEAACv2:
-		samplingIndex, ok := reverseFrequencies[a.ExtensionFrequency]
+		samplingIndex, ok := ReverseFrequencies[a.ExtensionFrequency]
 		if ok {
 			bw.Write(uint(samplingIndex), 4)
 		} else {
@@ -164,6 +166,6 @@ func getFrequency(br *bits.AccErrReader) (frequency int, ok bool) {
 	if br.AccError() != nil {
 		return 0, false
 	}
-	frequency, ok = frequencyTable[byte(frequencyIndex)]
+	frequency, ok = FrequencyTable[byte(frequencyIndex)]
 	return frequency, ok
 }
