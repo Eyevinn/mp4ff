@@ -12,7 +12,7 @@ import (
 type TfdtBox struct {
 	Version             byte
 	Flags               uint32
-	BaseMediaDecodeTime uint64
+	baseMediaDecodeTime uint64
 }
 
 // DecodeTfdt - box-specific decode
@@ -34,7 +34,7 @@ func DecodeTfdt(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	b := &TfdtBox{
 		Version:             version,
 		Flags:               versionAndFlags & flagsMask,
-		BaseMediaDecodeTime: baseMediaDecodeTime,
+		baseMediaDecodeTime: baseMediaDecodeTime,
 	}
 	return b, nil
 }
@@ -53,7 +53,7 @@ func DecodeTfdtSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	b := TfdtBox{
 		Version:             version,
 		Flags:               versionAndFlags & flagsMask,
-		BaseMediaDecodeTime: baseMediaDecodeTime,
+		baseMediaDecodeTime: baseMediaDecodeTime,
 	}
 	return &b, sr.AccError()
 }
@@ -67,18 +67,23 @@ func CreateTfdt(baseMediaDecodeTime uint64) *TfdtBox {
 	return &TfdtBox{
 		Version:             version,
 		Flags:               0,
-		BaseMediaDecodeTime: baseMediaDecodeTime,
+		baseMediaDecodeTime: baseMediaDecodeTime,
 	}
 }
 
-// SetBaseMediaDecodeTime - Set time of TfdtBox
+// BaseMediaDecodeTime is the base media decode time.
+func (t *TfdtBox) BaseMediaDecodeTime() uint64 {
+	return t.baseMediaDecodeTime
+}
+
+// SetBaseMediaDecodeTime sets base media decode time of TfdtBox.
 func (t *TfdtBox) SetBaseMediaDecodeTime(bTime uint64) {
 	if bTime >= 4294967296 {
 		t.Version = 1
 	} else {
 		t.Version = 0
 	}
-	t.BaseMediaDecodeTime = bTime
+	t.baseMediaDecodeTime = bTime
 }
 
 // Type - return box type
@@ -111,9 +116,9 @@ func (t *TfdtBox) EncodeSW(sw bits.SliceWriter) error {
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
 	if t.Version == 0 {
-		sw.WriteUint32(uint32(t.BaseMediaDecodeTime))
+		sw.WriteUint32(uint32(t.BaseMediaDecodeTime()))
 	} else {
-		sw.WriteUint64(t.BaseMediaDecodeTime)
+		sw.WriteUint64(t.BaseMediaDecodeTime())
 	}
 	return sw.AccError()
 }
@@ -121,6 +126,6 @@ func (t *TfdtBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box info to w
 func (t *TfdtBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
 	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
-	bd.write(" - baseMediaDecodeTime: %d", t.BaseMediaDecodeTime)
+	bd.write(" - baseMediaDecodeTime: %d", t.BaseMediaDecodeTime())
 	return bd.err
 }

@@ -21,8 +21,8 @@ func TestTfdtReadingV0(t *testing.T) {
 	if tfdt.Version != 0 {
 		t.Errorf("Tfdt version is not 0")
 	}
-	if tfdt.BaseMediaDecodeTime != 0x00ffffff {
-		t.Errorf("Tfdt basemediaDecodeTime is %v not %v", tfdt.BaseMediaDecodeTime, 0x00ffffff)
+	if tfdt.BaseMediaDecodeTime() != 0x00ffffff {
+		t.Errorf("Tfdt basemediaDecodeTime is %x not %x", tfdt.BaseMediaDecodeTime(), 0x00ffffff)
 	}
 }
 
@@ -41,8 +41,8 @@ func TestTfdtReadingV1(t *testing.T) {
 	if tfdt.Version != 1 {
 		t.Errorf("Tfdt version is not 1")
 	}
-	if tfdt.BaseMediaDecodeTime != 0x00ffffff {
-		t.Errorf("Tfdt basemediaDecodeTime is %v not %v", tfdt.BaseMediaDecodeTime, 0x00ffffff)
+	if tfdt.BaseMediaDecodeTime() != 0x00ffffff {
+		t.Errorf("Tfdt basemediaDecodeTime is %x not %x", tfdt.BaseMediaDecodeTime(), 0x00ffffff)
 	}
 }
 

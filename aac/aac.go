@@ -45,7 +45,7 @@ var FrequencyTable = map[byte]int{
 	12: 7350,
 }
 
-// ReversFrequencies converts sample frequency to index
+// ReverseFrequencies converts sample frequency to index
 var ReverseFrequencies = map[int]byte{
 	96000: 0,
 	88200: 1,
