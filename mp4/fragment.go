@@ -112,7 +112,7 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 		traf = moof.Traf // The first one
 	}
 	tfhd := traf.Tfhd
-	baseTime := traf.Tfdt.BaseMediaDecodeTime
+	baseTime := traf.Tfdt.BaseMediaDecodeTime()
 	moofStartPos := moof.StartPos
 	var samples []FullSample
 	for _, trun := range traf.Truns {
@@ -359,7 +359,7 @@ func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32
 	if len(traf.Truns) != 1 {
 		return 0, fmt.Errorf("Not exactly one trun")
 	}
-	baseDecodeTime := traf.Tfdt.BaseMediaDecodeTime
+	baseDecodeTime := traf.Tfdt.BaseMediaDecodeTime()
 	if baseDecodeTime > sampleTime {
 		return 0, fmt.Errorf("sampleTime %d less that baseMediaDecodeTime %d", sampleTime, baseDecodeTime)
 	}
@@ -394,7 +394,7 @@ func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr u
 		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 	}
 	offsetInMdat := uint32(baseOffset - f.Mdat.PayloadAbsoluteOffset())
-	return trun.GetSampleInterval(startSampleNr, endSampleNr, traf.Tfdt.BaseMediaDecodeTime, f.Mdat, offsetInMdat)
+	return trun.GetSampleInterval(startSampleNr, endSampleNr, traf.Tfdt.BaseMediaDecodeTime(), f.Mdat, offsetInMdat)
 }
 
 // AddSampleInterval - add SampleInterval for a fragment with only one track
@@ -403,7 +403,7 @@ func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
 	traf := moof.Traf
 	trun := traf.Trun
 	if trun.sampleCount == 0 {
-		traf.Tfdt.BaseMediaDecodeTime = sItvl.FirstDecodeTime
+		traf.Tfdt.SetBaseMediaDecodeTime(sItvl.FirstDecodeTime)
 	}
 	trun.AddSamples(sItvl.Samples)
 	f.Mdat.AddSampleDataPart(sItvl.Data)
