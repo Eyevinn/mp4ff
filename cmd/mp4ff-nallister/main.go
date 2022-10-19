@@ -14,6 +14,7 @@ import (
 	"github.com/edgeware/mp4ff/avc"
 	"github.com/edgeware/mp4ff/hevc"
 	"github.com/edgeware/mp4ff/mp4"
+	"github.com/edgeware/mp4ff/sei"
 )
 
 var usg = `Usage of mp4ff-nallister:
@@ -319,33 +320,35 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 	if seiLevel < 1 {
 		return
 	}
+	var hdrLen int
+	var seiCodec sei.Codec
+	switch codec {
+	case "avc":
+		seiCodec = sei.AVC
+		hdrLen = 1
+	case "hevc":
+		seiCodec = sei.HEVC
+		hdrLen = 2
+	}
 	if len(seiNALUs) > 0 {
 		for _, seiNALU := range seiNALUs {
 			if seiLevel >= 2 {
-				fmt.Printf("%s\n", hex.EncodeToString(seiNALU))
+				fmt.Printf("  SEI raw: %s\n", hex.EncodeToString(seiNALU))
 			}
-			var seiBytes []byte
-			switch codec {
-			case "avc":
-				hdrLen := 1
-				seiBytes = seiNALU[hdrLen:]
-			case "hevc":
-				hdrLen := 2
-				seiBytes = seiNALU[hdrLen:]
-			}
+			seiBytes := seiNALU[hdrLen:]
 			buf := bytes.NewReader(seiBytes)
-			seiDatas, err := avc.ExtractSEIData(buf)
+			seiDatas, err := sei.ExtractSEIData(buf)
 			if err != nil {
 				fmt.Printf("  SEI: Got error %q\n", err)
 				continue
 			}
 			for _, seiData := range seiDatas {
-				sei, err := avc.DecodeSEIMessage(&seiData)
+				sei, err := sei.DecodeSEIMessage(&seiData, seiCodec)
 				if err != nil {
 					fmt.Printf("  SEI: Got error %q\n", err)
 					continue
 				}
-				fmt.Printf("  %s\n", sei)
+				fmt.Printf("  * %s\n", sei)
 			}
 		}
 	}
