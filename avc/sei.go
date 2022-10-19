@@ -68,6 +68,11 @@ func (s *SEIData) Size() uint {
 	return uint(len(s.payload))
 }
 
+// NewSEIData returns SEIData struct.
+func NewSEIData(msgType uint, payload []byte) *SEIData {
+	return &SEIData{msgType, payload}
+}
+
 // ExtractSEIData - parse ebsp and return SEIData in rbsp format
 func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 	ar := bits.NewAccErrEBSPReader(r)
