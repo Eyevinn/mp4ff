@@ -227,6 +227,15 @@ func (sw *FixedSliceWriter) WriteBits(bits uint, n int) {
 	sw.v &= mask(8)
 }
 
+// WriteFlag writes a flag as 1 bit.
+func (sw *FixedSliceWriter) WriteFlag(f bool) {
+	bit := uint(0)
+	if f {
+		bit = 1
+	}
+	sw.WriteBits(bit, 1)
+}
+
 // FlushBits - write remaining bits to the underlying .Writer.
 // bits will be left-shifted.
 func (sw *FixedSliceWriter) FlushBits() {

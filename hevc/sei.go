@@ -1,10 +1,13 @@
 package hevc
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/edgeware/mp4ff/avc"
+	"github.com/edgeware/mp4ff/bits"
 )
 
 const (
@@ -230,12 +233,14 @@ func (h HEVCSEIType) String() string {
 // DecodeSEIMessage decodes an SEIMessage
 func DecodeSEIMessage(sd *avc.SEIData) (avc.SEIMessage, error) {
 	switch sd.Type() {
+	case SEITimeCodeType:
+		return DecodeTimeCodeSEI(sd)
 	case SEIMasteringDisplayColourVolumeType:
 		return DecodeMasteringDisplayColourVolumeSEI(sd)
 	case SEIContentLightLevelInformationType:
 		return DecodeContentLightLevelInformationSEI(sd)
 	default:
-		return sd, nil
+		return DecodeGeneralSEI(sd), nil
 	}
 }
 
@@ -350,4 +355,190 @@ func DecodeContentLightLevelInformationSEI(sd *avc.SEIData) (avc.SEIMessage, err
 	c.MaxContentLightLevel = binary.BigEndian.Uint16(data[:2])
 	c.MaxPicAverageLightLevel = binary.BigEndian.Uint16(data[2:4])
 	return &c, nil
+}
+
+type TimeCodeSEI struct {
+	Clocks []ClockTS
+}
+
+type ClockTS struct {
+	timeOffsetValue     uint32
+	nFrames             uint16
+	hours               int16
+	minutes             int16
+	seconds             int16
+	clockTimeStampFlag  bool
+	unitsFieldBasedFlag bool
+	fullTimeStampFlag   bool
+	discontinuityFlag   bool
+	cntDroppedFlag      bool
+	countingType        byte
+	timeOffsetLength    byte
+}
+
+func (c ClockTS) Time() string {
+	return fmt.Sprintf("%d:%d:%d", c.hours, c.minutes, c.seconds)
+}
+
+func DecodeTimeCodeSEI(sd *avc.SEIData) (avc.SEIMessage, error) {
+	buf := bytes.NewBuffer(sd.Payload())
+	br := bits.NewAccErrReader(buf)
+	numClockTS := int(br.Read(2))
+	tc := TimeCodeSEI{make([]ClockTS, 0, numClockTS)}
+	for i := 0; i < numClockTS; i++ {
+		c := ClockTS{hours: -1, minutes: -1, seconds: -1}
+		c.clockTimeStampFlag = br.ReadFlag()
+		if c.clockTimeStampFlag {
+			c.unitsFieldBasedFlag = br.ReadFlag()
+			c.countingType = byte(br.Read(5))
+			c.fullTimeStampFlag = br.ReadFlag()
+			c.discontinuityFlag = br.ReadFlag()
+			c.cntDroppedFlag = br.ReadFlag()
+			c.nFrames = uint16(br.Read(9))
+			if c.fullTimeStampFlag {
+				c.seconds = int16(br.Read(6))
+				c.minutes = int16(br.Read(6))
+				c.hours = int16(br.Read(5))
+			} else {
+				if br.ReadFlag() {
+					c.seconds = int16(br.Read(6))
+					if br.ReadFlag() {
+						c.minutes = int16(br.Read(6))
+						if br.ReadFlag() {
+							c.hours = int16(br.Read(5))
+						}
+					}
+				}
+			}
+			c.timeOffsetLength = byte(br.Read(5))
+			if c.timeOffsetLength > 0 {
+				c.timeOffsetValue = uint32(br.Read(int(c.timeOffsetLength)))
+			}
+		}
+		tc.Clocks = append(tc.Clocks, c)
+	}
+	return &tc, br.AccError()
+}
+
+// Type - SEI payload type
+func (s *TimeCodeSEI) Type() uint {
+	return SEITimeCodeType
+}
+
+// Payload - SEI raw rbsp payload
+func (s *TimeCodeSEI) Payload() []byte {
+	sw := bits.NewFixedSliceWriter(int(s.Size()))
+	sw.WriteBits(uint(len(s.Clocks)), 2)
+	for _, c := range s.Clocks {
+		sw.WriteFlag(c.clockTimeStampFlag)
+		if c.clockTimeStampFlag {
+			sw.WriteFlag(c.unitsFieldBasedFlag)
+			sw.WriteBits(uint(c.countingType), 5)
+			sw.WriteFlag(c.fullTimeStampFlag)
+			sw.WriteFlag(c.discontinuityFlag)
+			sw.WriteFlag(c.cntDroppedFlag)
+			sw.WriteBits(uint(c.nFrames), 9)
+			if c.fullTimeStampFlag {
+				sw.WriteBits(uint(c.seconds), 6)
+				sw.WriteBits(uint(c.minutes), 6)
+				sw.WriteBits(uint(c.hours), 5)
+			} else {
+				sw.WriteFlag(c.seconds >= 0)
+				if c.seconds >= 0 {
+					sw.WriteBits(uint(c.seconds), 6)
+					sw.WriteFlag(c.minutes >= 0)
+					if c.minutes >= 0 {
+						sw.WriteBits(uint(c.minutes), 6)
+						sw.WriteFlag(c.hours >= 0)
+						if c.hours >= 0 {
+							sw.WriteBits(uint(c.hours), 5)
+						}
+					}
+				}
+			}
+			sw.WriteBits(uint(c.timeOffsetLength), 5)
+			if c.timeOffsetLength > 0 {
+				sw.WriteBits(uint(c.timeOffsetLength), int(c.timeOffsetLength))
+			}
+		}
+	}
+	sw.WriteFlag(true) // Final 1 and then byte align
+	sw.FlushBits()
+	return sw.Bytes()
+}
+
+// String returns string representation of TimeCodeSEI.
+func (s *TimeCodeSEI) String() string {
+	msgType := HEVCSEIType(s.Type())
+	msg := fmt.Sprintf("%s, size=%d, time=%s", msgType, s.Size(), s.Clocks[0].Time())
+	if len(s.Clocks) > 1 {
+		for i := 1; i < len(s.Clocks); i++ {
+			msg += fmt.Sprintf(", time=%s", s.Clocks[i].Time())
+		}
+	}
+	return msg
+}
+
+// Size - size in bytes of raw SEI message rbsp payload
+func (s *TimeCodeSEI) Size() uint {
+	nrBits := 2
+	for _, c := range s.Clocks {
+		nrBits++
+		if c.clockTimeStampFlag {
+			nrBits += 18
+			if c.fullTimeStampFlag {
+				nrBits += 17
+			} else {
+				nrBits++
+				if c.seconds >= 0 {
+					nrBits += 6 + 1
+					if c.minutes >= 0 {
+						nrBits += 6 + 1
+						if c.hours >= 0 {
+							nrBits += 5
+						}
+					}
+				}
+			}
+			nrBits += 5
+			nrBits += int(c.timeOffsetLength)
+		}
+	}
+	return uint((nrBits + 7) / 8)
+}
+
+// Type - SEI payload type
+
+func DecodeGeneralSEI(sd *avc.SEIData) avc.SEIMessage {
+	return &SEIData{
+		sd.Type(),
+		sd.Payload(),
+	}
+}
+
+// SEIData - raw parsed SEI message with rbsp data
+type SEIData struct {
+	payloadType uint
+	payload     []byte
+}
+
+// Type - SEI payload type
+func (s *SEIData) Type() uint {
+	return s.payloadType
+}
+
+// Payload - SEI raw rbsp payload
+func (s *SEIData) Payload() []byte {
+	return s.payload
+}
+
+// String - print up to 100 bytes of payload
+func (s *SEIData) String() string {
+	msgType := HEVCSEIType(s.Type())
+	return fmt.Sprintf("%s, size=%d, %q", msgType, s.Size(), hex.EncodeToString(s.payload))
+}
+
+// Size - size in bytes of raw SEI message rbsp payload
+func (s *SEIData) Size() uint {
+	return uint(len(s.payload))
 }

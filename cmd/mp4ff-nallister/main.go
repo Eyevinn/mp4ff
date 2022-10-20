@@ -332,7 +332,7 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 	if len(seiNALUs) > 0 {
 		for _, seiNALU := range seiNALUs {
 			if seiLevel >= 2 {
-				fmt.Printf("%s\n", hex.EncodeToString(seiNALU))
+				fmt.Printf("  SEI raw: %s\n", hex.EncodeToString(seiNALU))
 			}
 			seiBytes := seiNALU[hdrLen:]
 			buf := bytes.NewReader(seiBytes)
@@ -347,7 +347,7 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 					fmt.Printf("  SEI: Got error %q\n", err)
 					continue
 				}
-				fmt.Printf("  %s\n", sei)
+				fmt.Printf("  * %s\n", sei)
 			}
 		}
 	}

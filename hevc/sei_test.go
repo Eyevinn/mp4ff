@@ -67,6 +67,26 @@ func TestContentLightLevelInformationSEI(t *testing.T) {
 	}
 }
 
+func TestTimeCodeSEI(t *testing.T) {
+	seiHex := "60404198b410"
+	pl, err := hex.DecodeString(seiHex)
+	if err != nil {
+		t.Error(err)
+	}
+	seiData := avc.NewSEIData(hevc.SEITimeCodeType, pl)
+	msg, err := hevc.DecodeTimeCodeSEI(seiData)
+	if err != nil {
+		t.Error(err)
+	}
+	if msg.Type() != hevc.SEITimeCodeType {
+		t.Errorf("got SEI type %d, wanted %d", msg.Type(), hevc.SEITimeCodeType)
+	}
+	decPl := msg.Payload()
+	if !bytes.Equal(decPl, pl) {
+		t.Errorf("decoded payload differs from expected")
+	}
+}
+
 const (
 	seiHEVCMulti = "000a8000000300403dc017a6900105040000be05880660404198b41080"
 	seiHEVCHDR   = "891800000300000300000300000300000300000300000300000300000300000300000300009004000003000080"
@@ -82,9 +102,9 @@ func TestParseSEI(t *testing.T) {
 	}{
 		{"HEVC multi", seiHEVCMulti, []uint{0, 1, 136},
 			[]string{
-				`SEI type 0, size=10, "80000000403dc017a690"`,
-				`SEI type 1, size=5, "040000be05"`,
-				`SEI type 136, size=6, "60404198b410"`,
+				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
+				`SEIPicTimingType (1), size=5, "040000be05"`,
+				`SEITimeCodeType (136), size=6, time=13:49:12`,
 			},
 		},
 		{"Type HDR HEVC", seiHEVCHDR, []uint{137, 144},
