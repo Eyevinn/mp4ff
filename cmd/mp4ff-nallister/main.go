@@ -319,20 +319,22 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 	if seiLevel < 1 {
 		return
 	}
+	var hdrLen int
+	var seiDecoder func(*avc.SEIData) (avc.SEIMessage, error)
+	switch codec {
+	case "avc":
+		hdrLen = 1
+		seiDecoder = avc.DecodeSEIMessage
+	case "hevc":
+		hdrLen = 2
+		seiDecoder = hevc.DecodeSEIMessage
+	}
 	if len(seiNALUs) > 0 {
 		for _, seiNALU := range seiNALUs {
 			if seiLevel >= 2 {
 				fmt.Printf("%s\n", hex.EncodeToString(seiNALU))
 			}
-			var seiBytes []byte
-			switch codec {
-			case "avc":
-				hdrLen := 1
-				seiBytes = seiNALU[hdrLen:]
-			case "hevc":
-				hdrLen := 2
-				seiBytes = seiNALU[hdrLen:]
-			}
+			seiBytes := seiNALU[hdrLen:]
 			buf := bytes.NewReader(seiBytes)
 			seiDatas, err := avc.ExtractSEIData(buf)
 			if err != nil {
@@ -340,7 +342,7 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 				continue
 			}
 			for _, seiData := range seiDatas {
-				sei, err := avc.DecodeSEIMessage(&seiData)
+				sei, err := seiDecoder(&seiData)
 				if err != nil {
 					fmt.Printf("  SEI: Got error %q\n", err)
 					continue
