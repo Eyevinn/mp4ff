@@ -55,3 +55,34 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 	}
 	return vpss, spss, ppss
 }
+
+// GetNalusOfTypeFromByteStream returns all nalus of wanted type from bytestream.
+func GetNalusOfTypeFromByteStream(naluType NaluType, data []byte) [][]byte {
+	var foundNalus [][]byte
+	n := len(data)
+	currNaluStart := -1
+	for i := 0; i < n-4; i++ {
+		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
+			if currNaluStart > 0 {
+				currNaluEnd := i
+				for j := i - 1; j > currNaluStart; j-- {
+					// Remove zeros from end of NAL unit
+					if data[j] == 0 {
+						currNaluEnd = j
+					} else {
+						break
+					}
+				}
+				if naluType == GetNaluType(data[currNaluStart]) {
+					foundNalus = append(foundNalus, data[currNaluStart:currNaluEnd])
+				}
+			}
+			currNaluStart = i + 3
+			nextNaluType := GetNaluType(data[currNaluStart])
+			if nextNaluType < 32 { // Video NALU types are below 32
+				break
+			}
+		}
+	}
+	return foundNalus
+}
