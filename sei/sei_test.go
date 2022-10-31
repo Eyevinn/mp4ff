@@ -109,7 +109,7 @@ func TestParseSEI(t *testing.T) {
 			[]string{
 				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
 				`SEIPicTimingType (1), size=5, "040000be05"`,
-				`SEITimeCodeType (136), size=6, time=13:49:12`,
+				`SEITimeCodeType (136), size=6, time=13:49:12;08`,
 			},
 		},
 		{"Type HDR HEVC", sei.HEVC, seiHEVCHDR, []uint{137, 144},

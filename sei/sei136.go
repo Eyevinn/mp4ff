@@ -16,9 +16,9 @@ type TimeCodeSEI struct {
 type ClockTS struct {
 	timeOffsetValue     uint32
 	nFrames             uint16
-	hours               int16
-	minutes             int16
-	seconds             int16
+	hours               int8
+	minutes             int8
+	seconds             int8
 	clockTimeStampFlag  bool
 	unitsFieldBasedFlag bool
 	fullTimeStampFlag   bool
@@ -30,7 +30,7 @@ type ClockTS struct {
 
 // String returns time stamp with -1 for parts not set.
 func (c ClockTS) String() string {
-	return fmt.Sprintf("%d:%d:%d", c.hours, c.minutes, c.seconds)
+	return fmt.Sprintf("%02d:%02d:%02d;%02d", c.hours, c.minutes, c.seconds, c.nFrames)
 }
 
 // CreateClockTS creates a clock timestamp with time parts set to -1.
@@ -49,16 +49,16 @@ func DecodeClockTS(br *bits.AccErrReader) ClockTS {
 		c.cntDroppedFlag = br.ReadFlag()
 		c.nFrames = uint16(br.Read(9))
 		if c.fullTimeStampFlag {
-			c.seconds = int16(br.Read(6))
-			c.minutes = int16(br.Read(6))
-			c.hours = int16(br.Read(5))
+			c.seconds = int8(br.Read(6))
+			c.minutes = int8(br.Read(6))
+			c.hours = int8(br.Read(5))
 		} else {
 			if br.ReadFlag() {
-				c.seconds = int16(br.Read(6))
+				c.seconds = int8(br.Read(6))
 				if br.ReadFlag() {
-					c.minutes = int16(br.Read(6))
+					c.minutes = int8(br.Read(6))
 					if br.ReadFlag() {
-						c.hours = int16(br.Read(5))
+						c.hours = int8(br.Read(5))
 					}
 				}
 			}
