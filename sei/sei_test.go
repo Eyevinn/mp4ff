@@ -87,6 +87,7 @@ func TestTimeCodeSEI(t *testing.T) {
 }
 
 const (
+	// The following examples are without NAL Unit header
 	sei0Hex      = "0007810f1c0050744080"
 	seiCEA608Hex = "0434b500314741393403cefffc9420fc94aefc9162fce56efc67bafc91b9fcb0b0fcbab0fcb0bafcb031fcbab0fcb080fc942cfc942f80"
 	seiHEVCMulti = "000a8000000300403dc017a6900105040000be05880660404198b41080"
@@ -109,7 +110,7 @@ func TestParseSEI(t *testing.T) {
 			[]string{
 				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
 				`SEIPicTimingType (1), size=5, "040000be05"`,
-				`SEITimeCodeType (136), size=6, time=13:49:12;08`,
+				`SEITimeCodeType (136), size=6, time=13:49:12;08 offset=0`,
 			},
 		},
 		{"Type HDR HEVC", sei.HEVC, seiHEVCHDR, []uint{137, 144},
@@ -124,7 +125,7 @@ func TestParseSEI(t *testing.T) {
 	for _, tc := range testCases {
 		seiNALU, _ := hex.DecodeString(tc.naluHex)
 
-		rs := bytes.NewReader(seiNALU) // Drop AVC header
+		rs := bytes.NewReader(seiNALU)
 
 		seis, err := sei.ExtractSEIData(rs)
 		if err != nil {
