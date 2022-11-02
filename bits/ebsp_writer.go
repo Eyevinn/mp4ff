@@ -53,6 +53,8 @@ func (w *EBSPWriter) Write(bits uint, n int) {
 		}
 		if b == 0 {
 			w.nr0++
+		} else {
+			w.nr0 = 0
 		}
 		w.n -= 8
 	}
