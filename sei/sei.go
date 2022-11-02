@@ -1,4 +1,5 @@
 // Package SEI provides SEI (Supplementary Enhancement Information) parsing and encoding for both AVC and HEVC.
+// The  SEI RBSP syntax is defined in Section 7.3.2.3  of ISO/IEC 14496-10 (AVC) 2020 and earlier.
 // For AVC, the SEI messages and their syntax is defined in ISO/IEC 14496-10 2020 Annex D.
 // For HEVC, the SEI message and their syntax i defined in ISO/IEC 23008-2 Annex D.
 package sei
@@ -571,4 +572,18 @@ func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 		}
 	}
 	return seiData, nil
+}
+
+// WriteSEIMessages writes the messages in EBSP format with inserted Emulation Prevention bytes.
+func WriteSEIMessages(w io.Writer, msgs []SEIMessage) error {
+	bw := bits.NewEBSPWriter(w)
+	for _, msg := range msgs {
+		bw.WriteSEIValue(msg.Type())
+		bw.WriteSEIValue(msg.Size())
+		for _, b := range msg.Payload() {
+			bw.Write(uint(b), 8)
+		}
+	}
+	bw.WriteRbspTrailingBits()
+	return bw.AccError()
 }
