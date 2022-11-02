@@ -235,6 +235,10 @@ func TestEBSPWriter(t *testing.T) {
 			in:  []byte{0, 0, 0, 0, 0},
 			out: []byte{0, 0, 3, 0, 0, 3, 0},
 		},
+		{
+			in:  []byte{0, 0, 0, 0, 5, 0},
+			out: []byte{0, 0, 3, 0, 0, 5, 0},
+		},
 	}
 	for _, tc := range testCases {
 		buf := bytes.Buffer{}
