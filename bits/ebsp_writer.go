@@ -91,6 +91,7 @@ func (w *EBSPWriter) WriteSEIValue(val uint) {
 			continue
 		}
 		w.Write(val, 8)
+		break
 	}
 }
 
