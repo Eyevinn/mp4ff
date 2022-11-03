@@ -64,6 +64,8 @@ func TestDecodeFileWithNoLazyMdatOption(t *testing.T) {
 func TestCopyTrackSampleData(t *testing.T) {
 	// load a progressive file
 
+	sampleDataRead := make([][]byte, 0, 1)
+	work := make([]byte, 1024)
 	for j := 0; j < 2; j++ {
 		fd, err := os.Open("./testdata/prog_8s.mp4")
 		if err != nil {
@@ -82,7 +84,7 @@ func TestCopyTrackSampleData(t *testing.T) {
 		var startSampleNr uint32 = 31
 		var endSampleNr uint32 = 60
 
-		for _, trak := range mp4f.Moov.Traks {
+		for i, trak := range mp4f.Moov.Traks {
 			totSize := 0
 			stsz := trak.Mdia.Minf.Stbl.Stsz
 			for i := startSampleNr; i <= endSampleNr; i++ {
@@ -90,12 +92,20 @@ func TestCopyTrackSampleData(t *testing.T) {
 			}
 			sampleData := bytes.Buffer{}
 
-			err := mp4f.CopySampleData(&sampleData, fd, trak, startSampleNr, endSampleNr)
+			err := mp4f.CopySampleData(&sampleData, fd, trak, startSampleNr, endSampleNr, work)
 			if err != nil {
 				t.Error(err)
 			}
 			if sampleData.Len() != int(totSize) {
 				t.Errorf("Got %d bytes instead of %d", sampleData.Len(), totSize)
+			}
+			if trak.Tkhd.TrackID == 1 {
+				sampleDataRead = append(sampleDataRead, sampleData.Bytes())
+				if len(sampleDataRead) > 1 {
+					if res := bytes.Compare(sampleDataRead[i], sampleDataRead[0]); res != 0 {
+						t.Errorf("sample data read differs %d", res)
+					}
+				}
 			}
 		}
 	}
