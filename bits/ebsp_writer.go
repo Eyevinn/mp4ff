@@ -82,6 +82,18 @@ func (w *EBSPWriter) WriteExpGolomb(nr uint) {
 	}
 }
 
+// WriteSEIValue insert 0xFF until value is less than 255. Used in SEI payload type and size.
+func (w *EBSPWriter) WriteSEIValue(val uint) {
+	for {
+		if val >= 255 {
+			w.Write(0xff, 8)
+			val -= 255
+			continue
+		}
+		w.Write(val, 8)
+	}
+}
+
 // WriteRbspTrailingBits - write rbsp trailing bits (a 1 followed by zeros to a byte boundary)
 func (w *EBSPWriter) WriteRbspTrailingBits() {
 	w.Write(1, 1)

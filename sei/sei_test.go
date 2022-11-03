@@ -148,3 +148,41 @@ func TestParseSEI(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteSEI(t *testing.T) {
+
+	cases := []struct {
+		name  string
+		codec sei.Codec
+		hex   string
+	}{
+		{"seiHEVCHDR", sei.HEVC, seiHEVCHDR},
+	}
+	for _, tc := range cases {
+		seiNALU, _ := hex.DecodeString(tc.hex)
+		rs := bytes.NewReader(seiNALU)
+		seis, err := sei.ExtractSEIData(rs)
+		if err != nil {
+			t.Error(err)
+		}
+		var seiMessages []sei.SEIMessage
+		for i := range seis {
+			seiMessage, err := sei.DecodeSEIMessage(&seis[i], tc.codec)
+			if err != nil {
+				t.Error(err)
+			}
+			seiMessages = append(seiMessages, seiMessage)
+		}
+		buf := bytes.Buffer{}
+		err = sei.WriteSEIMessages(&buf, seiMessages)
+		if err != nil {
+			t.Error(err)
+		}
+		output := buf.Bytes()
+		outputHex := hex.EncodeToString(output)
+		if outputHex != tc.hex {
+			t.Errorf("%s: wanted %s but got %s", tc.name, tc.hex, outputHex)
+		}
+	}
+
+}
