@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.30.0 | Full AVC slice header parsing. Enhanced SEI Messages. Optimizations in ctts and sample copying. Bug fixes in HEVC nalu, tfdt, emsg |
 | 0.29.0 | Improved uuid and esds box handling. Extended decryption example with cbcs and in-place cenc decryption |
 | 0.28.0 | Full HEVC SPS parsing. Better video sample entry generation. More AC-3/EC-3 support. Extended EBSPWriter. Bug fixes |
 | 0.27.0 | New more efficient SliceReader/SliceWriter based Box methods. Add AC-3 and Enhanced AC-3 support. Public trun flag bits and DecodeHeader. mp4ff-nallister now takes Annex byte stream. Bug fixes |
