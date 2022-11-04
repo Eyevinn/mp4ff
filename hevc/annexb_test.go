@@ -45,3 +45,54 @@ func TestGetParameterSetsFromByteStream(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractNalusOfTypeFromByteStream(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       []byte
+		naluType    NaluType
+		beyondVideo bool
+		nrWanted    int
+	}{
+		{
+			"Only IDR. Search PPS",
+			[]byte{0, 0, 0, 1, byte(NALU_IDR_W_RADL) << 1, 0, 1, 1, 1, 1},
+			NALU_PPS,
+			true,
+			0,
+		},
+		{
+			"Only IDR, excl video",
+			[]byte{0, 0, 0, 1, byte(NALU_IDR_W_RADL) << 1, 0, 1, 1, 1, 1, 1},
+			NALU_IDR_W_RADL,
+			true,
+			0,
+		},
+		{
+			"Only IDR, incl video",
+			[]byte{0, 0, 0, 1, byte(NALU_IDR_W_RADL) << 1, 0, 1, 1, 1, 1, 1},
+			NALU_IDR_W_RADL,
+			false,
+			1,
+		},
+		{
+			"AUD, SPS, PPS, IDR",
+			[]byte{0, 0, 0, 1, byte(NALU_AUD) << 1, 2, 0,
+				0, 0, 0, 1, byte(NALU_VPS) << 1, 5, 4,
+				0, 0, 0, 1, byte(NALU_SPS) << 1, 1, 2,
+				0, 0, 0, 1, byte(NALU_PPS) << 1, 5, 0,
+				0, 0, 0, 1, byte(NALU_IDR_W_RADL) << 1, 0,
+				1, 1, 1, 1, 1, 1},
+			NALU_PPS,
+			false,
+			1,
+		},
+	}
+
+	for _, tc := range testCases {
+		nrNalus := ExtractNalusOfTypeFromByteStream(tc.naluType, tc.input, tc.beyondVideo)
+		if len(nrNalus) != tc.nrWanted {
+			t.Errorf("%q: got %d, wanted %d", tc.name, len(nrNalus), tc.nrWanted)
+		}
+	}
+}
