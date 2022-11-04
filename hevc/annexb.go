@@ -56,12 +56,13 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 	return vpss, spss, ppss
 }
 
-// GetNalusOfTypeFromByteStream returns all nalus of wanted type from bytestream.
-func GetNalusOfTypeFromByteStream(naluType NaluType, data []byte) [][]byte {
-	var foundNalus [][]byte
-	n := len(data)
+// ExtractNalusOfTypeFromByteStream returns all HEVC nalus of wanted type from bytestream.
+// If stopAtVideo, the stream is not scanned beyond the first video NAL unit.
+func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo bool) [][]byte {
 	currNaluStart := -1
-	for i := 0; i < n-4; i++ {
+	n := len(data)
+	var nalus [][]byte
+	for i := 0; i < n-3; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			if currNaluStart > 0 {
 				currNaluEnd := i
@@ -73,16 +74,31 @@ func GetNalusOfTypeFromByteStream(naluType NaluType, data []byte) [][]byte {
 						break
 					}
 				}
-				if naluType == GetNaluType(data[currNaluStart]) {
-					foundNalus = append(foundNalus, data[currNaluStart:currNaluEnd])
+				naluType := GetNaluType(data[currNaluStart])
+				if naluType == nType {
+					nalus = append(nalus, extractSlice(data, currNaluStart, currNaluEnd))
 				}
 			}
 			currNaluStart = i + 3
-			nextNaluType := GetNaluType(data[currNaluStart])
-			if nextNaluType < 32 { // Video NALU types are below 32
-				break
+			if currNaluStart < n-1 {
+				nextNaluType := GetNaluType(data[currNaluStart])
+				if stopAtVideo && nextNaluType < 32 { // Video nal unit type
+					return nalus
+				}
 			}
 		}
 	}
-	return foundNalus
+	if currNaluStart < 0 {
+		return nil
+	}
+	if GetNaluType(data[currNaluStart]) == nType {
+		nalus = append(nalus, extractSlice(data, currNaluStart, n))
+	}
+	return nalus
+}
+
+func extractSlice(data []byte, start, stop int) []byte {
+	sl := make([]byte, stop-start)
+	_ = copy(sl, data[start:stop])
+	return sl
 }

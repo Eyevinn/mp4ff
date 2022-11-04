@@ -4,7 +4,8 @@ package avc
 
 import "encoding/binary"
 
-// ExtractNalusFromByteStream - extract NALUs without startcode from ByteStream
+// ExtractNalusFromByteStream extracts NALUs without startcode from ByteStream.
+// This function is codec agnostic.
 func ExtractNalusFromByteStream(data []byte) [][]byte {
 	currNaluStart := -1
 	n := len(data)
@@ -44,7 +45,8 @@ type scNalu struct {
 	startPos        int
 }
 
-// ConvertByteStreamToNaluSample - Change start codes to 4-byte length fields
+// ConvertByteStreamToNaluSample changes start codes to 4-byte length fields.
+// This function is codec agnostic.
 func ConvertByteStreamToNaluSample(stream []byte) []byte {
 	streamLen := len(stream)
 	var scNalus []scNalu
@@ -93,7 +95,8 @@ func ConvertByteStreamToNaluSample(stream []byte) []byte {
 	return out
 }
 
-// ConvertSampleToByteStream - Replace 4-byte NALU lengths with start codes
+// ConvertSampleToByteStream replaces 4-byte NALU lengths with start codes.
+// This function is codec agnostic.
 func ConvertSampleToByteStream(sample []byte) []byte {
 	sampleLength := uint32(len(sample))
 	var pos uint32 = 0
@@ -109,7 +112,7 @@ func ConvertSampleToByteStream(sample []byte) []byte {
 	return sample
 }
 
-// GetParameterSetsFromByteStream copies SPS and PPS nalus from bytestream (Annex B)
+// GetParameterSetsFromByteStream copies AVC SPS and PPS nalus from bytestream (Annex B)
 func GetParameterSetsFromByteStream(data []byte) (spss, ppss [][]byte) {
 	n := len(data)
 	currNaluStart := -1
@@ -156,4 +159,45 @@ func GetParameterSetsFromByteStream(data []byte) (spss, ppss [][]byte) {
 		pos += len(ppss[i])
 	}
 	return spss, ppss
+}
+
+// ExtractNalusOfTypeFromByteStream returns all AVC nalus of wanted type from bytestream.
+// If stopAtVideo, the stream is not scanned beyond the first video NAL unit.
+func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo bool) [][]byte {
+	currNaluStart := -1
+	n := len(data)
+	var nalus [][]byte
+	for i := 0; i < n-3; i++ {
+		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
+			if currNaluStart > 0 {
+				currNaluEnd := i
+				for j := i - 1; j > currNaluStart; j-- {
+					// Remove zeros from end of NAL unit
+					if data[j] == 0 {
+						currNaluEnd = j
+					} else {
+						break
+					}
+				}
+				naluType := GetNaluType(data[currNaluStart])
+				if naluType == nType {
+					nalus = append(nalus, extractSlice(data, currNaluStart, currNaluEnd))
+				}
+			}
+			currNaluStart = i + 3
+			if currNaluStart < n-1 {
+				nextNaluType := GetNaluType(data[currNaluStart])
+				if stopAtVideo && nextNaluType < 6 { // Video nal unit type
+					return nalus
+				}
+			}
+		}
+	}
+	if currNaluStart < 0 {
+		return nil
+	}
+	if GetNaluType(data[currNaluStart]) == nType {
+		nalus = append(nalus, extractSlice(data, currNaluStart, n))
+	}
+	return nalus
 }
