@@ -13,9 +13,9 @@ import (
 //
 // A progressive MPEG-4 file contains three main boxes:
 //
-//   ftyp : the file type box
-//   moov : the movie box (meta-data)
-//   mdat : the media data (chunks and samples). Only used for pror
+//	ftyp : the file type box
+//	moov : the movie box (meta-data)
+//	mdat : the media data (chunks and samples). Only used for pror
 //
 // where mdat may come before moov.
 // If fragmented, there are many more boxes and they are collected
@@ -440,8 +440,10 @@ func WithDecodeMode(mode DecFileMode) Option {
 	return func(f *File) { f.fileDecMode = mode }
 }
 
-// CopySampleData - copy sample data from a track in a progressive mp4 file to w. Use rs if lazy read.
-func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox, startSampleNr, endSampleNr uint32) error {
+// CopySampleData copies sample data from a track in a progressive mp4 file to w.
+// Use rs for lazy read and workSpace as an intermediate storage to avoid memory allocations.
+func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
+	startSampleNr, endSampleNr uint32, workSpace []byte) error {
 	if f.isFragmented {
 		return fmt.Errorf("only available for progressive files")
 	}
@@ -470,6 +472,8 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox, star
 	}
 	var startNr, endNr uint32
 	var offset uint64
+	workPos := 0
+	workLen := len(workSpace)
 	for i, chunk := range chunks {
 		startNr = chunk.StartSampleNr
 		endNr = startNr + chunk.NrSamples - 1
@@ -493,12 +497,40 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox, star
 			if err != nil {
 				return err
 			}
-			n, err := io.CopyN(w, rs, size)
-			if err != nil {
-				return err
-			}
-			if n != size {
-				return fmt.Errorf("copied %d bytes instead of %d", n, size)
+			if workLen > 0 {
+				n, err := io.CopyN(w, rs, size)
+				if err != nil {
+					return fmt.Errorf("copyN: %w", err)
+				}
+				if n != size {
+					return fmt.Errorf("wrote %d instead of %d bytes\n", n, size)
+				}
+			} else {
+				nrLeft := int(size)
+				nrRead := 0
+				for {
+					end := min(workLen, workPos+nrLeft)
+					n, err := rs.Read(workSpace[workPos:end])
+					if err != nil {
+						return err
+					}
+					nrLeft -= n
+					workPos += n
+					nrRead += n
+					if nrLeft == 0 {
+						break
+					}
+					if workPos == workLen {
+						n, err := w.Write(workSpace)
+						if n != workPos {
+							return fmt.Errorf("finished match %d written instead of instead of %d", n, workPos)
+						}
+						if err != nil {
+							return fmt.Errorf("write error: %w", err)
+						}
+						workPos = 0
+					}
+				}
 			}
 		} else {
 			offsetInMdatData := offset - mdatPayloadStart
@@ -511,6 +543,21 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox, star
 			}
 		}
 	}
-
+	if workPos > 0 {
+		n, err := w.Write(workSpace[:workPos])
+		if n != workPos {
+			return fmt.Errorf("finished match %d written instead of instead of %d", n, workPos)
+		}
+		if err != nil {
+			return fmt.Errorf("write error: %w", err)
+		}
+	}
 	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
