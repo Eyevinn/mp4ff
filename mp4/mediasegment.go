@@ -9,7 +9,7 @@ import (
 // MediaSegment - MP4 Media Segment
 type MediaSegment struct {
 	Styp        *StypBox
-	Sidx        *SidxBox // Sidx for a segment
+	Sidxs       []*SidxBox // Sidx for a segment
 	Fragments   []*Fragment
 	EncOptimize EncOptimize
 }
@@ -48,8 +48,8 @@ func (s *MediaSegment) Size() uint64 {
 	if s.Styp != nil {
 		size += s.Styp.Size()
 	}
-	if s.Sidx != nil {
-		size += s.Sidx.Size()
+	for _, sidx := range s.Sidxs {
+		size += sidx.Size()
 	}
 	for _, f := range s.Fragments {
 		size += f.Size()
@@ -65,8 +65,8 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 			return err
 		}
 	}
-	if s.Sidx != nil {
-		err := s.Sidx.Encode(w)
+	for _, sidx := range s.Sidxs {
+		err := sidx.Encode(w)
 		if err != nil {
 			return err
 		}
@@ -89,8 +89,8 @@ func (s *MediaSegment) EncodeSW(sw bits.SliceWriter) error {
 			return err
 		}
 	}
-	if s.Sidx != nil {
-		err := s.Sidx.EncodeSW(sw)
+	for _, sidx := range s.Sidxs {
+		err := sidx.EncodeSW(sw)
 		if err != nil {
 			return err
 		}
@@ -113,8 +113,8 @@ func (s *MediaSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep s
 			return err
 		}
 	}
-	if s.Sidx != nil {
-		err := s.Sidx.Info(w, specificBoxLevels, indent, indentStep)
+	for _, sidx := range s.Sidxs {
+		err := sidx.Info(w, specificBoxLevels, indent, indentStep)
 		if err != nil {
 			return err
 		}

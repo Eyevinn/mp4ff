@@ -29,7 +29,7 @@ type File struct {
 	Moov         *MoovBox
 	Mdat         *MdatBox        // Only used for non-fragmented files
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
-	Sidx         *SidxBox        // SidxBox for a DASH OnDemand file
+	Sidxs        []*SidxBox      // SidxBox for a DASH OnDemand file
 	Segments     []*MediaSegment // Media segments
 	Children     []Box           // All top-level boxes in order
 	FragEncMode  EncFragFileMode // Determine how fragmented files are encoded
@@ -222,10 +222,10 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 		}
 	case "sidx":
 		if len(f.Segments) == 0 { // sidx before first styp
-			f.Sidx = box.(*SidxBox)
+			f.Sidxs = append(f.Sidxs, box.(*SidxBox))
 		} else {
 			currSeg := f.Segments[len(f.Segments)-1]
-			currSeg.Sidx = box.(*SidxBox)
+			currSeg.Sidxs = append(currSeg.Sidxs, box.(*SidxBox))
 		}
 	case "styp":
 		f.isFragmented = true
@@ -312,8 +312,8 @@ func (f *File) Encode(w io.Writer) error {
 					return err
 				}
 			}
-			if f.Sidx != nil {
-				err := f.Sidx.Encode(w)
+			for _, sidx := range f.Sidxs {
+				err := sidx.Encode(w)
 				if err != nil {
 					return err
 				}
@@ -361,8 +361,8 @@ func (f *File) EncodeSW(sw bits.SliceWriter) error {
 					return err
 				}
 			}
-			if f.Sidx != nil {
-				err := f.Sidx.EncodeSW(sw)
+			for _, sidx := range f.Sidxs {
+				err := sidx.EncodeSW(sw)
 				if err != nil {
 					return err
 				}
