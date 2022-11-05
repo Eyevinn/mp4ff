@@ -497,7 +497,7 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 			if err != nil {
 				return err
 			}
-			if workLen > 0 {
+			if workLen == 0 {
 				n, err := io.CopyN(w, rs, size)
 				if err != nil {
 					return fmt.Errorf("copyN: %w", err)
