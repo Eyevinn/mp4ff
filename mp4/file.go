@@ -459,15 +459,13 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 	if err != nil {
 		return err
 	}
-	var chunkOffsets []uint64
-	if stbl.Stco != nil {
-		chunkOffsets = make([]uint64, len(stbl.Stco.ChunkOffset))
-		for i := range stbl.Stco.ChunkOffset {
-			chunkOffsets[i] = uint64(stbl.Stco.ChunkOffset[i])
-		}
-	} else if stbl.Co64 != nil {
-		chunkOffsets = stbl.Co64.ChunkOffset
-	} else {
+	var getChunkOffset func(chunkNr int) (uint64, error)
+	switch {
+	case stbl.Stco != nil:
+		getChunkOffset = stbl.Stco.GetOffset
+	case stbl.Co64 != nil:
+		getChunkOffset = stbl.Co64.GetOffset
+	default:
 		return fmt.Errorf("neither stco nor co64 available")
 	}
 	var startNr, endNr uint32
@@ -477,7 +475,10 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 	for i, chunk := range chunks {
 		startNr = chunk.StartSampleNr
 		endNr = startNr + chunk.NrSamples - 1
-		offset = chunkOffsets[chunk.ChunkNr-1]
+		offset, err = getChunkOffset(int(chunk.ChunkNr))
+		if err != nil {
+			return fmt.Errorf("getChunkOffset: %w", err)
+		}
 		if i == 0 {
 			for sNr := chunk.StartSampleNr; sNr < startSampleNr; sNr++ {
 				offset += uint64(stbl.Stsz.GetSampleSize(int(sNr)))
