@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.30.1 | Fix optimized sample copying introduced in v0.30.0 |
 | 0.30.0 | Full AVC slice header parsing. Enhanced SEI Messages. Optimizations in ctts and sample copying. Bug fixes in HEVC nalu, tfdt, emsg |
 | 0.29.0 | Improved uuid and esds box handling. Extended decryption example with cbcs and in-place cenc decryption |
 | 0.28.0 | Full HEVC SPS parsing. Better video sample entry generation. More AC-3/EC-3 support. Extended EBSPWriter. Bug fixes |

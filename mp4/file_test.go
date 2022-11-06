@@ -60,21 +60,29 @@ func TestDecodeFileWithNoLazyMdatOption(t *testing.T) {
 	}
 }
 
-// TestExtractTrackSampleData both lazily and by reading in full file
+// TestCopyTrackSampleData checks that full early read and lazy with and without workSpace gives good and same result.
 func TestCopyTrackSampleData(t *testing.T) {
 	// load a progressive file
-
-	sampleDataRead := make([][]byte, 0, 1)
-	work := make([]byte, 1024)
-	for j := 0; j < 2; j++ {
+	testCases := []struct {
+		lazy          bool
+		workSpaceSize int
+	}{
+		{lazy: false, workSpaceSize: 0},
+		{lazy: true, workSpaceSize: 0},
+		{lazy: true, workSpaceSize: 256},
+	}
+	sampleDataRead := make([][]byte, 0, len(testCases))
+	for j, tc := range testCases {
 		fd, err := os.Open("./testdata/prog_8s.mp4")
 		if err != nil {
 			t.Error(err)
 		}
 		defer fd.Close()
 		var mp4f *File
-		if j == 0 {
+		var workSpace []byte
+		if tc.lazy {
 			mp4f, err = DecodeFile(fd, WithDecodeMode(DecModeLazyMdat))
+			workSpace = make([]byte, tc.workSpaceSize)
 		} else {
 			mp4f, err = DecodeFile(fd)
 		}
@@ -84,7 +92,7 @@ func TestCopyTrackSampleData(t *testing.T) {
 		var startSampleNr uint32 = 31
 		var endSampleNr uint32 = 60
 
-		for i, trak := range mp4f.Moov.Traks {
+		for _, trak := range mp4f.Moov.Traks {
 			totSize := 0
 			stsz := trak.Mdia.Minf.Stbl.Stsz
 			for i := startSampleNr; i <= endSampleNr; i++ {
@@ -92,7 +100,7 @@ func TestCopyTrackSampleData(t *testing.T) {
 			}
 			sampleData := bytes.Buffer{}
 
-			err := mp4f.CopySampleData(&sampleData, fd, trak, startSampleNr, endSampleNr, work)
+			err := mp4f.CopySampleData(&sampleData, fd, trak, startSampleNr, endSampleNr, workSpace)
 			if err != nil {
 				t.Error(err)
 			}
@@ -102,7 +110,7 @@ func TestCopyTrackSampleData(t *testing.T) {
 			if trak.Tkhd.TrackID == 1 {
 				sampleDataRead = append(sampleDataRead, sampleData.Bytes())
 				if len(sampleDataRead) > 1 {
-					if res := bytes.Compare(sampleDataRead[i], sampleDataRead[0]); res != 0 {
+					if res := bytes.Compare(sampleDataRead[j], sampleDataRead[0]); res != 0 {
 						t.Errorf("sample data read differs %d", res)
 					}
 				}
