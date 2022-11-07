@@ -12,8 +12,8 @@ import (
 //
 // This table contains the duration in time units for each sample.
 //
-//   * SampleCount : the number of consecutive samples having the same duration
-//   * SampleTimeDelta : duration in time units
+//   - SampleCount : the number of consecutive samples having the same duration
+//   - SampleTimeDelta : duration in time units
 type SttsBox struct {
 	Version         byte
 	Flags           uint32
@@ -153,6 +153,9 @@ func (b *SttsBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box-specific information
 func (b *SttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
+	if len(b.SampleCount) > 0 {
+		bd.write(" - sampleCount: %d", len(b.SampleCount))
+	}
 	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.SampleCount {

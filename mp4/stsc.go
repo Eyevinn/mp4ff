@@ -126,6 +126,9 @@ func (b *StscBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write specific box info to w
 func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
+	if len(b.Entries) > 0 {
+		bd.write(" - entryCount: %d", len(b.Entries))
+	}
 	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.Entries {

@@ -105,6 +105,9 @@ func (b *StssBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box-specific information
 func (b *StssBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
+	if len(b.SampleNumber) > 0 {
+		bd.write(" - syncSampleCount: %d", len(b.SampleNumber))
+	}
 	level := getInfoLevel(b, specificBoxLevels)
 	if level >= 1 {
 		for i := range b.SampleNumber {
