@@ -13,10 +13,14 @@ func TestStsc(t *testing.T) {
 		// 2 chunks with 256 samples followed
 		// by an unknown number of chunks with 1000 elements.
 		// The chunks should therefore start on sample 1, 257, 513, 1513, 2513 etc
-		stsc := &StscBox{
-			FirstChunk:          []uint32{1, 3},
-			SamplesPerChunk:     []uint32{256, 1000},
-			SampleDescriptionID: []uint32{1, 1},
+		stsc := &StscBox{}
+		err := stsc.AddEntry(1, 256, 1)
+		if err != nil {
+			t.Error(err)
+		}
+		err = stsc.AddEntry(3, 1000, 1)
+		if err != nil {
+			t.Error(err)
 		}
 
 		tests := []struct {
@@ -57,12 +61,12 @@ func TestStsc(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			chunk, chunkStart, err := stsc.ChunkNrFromSampleNr(test.sample)
+			chunkNr, chunkStart, err := stsc.ChunkNrFromSampleNr(test.sample)
 			if err != nil {
 				t.Error(err)
 			}
-			if chunk != test.chunk {
-				t.Errorf("Got chunk %d instead of %d for sample %d", chunk, test.chunk, test.sample)
+			if chunkNr != test.chunk {
+				t.Errorf("Got chunk %d instead of %d for sample %d", chunkNr, test.chunk, test.sample)
 			}
 			if chunkStart != test.chunkStart {
 				t.Errorf("Got chunkStart %d instead of %d for sample %d", chunkStart, test.chunkStart, test.sample)
@@ -71,9 +75,14 @@ func TestStsc(t *testing.T) {
 	})
 
 	t.Run("encode and decode", func(t *testing.T) {
-		stsc := &StscBox{
-			FirstChunk:      []uint32{1, 3},
-			SamplesPerChunk: []uint32{256, 1000},
+		stsc := &StscBox{}
+		err := stsc.AddEntry(1, 256, 1)
+		if err != nil {
+			t.Error(err)
+		}
+		err = stsc.AddEntry(3, 1000, 1)
+		if err != nil {
+			t.Error(err)
 		}
 		stsc.SetSingleSampleDescriptionID(1)
 		boxDiffAfterEncodeAndDecode(t, stsc)
@@ -81,10 +90,14 @@ func TestStsc(t *testing.T) {
 }
 
 func TestStscContainingChunks(t *testing.T) {
-	stsc := &StscBox{
-		FirstChunk:          []uint32{1, 3},
-		SamplesPerChunk:     []uint32{256, 1000},
-		SampleDescriptionID: []uint32{1, 1},
+	stsc := &StscBox{}
+	err := stsc.AddEntry(1, 256, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	err = stsc.AddEntry(3, 1000, 1)
+	if err != nil {
+		t.Error(err)
 	}
 
 	testCases := []struct {
@@ -111,22 +124,26 @@ func TestStscContainingChunks(t *testing.T) {
 			260, 1759, []Chunk{{2, 257, 256}, {3, 513, 1000}, {4, 1513, 1000}},
 		},
 	}
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		gotChunks, err := stsc.GetContainingChunks(tc.startSampleNr, tc.endSampleNr)
 		if err != nil {
 			t.Error(err)
 		}
 		diff := deep.Equal(gotChunks, tc.wantedChunks)
 		if diff != nil {
-			t.Errorf("%s", diff)
+			t.Errorf("case %d, %s", i, diff)
 		}
 	}
 }
 func TestGetChunk(t *testing.T) {
-	stsc := &StscBox{
-		FirstChunk:          []uint32{1, 3},
-		SamplesPerChunk:     []uint32{256, 1000},
-		SampleDescriptionID: []uint32{1, 2},
+	stsc := &StscBox{}
+	err := stsc.AddEntry(1, 256, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	err = stsc.AddEntry(3, 1000, 2)
+	if err != nil {
+		t.Error(err)
 	}
 
 	testCases := []struct {
@@ -150,7 +167,7 @@ func TestGetChunk(t *testing.T) {
 	for _, tc := range testCases {
 		gotChunk := stsc.GetChunk(tc.chunkNr)
 		if gotChunk != tc.wantedChunk {
-			t.Errorf("Got %#v instead of %#v", gotChunk, tc.wantedChunk)
+			t.Errorf("ChunkNr %d: Got %#v instead of %#v", tc.chunkNr, gotChunk, tc.wantedChunk)
 		}
 	}
 }
