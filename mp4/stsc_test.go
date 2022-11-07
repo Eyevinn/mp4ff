@@ -61,12 +61,12 @@ func TestStsc(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			chunk, chunkStart, err := stsc.ChunkNrFromSampleNr(test.sample)
+			chunkNr, chunkStart, err := stsc.ChunkNrFromSampleNr(test.sample)
 			if err != nil {
 				t.Error(err)
 			}
-			if chunk != test.chunk {
-				t.Errorf("Got chunk %d instead of %d for sample %d", chunk, test.chunk, test.sample)
+			if chunkNr != test.chunk {
+				t.Errorf("Got chunk %d instead of %d for sample %d", chunkNr, test.chunk, test.sample)
 			}
 			if chunkStart != test.chunkStart {
 				t.Errorf("Got chunkStart %d instead of %d for sample %d", chunkStart, test.chunkStart, test.sample)

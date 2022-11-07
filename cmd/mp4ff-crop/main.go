@@ -181,7 +181,10 @@ func cropToTime(inMP4 *mp4.File, endTime, endTimescale uint64, w io.Writer, ifh 
 		return err
 	}
 
-	cropStblChildren(traks, tos)
+	err = cropStblChildren(traks, tos)
+	if err != nil {
+		return err
+	}
 	updateChunkOffsets(inMP4, firstOffset)
 
 	err = writeUptoMdat(inMP4, endTime, endTimescale, w)
