@@ -77,45 +77,18 @@ func cropCtts(b *mp4.CttsBox, lastSampleNr uint32) {
 }
 
 func cropStsc(b *mp4.StscBox, lastSampleNr uint32) {
-	var countedSamples uint32 = 0
-	nrEntries := len(b.FirstChunk)
-	nrFullEntries := 0
-	nextChunkNr := 1
-	for i := 0; i < nrEntries-1; i++ {
-		nrChunksOfLength := b.FirstChunk[i+1] - b.FirstChunk[i]
-		nrSamplesInEntry := nrChunksOfLength * b.SamplesPerChunk[i]
-		if countedSamples+nrSamplesInEntry < lastSampleNr {
-			countedSamples += nrSamplesInEntry
-			nrFullEntries++
-			nextChunkNr += int(nrChunksOfLength)
-			continue
-		}
-		break
-	}
-	samplesLeft := lastSampleNr - countedSamples
-	if samplesLeft == 0 {
-		if nrFullEntries < nrEntries-1 {
-			b.FirstChunk = b.FirstChunk[:nrFullEntries]
-			b.SamplesPerChunk = b.SamplesPerChunk[:nrFullEntries]
-		}
-	} else {
-		partialSizeLeft := samplesLeft % b.SamplesPerChunk[nrFullEntries]
-		nrChunksOfLastSize := samplesLeft / b.SamplesPerChunk[nrFullEntries]
-		if nrChunksOfLastSize >= 1 {
-			b.FirstChunk = b.FirstChunk[:nrFullEntries+1]
-			b.SamplesPerChunk = b.SamplesPerChunk[:nrFullEntries+1]
-		} else {
-			b.FirstChunk = b.FirstChunk[:nrFullEntries]
-			b.SamplesPerChunk = b.SamplesPerChunk[:nrFullEntries]
-		}
-		nextChunkNr += int(nrChunksOfLastSize)
-		if partialSizeLeft > 0 {
-			b.FirstChunk = append(b.FirstChunk, uint32(nextChunkNr))
-			b.SamplesPerChunk = append(b.SamplesPerChunk, partialSizeLeft)
-		}
-	}
+	entryIdx := b.FindEntryNrForSampleNr(lastSampleNr, 0)
+	lastEntry := b.Entries[entryIdx]
+	b.Entries = b.Entries[:entryIdx+1]
 	if len(b.SampleDescriptionID) > 0 {
-		b.SampleDescriptionID = b.SampleDescriptionID[:len(b.FirstChunk)]
+		b.Entries = b.Entries[:entryIdx+1]
+	}
+	samplesLeft := lastSampleNr - lastEntry.FirstSampleNr + 1
+	nrChunksInLast := samplesLeft / lastEntry.SamplesPerChunk
+	nrLeft := samplesLeft - nrChunksInLast*lastEntry.SamplesPerChunk
+	if nrLeft > 0 {
+		sdid := b.GetSampleDescriptionID(int(lastEntry.FirstChunk))
+		b.AddEntry(lastEntry.FirstChunk+nrChunksInLast, nrLeft, sdid)
 	}
 }
 
