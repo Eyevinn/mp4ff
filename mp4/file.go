@@ -20,8 +20,8 @@ import (
 // where mdat may come before moov.
 // If fragmented, there are many more boxes and they are collected
 // in the InitSegment, Segment and Segments structures.
-// The sample metadata in thefragments in the Segments will be
-// optimized unless EncodeVerbatim is set.
+// The sample metadata in the fragments in the Segments will be
+// optimized unless EncModeBoxTree is set.
 // To Encode the same data as Decoded, this flag must therefore be set.
 // In all cases, Children contain all top-level boxes
 type File struct {
@@ -320,7 +320,7 @@ func (f *File) DumpWithSampleData(w io.Writer, specificBoxLevels string) error {
 }
 
 // Encode - encode a file to a Writer
-// Fragmented files are encoded based on InitSegment and MediaSegments, unless EncodeVerbatim is set.
+// Fragmented files are encoded based on InitSegment and MediaSegments, unless EncModeBoxTree is set.
 func (f *File) Encode(w io.Writer) error {
 	if f.isFragmented {
 		switch f.FragEncMode {
@@ -371,7 +371,7 @@ func (f *File) Encode(w io.Writer) error {
 }
 
 // EncodeSW - encode a file to a SliceWriter
-// Fragmented files are encoded based on InitSegment and MediaSegments, unless EncodeVerbatim is set.
+// Fragmented files are encoded based on InitSegment and MediaSegments, unless EncModeBoxTree is set.
 func (f *File) EncodeSW(sw bits.SliceWriter) error {
 	if f.isFragmented {
 		switch f.FragEncMode {
