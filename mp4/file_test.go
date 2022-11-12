@@ -140,3 +140,24 @@ func TestDecodeEncodeProgressiveSliceWriter(t *testing.T) {
 		t.Errorf("output differs from input")
 	}
 }
+
+func TestDecodeEncodeMultiSidxSegment(t *testing.T) {
+	rawInput, err := ioutil.ReadFile("./testdata/multi_sidx_segment.m4s")
+	if err != nil {
+		t.Error(err)
+	}
+	rawOutput := make([]byte, len(rawInput))
+	inBuf := bytes.NewBuffer(rawInput)
+	parsedFile, err := DecodeFile(inBuf)
+	if err != nil {
+		t.Error(err)
+	}
+	sw := bits.NewFixedSliceWriterFromSlice(rawOutput)
+	err = parsedFile.EncodeSW(sw)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(rawOutput, rawInput) {
+		t.Errorf("output differs from input")
+	}
+}
