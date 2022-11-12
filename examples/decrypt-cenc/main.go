@@ -174,8 +174,9 @@ func decryptAndWriteSegments(segs []*mp4.MediaSegment, tracks []trackInfo, key [
 			}
 			outNr++
 		}
-		if seg.Sidx != nil {
+		if len(seg.Sidxs) > 0 {
 			seg.Sidx = nil // drop sidx inside segment, since not modified properly
+			seg.Sidxs = nil
 		}
 		err := seg.Encode(ofh)
 		if err != nil {
