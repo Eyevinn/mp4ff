@@ -29,7 +29,8 @@ type File struct {
 	Moov         *MoovBox
 	Mdat         *MdatBox        // Only used for non-fragmented files
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
-	Sidx         *SidxBox        // SidxBox for a DASH OnDemand file
+	Sidx         *SidxBox        // The first sidx box for a DASH OnDemand file
+	Sidxs        []*SidxBox      // All sidx boxes for a DASH OnDemand file
 	Segments     []*MediaSegment // Media segments
 	Children     []Box           // All top-level boxes in order
 	FragEncMode  EncFragFileMode // Determine how fragmented files are encoded
@@ -221,11 +222,21 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 			f.Init.AddChild(f.Moov)
 		}
 	case "sidx":
-		if len(f.Segments) == 0 { // sidx before first styp
-			f.Sidx = box.(*SidxBox)
+		// sidx boxes are either added to the File or to the current media segment.
+		// Since sidx boxes for a segment come before the moof, it is important that a new
+		// segment is started with a styp box for the sidx to be associated with the
+		// right segment.
+		// A more general solution could possibly be implemented by looking at the
+		// sidx details like reference_ID to understand the sidx chain structure,
+		// and/or by waiting with associating the sidx box until more boxes are read.
+		// Given the rareness of multiple sidx boxes and the complexity of implementing
+		// and testing such a solution, that track is not deemed worth the effort for now.
+		if len(f.Segments) == 0 {
+			// Add sidx to top level until we know that a segment has started
+			f.AddSidx(box.(*SidxBox))
 		} else {
 			currSeg := f.Segments[len(f.Segments)-1]
-			currSeg.Sidx = box.(*SidxBox)
+			currSeg.AddSidx(box.(*SidxBox))
 		}
 	case "styp":
 		f.isFragmented = true
@@ -259,6 +270,14 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 		}
 	}
 	f.Children = append(f.Children, box)
+}
+
+// AddSidx adds a sidx box to the File and not a MediaSegment.
+func (f *File) AddSidx(sidx *SidxBox) {
+	if len(f.Sidxs) == 0 {
+		f.Sidx = sidx
+	}
+	f.Sidxs = append(f.Sidxs, sidx)
 }
 
 // DumpWithSampleData - print information about file and its children boxes
@@ -312,10 +331,12 @@ func (f *File) Encode(w io.Writer) error {
 					return err
 				}
 			}
-			if f.Sidx != nil {
-				err := f.Sidx.Encode(w)
-				if err != nil {
-					return err
+			if len(f.Sidxs) > 0 {
+				for i := range f.Sidxs {
+					err := f.Sidxs[i].Encode(w)
+					if err != nil {
+						return err
+					}
 				}
 			}
 			for _, seg := range f.Segments {
@@ -361,10 +382,12 @@ func (f *File) EncodeSW(sw bits.SliceWriter) error {
 					return err
 				}
 			}
-			if f.Sidx != nil {
-				err := f.Sidx.EncodeSW(sw)
-				if err != nil {
-					return err
+			if len(f.Sidxs) > 0 {
+				for i := range f.Sidxs {
+					err := f.Sidxs[i].EncodeSW(sw)
+					if err != nil {
+						return err
+					}
 				}
 			}
 			for _, seg := range f.Segments {

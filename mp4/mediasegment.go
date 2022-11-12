@@ -6,10 +6,11 @@ import (
 	"github.com/edgeware/mp4ff/bits"
 )
 
-// MediaSegment - MP4 Media Segment
+// MediaSegment is an MP4 Media Segment with one or more Fragments.
 type MediaSegment struct {
 	Styp        *StypBox
-	Sidx        *SidxBox // Sidx for a segment
+	Sidx        *SidxBox   // The fist sidx box in a segment
+	Sidxs       []*SidxBox // All sidx boxes in a segment
 	Fragments   []*Fragment
 	EncOptimize EncOptimize
 }
@@ -30,6 +31,14 @@ func NewMediaSegmentWithoutStyp() *MediaSegment {
 		Fragments:   nil,
 		EncOptimize: OptimizeNone,
 	}
+}
+
+// AddSidx adds a sidx box to the MediaSegment.
+func (s *MediaSegment) AddSidx(sidx *SidxBox) {
+	if len(s.Sidxs) == 0 {
+		s.Sidx = sidx
+	}
+	s.Sidxs = append(s.Sidxs, sidx)
 }
 
 // AddFragment - Add a fragment to a MediaSegment
@@ -65,10 +74,12 @@ func (s *MediaSegment) Encode(w io.Writer) error {
 			return err
 		}
 	}
-	if s.Sidx != nil {
-		err := s.Sidx.Encode(w)
-		if err != nil {
-			return err
+	if len(s.Sidxs) > 0 {
+		for i := range s.Sidxs {
+			err := s.Sidxs[i].Encode(w)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	for _, f := range s.Fragments {
@@ -89,10 +100,12 @@ func (s *MediaSegment) EncodeSW(sw bits.SliceWriter) error {
 			return err
 		}
 	}
-	if s.Sidx != nil {
-		err := s.Sidx.EncodeSW(sw)
-		if err != nil {
-			return err
+	if len(s.Sidxs) > 0 {
+		for i := range s.Sidxs {
+			err := s.Sidxs[i].EncodeSW(sw)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	for _, f := range s.Fragments {
@@ -113,10 +126,12 @@ func (s *MediaSegment) Info(w io.Writer, specificBoxLevels, indent, indentStep s
 			return err
 		}
 	}
-	if s.Sidx != nil {
-		err := s.Sidx.Info(w, specificBoxLevels, indent, indentStep)
-		if err != nil {
-			return err
+	if len(s.Sidxs) > 0 {
+		for i := range s.Sidxs {
+			err := s.Sidxs[i].Info(w, specificBoxLevels, indent, indentStep)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	for _, f := range s.Fragments {
