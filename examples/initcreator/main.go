@@ -88,7 +88,7 @@ func writeVideoHEVCInitSegment() error {
 	init := mp4.CreateEmptyInit()
 	init.AddEmptyTrack(videoTimescale, "video", "und")
 	trak := init.Moov.Trak
-	err := trak.SetHEVCDescriptor("hvc1", vpsNALUs, spsNALUs, ppsNALUs, true)
+	err := trak.SetHEVCDescriptor("hvc1", vpsNALUs, spsNALUs, ppsNALUs, nil, true)
 	if err != nil {
 		return err
 	}

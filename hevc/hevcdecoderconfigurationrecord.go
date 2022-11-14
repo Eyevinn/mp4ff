@@ -66,8 +66,8 @@ func (n *NaluArray) Complete() byte {
 }
 
 // CreateHEVCDecConfRec - extract information from sps and insert vps, sps, pps if includePS set
-func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte,
-	vpsComplete, spsComplete, ppsComplete, includePS bool) (DecConfRec, error) {
+func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus, seiNALUs [][]byte,
+	vpsComplete, spsComplete, ppsComplete, seiComplete, includePS bool) (DecConfRec, error) {
 	if len(spsNalus) == 0 {
 		return DecConfRec{}, fmt.Errorf("no SPS NALU supported. Needed to extract fundamental information")
 	}
@@ -80,6 +80,9 @@ func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte,
 		naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
 		naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
 		naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
+		if seiNALUs != nil {
+			naluArrays = append(naluArrays, *NewNaluArray(seiComplete, NALU_SEI_PREFIX, seiNALUs))
+		}
 	}
 	ptf := sps.ProfileTierLevel
 	return DecConfRec{

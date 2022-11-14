@@ -204,7 +204,7 @@ func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs, ppsNAL
 }
 
 // SetHEVCDescriptor - Set HEVC SampleDescriptor based on descriptorType and VPS, SPS, and PPS
-func (t *TrakBox) SetHEVCDescriptor(sampleDescriptorType string, vpsNALUs, spsNALUs, ppsNALUs [][]byte, includePS bool) error {
+func (t *TrakBox) SetHEVCDescriptor(sampleDescriptorType string, vpsNALUs, spsNALUs, ppsNALUs, seiNALUs [][]byte, includePS bool) error {
 	if sampleDescriptorType != "hvc1" && sampleDescriptorType != "hev1" {
 		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
 	}
@@ -224,7 +224,7 @@ func (t *TrakBox) SetHEVCDescriptor(sampleDescriptorType string, vpsNALUs, spsNA
 	if sampleDescriptorType == "hvc1" && !includePS {
 		return fmt.Errorf("must include parameter sets for hvc1")
 	}
-	hvcC, err := CreateHvcC(vpsNALUs, spsNALUs, ppsNALUs, completePS, completePS, completePS, includePS)
+	hvcC, err := CreateHvcC(vpsNALUs, spsNALUs, ppsNALUs, seiNALUs, completePS, completePS, completePS, completePS, includePS)
 	if err != nil {
 		return err
 	}
