@@ -11,6 +11,7 @@ func TestCreateDecConfRec(t *testing.T) {
 		vpsHex    string
 		spsHex    string
 		ppsHex    string
+		seiHex    string
 		complete  bool
 		includePS bool
 		errorMsg  string
@@ -19,6 +20,7 @@ func TestCreateDecConfRec(t *testing.T) {
 			vpsHex:    "",
 			spsHex:    "",
 			ppsHex:    "",
+			seiHex:    "",
 			complete:  false,
 			includePS: false,
 			errorMsg:  "no SPS NALU supported. Needed to extract fundamental information",
@@ -27,6 +29,7 @@ func TestCreateDecConfRec(t *testing.T) {
 			vpsHex:    "0000000140010c01ffff016000000300900000030000030078959809",
 			spsHex:    "00000001420101016000000300900000030000030078a00502016965959a4932bc05a80808082000000300200000030321",
 			ppsHex:    "000000014401c172b46240",
+			seiHex:    "000000014e01891800000300000300000300000300000300000300000300000300000300000300000300009004000003000080",
 			complete:  true,
 			includePS: true,
 			errorMsg:  "",
@@ -36,15 +39,16 @@ func TestCreateDecConfRec(t *testing.T) {
 		vpsNalus := createNalusFromHex(tc.vpsHex)
 		spsNalus := createNalusFromHex(tc.spsHex)
 		ppsNalus := createNalusFromHex(tc.ppsHex)
-		dcr, err := CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus,
-			tc.complete, tc.complete, tc.complete, tc.includePS)
+		seiNalus := createNalusFromHex(tc.seiHex)
+		dcr, err := CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus, seiNalus,
+			tc.complete, tc.complete, tc.complete, tc.complete, tc.includePS)
 		if tc.errorMsg != "" {
 			if err.Error() != tc.errorMsg {
 				t.Errorf("got error %q instead of %q", err.Error(), tc.errorMsg)
 			}
 		} else {
-			if len(dcr.NaluArrays) != 3 {
-				t.Errorf("got %d NALU arrays instead of 3", len(dcr.NaluArrays))
+			if len(dcr.NaluArrays) != 4 {
+				t.Errorf("got %d NALU arrays instead of 4", len(dcr.NaluArrays))
 			}
 			for i, naluArray := range dcr.NaluArrays {
 				if naluArray.Complete() != 0 {
