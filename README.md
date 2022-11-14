@@ -48,6 +48,7 @@ The examples and their functions are:
 The library has functions for parsing (called Decode) and writing (Encode) in the package `mp4ff/mp4`.
 It also contains codec specific parsing of AVC/H.264 including complete parsing of
 SPS and PPS in the package `mp4ff.avc`. HEVC/H.265 parsing is less complete, and available as `mp4ff.hevc`.
+Supplementary Enhancement Information can be parsed and written using the package `mp4ff.sei`.
 
 Traditional multiplexed non-fragmented mp4 files can be parsed and decoded, but the focus is on fragmented mp4 files
 as used in DASH, HLS, and CMAF.
@@ -65,8 +66,9 @@ into a playable one-track asset. It can also have multiple tracks.
 For fragmented files, the following high-level attributes are used:
 
 * `Init` contains a `ftyp` and a `moov` box and provides the general metadata for a fragmented file.
-   It corresponds to a CMAF header
-* `Segments` is a slice of `MediaSegment` which start with an optional `styp` box and contains one or more `Fragment`s
+   It corresponds to a CMAF header. It can also contain one or more `sidx` boxes.
+* `Segments` is a slice of `MediaSegment` which start with an optional `styp` box, possibly one or more `sidx boxes
+   and then one or more `Fragment`s.
 * `Fragment` is a mp4 fragment with exactly one `moof` box followed by a `mdat` box where the latter
    contains the media data. It can have one or more `trun` boxes containing the metadata
    for the samples.
@@ -107,7 +109,7 @@ Multiple tracks are also available via the slice attribute `Traks` instead of `T
 
 The second step is to start producing media segments. They should use the timescale that
 was set when creating the init segment. Generally, that timescale should be chosen so that the
-sample durations have exact values.
+sample durations have exact values without rounding errors.
 
 A media segment contains one or more fragments, where each fragment has a `moof` and a `mdat` box.
 If all samples are available before the segment is created, one can use a single
@@ -195,7 +197,7 @@ lot of allocations and copying of data.
 In order to achieve better performance, it is advantageous to read the full top level boxes into
 one, or a few, slices and decode these.
 
-To enable that mode, version 0.27 of the code introduces `DecodeX(sr bits.SliceReader)`
+To enable that mode, version 0.27 of the code introduced `DecodeX(sr bits.SliceReader)`
 methods to every box X where `mp4ff.bits.SliceReader` is an interface.
 For example, the `TrunBox` gets the method `DecodeTrunSR(sr bits.SliceReader)` in addition to its old
 `DecodeTrun(r io.Reader)` method. The `bits.SliceReader` interface provides methods to read all kinds
@@ -206,9 +208,13 @@ which would get its data from some external source.
 The memory allocation and speed improvements achieved by this may vary, but should be substantial,
 especially compared to versions before 0.27 which used an extra `io.LimitReader` layer.
 
+Fur further reduction of memory allocation when reading the ´mdat` data of a progressive file, some
+sort of buffered reader should be used.
+
 ### Benchmarks
 
-To investigate the efficiency of the new SliceReader and SliceWriter methods, benchmarks have been done. The benchmarks are defined in
+To investigate the efficiency of the new SliceReader and SliceWriter methods, benchmarks have been done.
+The benchmarks are defined in
 the file `mp4/benchmarks_test.go` and `mp4/benchmarks_srw_test.go`.
 For `DecodeFile`, one can see a big improvement by going from version
 0.26 to version 0.27 which both use the `io.Reader` interface

@@ -119,45 +119,40 @@ func TestCopyTrackSampleData(t *testing.T) {
 	}
 }
 
-func TestDecodeEncodeProgressiveSliceWriter(t *testing.T) {
-	// load a segment
-	rawInput, err := ioutil.ReadFile("./testdata/prog_8s.mp4")
-	if err != nil {
-		t.Error(err)
-	}
-	rawOutput := make([]byte, len(rawInput))
-	inBuf := bytes.NewBuffer(rawInput)
-	parsedFile, err := DecodeFile(inBuf)
-	if err != nil {
-		t.Error(err)
-	}
-	sw := bits.NewFixedSliceWriterFromSlice(rawOutput)
-	err = parsedFile.EncodeSW(sw)
-	if err != nil {
-		t.Error(err)
-	}
-	if !bytes.Equal(rawOutput, rawInput) {
-		t.Errorf("output differs from input")
-	}
-}
+func TestDecodeEncode(t *testing.T) {
+	testFiles := []string{"./testdata/prog_8s.mp4", "./testdata/multi_sidx_segment.m4s"}
 
-func TestDecodeEncodeMultiSidxSegment(t *testing.T) {
-	rawInput, err := ioutil.ReadFile("./testdata/multi_sidx_segment.m4s")
-	if err != nil {
-		t.Error(err)
-	}
-	rawOutput := make([]byte, len(rawInput))
-	inBuf := bytes.NewBuffer(rawInput)
-	parsedFile, err := DecodeFile(inBuf)
-	if err != nil {
-		t.Error(err)
-	}
-	sw := bits.NewFixedSliceWriterFromSlice(rawOutput)
-	err = parsedFile.EncodeSW(sw)
-	if err != nil {
-		t.Error(err)
-	}
-	if !bytes.Equal(rawOutput, rawInput) {
-		t.Errorf("output differs from input")
+	for _, testFile := range testFiles {
+		rawInput, err := ioutil.ReadFile("./testdata/prog_8s.mp4")
+		if err != nil {
+			t.Error(err)
+		}
+		rawOutput := make([]byte, len(rawInput))
+		inBuf := bytes.NewBuffer(rawInput)
+		parsedFile, err := DecodeFile(inBuf)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// SliceWriter case:
+		sw := bits.NewFixedSliceWriterFromSlice(rawOutput)
+		err = parsedFile.EncodeSW(sw)
+		if err != nil {
+			t.Error(err)
+		}
+		if !bytes.Equal(rawOutput, rawInput) {
+			t.Errorf("encode differs from input for EncodeSW() and %s", testFile)
+		}
+
+		// io.Writer case
+		rawOutput = rawOutput[:0]
+		outBuf := bytes.NewBuffer(rawOutput)
+		err = parsedFile.Encode(outBuf)
+		if err != nil {
+			t.Error(err)
+		}
+		if !bytes.Equal(outBuf.Bytes(), rawInput) {
+			t.Errorf("encode differs from input for Encode() and %s", testFile)
+		}
 	}
 }
