@@ -17,10 +17,9 @@ type HvcCBox struct {
 
 // CreateHvcC - create an hvcC box based on VPS, SPS and PPS and signal completeness
 // If includePS is false, the nalus are not included, but information from sps is extracted.
-func CreateHvcC(vpsNalus, spsNalus, ppsNalus, seiNALUs [][]byte,
-	vpsComplete, spsComplete, ppsComplete, seiComplete, includePS bool) (*HvcCBox, error) {
-	hevcDecConfRec, err := hevc.CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus, seiNALUs,
-		vpsComplete, spsComplete, ppsComplete, seiComplete, includePS)
+func CreateHvcC(vpsNalus, spsNalus, ppsNalus [][]byte, vpsComplete, spsComplete, ppsComplete, includePS bool) (*HvcCBox, error) {
+	hevcDecConfRec, err := hevc.CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus,
+		vpsComplete, spsComplete, ppsComplete, includePS)
 	if err != nil {
 		return nil, fmt.Errorf("CreateHEVCDecConfRec: %w", err)
 	}

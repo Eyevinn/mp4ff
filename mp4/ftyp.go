@@ -22,6 +22,7 @@ func (b *FtypBox) MinorVersion() uint32 {
 	return binary.BigEndian.Uint32(b.data[4:8])
 }
 
+// AddCompatibleBrands adds new compatible brands to Ftyp box.
 func (b *FtypBox) AddCompatibleBrands(compatibleBrands []string) {
 	for _, cb := range compatibleBrands {
 		b.data = append(b.data, []byte(cb)...)

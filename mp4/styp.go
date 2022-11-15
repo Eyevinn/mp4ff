@@ -22,6 +22,13 @@ func (b *StypBox) MinorVersion() uint32 {
 	return binary.BigEndian.Uint32(b.data[4:8])
 }
 
+// AddCompatibleBrands adds new compatible brands to Styp box.
+func (b *StypBox) AddCompatibleBrands(compatibleBrands []string) {
+	for _, cb := range compatibleBrands {
+		b.data = append(b.data, []byte(cb)...)
+	}
+}
+
 // CompatibleBrands - slice of compatible brands (4 chars each)
 func (b *StypBox) CompatibleBrands() []string {
 	nrCompatibleBrands := (len(b.data) - 8) / 4
