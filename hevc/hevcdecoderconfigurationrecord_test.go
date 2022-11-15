@@ -42,7 +42,7 @@ func TestCreateDecConfRec(t *testing.T) {
 		seiNalus := createNalusFromHex(tc.seiHex)
 		dcr, err := CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus,
 			tc.complete, tc.complete, tc.complete, tc.includePS)
-		seiArray := *NewNaluArray(tc.complete, NALU_SEI_PREFIX, seiNalus)
+		seiArray := NewNaluArray(tc.complete, NALU_SEI_PREFIX, seiNalus)
 		dcr.AddNaluArrays([]NaluArray{seiArray})
 		if tc.errorMsg != "" {
 			if err.Error() != tc.errorMsg {

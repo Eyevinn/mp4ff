@@ -43,7 +43,7 @@ type NaluArray struct {
 }
 
 // NewNaluArray - create an HEVC NaluArray
-func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
+func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) NaluArray {
 	var completeBit byte
 	if complete {
 		completeBit = 0x80
@@ -52,7 +52,7 @@ func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) *NaluArray {
 		completeAndType: completeBit | byte(naluType),
 		Nalus:           nalus,
 	}
-	return &na
+	return na
 }
 
 // NaluType - return NaluType for NaluArray
@@ -77,9 +77,9 @@ func CreateHEVCDecConfRec(vpsNalus, spsNalus, ppsNalus [][]byte,
 	}
 	var naluArrays []NaluArray
 	if includePS {
-		naluArrays = append(naluArrays, *NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
-		naluArrays = append(naluArrays, *NewNaluArray(spsComplete, NALU_SPS, spsNalus))
-		naluArrays = append(naluArrays, *NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
+		naluArrays = append(naluArrays, NewNaluArray(vpsComplete, NALU_VPS, vpsNalus))
+		naluArrays = append(naluArrays, NewNaluArray(spsComplete, NALU_SPS, spsNalus))
+		naluArrays = append(naluArrays, NewNaluArray(ppsComplete, NALU_PPS, ppsNalus))
 	}
 	ptf := sps.ProfileTierLevel
 	return DecConfRec{

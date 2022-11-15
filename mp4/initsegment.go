@@ -226,7 +226,7 @@ func (t *TrakBox) SetHEVCDescriptor(sampleDescriptorType string, vpsNALUs, spsNA
 	}
 	hvcC, err := CreateHvcC(vpsNALUs, spsNALUs, ppsNALUs, completePS, completePS, completePS, includePS)
 	if len(seiNALUs) > 0 {
-		hvcC.AddNaluArrays([]hevc.NaluArray{*hevc.NewNaluArray(completePS, hevc.NALU_SEI_PREFIX, seiNALUs)})
+		hvcC.AddNaluArrays([]hevc.NaluArray{hevc.NewNaluArray(completePS, hevc.NALU_SEI_PREFIX, seiNALUs)})
 	}
 	if err != nil {
 		return err
