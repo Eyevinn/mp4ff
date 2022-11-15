@@ -54,6 +54,7 @@
                - maxBitrate: 2450912
                - AvgBitrate: 1384000
           [stts] size=24 version=0 flags=000000
+           - sampleCount: 1
            - entry[1]: sampleCount=480 sampleDelta=4
           [ctts] size=2128 version=0 flags=000000
            - sampleCount: 264
@@ -322,6 +323,7 @@
            - entry[263]: sampleCount=1 sampleOffset=0
            - entry[264]: sampleCount=1 sampleOffset=4
           [stss] size=144 version=0 flags=000000
+           - syncSampleCount: 32
            - syncSample[1]: sampleNumber=1
            - syncSample[2]: sampleNumber=16
            - syncSample[3]: sampleNumber=38
@@ -355,6 +357,7 @@
            - syncSample[31]: sampleNumber=461
            - syncSample[32]: sampleNumber=480
           [stsc] size=52 version=0 flags=000000
+           - entryCount: 3
            - entry[1]: firstChunk=1 samplesPerChunk=13 sampleDescriptionID=1
            - entry[2]: firstChunk=2 samplesPerChunk=12 sampleDescriptionID=1
            - entry[3]: firstChunk=40 samplesPerChunk=11 sampleDescriptionID=1
@@ -841,6 +844,7 @@
            - sample[479] size=2949
            - sample[480] size=23339
           [stco] size=176 version=0 flags=000000
+           - entryCount: 40
            - entry[1]: chunkOffset=5121
            - entry[2]: chunkOffset=117686
            - entry[3]: chunkOffset=217679
