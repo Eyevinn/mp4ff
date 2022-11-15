@@ -273,9 +273,9 @@ func (b *VisualSampleEntryBox) ConvertHev1ToHvc1(vpss [][]byte, spss [][]byte, p
 		return fmt.Errorf("type is %s and not hev1", b.Type())
 	}
 	b.SetType("hvc1")
-	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, *hevc.NewNaluArray(true, hevc.NALU_VPS, vpss))
-	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, *hevc.NewNaluArray(true, hevc.NALU_SPS, spss))
-	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, *hevc.NewNaluArray(true, hevc.NALU_PPS, ppss))
+	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_VPS, vpss))
+	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_SPS, spss))
+	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_PPS, ppss))
 	return nil
 }
 
