@@ -205,6 +205,8 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	var frameMbsOnly uint = 0
 	if sps.FrameMbsOnlyFlag {
 		frameMbsOnly = 1
+	} else { // Interlaced so the height should be doubled
+		sps.Height *= 2
 	}
 	if sps.FrameCroppingFlag {
 		switch sps.ChromaFormatIDC {
