@@ -201,3 +201,44 @@ func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo b
 	}
 	return nalus
 }
+
+// GetFirstAVCVideoNALUFromByteStream returns a slice with the first video nal unit.
+// No new memory is allocated, but a subslice of data is returned.
+func GetFirstAVCVideoNALUFromByteStream(data []byte) []byte {
+	currNaluStart := -1
+	n := len(data)
+	naluStart, naluEnd := 0, 0
+	for i := 0; i < n-3; i++ {
+		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
+			if currNaluStart > 0 {
+				currNaluEnd := i
+				for j := i - 1; j > currNaluStart; j-- {
+					// Remove zeros from end of NAL unit
+					if data[j] == 0 {
+						currNaluEnd = j
+					} else {
+						break
+					}
+				}
+				naluType := GetNaluType(data[currNaluStart])
+				if IsVideoNaluType(naluType) {
+					naluStart = currNaluStart
+					naluEnd = currNaluEnd
+					break
+				}
+			}
+			currNaluStart = i + 3
+		}
+	}
+	if currNaluStart > 0 && naluStart == 0 {
+		naluType := GetNaluType(data[currNaluStart])
+		if IsVideoNaluType(naluType) {
+			naluStart = currNaluStart
+			naluEnd = n
+		}
+	}
+	if naluStart == 0 {
+		return nil
+	}
+	return data[naluStart:naluEnd]
+}

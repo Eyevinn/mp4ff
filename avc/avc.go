@@ -27,8 +27,6 @@ const (
 	NALU_EO_STREAM = NaluType(11)
 	// NALU_FILL - Filler NAL Unit
 	NALU_FILL = NaluType(12)
-
-	highestVideoNaluType = 5
 )
 
 func (a NaluType) String() string {
@@ -93,7 +91,7 @@ func FindNaluTypesUpToFirstVideoNALU(sample []byte) []NaluType {
 		naluType := GetNaluType(sample[pos])
 		naluList = append(naluList, naluType)
 		pos += naluLength
-		if naluType <= highestVideoNaluType {
+		if IsVideoNaluType(naluType) {
 			break // first video nalu
 		}
 	}
@@ -157,10 +155,16 @@ naluLoop:
 			sps = append(sps, sample[pos:pos+naluLength])
 		case naluType == NALU_PPS:
 			pps = append(pps, sample[pos:pos+naluLength])
-		case naluType <= highestVideoNaluType:
+		case IsVideoNaluType(naluType):
 			break naluLoop //SPS and PPS must come before video
 		}
 		pos += naluLength
 	}
 	return sps, pps
+}
+
+// IsVideoNaluType returns true if nalu type is a VCL nalu.
+func IsVideoNaluType(naluType NaluType) bool {
+	const highestVideoNaluType = 5
+	return naluType <= highestVideoNaluType
 }
