@@ -16,6 +16,7 @@ type ADTSHeader struct {
 	ObjectType             byte
 	SamplingFrequencyIndex byte
 	ChannelConfig          byte
+	HeaderLength           byte // Should be 7 or 9
 	PayloadLength          uint16
 	BufferFullness         uint16
 }
@@ -33,6 +34,7 @@ func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, p
 		ObjectType:             objectType,
 		SamplingFrequencyIndex: sfi,
 		ChannelConfig:          channelConfig,
+		HeaderLength:           7,
 		PayloadLength:          plLen,
 		BufferFullness:         0x7ff, // variable bitrate
 	}, nil
@@ -86,11 +88,12 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	if layer != 0 {
 		return nil, 0, fmt.Errorf("Non-permitted layer value %d", layer)
 	}
+	ah := &ADTSHeader{ID: mpegID, HeaderLength: 7}
 	protectionAbsent := br.Read(1)
 	if protectionAbsent != 1 {
-		return nil, 0, fmt.Errorf("protection_absent not set. Not supported")
+		ah.HeaderLength += 2 // 16-bit CRC
 	}
-	ah := &ADTSHeader{ID: mpegID}
+
 	profile := br.Read(2)
 	ah.ObjectType = byte(profile + 1)
 	ah.SamplingFrequencyIndex = byte(br.Read(4))
@@ -98,12 +101,16 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	ah.ChannelConfig = byte(br.Read(3))
 	_ = br.Read(4) // ignore original/copy, home, copyright
 	frameLength := br.Read(13)
-	ah.PayloadLength = uint16(frameLength - 7)
+	ah.PayloadLength = uint16(frameLength) - uint16(ah.HeaderLength)
 	ah.BufferFullness = uint16(br.Read(11))
 	nrRawBlocksMinus1 := br.Read(2)
 	if nrRawBlocksMinus1 != 0 {
 		return nil, 0, fmt.Errorf("only 1 raw block supported")
 	}
+	if protectionAbsent != 1 {
+		_ = br.Read(16) // CRC
+	}
+
 	if br.AccError() != nil {
 		return nil, 0, br.AccError()
 	}
