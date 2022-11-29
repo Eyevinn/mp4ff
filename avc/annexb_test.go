@@ -1,6 +1,7 @@
 package avc
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -191,6 +192,42 @@ func TestExtractNalusOfTypeFromByteStream(t *testing.T) {
 		nrNalus := ExtractNalusOfTypeFromByteStream(tc.naluType, tc.input, tc.beyondVideo)
 		if len(nrNalus) != tc.nrWanted {
 			t.Errorf("%q: got %d, wanted %d", tc.name, len(nrNalus), tc.nrWanted)
+		}
+	}
+}
+
+func TestGetFirstAVCVideoNALUFromByteStream(t *testing.T) {
+	testCases := []struct {
+		name           string
+		input          []byte
+		firstVideoNALU []byte
+	}{
+		{
+			"Only IDR",
+			[]byte{0, 0, 0, 1, 5, 0, 1, 1, 1, 1},
+			[]byte{5, 0, 1, 1, 1, 1},
+		},
+		{
+			"NoVideo",
+			[]byte{0, 0, 0, 1, 12, 0, 1, 1, 1, 1, 1},
+			nil,
+		},
+		{
+			"AUD, SPS, PPS, IDRx2",
+			[]byte{0, 0, 0, 1, 9, 2,
+				0, 0, 0, 1, 7, 5, 4,
+				0, 0, 0, 1, 8, 1, 2,
+				0, 0, 0, 1, 5, 2,
+				0, 0, 0, 1, 5, 3,
+				1, 1, 1, 1, 1, 1},
+			[]byte{5, 2},
+		},
+	}
+
+	for _, tc := range testCases {
+		gotNalu := GetFirstAVCVideoNALUFromByteStream(tc.input)
+		if !bytes.Equal(gotNalu, tc.firstVideoNALU) {
+			t.Errorf("%s: extracted nalu %q differs from input %q", tc.name, gotNalu, tc.firstVideoNALU)
 		}
 	}
 }
