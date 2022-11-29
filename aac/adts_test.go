@@ -2,6 +2,7 @@ package aac
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -47,5 +48,23 @@ func TestADTS(t *testing.T) {
 		if diff := deep.Equal(gotHdr, tc.wantedHdr); diff != nil {
 			t.Error(diff)
 		}
+	}
+}
+
+func TestAdtsHdrLengthWithCRC(t *testing.T) {
+	hexData := "fff84c802cdffc1183"
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Error(err)
+	}
+	gotHdr, gotOffset, err := DecodeADTSHeader(bytes.NewBuffer(data))
+	if err != nil {
+		t.Error(err)
+	}
+	if gotOffset != 0 {
+		t.Errorf("Got offset %d instead of 0", gotOffset)
+	}
+	if gotHdr.HeaderLength != 9 {
+		t.Errorf("Got header length %d instead of 9", gotHdr.HeaderLength)
 	}
 }
