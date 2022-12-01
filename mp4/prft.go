@@ -14,7 +14,7 @@ type PrftBox struct {
 	Flags        uint32
 	NTPTimestamp uint64
 	MediaTime    uint64
-	size 		 uint64
+	size         uint64
 }
 
 // CreatePrftBox - Create a new PrftBox
