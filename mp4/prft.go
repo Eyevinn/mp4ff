@@ -10,19 +10,21 @@ import (
 //
 // Contained in File before moof box
 type PrftBox struct {
-	Version      byte
-	Flags        uint32
-	NTPTimestamp uint64
-	MediaTime    uint64
+	Version          byte
+	Flags            uint32
+	ReferenceTrackID uint32
+	NTPTimestamp     uint64
+	MediaTime        uint64
 }
 
-// CreatePrftBox - Create a new PrftBox
-func CreatePrftBox(version byte, ntp uint64, mediatime uint64) *PrftBox {
+// CreatePrftBox creates a new PrftBox.
+func CreatePrftBox(version byte, refTrackID uint32, ntp, mediatime uint64) *PrftBox {
 	return &PrftBox{
-		Version:      version,
-		Flags:        0,
-		NTPTimestamp: ntp,
-		MediaTime:    mediatime,
+		Version:          version,
+		Flags:            0,
+		ReferenceTrackID: refTrackID,
+		NTPTimestamp:     ntp,
+		MediaTime:        mediatime,
 	}
 }
 
@@ -41,6 +43,7 @@ func DecodePrftSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
+	refTrackID := sr.ReadUint32()
 	ntp := sr.ReadUint64()
 	var mediatime uint64
 	if version == 0 {
@@ -50,10 +53,11 @@ func DecodePrftSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	}
 
 	p := PrftBox{
-		Version:      version,
-		Flags:        flags,
-		NTPTimestamp: ntp,
-		MediaTime:    mediatime,
+		Version:          version,
+		Flags:            flags,
+		ReferenceTrackID: refTrackID,
+		NTPTimestamp:     ntp,
+		MediaTime:        mediatime,
 	}
 	return &p, sr.AccError()
 }
@@ -65,7 +69,7 @@ func (b *PrftBox) Type() string {
 
 // Size - return calculated size
 func (b *PrftBox) Size() uint64 {
-	return uint64(boxHeaderSize + 16 + 4*int(b.Version))
+	return uint64(boxHeaderSize + 20 + 4*int(b.Version))
 }
 
 // Encode - write box to w
@@ -87,6 +91,7 @@ func (b *PrftBox) EncodeSW(sw bits.SliceWriter) error {
 	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint32(b.ReferenceTrackID)
 	sw.WriteUint64(b.NTPTimestamp)
 	if b.Version == 0 {
 		sw.WriteUint32(uint32(b.MediaTime))
@@ -99,6 +104,7 @@ func (b *PrftBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box-specific information
 func (b *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
+	bd.write(" - referenceTimeID: %d", b.ReferenceTrackID)
 	bd.write(" - ntpTimestamp: %d", b.NTPTimestamp)
 	bd.write(" - mediaTime: %d", b.MediaTime)
 	return bd.err
