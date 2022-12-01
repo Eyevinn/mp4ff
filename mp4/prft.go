@@ -14,6 +14,7 @@ type PrftBox struct {
 	Flags        uint32
 	NTPTimestamp uint64
 	MediaTime    uint64
+	size 		 uint64
 }
 
 // CreatePrftBox - Create a new PrftBox
@@ -54,6 +55,7 @@ func DecodePrftSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		Flags:        flags,
 		NTPTimestamp: ntp,
 		MediaTime:    mediatime,
+		size:         hdr.Size,
 	}
 	return &p, sr.AccError()
 }
@@ -65,6 +67,9 @@ func (b *PrftBox) Type() string {
 
 // Size - return calculated size
 func (b *PrftBox) Size() uint64 {
+	if b.size > 0{
+		return b.size
+	}
 	return uint64(boxHeaderSize + 16 + 4*int(b.Version))
 }
 

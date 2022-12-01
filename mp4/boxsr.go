@@ -227,6 +227,9 @@ LoopBoxes:
 		f.AddChild(box, boxStartPos)
 		lastBoxType = boxType
 		boxStartPos += boxSize
+		if sr.GetPos() != int(boxStartPos) {
+			sr.SetPos(int(boxStartPos))
+		}
 	}
 	return f, nil
 }
