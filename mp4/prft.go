@@ -104,7 +104,7 @@ func (b *PrftBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box-specific information
 func (b *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
-	bd.write(" - referenceTimeID: %d", b.ReferenceTrackID)
+	bd.write(" - referenceTrackID: %d", b.ReferenceTrackID)
 	bd.write(" - ntpTimestamp: %d", b.NTPTimestamp)
 	bd.write(" - mediaTime: %d", b.MediaTime)
 	return bd.err
