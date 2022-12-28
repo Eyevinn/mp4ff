@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	commitVersion string = "v0.30.1"    // May be updated using build flags
-	commitDate    string = "1667671435" // commitDate in Epoch seconds (may be overridden using build flags)
+	commitVersion string = "v0.31.0"    // May be updated using build flags
+	commitDate    string = "1672185600" // commitDate in Epoch seconds (may be overridden using build flags)
 )
 
 // GetVersion - get version and also commitHash and commitDate if inserted via Makefile
