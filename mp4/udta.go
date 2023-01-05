@@ -3,13 +3,12 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // UdtaBox - User Data Box is a container for User Data
 //
 // Contained in : moov, trak, moof, or traf
-//
 type UdtaBox struct {
 	Children []Box
 }

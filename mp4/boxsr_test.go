@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // Test decode + encode file with slice reader and writer

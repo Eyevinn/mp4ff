@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/edgeware/mp4ff/sei"
+	"github.com/Eyevinn/mp4ff/sei"
 )
 
 func TestSEIStrings(t *testing.T) {

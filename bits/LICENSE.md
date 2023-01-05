@@ -1,12 +1,11 @@
 # Copyright
 
-`Copyright (c) 2019-2020 Edgeware AB`.
+`Copyright (c) 2019-2022 Edgeware AB, 2023- Eyevinn Technology AB`.
 
 Some code in this directory comes from or is based on https://github.com/tcnksm/go-casper/tree/master/internal/bits
 `Copyright (c) 2017 Taichi Nakashima`.
 
 All code has the same MIT License.
-
 
 # License
 

@@ -1,4 +1,4 @@
-//mp4ff-info prints the box tree of input mp4 (ISOBMFF) file.
+// mp4ff-info prints the box tree of input mp4 (ISOBMFF) file.
 package main
 
 import (
@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/edgeware/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 var usg = `Usage of mp4ff-info:

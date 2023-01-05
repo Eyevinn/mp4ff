@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/edgeware/mp4ff/aac"
-	"github.com/edgeware/mp4ff/avc"
-	"github.com/edgeware/mp4ff/bits"
-	"github.com/edgeware/mp4ff/hevc"
+	"github.com/Eyevinn/mp4ff/aac"
+	"github.com/Eyevinn/mp4ff/avc"
+	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/hevc"
 )
 
 // InitSegment - MP4/CMAF init segment

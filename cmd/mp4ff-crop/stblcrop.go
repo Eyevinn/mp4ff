@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/edgeware/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func cropStblChildren(traks []*mp4.TrakBox, trakOuts map[uint32]*trakOut) (err error) {

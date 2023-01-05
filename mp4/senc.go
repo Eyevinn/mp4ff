@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // UseSubSampleEncryption - flag for subsample encryption
@@ -223,7 +223,7 @@ func (s *SencBox) Type() string {
 	return "senc"
 }
 
-//setSubSamplesUsedFlag - set flag if subsamples are used
+// setSubSamplesUsedFlag - set flag if subsamples are used
 func (s *SencBox) setSubSamplesUsedFlag() {
 	for _, subSamples := range s.SubSamples {
 		if len(subSamples) > 0 {

@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 const (
@@ -18,7 +18,7 @@ const (
 	UUIDTfrf = "d4807ef2-ca39-4695-8e54-26cb9e46a79f"
 )
 
-//uuid - compact representation of UUID
+// uuid - compact representation of UUID
 type uuid [16]byte
 
 // String - UUID-formatted string

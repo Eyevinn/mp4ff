@@ -9,7 +9,7 @@ prepare:
 	go mod vendor
 
 mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-wvttlister:
-	go build -ldflags "-X github.com/edgeware/mp4ff/mp4.commitVersion=$$(git describe --tags HEAD) -X github.com/edgeware/mp4ff/mp4.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@/main.go
+	go build -ldflags "-X github.com/Eyevinn/mp4ff/mp4.commitVersion=$$(git describe --tags HEAD) -X github.com/Eyevinn/mp4ff/mp4.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@/main.go
 
 .PHONY: examples
 examples: initcreator multitrack resegmenter segmenter

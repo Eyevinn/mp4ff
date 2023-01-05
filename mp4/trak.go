@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // DefaultTrakID - trakID used when generating new fragmented content

@@ -3,7 +3,7 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // StblBox - Sample Table Box (stbl - mandatory)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/edgeware/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 // Resegment file into multiple segments

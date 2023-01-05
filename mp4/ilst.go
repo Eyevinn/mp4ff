@@ -3,7 +3,7 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // IlstBox - iTunes Metadata Item List Atom (ilst)
@@ -58,7 +58,7 @@ func (b *IlstBox) GetChildren() []Box {
 	return b.Children
 }
 
-/// Encode - write ilst container to w
+// Encode - write ilst container to w
 func (b *IlstBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }

@@ -3,7 +3,7 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // MimeBox - MIME Box as defined in ISO/IEC 14496-12 2020 Section 12.3.3.2

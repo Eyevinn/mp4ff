@@ -3,7 +3,7 @@ package mp4
 import (
 	"fmt"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 var decodersSR map[string]BoxDecoderSR
