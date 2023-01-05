@@ -1,10 +1,10 @@
 ![Logo](images/logo.png)
 
-![Test](https://github.com/edgeware/mp4ff/workflows/Go/badge.svg)
-![golangci-lint](https://github.com/edgeware/mp4ff/workflows/golangci-lint/badge.svg?branch=master)
-[![GoDoc](https://godoc.org/github.com/edgeware/mp4ff?status.svg)](http://godoc.org/github.com/edgeware/mp4ff)
-[![Go Report Card](https://goreportcard.com/badge/github.com/edgeware/mp4ff)](https://goreportcard.com/report/github.com/edgeware/mp4ff)
-[![license](https://img.shields.io/github/license/edgeware/mp4ff.svg)](https://github.com/edgeware/mp4ff/blob/master/LICENSE.md)
+![Test](https://github.com/Eyevinn/mp4ff/workflows/Go/badge.svg)
+![golangci-lint](https://github.com/Eyevinn/mp4ff/workflows/golangci-lint/badge.svg?branch=master)
+[![GoDoc](https://godoc.org/github.com/Eyevinn/mp4ff?status.svg)](http://godoc.org/github.com/Eyevinn/mp4ff)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Eyevinn/mp4ff)](https://goreportcard.com/report/github.com/Eyevinn/mp4ff)
+[![license](https://img.shields.io/github/license/Eyevinn/mp4ff.svg)](https://github.com/Eyevinn/mp4ff/blob/master/LICENSE.md)
 
 Package mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC and AC-3 audio,  and stpp and wvtt subtitles.
 It is focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4, but can also decode and encode all boxes needed for
@@ -27,7 +27,7 @@ Some useful command line tools are available in `cmd`.
 
 You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
 
-    go install github.com/edgeware/mp4ff/cmd/mp4ff-info@latest
+    go install github.com/Eyevinn/mp4ff/cmd/mp4ff-info@latest
 
 ## Example code
 

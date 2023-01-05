@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // EsdsBox as used for MPEG-audio, see ISO 14496-1 Section 7.2.6.6  for DecoderConfigDescriptor

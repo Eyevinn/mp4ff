@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // TrunBox - Track Fragment Run Box (trun)
 //
-// Contained in :  Track Fragmnet Box (traf)
-//
+// Contained in :  Track Fragment Box (traf)
 type TrunBox struct {
 	Version          byte
 	Flags            uint32

@@ -3,7 +3,7 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // MfraBox - Movie Fragment Random Access Box (mfra)

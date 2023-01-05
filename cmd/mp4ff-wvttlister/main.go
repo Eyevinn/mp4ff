@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/edgeware/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 var usg = `Usage of mp4ff-wvttlister:

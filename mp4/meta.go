@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // MetaBox - MetaBox meta ISO/IEC 14496-12 Ed. 6 2020 Section 8.11

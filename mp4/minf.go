@@ -3,13 +3,12 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // MinfBox -  Media Information Box (minf - mandatory)
 //
 // Contained in : Media Box (mdia)
-//
 type MinfBox struct {
 	Vmhd     *VmhdBox
 	Smhd     *SmhdBox

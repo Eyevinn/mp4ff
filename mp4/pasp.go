@@ -3,7 +3,7 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // PaspBox - Pixel Aspect Ratio Box, ISO/IEC 14496-12 2020 Sec. 12.1.4

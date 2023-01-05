@@ -2,6 +2,7 @@
 
 | Version | Highlight |
 | ------  | --------- |
+| 0.32.0 | Repo moved to github.com/Eyevinn/mp4ff.
 | 0.31.0 | Support multiple sidx. Optimize stsc lookups. New return type for NewNaluArray. Bug fixes in prft, adts and avc interlace.
 | 0.30.1 | Fix optimized sample copying introduced in v0.30.0 |
 | 0.30.0 | Full AVC slice header parsing. Enhanced SEI Messages. Optimizations in ctts and sample copying. Bug fixes in HEVC nalu, tfdt, emsg |

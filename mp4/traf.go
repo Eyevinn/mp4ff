@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // TrafBox - Track Fragment Box (traf)
 //
 // Contained in : Movie Fragment Box (moof)
-//
 type TrafBox struct {
 	Tfhd     *TfhdBox
 	Tfdt     *TfdtBox
@@ -251,7 +250,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 	return nil
 }
 
-//RemoveEncryptionBoxes - remove encryption boxes and return number of bytes removed
+// RemoveEncryptionBoxes - remove encryption boxes and return number of bytes removed
 func (t *TrafBox) RemoveEncryptionBoxes() uint64 {
 	remainingChildren := make([]Box, 0, len(t.Children))
 	var nrBytesRemoved uint64 = 0

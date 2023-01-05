@@ -3,7 +3,7 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 /*
@@ -160,7 +160,7 @@ func (b *SidxBox) EncodeSW(sw bits.SliceWriter) error {
 	return sw.AccError()
 }
 
-//Info - more info for level 1
+// Info - more info for level 1
 func (b *SidxBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - referenceID: %d", b.ReferenceID)

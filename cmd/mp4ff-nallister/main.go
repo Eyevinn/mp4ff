@@ -11,10 +11,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/edgeware/mp4ff/avc"
-	"github.com/edgeware/mp4ff/hevc"
-	"github.com/edgeware/mp4ff/mp4"
-	"github.com/edgeware/mp4ff/sei"
+	"github.com/Eyevinn/mp4ff/avc"
+	"github.com/Eyevinn/mp4ff/hevc"
+	"github.com/Eyevinn/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/sei"
 )
 
 var usg = `Usage of mp4ff-nallister:

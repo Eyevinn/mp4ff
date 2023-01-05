@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 func TestDecodeFileWithLazyMdatOption(t *testing.T) {

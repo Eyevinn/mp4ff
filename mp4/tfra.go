@@ -3,7 +3,7 @@ package mp4
 import (
 	"io"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // TfraBox - Track Fragment Random Access Box (tfra)
@@ -180,7 +180,7 @@ func (b *TfraBox) EncodeSW(sw bits.SliceWriter) error {
 	return sw.AccError()
 }
 
-//Info - box-specific info. More for level 1
+// Info - box-specific info. More for level 1
 func (b *TfraBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - trackID: %d", b.TrackID)

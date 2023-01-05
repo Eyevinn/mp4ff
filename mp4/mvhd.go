@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/edgeware/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // MvhdBox - Movie Header Box (mvhd - mandatory)
@@ -14,7 +14,6 @@ import (
 // Contains all media information (duration, ...).
 //
 // Duration is measured in "time units", and timescale defines the number of time units per second.
-//
 type MvhdBox struct {
 	Version          byte
 	Flags            uint32
