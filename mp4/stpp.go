@@ -7,7 +7,7 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
-// StppBox - XMLSubtitleSampleEntryr Box (stpp)
+// StppBox - XMLSubtitleSampleEntry Box (stpp)
 //
 // Contained in : Media Information Box (minf)
 type StppBox struct {
