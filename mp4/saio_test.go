@@ -5,6 +5,16 @@ import (
 )
 
 func TestSaio(t *testing.T) {
-	saio := &SaioBox{}
-	boxDiffAfterEncodeAndDecode(t, saio)
+	saioV0 := &SaioBox{
+		Version: 0,
+		Offset:  []int64{12},
+	}
+	boxDiffAfterEncodeAndDecode(t, saioV0)
+
+	saioV1 := &SaioBox{
+		Version: 0,
+		Offset:  []int64{12},
+	}
+	boxDiffAfterEncodeAndDecode(t, saioV1)
+
 }
