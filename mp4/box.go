@@ -135,6 +135,22 @@ func init() {
 	}
 }
 
+// RemoveBoxDecoder removes the decode of boxType. It will be treated as unknown instead.
+//
+// This is a global change, so use with care.
+func RemoveBoxDecoder(boxType string) {
+	delete(decoders, boxType)
+	delete(decodersSR, boxType)
+}
+
+// SetBoxDecoder sets decoder functions for a specific boxType.
+//
+// This is a global change, so use with care.
+func SetBoxDecoder(boxType string, dec BoxDecoder, decSR BoxDecoderSR) {
+	decoders[boxType] = dec
+	decodersSR[boxType] = decSR
+}
+
 // BoxHeader - 8 or 16 bytes depending on size
 type BoxHeader struct {
 	Name   string
