@@ -61,7 +61,7 @@ func DecodeEmsgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.EventDuration = sr.ReadUint32()
 		b.ID = sr.ReadUint32()
 	} else {
-		return nil, fmt.Errorf("Unknown version for emsg")
+		return nil, fmt.Errorf("unknown version %d for emsg", version)
 	}
 
 	currPos := sr.GetPos()

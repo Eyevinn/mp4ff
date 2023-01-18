@@ -99,7 +99,7 @@ func (b *StcoBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 // GetOffset - get offset for 1-based chunkNr.
 func (b *StcoBox) GetOffset(chunkNr int) (uint64, error) {
 	if chunkNr <= 0 || chunkNr > len(b.ChunkOffset) {
-		return 0, fmt.Errorf("Non-valid chunkNr: %d", chunkNr)
+		return 0, fmt.Errorf("non-valid chunkNr: %d", chunkNr)
 	}
 	return uint64(b.ChunkOffset[chunkNr-1]), nil
 }

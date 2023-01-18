@@ -105,7 +105,7 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	b.FrameCount = sr.ReadUint16() // Should be 1
 	compressorNameLength := sr.ReadUint8()
 	if compressorNameLength > 31 {
-		return nil, fmt.Errorf("Too long compressor name length")
+		return nil, fmt.Errorf("too long compressor name length")
 	}
 	b.CompressorName = sr.ReadFixedLengthString(int(compressorNameLength))
 	sr.SkipBytes(int(31 - compressorNameLength))
@@ -122,7 +122,7 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 		}
 		box, err := DecodeBoxSR(pos, sr)
 		if err != nil {
-			return nil, fmt.Errorf("Error decoding childBox of VisualSampleEntry: %w", err)
+			return nil, fmt.Errorf("error decoding childBox of VisualSampleEntry: %w", err)
 		}
 		if box != nil {
 			b.AddChild(box)

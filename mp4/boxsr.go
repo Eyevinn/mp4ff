@@ -138,6 +138,9 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	if h.Size > uint64(sr.NrRemainingBytes())+uint64(h.Hdrlen) {
+		return nil, fmt.Errorf("decode box %q, size %d too big", h.Name, h.Size)
+	}
 
 	d, ok := decodersSR[h.Name]
 
@@ -147,7 +150,7 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 		b, err = d(h, startPos, sr)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("decode %s: %w", h.Name, err)
+		return nil, fmt.Errorf("decode box %s: %w", h.Name, err)
 	}
 
 	return b, nil
@@ -202,7 +205,7 @@ LoopBoxes:
 		case "mdat":
 			if f.isFragmented {
 				if lastBoxType != "moof" {
-					return nil, fmt.Errorf("Does not support %v between moof and mdat", lastBoxType)
+					return nil, fmt.Errorf("does not support %v between moof and mdat", lastBoxType)
 				}
 			}
 		case "moof":

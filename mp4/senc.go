@@ -147,7 +147,7 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 				s.IVs = append(s.IVs, sr.ReadBytes(16))
 			}
 		default:
-			return fmt.Errorf("Strange derived PerSampleIVSize: %d", perSampleIVSize)
+			return fmt.Errorf("strange derived PerSampleIVSize: %d", perSampleIVSize)
 		}
 		s.readButNotParsed = false
 		return nil
@@ -175,7 +175,7 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 		}
 	}
 	if !ok {
-		return fmt.Errorf("Could not decode senc")
+		return fmt.Errorf("could not decode senc")
 	}
 	s.readButNotParsed = false
 	return nil

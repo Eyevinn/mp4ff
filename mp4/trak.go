@@ -108,7 +108,7 @@ func (t *TrakBox) GetSampleData(startSampleNr, endSampleNr uint32) ([]Sample, er
 	stbl := t.Mdia.Minf.Stbl
 	nrSamples := stbl.Stsz.GetNrSamples()
 	if startSampleNr < 1 || endSampleNr > nrSamples {
-		return nil, fmt.Errorf("Samples interval %d-%d not inside available %d-%d", startSampleNr, endSampleNr, 1, nrSamples)
+		return nil, fmt.Errorf("sample interval %d-%d not inside available %d-%d", startSampleNr, endSampleNr, 1, nrSamples)
 	}
 	samples := make([]Sample, endSampleNr-startSampleNr+1)
 	stts := stbl.Stts
@@ -165,7 +165,7 @@ func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) 
 	stsz := stbl.Stsz
 	nrSamples := stbl.Stsz.GetNrSamples()
 	if startSampleNr < 1 || endSampleNr > nrSamples {
-		return nil, fmt.Errorf("Samples interval %d-%d not inside available %d-%d", startSampleNr, endSampleNr, 1, nrSamples)
+		return nil, fmt.Errorf("sample interval %d-%d not inside available %d-%d", startSampleNr, endSampleNr, 1, nrSamples)
 	}
 	chunks, err := stsc.GetContainingChunks(startSampleNr, endSampleNr)
 	if err != nil {

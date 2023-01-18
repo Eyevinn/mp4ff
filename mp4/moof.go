@@ -96,7 +96,7 @@ func (m *MoofBox) Size() uint64 {
 func (m *MoofBox) Encode(w io.Writer) error {
 	for _, trun := range m.Traf.Truns {
 		if trun.HasDataOffset() && trun.DataOffset == 0 {
-			return fmt.Errorf("Dataoffset in trun not set")
+			return fmt.Errorf("dataoffset in trun not set")
 		}
 	}
 	err := EncodeHeader(m, w)
@@ -116,7 +116,7 @@ func (m *MoofBox) Encode(w io.Writer) error {
 func (m *MoofBox) EncodeSW(sw bits.SliceWriter) error {
 	for _, trun := range m.Traf.Truns {
 		if trun.HasDataOffset() && trun.DataOffset == 0 {
-			return fmt.Errorf("Dataoffset in trun not set")
+			return fmt.Errorf("dataoffset in trun not set")
 		}
 	}
 	err := EncodeHeaderSW(m, sw)

@@ -21,7 +21,7 @@ type HdlrBox struct {
 	PreDefined           uint32
 	HandlerType          string
 	Name                 string // Null-terminated UTF-8 string according to ISO/IEC 14496-12 Sec. 8.4.3.3
-	LacksNullTermination bool   // This should be true, but we allow false as well
+	LacksNullTermination bool   // This should be false, but we allow true as well
 }
 
 // CreateHdlr - create mediaType-specific hdlr box
@@ -45,7 +45,7 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 		hdlr.Name = "mp4ff closed captions handler"
 	default:
 		if len(mediaOrHdlrType) != 4 {
-			return nil, fmt.Errorf("Unknown media or hdlr type %s", mediaOrHdlrType)
+			return nil, fmt.Errorf("unknown media or hdlr type %s", mediaOrHdlrType)
 		}
 		hdlr.HandlerType = mediaOrHdlrType
 		hdlr.Name = fmt.Sprintf("mp4ff %s handler", mediaOrHdlrType)
