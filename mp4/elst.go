@@ -1,7 +1,7 @@
 package mp4
 
 import (
-	"errors"
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -59,7 +59,7 @@ func DecodeElstSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 			b.Entries[i].MediaRateFraction = sr.ReadInt16()
 		}
 	} else {
-		return nil, errors.New("Unknown version for elst")
+		return nil, fmt.Errorf("unknown version for elst")
 	}
 	return b, sr.AccError()
 }

@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -55,7 +54,7 @@ func DecodeMdhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.Timescale = sr.ReadUint32()
 		b.Duration = uint64(sr.ReadUint32())
 	} else {
-		return nil, errors.New("Unknown mdhd version")
+		return nil, fmt.Errorf("unknown mdhd version %d", version)
 	}
 	b.Language = sr.ReadUint16()
 	sr.SkipBytes(2)

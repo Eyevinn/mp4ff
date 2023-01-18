@@ -187,7 +187,7 @@ func (t *TrakBox) SetAVCDescriptor(sampleDescriptorType string, spsNALUs, ppsNAL
 	}
 	avcSPS, err := avc.ParseSPSNALUnit(spsNALUs[0], false)
 	if err != nil {
-		return fmt.Errorf("Could not parse SPS NALU: %w", err)
+		return fmt.Errorf("could not parse SPS NALU: %w", err)
 	}
 	t.Tkhd.Width = Fixed32(avcSPS.Width << 16)   // This is display width
 	t.Tkhd.Height = Fixed32(avcSPS.Height << 16) // This is display height
@@ -210,7 +210,7 @@ func (t *TrakBox) SetHEVCDescriptor(sampleDescriptorType string, vpsNALUs, spsNA
 	}
 	hevcSPS, err := hevc.ParseSPSNALUnit(spsNALUs[0])
 	if err != nil {
-		return fmt.Errorf("Could not parse SPS NALU: %w", err)
+		return fmt.Errorf("could not parse SPS NALU: %w", err)
 	}
 	width, height := hevcSPS.ImageSize()
 	t.Tkhd.Width = Fixed32(width << 16)   // This is display width

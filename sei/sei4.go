@@ -144,5 +144,6 @@ func ParseCEA608(payload []byte) ([]byte, []byte, error) {
 			}
 		}
 	}
+	// There should also be a 0xff marker bits byte before the end of the NALU
 	return field1, field2, nil
 }

@@ -170,7 +170,7 @@ LoopBoxes:
 		case "mdat":
 			if f.isFragmented {
 				if lastBoxType != "moof" {
-					return nil, fmt.Errorf("Does not support %v between moof and mdat", lastBoxType)
+					return nil, fmt.Errorf("does not support %v between moof and mdat", lastBoxType)
 				}
 			}
 		case "moof":
@@ -356,7 +356,7 @@ func (f *File) Encode(w io.Writer) error {
 				}
 			}
 		default:
-			return fmt.Errorf("Unknown FragEncMode=%d", f.FragEncMode)
+			return fmt.Errorf("unknown FragEncMode=%d", f.FragEncMode)
 		}
 		return nil
 	}
@@ -407,7 +407,7 @@ func (f *File) EncodeSW(sw bits.SliceWriter) error {
 				}
 			}
 		default:
-			return fmt.Errorf("Unknown FragEncMode=%d", f.FragEncMode)
+			return fmt.Errorf("unknown FragEncMode=%d", f.FragEncMode)
 		}
 		return nil
 	}
@@ -527,7 +527,7 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 					return fmt.Errorf("copyN: %w", err)
 				}
 				if n != size {
-					return fmt.Errorf("wrote %d instead of %d bytes\n", n, size)
+					return fmt.Errorf("wrote %d instead of %d bytes", n, size)
 				}
 			} else {
 				nrLeft := int(size)

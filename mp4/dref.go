@@ -62,7 +62,7 @@ func DecodeDref(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 		dref.AddChild(c)
 	}
 	if entryCount != dref.EntryCount {
-		return nil, fmt.Errorf("Inconsistent entry count in Dref")
+		return nil, fmt.Errorf("inconsistent entry count in Dref")
 	}
 	return dref, nil
 }
@@ -88,7 +88,7 @@ func DecodeDrefSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		dref.AddChild(c)
 	}
 	if entryCount != dref.EntryCount {
-		return nil, fmt.Errorf("Inconsistent entry count in Dref")
+		return nil, fmt.Errorf("inconsistent entry count in Dref")
 	}
 	return dref, sr.AccError()
 }

@@ -208,7 +208,7 @@ func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) 
 		return nil, fmt.Errorf("normal mdat mode - invalid range provided")
 	}
 	if len(m.DataParts) > 0 {
-		return nil, fmt.Errorf("Extraction of range from dataParts not yet implemented")
+		return nil, fmt.Errorf("extraction of range from dataParts not yet implemented")
 	}
 	return m.Data[offsetInMdatData : offsetInMdatData+uint64(size)], nil
 
@@ -241,7 +241,7 @@ func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nr
 		return 0, fmt.Errorf("normal mdat mode - invalid range provided")
 	}
 	if len(m.DataParts) > 0 {
-		return 0, fmt.Errorf("Extraction of range from dataParts not yet implemented")
+		return 0, fmt.Errorf("extraction of range from dataParts not yet implemented")
 	}
 	var n int
 	n, err = w.Write(m.Data[offsetInMdatData : offsetInMdatData+uint64(size)])

@@ -173,7 +173,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 	tfhd := t.Tfhd
 	trun := t.Trun
 	if len(trun.Samples) == 0 {
-		return errors.New("No samples in trun")
+		return errors.New("no samples in trun")
 	}
 	if len(trun.Samples) == 1 {
 		return nil // No need to optimize

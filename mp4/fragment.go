@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -129,7 +128,7 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 		mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
 		offsetInMdat := baseOffset - mdat.PayloadAbsoluteOffset()
 		if offsetInMdat > mdatDataLength {
-			return nil, errors.New("Offset in mdata beyond size")
+			return nil, fmt.Errorf("offset in mdata beyond size")
 		}
 		samples = append(samples, trun.GetFullSamples(uint32(offsetInMdat), baseTime, mdat)...)
 		baseTime += totalDur // Next trun start after this
@@ -203,7 +202,7 @@ func (f *Fragment) AddSampleToTrack(s Sample, trackID uint32, baseMediaDecodeTim
 		}
 	}
 	if traf == nil {
-		return fmt.Errorf("No track with trackID=%d", trackID)
+		return fmt.Errorf("no track with trackID=%d", trackID)
 	}
 	if len(traf.Truns) == 0 { // Create first trun if needed
 		trun := CreateTrun(f.nextTrunNr)
@@ -353,11 +352,11 @@ func (f *Fragment) SetTrunDataOffsets() {
 // GetSampleNrFromTime - look up sample number from a specified time. Return error if no matching time
 func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32, error) {
 	if len(f.Moof.Trafs) != 1 {
-		return 0, fmt.Errorf("Not exactly one traf")
+		return 0, fmt.Errorf("not exactly one traf")
 	}
 	traf := f.Moof.Traf
 	if len(traf.Truns) != 1 {
-		return 0, fmt.Errorf("Not exactly one trun")
+		return 0, fmt.Errorf("not exactly one trun")
 	}
 	baseDecodeTime := traf.Tfdt.BaseMediaDecodeTime()
 	if baseDecodeTime > sampleTime {
@@ -375,11 +374,11 @@ func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32
 func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr uint32) (SampleInterval, error) {
 	moof := f.Moof
 	if len(moof.Trafs) != 1 {
-		return SampleInterval{}, fmt.Errorf("Not exactly one track in fragment")
+		return SampleInterval{}, fmt.Errorf("not exactly one track in fragment")
 	}
 	traf := moof.Traf
 	if len(traf.Truns) != 1 {
-		return SampleInterval{}, fmt.Errorf("Not exactly 1, but %d trun boxes", len(traf.Truns))
+		return SampleInterval{}, fmt.Errorf("not exactly 1, but %d trun boxes", len(traf.Truns))
 	}
 	tfhd, trun := traf.Tfhd, traf.Trun
 	moofStartPos := moof.StartPos
