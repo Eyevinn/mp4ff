@@ -348,7 +348,7 @@ type ShortTermRPS struct {
 
 const maxSTRefPics = 16
 
-// parseShortTermRPS - short-term refrence pictures et syntax from 7.3.7.
+// parseShortTermRPS - short-term reference pictures with syntax from 7.3.7.
 // Focus is on reading/parsing beyond this structure in SPS (and possibly in slice header)
 func parseShortTermRPS(r *bits.AccErrEBSPReader, idx, numSTRefPicSets byte, sps *SPS) ShortTermRPS {
 	stps := ShortTermRPS{}
