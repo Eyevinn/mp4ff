@@ -12,7 +12,7 @@ import (
 //
 // The box is then interpreted as an UnknownBox and its data is not further processed with decoded.
 func TestBadBoxAndRemoveBoxDecoder(t *testing.T) {
-	badMetaBox := (`000000416d6574610000002168646c7200000000000000006d64746100000000` +
+	badMetaBox := (`000000416d6574610000002168646c7300000000000000006d64746100000000` +
 		`000000000000000000000000106b657973000000000000000000000008696c7374`)
 	data, err := hex.DecodeString(badMetaBox)
 	if err != nil {

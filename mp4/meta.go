@@ -1,18 +1,31 @@
 package mp4
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
-// MetaBox - MetaBox meta ISO/IEC 14496-12 Ed. 6 2020 Section 8.11
+// MetaBox is MPEG-4 Meta box or QuickTime meta Atom (without version and flags).
+
+// MPEG box defined in ISO/IEC 14496-12 Ed. 6 2020 Section 8.11
+//
+// Note. QuickTime meta ataom has no version and flags field.
+// https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/Metadata/Metadata.html#//apple_ref/doc/uid/TP40000939-CH1-SW10
 type MetaBox struct {
-	Version  byte
-	Flags    uint32
-	Hdlr     *HdlrBox
-	Children []Box
+	Version     byte
+	Flags       uint32
+	Hdlr        *HdlrBox
+	Children    []Box
+	isQuickTime bool // Has no version and flags
+}
+
+// IsQuickTime returns true if box is QuickTime compatible (has no version and flags)
+func (m *MetaBox) IsQuickTime() bool {
+	return m.isQuickTime
 }
 
 // CreateMetaBox - Create a new MetaBox
@@ -34,44 +47,44 @@ func (b *MetaBox) AddChild(child Box) {
 	b.Children = append(b.Children, child)
 }
 
-// DecodeMeta - box-specific decode
+// DecodeMeta decodes a MetaBox in either MPEG or QuickTime version.
 func DecodeMeta(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	var versionAndFlags uint32
-	err := binary.Read(r, binary.BigEndian, &versionAndFlags)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildren(hdr, startPos+12, startPos+hdr.Size, r)
-	if err != nil {
-		return nil, err
-	}
-	b := &MetaBox{
-		Version: byte(versionAndFlags >> 24),
-		Flags:   versionAndFlags & flagsMask,
-	}
-	for _, child := range children {
-		b.AddChild(child)
-	}
-	return b, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeMetaSR(hdr, startPos, sr)
 }
 
-// DecodeMetaSR - box-specific decode
+// DecodeMetaSR decodes a MetaBox in either MPEG or QuickTime version.
 func DecodeMetaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	versionAndFlags := sr.ReadUint32()
-	//Note higher startPos below since not simple container
-	children, err := DecodeContainerChildrenSR(hdr, startPos+12, startPos+hdr.Size, sr)
+	b := MetaBox{}
+	lookAheadData := make([]byte, 4)
+	err := sr.LookAhead(4, lookAheadData)
+	if err != nil {
+		return nil, fmt.Errorf("could not look ahead in Meta box")
+	}
+	var offset uint64 = 8
+	if bytes.Equal(lookAheadData, []byte("hdlr")) {
+		b.isQuickTime = true
+	} else {
+		//Note larger offset below since not simple container
+		offset += 4
+		versionAndFlags := sr.ReadUint32()
+		b.Version = byte(versionAndFlags >> 24)
+		b.Flags = versionAndFlags & flagsMask
+	}
+
+	children, err := DecodeContainerChildrenSR(hdr, startPos+offset, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err
 	}
-	b := &MetaBox{
-		Version: byte(versionAndFlags >> 24),
-		Flags:   versionAndFlags & flagsMask,
-	}
+
 	for _, child := range children {
 		b.AddChild(child)
 	}
-	return b, nil
+	return &b, nil
 }
 
 // Type - box type
@@ -81,7 +94,11 @@ func (b *MetaBox) Type() string {
 
 // Size - calculated size of box
 func (b *MetaBox) Size() uint64 {
-	return 4 + containerSize(b.Children)
+	size := 4 + containerSize(b.Children)
+	if b.IsQuickTime() {
+		size -= 4
+	}
+	return size
 }
 
 // GetChildren - list of child boxes
@@ -95,10 +112,12 @@ func (b *MetaBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
-	err = binary.Write(w, binary.BigEndian, versionAndFlags)
-	if err != nil {
-		return err
+	if !b.isQuickTime {
+		versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+		err = binary.Write(w, binary.BigEndian, versionAndFlags)
+		if err != nil {
+			return err
+		}
 	}
 	for _, b := range b.Children {
 		err = b.Encode(w)
@@ -131,6 +150,9 @@ func (b *MetaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if bd.err != nil {
 		return bd.err
+	}
+	if b.isQuickTime {
+		bd.write(" - is QuickTime meta atom")
 	}
 	var err error
 	for _, c := range b.Children {
