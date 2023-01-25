@@ -179,7 +179,7 @@ func (s *FixedSliceReader) ReadZeroTerminatedString(maxLen int) string {
 	maxPos := startPos + maxLen
 	for {
 		if s.pos >= maxPos {
-			s.err = errors.New("Did not find terminating zero")
+			s.err = errors.New("did not find terminating zero")
 			return ""
 		}
 		c := s.slice[s.pos]
@@ -231,7 +231,7 @@ func (s *FixedSliceReader) SkipBytes(n int) {
 		return
 	}
 	if s.pos+n > s.Length() {
-		s.err = fmt.Errorf("Attempt to skip bytes to pos %d beyond slice len %d", s.pos+n, s.len)
+		s.err = fmt.Errorf("attempt to skip bytes to pos %d beyond slice len %d", s.pos+n, s.len)
 		return
 	}
 	s.pos += n
@@ -240,7 +240,7 @@ func (s *FixedSliceReader) SkipBytes(n int) {
 // SetPos - set read position is slice
 func (s *FixedSliceReader) SetPos(pos int) {
 	if pos > s.len {
-		s.err = fmt.Errorf("Attempt to set pos %d beyond slice len %d", pos, s.len)
+		s.err = fmt.Errorf("attempt to set pos %d beyond slice len %d", pos, s.len)
 		return
 	}
 	s.pos = pos
@@ -254,4 +254,13 @@ func (s *FixedSliceReader) GetPos() int {
 // Length - get length of slice
 func (s *FixedSliceReader) Length() int {
 	return s.len
+}
+
+// LookAhead returns data ahead of current pos if within bounds.
+func (s *FixedSliceReader) LookAhead(offset int, data []byte) error {
+	if s.pos+offset+len(data) >= s.len {
+		return fmt.Errorf("out of bounds")
+	}
+	copy(data, s.slice[s.pos+offset:])
+	return nil
 }

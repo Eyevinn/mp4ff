@@ -4,7 +4,7 @@ import "fmt"
 
 // SliceReader errors
 var (
-	ErrSliceRead = fmt.Errorf("Read too far in SliceReader")
+	ErrSliceRead = fmt.Errorf("read too far in SliceReader")
 )
 
 type SliceReader interface {
@@ -26,4 +26,5 @@ type SliceReader interface {
 	SetPos(pos int)
 	GetPos() int
 	Length() int
+	LookAhead(offset int, data []byte) error
 }
