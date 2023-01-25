@@ -9,11 +9,11 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
-// MetaBox is MPEG-4 Meta box or QuickTime meta Atom (without version and flags).
+// MetaBox is MPEG-4 Meta box or QuickTime meta Atom (without version and flags)
 
 // MPEG box defined in ISO/IEC 14496-12 Ed. 6 2020 Section 8.11
 //
-// Note. QuickTime meta ataom has no version and flags field.
+// Note. QuickTime meta atom has no version and flags field.
 // https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/Metadata/Metadata.html#//apple_ref/doc/uid/TP40000939-CH1-SW10
 type MetaBox struct {
 	Version     byte
@@ -28,7 +28,7 @@ func (m *MetaBox) IsQuickTime() bool {
 	return m.isQuickTime
 }
 
-// CreateMetaBox - Create a new MetaBox
+// CreateMetaBox creates a new MetaBox
 func CreateMetaBox(version byte, hdlr *HdlrBox) *MetaBox {
 	b := &MetaBox{
 		Version: version,
@@ -38,7 +38,7 @@ func CreateMetaBox(version byte, hdlr *HdlrBox) *MetaBox {
 	return b
 }
 
-// AddChild - Add a child box
+// AddChild adds a child box
 func (b *MetaBox) AddChild(child Box) {
 	switch box := child.(type) {
 	case *HdlrBox:
@@ -47,7 +47,7 @@ func (b *MetaBox) AddChild(child Box) {
 	b.Children = append(b.Children, child)
 }
 
-// DecodeMeta decodes a MetaBox in either MPEG or QuickTime version.
+// DecodeMeta decodes a MetaBox in either MPEG or QuickTime version
 func DecodeMeta(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
@@ -57,7 +57,7 @@ func DecodeMeta(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return DecodeMetaSR(hdr, startPos, sr)
 }
 
-// DecodeMetaSR decodes a MetaBox in either MPEG or QuickTime version.
+// DecodeMetaSR decodes a MetaBox in either MPEG or QuickTime version
 func DecodeMetaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := MetaBox{}
 	lookAheadData := make([]byte, 4)
@@ -87,12 +87,12 @@ func DecodeMetaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &b, nil
 }
 
-// Type - box type
+// Type returns box type
 func (b *MetaBox) Type() string {
 	return "meta"
 }
 
-// Size - calculated size of box
+// Size calculates size of box
 func (b *MetaBox) Size() uint64 {
 	size := 4 + containerSize(b.Children)
 	if b.IsQuickTime() {
@@ -101,12 +101,12 @@ func (b *MetaBox) Size() uint64 {
 	return size
 }
 
-// GetChildren - list of child boxes
+// GetChildren lists child boxes
 func (b *MetaBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - write minf container to w
+// Encode writes minf container to w
 func (b *MetaBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
@@ -128,7 +128,7 @@ func (b *MetaBox) Encode(w io.Writer) error {
 	return nil
 }
 
-// Encode - write minf container to sw
+// Encode writes minf container to sw
 func (b *MetaBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
@@ -145,7 +145,7 @@ func (b *MetaBox) EncodeSW(sw bits.SliceWriter) error {
 	return nil
 }
 
-// Info - box-specific info
+// Info writes box-specific info
 func (b *MetaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if bd.err != nil {
