@@ -8,7 +8,9 @@ import (
 )
 
 const (
-	spsNalu = "420101022000000300b0000003000003007ba0078200887db6718b92448053888892cf24a69272c9124922dc91aa48fca223ff000100016a02020201"
+	spsNalu = ("420101022000000300b0000003000003007ba0078200887db6718b92448053888892" +
+		"cf24a69272c9124922dc91aa48fca223ff000100016a02020201")
+	spsNaluHdr10 = "420101022000000300b0000003000003009ca001e020021c4d8815ee4595602d4244024020"
 )
 
 func TestSPSParser1(t *testing.T) {
@@ -174,6 +176,91 @@ func TestSPSParser1(t *testing.T) {
 	}
 	gotWidth, gotHeight := got.ImageSize()
 	var expWidth, expHeight uint32 = 960, 540
+	if gotWidth != expWidth || gotHeight != expHeight {
+		t.Errorf("Got %dx%d instead of %dx%d", gotWidth, gotHeight, expWidth, expHeight)
+	}
+}
+
+func TestSPSParser2(t *testing.T) {
+	byteData, _ := hex.DecodeString(spsNaluHdr10)
+
+	wantedVUI := VUIParameters{
+		SampleAspectRatioWidth:     1,
+		SampleAspectRatioHeight:    1,
+		VideoSignalTypePresentFlag: true,
+		VideoFormat:                5,
+		ColourDescriptionFlag:      true,
+		ColourPrimaries:            9,
+		TransferCharacteristics:    16,
+		MatrixCoefficients:         9,
+	}
+	wanted := SPS{
+		VpsID:                 0,
+		MaxSubLayersMinus1:    0,
+		TemporalIDNestingFlag: true,
+		ProfileTierLevel: ProfileTierLevel{
+			GeneralProfileSpace:              0,
+			GeneralTierFlag:                  false,
+			GeneralProfileIDC:                2,
+			GeneralProfileCompatibilityFlags: 536870912,
+			GeneralConstraintIndicatorFlags:  193514046488576,
+			GeneralProgressiveSourceFlag:     false,
+			GeneralInterlacedSourceFlag:      false,
+			GeneralNonPackedConstraintFlag:   false,
+			GeneralFrameOnlyConstraintFlag:   false,
+			GeneralLevelIDC:                  156,
+		},
+		SpsID:                   0,
+		ChromaFormatIDC:         1,
+		SeparateColourPlaneFlag: false,
+		ConformanceWindowFlag:   false,
+		PicWidthInLumaSamples:   3840,
+		PicHeightInLumaSamples:  2160,
+		ConformanceWindow: ConformanceWindow{
+			LeftOffset:   0,
+			RightOffset:  0,
+			TopOffset:    0,
+			BottomOffset: 0,
+		},
+		BitDepthLumaMinus8:              2,
+		BitDepthChromaMinus8:            2,
+		Log2MaxPicOrderCntLsbMinus4:     7,
+		SubLayerOrderingInfoPresentFlag: false,
+		SubLayeringOrderingInfos: []SubLayerOrderingInfo{
+			{
+				MaxDecPicBufferingMinus1: 4,
+				MaxNumReorderPics:        2,
+				MaxLatencyIncreasePlus1:  0,
+			},
+		},
+		Log2MinLumaCodingBlockSizeMinus3:     0,
+		Log2DiffMaxMinLumaCodingBlockSize:    2,
+		Log2MinLumaTransformBlockSizeMinus2:  0,
+		Log2DiffMaxMinLumaTransformBlockSize: 3,
+		MaxTransformHierarchyDepthInter:      1,
+		MaxTransformHierarchyDepthIntra:      0,
+		ScalingListEnabledFlag:               true,
+		ScalingListDataPresentFlag:           false,
+		AmpEnabledFlag:                       false,
+		SampleAdaptiveOffsetEnabledFlag:      true,
+		PCMEnabledFlag:                       false,
+		NumShortTermRefPicSets:               0,
+		LongTermRefPicsPresentFlag:           false,
+		SpsTemporalMvpEnabledFlag:            true,
+		StrongIntraSmoothingEnabledFlag:      false,
+		VUIParametersPresentFlag:             true,
+		VUI:                                  &wantedVUI,
+	}
+	got, err := ParseSPSNALUnit(byteData)
+	if err != nil {
+		t.Error("Error parsing SPS")
+	}
+
+	if diff := deep.Equal(*got, wanted); diff != nil {
+		t.Error(diff)
+	}
+	gotWidth, gotHeight := got.ImageSize()
+	var expWidth, expHeight uint32 = 3840, 2160
 	if gotWidth != expWidth || gotHeight != expHeight {
 		t.Errorf("Got %dx%d instead of %dx%d", gotWidth, gotHeight, expWidth, expHeight)
 	}
