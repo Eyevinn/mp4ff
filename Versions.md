@@ -2,6 +2,7 @@
 
 | Version | Highlights |
 | ------  | ---------- |
+| 0.33.2 | Reset parsing of non-complete mdat box to previous behavior |
 | 0.33.1 | Fix parsing of HEVC SPS scaling list data present flag |
 | 0.33.0 | Support QuickTime meta box. New possibility to disable parsing of specific boxes |
 | 0.32.0 | Repo moved to github.com/Eyevinn/mp4ff |

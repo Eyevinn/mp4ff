@@ -32,7 +32,10 @@ func DecodeMdat(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return &MdatBox{startPos, data, nil, 0, largeSize}, nil
 }
 
-// DecodeMdatSR - box-specific decode
+// DecodeMdatSR decodes an mdat box
+//
+// Currently no content and no error is returned if not full length available.
+// If not enough content, an accumulated error is stored in sr, though
 func DecodeMdatSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	largeSize := hdr.Hdrlen > boxHeaderSize
 	return &MdatBox{startPos, sr.ReadBytes(hdr.payloadLen()), nil, 0, largeSize}, nil
