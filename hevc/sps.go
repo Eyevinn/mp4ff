@@ -130,7 +130,7 @@ type BitstreamRestrictions struct {
 	Log2MaxMvLengthVertical     uint
 }
 
-// ParseSPSNALUnit - Parse HEVC SPS NAL unit starting with NAL unit header
+// ParseSPSNALUnit parses SPS NAL unit starting with NAL unit header
 func ParseSPSNALUnit(data []byte) (*SPS, error) {
 
 	sps := &SPS{}
@@ -176,9 +176,9 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps.BitDepthChromaMinus8 = byte(r.ReadExpGolomb())
 	sps.Log2MaxPicOrderCntLsbMinus4 = byte(r.ReadExpGolomb())
 	sps.SubLayerOrderingInfoPresentFlag = r.ReadFlag()
-	startValue := byte(0)
+	startValue := sps.MaxSubLayersMinus1
 	if sps.SubLayerOrderingInfoPresentFlag {
-		startValue = sps.MaxSubLayersMinus1
+		startValue = 0
 	}
 	for i := startValue; i <= sps.MaxSubLayersMinus1; i++ {
 		sps.SubLayeringOrderingInfos = append(
@@ -197,7 +197,10 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps.MaxTransformHierarchyDepthIntra = byte(r.ReadExpGolomb())
 	sps.ScalingListEnabledFlag = r.ReadFlag()
 	if sps.ScalingListEnabledFlag {
-		readPastScalingList(r)
+		sps.ScalingListDataPresentFlag = r.ReadFlag()
+		if sps.ScalingListDataPresentFlag {
+			readPastScalingListData(r)
+		}
 	}
 	sps.AmpEnabledFlag = r.ReadFlag()
 	sps.SampleAdaptiveOffsetEnabledFlag = r.ReadFlag()
@@ -407,8 +410,8 @@ func parseShortTermRPS(r *bits.AccErrEBSPReader, idx, numSTRefPicSets byte, sps 
 	return stps
 }
 
-// readPastScalingList - read and parse all bits of scaling list, without storing values
-func readPastScalingList(r *bits.AccErrEBSPReader) {
+// readPastScalingListData - read and parse all bits of scaling list, without storing values
+func readPastScalingListData(r *bits.AccErrEBSPReader) {
 	for sizeId := 0; sizeId < 4; sizeId++ {
 		nrMatrixIds := 6
 		if sizeId == 3 {

@@ -77,3 +77,54 @@ func createNalusFromHex(hexStr string) [][]byte {
 	}
 	return nalus
 }
+
+func TestDecodeConfRec(t *testing.T) {
+	hexData := ("0102" +
+		"00000020b000000000009c0000000102" +
+		"0200000f03a00001001840010c01ffff" +
+		"022000000300b0000003000003009c15" +
+		"c090a100010025420101022000000300" +
+		"b0000003000003009ca001e020021c4d" +
+		"8815ee4595602d4244024020a2000100" +
+		"094401c02864b8d05324")
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Error(err)
+	}
+	hdcr, err := DecodeHEVCDecConfRec(data)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, na := range hdcr.NaluArrays {
+
+		switch na.NaluType() {
+		case NALU_VPS, NALU_PPS:
+		case NALU_SPS:
+			for _, nalu := range na.Nalus {
+				sps, err := ParseSPSNALUnit(nalu)
+				if err != nil {
+					t.Error(err)
+				}
+				if !sps.ScalingListEnabledFlag || sps.ScalingListDataPresentFlag {
+					t.Error("scaling_list_enabled not properly parsed")
+				}
+				vui := sps.VUI
+				if vui == nil {
+					t.Error("no vui parsed")
+				} else {
+					if vui.TransferCharacteristics != 16 {
+						t.Errorf("vui transfer_characteristics is %d, not 16", vui.TransferCharacteristics)
+					}
+					if vui.ColourPrimaries != 9 {
+						t.Errorf("vui colour_primaries is %d, not 9", vui.ColourPrimaries)
+					}
+					if vui.MatrixCoefficients != 9 {
+						t.Errorf("vui matrix_coefficients is %d, not 9", vui.MatrixCoefficients)
+					}
+				}
+			}
+		default:
+			t.Errorf("strange nalu type %s", na.NaluType())
+		}
+	}
+}
