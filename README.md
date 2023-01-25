@@ -4,7 +4,7 @@
 ![golangci-lint](https://github.com/Eyevinn/mp4ff/workflows/golangci-lint/badge.svg?branch=master)
 [![GoDoc](https://godoc.org/github.com/Eyevinn/mp4ff?status.svg)](http://godoc.org/github.com/Eyevinn/mp4ff)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Eyevinn/mp4ff)](https://goreportcard.com/report/github.com/Eyevinn/mp4ff)
-[![license](https://img.shields.io/github/license/Eyevinn/mp4ff.svg)](https://github.com/Eyevinn/mp4ff/blob/master/LICENSE.md)
+[![license](https://img.shields.io/github/license/Eyevinn/mp4ff.svg)](https://github.com/Eyevinn/mp4ff/blob/master/LICENSE)
 
 Package mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC and AC-3 audio,  and stpp and wvtt subtitles.
 It is focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4, but can also decode and encode all boxes needed for
@@ -327,7 +327,7 @@ in the code.
 
 ## LICENSE
 
-MIT, see [LICENSE.md](LICENSE.md).
+MIT, see [LICENSE](LICENSE).
 
 Some code in pkg/mp4, comes from or is based on https://github.com/jfbus/mp4 which has
 `Copyright (c) 2015 Jean-François Bustarret`.

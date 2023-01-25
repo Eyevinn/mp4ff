@@ -35,7 +35,7 @@ func (m *MoovBox) AddChild(child Box) {
 			m.Trak = box
 		}
 		m.Traks = append(m.Traks, box)
-		// Possibley re-order to keep traks together on same
+		// Possibly re-order to keep traks together on same
 		// side of mvex or similar. Put this trak box after last previous trak
 		lastTrakIdx := 0
 		for i, child := range m.Children {

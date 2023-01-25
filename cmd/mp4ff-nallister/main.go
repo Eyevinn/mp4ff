@@ -20,7 +20,7 @@ import (
 var usg = `Usage of mp4ff-nallister:
 
 mp4ff-nallister lists NAL units and slice types of AVC or HEVC tracks of an mp4 (ISOBMFF) file
-or a file containg a byte stream in Annex B format.
+or a file containing a byte stream in Annex B format.
 
 Takes first video track in a progressive file and the first track in a fragmented file.
 It can also output information about SEI NAL units.
