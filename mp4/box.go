@@ -362,7 +362,7 @@ func makebuf(b Box) []byte {
 	return make([]byte, b.Size()-boxHeaderSize)
 }
 
-// readBoxBody - read box body and check length
+// readBoxBody reads complete box body. Returns error if not possible
 func readBoxBody(r io.Reader, h BoxHeader) ([]byte, error) {
 	bodyLen := h.Size - uint64(h.Hdrlen)
 	if bodyLen == 0 {

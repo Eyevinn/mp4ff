@@ -138,8 +138,14 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	if h.Size > uint64(sr.NrRemainingBytes())+uint64(h.Hdrlen) {
-		return nil, fmt.Errorf("decode box %q, size %d too big", h.Name, h.Size)
+
+	maxSize := uint64(sr.NrRemainingBytes()) + uint64(h.Hdrlen)
+	// In the following, we do not block mdat to allow for the case
+	// that the first kiloBytes of a file are fetched and parsed to
+	// get the init part of a file. In the future, a new decode option that
+	// stops before the mdat starts is a better alternative.
+	if h.Size > maxSize && h.Name != "mdat" {
+		return nil, fmt.Errorf("decode box %q, size %d too big (max %d)", h.Name, h.Size, maxSize)
 	}
 
 	d, ok := decodersSR[h.Name]
