@@ -29,6 +29,7 @@ func init() {
 		"clap":    DecodeClap,
 		"cslg":    DecodeCslg,
 		"co64":    DecodeCo64,
+		"colr":    DecodeColr,
 		"ctim":    DecodeCtim,
 		"ctts":    DecodeCtts,
 		"dac3":    DecodeDac3,
