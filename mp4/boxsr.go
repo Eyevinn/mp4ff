@@ -20,6 +20,7 @@ func init() {
 		"clap":    DecodeClapSR,
 		"cslg":    DecodeCslgSR,
 		"co64":    DecodeCo64SR,
+		"colr":    DecodeColrSR,
 		"ctim":    DecodeCtimSR,
 		"ctts":    DecodeCttsSR,
 		"dac3":    DecodeDac3SR,
