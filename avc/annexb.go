@@ -2,7 +2,10 @@ package avc
 
 //Functions to handle AnnexB Byte stream format"
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"unsafe"
+)
 
 // ExtractNalusFromByteStream extracts NALUs without startcode from ByteStream.
 // This function is codec agnostic.
@@ -49,21 +52,8 @@ type scNalu struct {
 // This function is codec agnostic.
 func ConvertByteStreamToNaluSample(stream []byte) []byte {
 	streamLen := len(stream)
-	var scNalus []scNalu
-	minStartCodeLength := 4
-	for i := 0; i < streamLen-3; i++ {
-		if stream[i] == 0 && stream[i+1] == 0 && stream[i+2] == 1 {
-			startCodeLength := 3
-			startPos := i + 3
-			if i >= 1 && stream[i-1] == 0 {
-				startCodeLength++
-			}
-			if startCodeLength < minStartCodeLength {
-				minStartCodeLength = startCodeLength
-			}
-			scNalus = append(scNalus, scNalu{startCodeLength, startPos})
-		}
-	}
+	scNalus, minStartCodeLength := getStartCodePositions(stream)
+
 	lengthField := make([]byte, 4)
 	var naluLength int
 	if minStartCodeLength == 4 {
@@ -93,6 +83,56 @@ func ConvertByteStreamToNaluSample(stream []byte) []byte {
 		out = append(out, stream[s.startPos:s.startPos+naluLength]...)
 	}
 	return out
+}
+
+func getStartCodePositions(stream []byte) (scNalus []scNalu, minStartCodeLength int) {
+	streamLen := len(stream)
+	uintSize := int(unsafe.Sizeof(uint(0)))
+	streamLenLim := streamLen - (streamLen % uintSize) - uintSize
+	minStartCodeLength = 4
+
+	i := 0
+	for ; i < streamLenLim; i += uintSize {
+		x := *(*uint)(unsafe.Pointer(&stream[i]))
+		if ((x - 0x0101010101010101) & (^x) & 0x8080808080808080) != 0 {
+			for j := i + 1; j < i+uintSize; j += 2 {
+				if stream[j] == 0 {
+					startPos, startCodeLength := 0, 3
+					if stream[j-1] == 0 && stream[j+1] == 1 {
+						if j-2 >= 0 && stream[j-2] == 0 {
+							startCodeLength++
+						}
+						startPos = j + 2
+					} else if stream[j+1] == 0 && stream[j+2] == 1 {
+						if j-1 >= 0 && stream[j-1] == 0 {
+							startCodeLength++
+						}
+						startPos = j + 3
+					}
+					if startPos != 0 {
+						if startCodeLength < minStartCodeLength {
+							minStartCodeLength = startCodeLength
+						}
+						scNalus = append(scNalus, scNalu{startCodeLength, startPos})
+					}
+				}
+			}
+		}
+	}
+	for ; i < streamLen-3; i++ {
+		if stream[i] == 0 && stream[i+1] == 0 && stream[i+2] == 1 {
+			startCodeLength := 3
+			startPos := i + 3
+			if i-1 >= 0 && stream[i-1] == 0 {
+				startCodeLength++
+			}
+			if startCodeLength < minStartCodeLength {
+				minStartCodeLength = startCodeLength
+			}
+			scNalus = append(scNalus, scNalu{startCodeLength, startPos})
+		}
+	}
+	return
 }
 
 // ConvertSampleToByteStream replaces 4-byte NALU lengths with start codes.
