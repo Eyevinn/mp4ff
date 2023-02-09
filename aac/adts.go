@@ -63,33 +63,39 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	tsPacketSize := 188 // Find sync 0xfff in first 188 bytes (MPEG-TS related)
 	syncFound := false
 	offset = 0
+	var sync1, sync2, mpegID, layer, protectionAbsent byte
 	for i := 0; i < tsPacketSize; i++ {
-		sync1 := br.Read(8)
+		if sync2 != 0xff {
+			sync1 = byte(br.Read(8))
+		} else {
+			sync1 = sync2
+			offset--
+		}
 		if sync1 == 0xff {
-			sync2 := br.Read(4)
-			if sync2 == 0x0f {
+			sync2 = byte(br.Read(8))
+			startPattern := sync2 >> 4
+			mpegID = (sync2 >> 3) & 1
+			layer = (sync2 >> 1) & 3
+			protectionAbsent = sync2 & 1
+			if startPattern == 0xf && layer == 0 {
 				syncFound = true
 				break
 			}
-			_ = br.Read(4) // Byte-align
 			offset++
 		}
 		offset++
 	}
 	if br.AccError() != nil {
-		return nil, 0, fmt.Errorf("Could not find sync: %w", br.AccError())
+		return nil, 0, fmt.Errorf("searching for 0xfff: %w", br.AccError())
 	}
 
 	if !syncFound {
-		return nil, 0, fmt.Errorf("No 0xfff sync found")
+		return nil, 0, fmt.Errorf("no 0xfff sync found")
 	}
-	mpegID := byte(br.Read(1))
-	layer := br.Read(2)
 	if layer != 0 {
-		return nil, 0, fmt.Errorf("Non-permitted layer value %d", layer)
+		return nil, 0, fmt.Errorf("non-permitted layer value %d", layer)
 	}
 	ah := &ADTSHeader{ID: mpegID, HeaderLength: 7}
-	protectionAbsent := br.Read(1)
 	if protectionAbsent != 1 {
 		ah.HeaderLength += 2 // 16-bit CRC
 	}

@@ -68,3 +68,19 @@ func TestAdtsHdrLengthWithCRC(t *testing.T) {
 		t.Errorf("Got header length %d instead of 9", gotHdr.HeaderLength)
 	}
 }
+
+func TestAdtsHeaderParsingWithDoubleFF(t *testing.T) {
+	hexData := "48fffff94cb02b5ffc21aa14"
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Error(err)
+	}
+	_, gotOffset, err := DecodeADTSHeader(bytes.NewBuffer(data))
+	if err != nil {
+		t.Error(err)
+	}
+	wantedOffset := 2
+	if gotOffset != wantedOffset {
+		t.Errorf("Got offset %d instead of %d", gotOffset, wantedOffset)
+	}
+}
