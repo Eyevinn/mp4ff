@@ -85,19 +85,37 @@ func ConvertByteStreamToNaluSample(stream []byte) []byte {
 	return out
 }
 
+// This function implement bit-trick to search zero byte in numbered type.
+// You can find detail explanation here https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord .
+func hasZeroByte(x uint) bool {
+	return ((x - 0x0101010101010101) & (^x) & 0x8080808080808080) != 0
+}
+
 func getStartCodePositions(stream []byte) (scNalus []scNalu, minStartCodeLength int) {
 	streamLen := len(stream)
+	// Platform limitation must be known to iterate over slice effectively and safely.
 	uintSize := int(unsafe.Sizeof(uint(0)))
+	// Faster approach for searching the NALU start codes is applicable only for slices which length is multiple of uintSize.
+	// Max length of slice should be limited accordingly.
 	streamLenLim := streamLen - (streamLen % uintSize) - uintSize
 	minStartCodeLength = 4
 
+	// Iterator value is declared outside to continue iteration in second loop.
 	i := 0
+	// Iterating over slice by uintSize as all intermediate bytes will be checked as needed.
 	for ; i < streamLenLim; i += uintSize {
-		x := *(*uint)(unsafe.Pointer(&stream[i]))
-		if ((x - 0x0101010101010101) & (^x) & 0x8080808080808080) != 0 {
+		// This code is inspired by ffmpeg https://ffmpeg.org/doxygen/trunk/avc_8c_source.html#l00030 .
+
+		// Reference to the current byte in slice converted to untyped Pointer than it's cast to uint reference
+		// and finally dereference to value. hasZeroByte() func check every byte of uint for zero.
+		// hasZeroByte() func is endianness agnostic.
+		if hasZeroByte(*(*uint)(unsafe.Pointer(&stream[i]))) {
+			// Minimal start code size is 3, so checking every odd byte of uint is enough.
 			for j := i + 1; j < i+uintSize; j += 2 {
 				if stream[j] == 0 {
 					startPos, startCodeLength := 0, 3
+					// Next branch will check every neighbor byte to find start code pattern.
+					// Be aware! It will check two first bytes from next uint.
 					if stream[j-1] == 0 && stream[j+1] == 1 {
 						if j-2 >= 0 && stream[j-2] == 0 {
 							startCodeLength++
@@ -119,6 +137,7 @@ func getStartCodePositions(stream []byte) (scNalus []scNalu, minStartCodeLength 
 			}
 		}
 	}
+	// We should check remain bytes with old approach.
 	for ; i < streamLen-3; i++ {
 		if stream[i] == 0 && stream[i+1] == 0 && stream[i+2] == 1 {
 			startCodeLength := 3
