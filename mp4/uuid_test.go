@@ -87,3 +87,26 @@ func TestSetUUID(t *testing.T) {
 		}
 	}
 }
+
+func TestUUIDEncodeDecoder(t *testing.T) {
+
+	tfrf := &UUIDBox{
+		uuid: mustCreateUUID(UUIDTfrf),
+		Tfrf: &TfrfData{
+			FragmentCount:             1,
+			FragmentAbsoluteTimes:     []uint64{0},
+			FragmentAbsoluteDurations: []uint64{1000000},
+		},
+	}
+
+	boxDiffAfterEncodeAndDecode(t, tfrf)
+
+	tfxd := &UUIDBox{
+		uuid: mustCreateUUID(UUIDTfxd),
+		Tfxd: &TfxdData{
+			FragmentAbsoluteTime:     0,
+			FragmentAbsoluteDuration: 1000000,
+		},
+	}
+	boxDiffAfterEncodeAndDecode(t, tfxd)
+}
