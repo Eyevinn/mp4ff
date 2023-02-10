@@ -4,6 +4,7 @@ package avc
 
 import (
 	"encoding/binary"
+	"math/bits"
 	"unsafe"
 )
 
@@ -85,10 +86,16 @@ func ConvertByteStreamToNaluSample(stream []byte) []byte {
 	return out
 }
 
+// Cut overflow bits at compile time to use it safely on < 64-bit systems
+const (
+	magicLeft  uint = 0x0101010101010101 >> (64 - bits.UintSize)
+	magicRight uint = 0x8080808080808080 >> (64 - bits.UintSize)
+)
+
 // This function implement bit-trick to search zero byte in numbered type.
 // You can find detail explanation here https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord .
 func hasZeroByte(x uint) bool {
-	return ((x - 0x0101010101010101) & (^x) & 0x8080808080808080) != 0
+	return ((x - magicLeft) & (^x) & magicRight) != 0
 }
 
 func getStartCodePositions(stream []byte) (scNalus []scNalu, minStartCodeLength int) {
