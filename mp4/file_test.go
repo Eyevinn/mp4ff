@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/aac"
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
@@ -154,5 +155,66 @@ func TestDecodeEncode(t *testing.T) {
 		if !bytes.Equal(outBuf.Bytes(), rawInput) {
 			t.Errorf("encode differs from input for Encode() and %s", testFile)
 		}
+	}
+}
+
+func TestFilesWithEmsg(t *testing.T) {
+	// File with ftyp, moov, styp, emsg, emsg, moof, mdat, moof, mdat
+	init := CreateEmptyInit()
+	init.AddEmptyTrack(uint32(48000), "audio", "en")
+	trak := init.Moov.Trak
+	err := trak.SetAACDescriptor(aac.AAClc, 48000)
+	if err != nil {
+		t.Error(err)
+	}
+	data := make([]byte, 0, init.Size())
+	buf := bytes.NewBuffer(data)
+	err = init.Encode(buf)
+	if err != nil {
+		t.Error(err)
+	}
+	seg := NewMediaSegment()
+	frag, err := CreateFragment(1, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	frag.AddFullSample(FullSample{
+		Sample: Sample{
+			Flags:                 0x0,
+			Dur:                   1024,
+			Size:                  6,
+			CompositionTimeOffset: 0,
+		},
+		DecodeTime: 0,
+		Data:       []byte{0, 1, 2, 3, 4, 5},
+	})
+	emsg1 := EmsgBox{ID: 1}
+	frag.AddEmsg(&emsg1)
+	emsg2 := EmsgBox{ID: 2}
+	frag.AddEmsg(&emsg2)
+	seg.AddFragment(frag)
+	err = seg.Encode(buf)
+	if err != nil {
+		t.Error(err)
+	}
+	decFile, err := DecodeFile(buf)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(decFile.Segments) != 1 {
+		t.Error("not 1 segment in file")
+	}
+	if len(decFile.Segments[0].Fragments) != 1 {
+		t.Error("not 1 fragment in segment")
+	}
+	dFrag := decFile.Segments[0].Fragments[0]
+	if len(dFrag.Emsgs) != 2 {
+		t.Error("not 2 emsg boxes in fragment")
+	}
+	if dFrag.Emsgs[0].ID != 1 {
+		t.Error("first emsg box does not have index 1")
+	}
+	if dFrag.Emsgs[1].ID != 2 {
+		t.Error("second emsg box does not have index 2")
 	}
 }
