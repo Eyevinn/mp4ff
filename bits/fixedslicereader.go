@@ -16,22 +16,12 @@ type FixedSliceReader struct {
 	len   int
 }
 
-// bits.NewFixedSliceReader - create a new slice reader reading from data
+// bits.NewFixedSliceReader creates a new slice reader reading from data
 func NewFixedSliceReader(data []byte) *FixedSliceReader {
 	return &FixedSliceReader{
 		slice: data,
 		pos:   0,
 		len:   len(data),
-		err:   nil,
-	}
-}
-
-// bits.NewFixedSliceReader - create a new slice reader reading from data
-func NewFixedSliceReaderWithSize(size int) *FixedSliceReader {
-	return &FixedSliceReader{
-		slice: make([]byte, size),
-		pos:   0,
-		len:   size,
 		err:   nil,
 	}
 }
@@ -93,7 +83,7 @@ func (s *FixedSliceReader) ReadUint24() uint32 {
 		return 0
 	}
 	res := uint32(binary.BigEndian.Uint16(s.slice[s.pos : s.pos+2]))
-	res |= res<<16 | uint32(s.slice[s.pos+2])
+	res = res<<8 | uint32(s.slice[s.pos+2])
 	s.pos += 3
 	return res
 }
@@ -258,7 +248,7 @@ func (s *FixedSliceReader) Length() int {
 
 // LookAhead returns data ahead of current pos if within bounds.
 func (s *FixedSliceReader) LookAhead(offset int, data []byte) error {
-	if s.pos+offset+len(data) >= s.len {
+	if s.pos+offset+len(data) > s.len {
 		return fmt.Errorf("out of bounds")
 	}
 	copy(data, s.slice[s.pos+offset:])
