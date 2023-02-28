@@ -335,9 +335,9 @@ Some code in pkg/mp4, comes from or is based on https://github.com/jfbus/mp4 whi
 Some code in pkg/bits comes from or is based on https://github.com/tcnksm/go-casper/tree/master/internal/bits
 `Copyright (c) 2017 Taichi Nakashima`.
 
-## Versions
+## ChangeLog and Versions
 
-See [Versions.md](Versions.md).
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Support
 
