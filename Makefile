@@ -28,6 +28,8 @@ coverage:
 	go test ./... -coverprofile coverage.out
 	set +o pipefail
 	go tool cover -html=coverage.out -o coverage.html
+	go tool cover -func coverage.out -o coverage.txt
+	tail -1 coverage.txt
 
 .PHONY: check
 check: prepare
