@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2023-02-28
+
 ### Added
 
 - New function: `mp4.NewMediaSegmentWithStyp()`
@@ -361,7 +363,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.33.2...HEAD
+[unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/Eyevinn/mp4ff/compare/v0.33.2...v0.34.0
 [0.33.2]: https://github.com/Eyevinn/mp4ff/compare/v0.33.1...v0.33.2
 [0.33.1]: https://github.com/Eyevinn/mp4ff/compare/v0.33.0...v0.33.1
 [0.33.0]: https://github.com/Eyevinn/mp4ff/compare/v0.32.0...v0.33.0
