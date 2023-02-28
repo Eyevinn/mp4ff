@@ -8,7 +8,7 @@ import (
 	"github.com/Eyevinn/mp4ff/hevc"
 )
 
-// VisualSampleEntryBox - Video Sample Description box (avc1/avc3)
+// VisualSampleEntryBox Video Sample Description box (avc1/avc3/hvc1/hev1...)
 type VisualSampleEntryBox struct {
 	name               string
 	DataReferenceIndex uint16
@@ -27,14 +27,14 @@ type VisualSampleEntryBox struct {
 	Children           []Box
 }
 
-// NewVisualSampleEntryBox - Create new empty avc1 or avc3 box
+// NewVisualSampleEntryBox creates new empty box with an appropriate name such as avc1
 func NewVisualSampleEntryBox(name string) *VisualSampleEntryBox {
 	b := &VisualSampleEntryBox{}
 	b.name = name
 	return b
 }
 
-// CreateVisualSampleEntryBox - Create new VisualSampleEntry such as avc1, avc3, hev1, hvc1
+// CreateVisualSampleEntryBox creates a new VisualSampleEntry such as avc1, avc3, hev1, hvc1
 func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry Box) *VisualSampleEntryBox {
 	b := &VisualSampleEntryBox{
 		name:               name,
@@ -53,7 +53,7 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry B
 	return b
 }
 
-// AddChild - add a child box (avcC normally, but clap and pasp could be part of visual entry)
+// AddChild adds a child box and sets pointer to common types
 func (b *VisualSampleEntryBox) AddChild(child Box) {
 	switch box := child.(type) {
 	case *AvcCBox:
@@ -73,7 +73,7 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 	b.Children = append(b.Children, child)
 }
 
-// DecodeVisualSampleEntry - decode avc1/avc3/... box
+// DecodeVisualSampleEntry decodes avc1/avc3/hvc1/hev1 box
 func DecodeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
@@ -83,7 +83,7 @@ func DecodeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, 
 	return DecodeVisualSampleEntrySR(hdr, startPos, sr)
 }
 
-// DecodeVisualSampleEntrySR - decode avc1/avc3/hvc1/hev1... box
+// DecodeVisualSampleEntrySR decodes avc1/avc3/hvc1/hev1 box
 func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := VisualSampleEntryBox{name: hdr.Name}
 
@@ -134,12 +134,12 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	return &b, sr.AccError()
 }
 
-// Type - return box type
+// Type returns box type
 func (b *VisualSampleEntryBox) Type() string {
 	return b.name
 }
 
-// SetType - set the type (name) of the box
+// SetType sets the type (name) of the box
 func (b *VisualSampleEntryBox) SetType(name string) {
 	b.name = name
 }
@@ -153,7 +153,7 @@ func (b *VisualSampleEntryBox) Size() uint64 {
 	return totalSize
 }
 
-// Encode - write box to w
+// Encode writes box to w
 func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
@@ -194,7 +194,7 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
-// EncodeSW - write box to sw
+// EncodeSW writes box to sw
 func (b *VisualSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
@@ -228,7 +228,7 @@ func (b *VisualSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
 	return err
 }
 
-// Info - write specific box information
+// Info writes box-specific information
 func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - width: %d", b.Width)
@@ -247,7 +247,7 @@ func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 	return nil
 }
 
-// RemoveEncryption - remove sinf box and set type to unencrypted type
+// RemoveEncryption removes sinf box and set type to unencrypted type
 func (b *VisualSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
 	if b.name != "encv" {
 		return nil, fmt.Errorf("is not encrypted: %s", b.name)
@@ -267,7 +267,7 @@ func (b *VisualSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
 	return sinf, nil
 }
 
-// ConvertHev1ToHvc1 - contert visual sample entry box type and insert VPS, SPS, and PPS parameter sets
+// ConvertHev1ToHvc1 converts visual sample entry box type and insert VPS, SPS, and PPS parameter sets
 func (b *VisualSampleEntryBox) ConvertHev1ToHvc1(vpss [][]byte, spss [][]byte, ppss [][]byte) error {
 	if b.Type() != "hev1" {
 		return fmt.Errorf("type is %s and not hev1", b.Type())
@@ -279,7 +279,7 @@ func (b *VisualSampleEntryBox) ConvertHev1ToHvc1(vpss [][]byte, spss [][]byte, p
 	return nil
 }
 
-// ConvertAvc3ToHvc1 - contert visual sample entry box type and insert SPS and PPS parameter sets
+// ConvertAvc3ToAvc1 converts visual sample entry box type and insert SPS and PPS parameter sets
 func (b *VisualSampleEntryBox) ConvertAvc3ToAvc1(spss [][]byte, ppss [][]byte) error {
 	if b.Type() != "avc3" {
 		return fmt.Errorf("type is %s and not avc3", b.Type())

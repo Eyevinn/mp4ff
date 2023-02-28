@@ -35,4 +35,5 @@ func TestPrftDecodeSize(t *testing.T) {
 	if prft.Size() != 28 {
 		t.Errorf("prft box size is %d instead of 28", prft.Size())
 	}
+	cmpAfterDecodeEncodeBox(t, data)
 }
