@@ -206,19 +206,19 @@ func (f *File) Size() uint64 {
 }
 
 // AddChild - add child with start position
-func (f *File) AddChild(box Box, boxStartPos uint64) {
-	switch box.Type() {
-	case "ftyp":
-		f.Ftyp = box.(*FtypBox)
-	case "moov":
-		f.Moov = box.(*MoovBox)
+func (f *File) AddChild(child Box, boxStartPos uint64) {
+	switch box := child.(type) {
+	case *FtypBox:
+		f.Ftyp = box
+	case *MoovBox:
+		f.Moov = box
 		if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
 			f.isFragmented = true
 			f.Init = NewMP4Init()
 			f.Init.AddChild(f.Ftyp)
 			f.Init.AddChild(f.Moov)
 		}
-	case "sidx":
+	case *SidxBox:
 		// sidx boxes are either added to the File or to the current media segment.
 		// Since sidx boxes for a segment come before the moof, it is important that a new
 		// segment is started with a styp box for the sidx to be associated with the
@@ -230,43 +230,61 @@ func (f *File) AddChild(box Box, boxStartPos uint64) {
 		// and testing such a solution, that track is not deemed worth the effort for now.
 		if len(f.Segments) == 0 {
 			// Add sidx to top level until we know that a segment has started
-			f.AddSidx(box.(*SidxBox))
+			f.AddSidx(box)
 		} else {
 			currSeg := f.Segments[len(f.Segments)-1]
-			currSeg.AddSidx(box.(*SidxBox))
+			currSeg.AddSidx(box)
 		}
-	case "styp":
+	case *StypBox:
+		// Starts a new segment
 		f.isFragmented = true
-		newSeg := NewMediaSegment()
-		newSeg.Styp = box.(*StypBox)
-		f.AddMediaSegment(newSeg)
-	case "moof":
+		f.AddMediaSegment(NewMediaSegmentWithStyp(box))
+	case *EmsgBox:
+		// emsg box is only added at the start of a fragment (inside a segment).
+		// The case that a segment starts without an emsg is also handled.
+		f.startSegmentIfNeeded(box)
+		lastSeg := f.LastSegment()
+		if len(lastSeg.Fragments) == 0 {
+			lastSeg.AddFragment(NewFragment())
+		}
+		frag := lastSeg.LastFragment()
+		frag.AddChild(box)
+	case *MoofBox:
 		f.isFragmented = true
-		moof := box.(*MoofBox)
+		moof := box
 		moof.StartPos = boxStartPos
-
-		var currentSegment *MediaSegment
-
-		if len(f.Segments) == 0 || f.Segments[0].Styp == nil {
-			// No styp present, so one fragment per segment
-			currentSegment = NewMediaSegment()
-			f.AddMediaSegment(currentSegment)
-		} else {
-			currentSegment = f.LastSegment()
+		f.startSegmentIfNeeded(moof)
+		currSeg := f.LastSegment()
+		if currSeg.LastFragment() == nil {
+			currSeg.AddFragment(NewFragment())
 		}
-		newFragment := NewFragment()
-		currentSegment.AddFragment(newFragment)
-		newFragment.AddChild(moof)
-	case "mdat":
-		mdat := box.(*MdatBox)
+		frag := currSeg.LastFragment()
+		frag.AddChild(moof)
+	case *MdatBox:
 		if !f.isFragmented {
-			f.Mdat = mdat
+			f.Mdat = box
 		} else {
 			currentFragment := f.LastSegment().LastFragment()
-			currentFragment.AddChild(mdat)
+			currentFragment.AddChild(box)
 		}
 	}
-	f.Children = append(f.Children, box)
+	f.Children = append(f.Children, child)
+}
+
+// startSegmentIfNeeded starts a new segment if there is none, or the latest has a moof box.
+func (f *File) startSegmentIfNeeded(b Box) {
+	if len(f.Segments) == 0 {
+		f.isFragmented = true
+		f.AddMediaSegment(NewMediaSegmentWithoutStyp())
+		return
+	}
+	lastSeg := f.LastSegment()
+	lastFrag := lastSeg.LastFragment()
+	if lastFrag != nil {
+		if lastFrag.Moof != nil {
+			f.AddMediaSegment(NewMediaSegmentWithoutStyp())
+		}
+	}
 }
 
 // AddSidx adds a sidx box to the File and not a MediaSegment.

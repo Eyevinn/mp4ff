@@ -10,6 +10,7 @@ import (
 
 // Fragment - MP4 Fragment ([prft] + moof + mdat)
 type Fragment struct {
+	Emsgs       []*EmsgBox
 	Prft        *PrftBox
 	Moof        *MoofBox
 	Mdat        *MdatBox
@@ -18,12 +19,12 @@ type Fragment struct {
 	EncOptimize EncOptimize // Bit field with optimizations being done at encoding
 }
 
-// NewFragment - New empty one-track MP4 Fragment
+// NewFragment creates an empty MP4 Fragment.
 func NewFragment() *Fragment {
 	return &Fragment{}
 }
 
-// CreateFragment - create single track empty fragment
+// CreateFragment creates a single track fragment
 func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	f := Fragment{Children: make([]Box, 0, 2)}
 	moof := &MoofBox{}
@@ -45,7 +46,7 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	return &f, nil
 }
 
-// CreateMultiTrackFragment - create multi-track empty fragment without trun
+// CreateMultiTrackFragment creates a multi-track fragment without trun boxes.
 func CreateMultiTrackFragment(seqNumber uint32, trackIDs []uint32) (*Fragment, error) {
 	f := NewFragment()
 	moof := &MoofBox{}
@@ -67,17 +68,32 @@ func CreateMultiTrackFragment(seqNumber uint32, trackIDs []uint32) (*Fragment, e
 	return f, nil
 }
 
-// AddChild - Add a top-level box to Fragment
+// AddChild adds a top-level box to Fragment. Add in proper order.
 func (f *Fragment) AddChild(b Box) {
-	switch b.Type() {
-	case "prft":
-		f.Prft = b.(*PrftBox)
-	case "moof":
-		f.Moof = b.(*MoofBox)
-	case "mdat":
-		f.Mdat = b.(*MdatBox)
+	switch box := b.(type) {
+	case *EmsgBox:
+		f.Emsgs = append(f.Emsgs, box)
+	case *PrftBox:
+		f.Prft = box
+	case *MoofBox:
+		f.Moof = box
+	case *MdatBox:
+		f.Mdat = box
 	}
 	f.Children = append(f.Children, b)
+}
+
+// AddEmsg inserts an emsg box at the end of a sequence of emsg boxes at the start of the fragment.
+func (f *Fragment) AddEmsg(emsg *EmsgBox) {
+	prevEmsg := -1
+	for i, c := range f.Children {
+		if _, ok := c.(*EmsgBox); ok {
+			prevEmsg = i
+		}
+	}
+	newIdx := prevEmsg + 1
+	f.Children = append(f.Children[:newIdx+1], f.Children[newIdx:]...)
+	f.Children[newIdx] = emsg
 }
 
 // Size - return size of fragment including all boxes.

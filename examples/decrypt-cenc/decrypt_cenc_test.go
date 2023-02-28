@@ -56,7 +56,6 @@ func TestDecryptFiles(t *testing.T) {
 			t.Errorf("Mismatch for case %s: %s", tc.name, diff)
 		}
 	}
-
 }
 
 func BenchmarkDecodeCenc(b *testing.B) {

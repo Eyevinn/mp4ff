@@ -24,6 +24,15 @@ func NewMediaSegment() *MediaSegment {
 	}
 }
 
+// NewMediaSegmentWithStyp - create empty MediaSegment with styp box
+func NewMediaSegmentWithStyp(styp *StypBox) *MediaSegment {
+	return &MediaSegment{
+		Styp:        styp,
+		Fragments:   nil,
+		EncOptimize: OptimizeNone,
+	}
+}
+
 // NewMediaSegmentWithoutStyp - create empty media segment with no styp box
 func NewMediaSegmentWithoutStyp() *MediaSegment {
 	return &MediaSegment{
@@ -46,8 +55,11 @@ func (s *MediaSegment) AddFragment(f *Fragment) {
 	s.Fragments = append(s.Fragments, f)
 }
 
-// LastFragment - Currently last fragment
+// LastFragment returns the currently last fragment, or nil if no fragments.
 func (s *MediaSegment) LastFragment() *Fragment {
+	if len(s.Fragments) == 0 {
+		return nil
+	}
 	return s.Fragments[len(s.Fragments)-1]
 }
 

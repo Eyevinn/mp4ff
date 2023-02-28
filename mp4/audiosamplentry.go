@@ -108,7 +108,7 @@ func DecodeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, e
 		if pos == startPos+hdr.Size {
 			break
 		} else if pos > startPos+hdr.Size {
-			return nil, fmt.Errorf("Bad size when decoding %s", hdr.Name)
+			return nil, fmt.Errorf("bad size when decoding %s", hdr.Name)
 		}
 	}
 	return a, nil
