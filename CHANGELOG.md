@@ -10,14 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - New function: `mp4.NewMediaSegmentWithStyp()`
-
 - Associate emsg boxes with fragments
-
 - New Fragment method: `AddEmsg()`
-
 - `colr` box support
-
 - CHANGELOG.md (this file) instead of Versions.md
+- More tests
+
+### Fixed
+
+- Bugs in FixedSliceReader: ReadUint24 and LookAhead
 
 ### Changed
 
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Output of cenc example changed with styp boxes not included
 - ADTS parsing somewhat more robust
 - LastFragment() returns nil if no fragment in Segment
+- Makefile target `coverage`
 
 ## [0.33.2] - 2023-01-26
 
