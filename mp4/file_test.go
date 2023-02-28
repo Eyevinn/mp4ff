@@ -188,16 +188,16 @@ func TestFilesWithEmsg(t *testing.T) {
 		DecodeTime: 0,
 		Data:       []byte{0, 1, 2, 3, 4, 5},
 	})
-	emsg1 := EmsgBox{ID: 1}
-	frag.AddEmsg(&emsg1)
-	emsg2 := EmsgBox{ID: 2}
-	frag.AddEmsg(&emsg2)
+	frag.AddEmsg(&EmsgBox{ID: 1})
+	frag.AddEmsg(&EmsgBox{ID: 2})
 	seg.AddFragment(frag)
 	err = seg.Encode(buf)
 	if err != nil {
 		t.Error(err)
 	}
-	decFile, err := DecodeFile(buf)
+	encData := buf.Bytes()
+	sr := bits.NewFixedSliceReader(encData)
+	decFile, err := DecodeFileSR(sr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -216,5 +216,14 @@ func TestFilesWithEmsg(t *testing.T) {
 	}
 	if dFrag.Emsgs[1].ID != 2 {
 		t.Error("second emsg box does not have index 2")
+	}
+	sw := bits.NewFixedSliceWriter(int(decFile.Size()))
+	err = decFile.EncodeSW(sw)
+	if err != nil {
+		t.Error(err)
+	}
+	reEncData := sw.Bytes()
+	if !bytes.Equal(reEncData, encData) {
+		t.Errorf("re-encoded bytes differ from encoded bytes")
 	}
 }

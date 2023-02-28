@@ -283,7 +283,6 @@ func (f *File) startSegmentIfNeeded(b Box) {
 	if lastFrag != nil {
 		if lastFrag.Moof != nil {
 			f.AddMediaSegment(NewMediaSegmentWithoutStyp())
-			return
 		}
 	}
 }
