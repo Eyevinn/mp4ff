@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Only start new segment at start or styp box
+
 ## [0.34.0] - 2023-02-28
 
 ### Added
