@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+- Nothing yet
+
+## [0.34.1] - 2023-03-09
+
+### [Fixed]
 
 - Only start new segment at start or styp box
 
@@ -367,7 +371,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.34.0...HEAD
+[unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.34.1...HEAD
+[0.34.1]: https://github.com/Eyevinn/mp4ff/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/Eyevinn/mp4ff/compare/v0.33.2...v0.34.0
 [0.33.2]: https://github.com/Eyevinn/mp4ff/compare/v0.33.1...v0.33.2
 [0.33.1]: https://github.com/Eyevinn/mp4ff/compare/v0.33.0...v0.33.1
