@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.34.1] - 2023-03-09
 
-### [Fixed]
+### Fixed
 
 - Only start new segment at start or styp box
 
