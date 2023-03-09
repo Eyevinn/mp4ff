@@ -174,22 +174,11 @@ func TestFilesWithEmsg(t *testing.T) {
 		t.Error(err)
 	}
 	seg := NewMediaSegment()
-	frag, err := CreateFragment(1, 1)
-	if err != nil {
-		t.Error(err)
-	}
-	frag.AddFullSample(FullSample{
-		Sample: Sample{
-			Flags:                 0x0,
-			Dur:                   1024,
-			Size:                  6,
-			CompositionTimeOffset: 0,
-		},
-		DecodeTime: 0,
-		Data:       []byte{0, 1, 2, 3, 4, 5},
-	})
+	frag := createFragment(t, 1, 1024, 0)
 	frag.AddEmsg(&EmsgBox{ID: 1})
 	frag.AddEmsg(&EmsgBox{ID: 2})
+	seg.AddFragment(frag)
+	frag = createFragment(t, 2, 1024, 1024)
 	seg.AddFragment(frag)
 	err = seg.Encode(buf)
 	if err != nil {
@@ -204,12 +193,12 @@ func TestFilesWithEmsg(t *testing.T) {
 	if len(decFile.Segments) != 1 {
 		t.Error("not 1 segment in file")
 	}
-	if len(decFile.Segments[0].Fragments) != 1 {
-		t.Error("not 1 fragment in segment")
+	if len(decFile.Segments[0].Fragments) != 2 {
+		t.Error("not 2 fragments in segment")
 	}
 	dFrag := decFile.Segments[0].Fragments[0]
 	if len(dFrag.Emsgs) != 2 {
-		t.Error("not 2 emsg boxes in fragment")
+		t.Error("not 2 emsg boxes in fragment 0")
 	}
 	if dFrag.Emsgs[0].ID != 1 {
 		t.Error("first emsg box does not have index 1")
@@ -226,4 +215,57 @@ func TestFilesWithEmsg(t *testing.T) {
 	if !bytes.Equal(reEncData, encData) {
 		t.Errorf("re-encoded bytes differ from encoded bytes")
 	}
+}
+
+func TestSegmentWith2Fragments(t *testing.T) {
+	// File styp, moof, mdat, moof, mdat
+	seg := NewMediaSegment()
+	frag := createFragment(t, 1, 1024, 0)
+	seg.AddFragment(frag)
+	frag = createFragment(t, 2, 1024, 1024)
+	seg.AddFragment(frag)
+	buf := bytes.Buffer{}
+	err := seg.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	encData := buf.Bytes()
+	sr := bits.NewFixedSliceReader(encData)
+	decFile, err := DecodeFileSR(sr)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(decFile.Segments) != 1 {
+		t.Error("not 1 segment in file")
+	}
+	if len(decFile.Segments[0].Fragments) != 2 {
+		t.Error("not 2 fragments in segment")
+	}
+	sw := bits.NewFixedSliceWriter(int(decFile.Size()))
+	err = decFile.EncodeSW(sw)
+	if err != nil {
+		t.Error(err)
+	}
+	reEncData := sw.Bytes()
+	if !bytes.Equal(reEncData, encData) {
+		t.Errorf("re-encoded bytes differ from encoded bytes")
+	}
+}
+
+func createFragment(t *testing.T, seqNr, dur uint32, decTime uint64) *Fragment {
+	frag, err := CreateFragment(seqNr, 1)
+	if err != nil {
+		t.Fail()
+	}
+	frag.AddFullSample(FullSample{
+		Sample: Sample{
+			Flags:                 0x0,
+			Dur:                   dur,
+			Size:                  6,
+			CompositionTimeOffset: 0,
+		},
+		DecodeTime: decTime,
+		Data:       []byte{0, 1, 2, 3, 4, 5},
+	})
+	return frag
 }

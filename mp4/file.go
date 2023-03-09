@@ -255,7 +255,8 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		moof.StartPos = boxStartPos
 		f.startSegmentIfNeeded(moof)
 		currSeg := f.LastSegment()
-		if currSeg.LastFragment() == nil {
+		lastFrag := currSeg.LastFragment()
+		if lastFrag == nil || lastFrag.Moof != nil {
 			currSeg.AddFragment(NewFragment())
 		}
 		frag := currSeg.LastFragment()
@@ -271,19 +272,12 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 	f.Children = append(f.Children, child)
 }
 
-// startSegmentIfNeeded starts a new segment if there is none, or the latest has a moof box.
+// startSegmentIfNeeded starts a new segment if there is none.
 func (f *File) startSegmentIfNeeded(b Box) {
 	if len(f.Segments) == 0 {
 		f.isFragmented = true
 		f.AddMediaSegment(NewMediaSegmentWithoutStyp())
 		return
-	}
-	lastSeg := f.LastSegment()
-	lastFrag := lastSeg.LastFragment()
-	if lastFrag != nil {
-		if lastFrag.Moof != nil {
-			f.AddMediaSegment(NewMediaSegmentWithoutStyp())
-		}
 	}
 }
 
