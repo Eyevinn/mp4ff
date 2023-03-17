@@ -8,26 +8,27 @@ import (
 )
 
 // StppBox - XMLSubtitleSampleEntry Box (stpp)
+// Defined in ISO/IEC 14496-12 Sec. 12.6.3.2 and ISO/IEC 14496-30.
 //
 // Contained in : Media Information Box (minf)
 type StppBox struct {
 	Namespace          string   // Mandatory
-	SchemaLocation     string   // Optional
-	AuxiliaryMimeTypes string   // Required if auxiliary types present
+	SchemaLocation     string   // Optional but at least a zero-byte termination
+	AuxiliaryMimeTypes string   // Optional, but required if auxiliary types present
 	Btrt               *BtrtBox // Optional
 	Children           []Box
 	DataReferenceIndex uint16
 }
 
 // NewStppBox - Create new stpp box
-// namespace, schemaLocation and auxiliaryMimeType are space-separated utf8-lists without zero-termination
-// schemaLocation and auxiliaryMimeTypes are optional
+// namespace, schemaLocation and auxiliaryMimeType are space-separated utf8-lists with zero-termination
+// schemaLocation and auxiliaryMimeTypes are optional but must at least have a zero byte.
 func NewStppBox(namespace, schemaLocation, auxiliaryMimeTypes string) *StppBox {
 	return &StppBox{
 		Namespace:          namespace,
+		DataReferenceIndex: 1,
 		SchemaLocation:     schemaLocation,
 		AuxiliaryMimeTypes: auxiliaryMimeTypes,
-		DataReferenceIndex: 1,
 	}
 }
 
@@ -68,7 +69,6 @@ func DecodeStppSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	sr.SkipBytes(6) // Skip 6 reserved bytes
 	b.DataReferenceIndex = sr.ReadUint16()
 	b.Namespace = sr.ReadZeroTerminatedString(hdr.payloadLen() - 8)
-
 	if maxLen := remainingBytes(sr, initPos, payloadLen); maxLen > 0 {
 		b.SchemaLocation = sr.ReadZeroTerminatedString(maxLen)
 	}
@@ -108,12 +108,8 @@ func (b *StppBox) Type() string {
 func (b *StppBox) Size() uint64 {
 	nrSampleEntryBytes := 8
 	totalSize := uint64(boxHeaderSize + nrSampleEntryBytes + len(b.Namespace) + 1)
-	if b.SchemaLocation != "" {
-		totalSize += uint64(len(b.SchemaLocation)) + 1
-	}
-	if b.AuxiliaryMimeTypes != "" {
-		totalSize += uint64(len(b.AuxiliaryMimeTypes)) + 1
-	}
+	totalSize += uint64(len(b.SchemaLocation)) + 1
+	totalSize += uint64(len(b.AuxiliaryMimeTypes)) + 1
 	for _, child := range b.Children {
 		totalSize += child.Size()
 	}
@@ -131,12 +127,8 @@ func (b *StppBox) Encode(w io.Writer) error {
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteString(b.Namespace, true)
-	if b.SchemaLocation != "" {
-		sw.WriteString(b.SchemaLocation, true)
-	}
-	if b.AuxiliaryMimeTypes != "" {
-		sw.WriteString(b.AuxiliaryMimeTypes, true)
-	}
+	sw.WriteString(b.SchemaLocation, true)
+	sw.WriteString(b.AuxiliaryMimeTypes, true)
 	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
 	if err != nil {
 		return err
@@ -161,12 +153,8 @@ func (b *StppBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteString(b.Namespace, true)
-	if b.SchemaLocation != "" {
-		sw.WriteString(b.SchemaLocation, true)
-	}
-	if b.AuxiliaryMimeTypes != "" {
-		sw.WriteString(b.AuxiliaryMimeTypes, true)
-	}
+	sw.WriteString(b.SchemaLocation, true)
+	sw.WriteString(b.AuxiliaryMimeTypes, true)
 
 	// Next output child boxes in order
 	for _, child := range b.Children {
@@ -182,9 +170,9 @@ func (b *StppBox) EncodeSW(sw bits.SliceWriter) error {
 func (b *StppBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - dataReferenceIndex: %d", b.DataReferenceIndex)
-	bd.write(" - nameSpace: %s", b.Namespace)
-	bd.write(" - schemaLocation: %s", b.SchemaLocation)
-	bd.write(" - auxiliaryMimeTypes: %s", b.AuxiliaryMimeTypes)
+	bd.write(" - nameSpace: %q", b.Namespace)
+	bd.write(" - schemaLocation: %q", b.SchemaLocation)
+	bd.write(" - auxiliaryMimeTypes: %q", b.AuxiliaryMimeTypes)
 	if bd.err != nil {
 		return bd.err
 	}
