@@ -166,14 +166,13 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 
 	rd := bytes.NewReader(data)
 	r := bits.NewAccErrEBSPReader(rd)
-	// Note! First byte is NAL Header
+	// Note! First two bytes are NALU Header
 
-	naluHdr := r.Read(8)
-	naluType := GetNaluType(byte(naluHdr))
+	naluHdrBits := r.Read(16)
+	naluType := GetNaluType(byte(naluHdrBits >> 8))
 	if naluType != NALU_PPS {
 		return nil, ErrNotPPS
 	}
-
 	pps.PicParameterSetID = uint32(r.ReadExpGolomb())
 	pps.SeqParameterSetID = uint32(r.ReadExpGolomb())
 
@@ -189,7 +188,7 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	// value shall be in the range of 0 to 14, inclusive
 	pps.NumRefIdxDefaultActiveMinus1[0] = uint8(r.ReadExpGolomb())
 	pps.NumRefIdxDefaultActiveMinus1[1] = uint8(r.ReadExpGolomb())
-	// value shall be in the range of −( 26 + QpBdOffsetY ) to +25, inclusive.
+	// value shall be in the range of −( 26 + QpBdOffsetY ) to +25, inclusive
 	pps.InitQpMinus26 = int8(r.ReadSignedGolomb())
 	pps.ConstrainedIntraPredFlag = r.ReadFlag()
 	pps.TransformSkipEnabledFlag = r.ReadFlag()
@@ -200,7 +199,6 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	// values shall be in the range of −12 to +12, inclusive
 	pps.CbQpOffset = int8(r.ReadSignedGolomb())
 	pps.CrQpOffset = int8(r.ReadSignedGolomb())
-
 	pps.SliceChromaQpOffsetsPresentFlag = r.ReadFlag()
 	pps.WeightedPredFlag = r.ReadFlag()
 	pps.WeightedBipredFlag = r.ReadFlag()
@@ -511,7 +509,6 @@ func parseSccExtension(r *bits.AccErrEBSPReader) (*SccExtension, error) {
 	return ext, nil
 }
 
-// TODO revisit it
 func parse3dExtension(r *bits.AccErrEBSPReader) (*D3Extension, error) {
 	ext := &D3Extension{}
 	ext.DltsPresentFlag = r.ReadFlag()
@@ -527,6 +524,7 @@ func parse3dExtension(r *bits.AccErrEBSPReader) (*D3Extension, error) {
 					layer.DltValFlagsPresentFlag = r.ReadFlag()
 				}
 				if layer.DltValFlagsPresentFlag {
+					// variable depthMaxValue is set equal to ( 1 << ( pps_bit_depth_for_depth_layers_minus8 + 8 ) ) − 1
 					depthMaxValue := (1 << (ext.BitDepthForDepthLayersMinus8 + 8)) - 1
 					for j := 0; j <= depthMaxValue; j++ {
 						layer.DltValueFlag = append(layer.DltValueFlag, r.ReadFlag())
@@ -539,6 +537,7 @@ func parse3dExtension(r *bits.AccErrEBSPReader) (*D3Extension, error) {
 					}
 				}
 			}
+			ext.DepthLayers = append(ext.DepthLayers, layer)
 		}
 	}
 
@@ -567,7 +566,7 @@ func parseDeltaDlt(r *bits.AccErrEBSPReader, BitDepthForDepthLayers int) (*Delta
 				// variable minDiff is set equal to ( min_diff_minus1 + 1 )
 				// length of delta_val_diff_minus_min[ k ] syntax element is Ceil( Log2( max_diff − minDiff + 1 ) ) bits
 				dd.DeltaValDiffMinusMin =
-					append(dd.DeltaValDiffMinusMin, r.Read(ceilLog2(dd.MaxDiff-dd.MinDiffMinus1+2)))
+					append(dd.DeltaValDiffMinusMin, r.Read(ceilLog2(dd.MaxDiff-(dd.MinDiffMinus1+1)+1)))
 			}
 		}
 	}
