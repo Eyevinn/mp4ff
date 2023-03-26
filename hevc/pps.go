@@ -60,6 +60,7 @@ type PPS struct {
 	SccExtensionFlag                       bool
 	SccExtension                           *SccExtension
 	Extension4bits                         uint8
+	ExtensionDataFlag                      []bool
 }
 
 type RangeExtension struct {
@@ -288,7 +289,19 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 		}
 	}
 	if pps.Extension4bits > 0 {
-		// reserved for future use
+		// Reserved for future use. Shall be empty
+		var more bool
+		more, err = r.MoreRbspData()
+		if err != nil {
+			return nil, err
+		}
+		for more {
+			pps.ExtensionDataFlag = append(pps.ExtensionDataFlag, r.ReadFlag())
+			more, err = r.MoreRbspData()
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	err = r.ReadRbspTrailingBits()
 	if err != nil {
