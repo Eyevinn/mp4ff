@@ -8,6 +8,8 @@ import (
 	"io"
 )
 
+// This parser based on Rec. ITU-T H.265 v5 (02/2018)
+
 // PPS - Picture Parameter Set
 type PPS struct {
 	PicParameterSetID                      uint32
@@ -17,7 +19,8 @@ type PPS struct {
 	NumExtraSliceHeaderBits                uint8
 	SignDataHidingEnabledFlag              bool
 	CabacInitPresentFlag                   bool
-	NumRefIdxDefaultActiveMinus1           [2]uint8
+	NumRefIdxL0DefaultActiveMinus1         uint8
+	NumRefIdxL1DefaultActiveMinus1         uint8
 	InitQpMinus26                          int8
 	ConstrainedIntraPredFlag               bool
 	TransformSkipEnabledFlag               bool
@@ -41,8 +44,8 @@ type PPS struct {
 	DeblockingFilterControlPresentFlag     bool
 	DeblockingFilterOverrideEnabledFlag    bool
 	DeblockingFilterDisabledFlag           bool
-	BetaOffsetDiv2                         int
-	TcOffsetDiv2                           int
+	BetaOffsetDiv2                         int8
+	TcOffsetDiv2                           int8
 	ScalingListDataPresentFlag             bool
 	ListsModificationPresentFlag           bool
 	Log2ParallelMergeLevelMinus2           uint
@@ -113,6 +116,16 @@ type ColourMappingTable struct {
 	DeltaFlcBitsMinus1           uint8
 	AdaptThresholdUDelta         int
 	AdaptThresholdVDelta         int
+	Octants                      map[string][4]Octant
+}
+
+type Octant struct {
+	CodedResFlag bool
+	CodedRes     [3]struct {
+		ResCoeffQ uint
+		ResCoeffR uint
+		ResCoeffS bool
+	}
 }
 
 type SccExtension struct {
@@ -186,8 +199,8 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	pps.SignDataHidingEnabledFlag = r.ReadFlag()
 	pps.CabacInitPresentFlag = r.ReadFlag()
 	// value shall be in the range of 0 to 14, inclusive
-	pps.NumRefIdxDefaultActiveMinus1[0] = uint8(r.ReadExpGolomb())
-	pps.NumRefIdxDefaultActiveMinus1[1] = uint8(r.ReadExpGolomb())
+	pps.NumRefIdxL0DefaultActiveMinus1 = uint8(r.ReadExpGolomb())
+	pps.NumRefIdxL1DefaultActiveMinus1 = uint8(r.ReadExpGolomb())
 	// value shall be in the range of −( 26 + QpBdOffsetY ) to +25, inclusive
 	pps.InitQpMinus26 = int8(r.ReadSignedGolomb())
 	pps.ConstrainedIntraPredFlag = r.ReadFlag()
@@ -225,8 +238,9 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 		pps.DeblockingFilterOverrideEnabledFlag = r.ReadFlag()
 		pps.DeblockingFilterDisabledFlag = r.ReadFlag()
 		if !pps.DeblockingFilterDisabledFlag {
-			pps.BetaOffsetDiv2 = r.ReadSignedGolomb()
-			pps.TcOffsetDiv2 = r.ReadSignedGolomb()
+			// values shall be in the range of −6 to 6, inclusive
+			pps.BetaOffsetDiv2 = int8(r.ReadSignedGolomb())
+			pps.TcOffsetDiv2 = int8(r.ReadSignedGolomb())
 		}
 	}
 	pps.ScalingListDataPresentFlag = r.ReadFlag()
@@ -274,7 +288,6 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 		}
 	}
 	if pps.Extension4bits > 0 {
-		// Rec. ITU-T H.265 v5 7.4.3.3.1 pps_extension_4bits
 		// reserved for future use
 	}
 	err = r.ReadRbspTrailingBits()
@@ -404,7 +417,8 @@ func parseColourMappingTable(r *bits.AccErrEBSPReader) (*ColourMappingTable, err
 		resLsBits = 0
 	}
 
-	err := parseColourMappingOctantsSkip(r, uint(cm.OctantDepth), 1<<cm.YPartNumLog2, resLsBits,
+	var err error
+	cm.Octants, err = parseColourMappingOctants(r, uint(cm.OctantDepth), 1<<cm.YPartNumLog2, resLsBits,
 		0, 0, 0, 0, 1<<cm.OctantDepth)
 	if err != nil {
 		return cm, err
@@ -417,10 +431,10 @@ func parseColourMappingTable(r *bits.AccErrEBSPReader) (*ColourMappingTable, err
 	return cm, nil
 }
 
-// I'm too lazy for doing it seriously. This is copy-paste code from
-// https://github.com/kaltura/nginx-vod-module/blob/6c305a78b7ab6e4312279bea5c45741bb54a713b/vod/hevc_parser.c#L922
-func parseColourMappingOctantsSkip(r *bits.AccErrEBSPReader, octantDepth uint, partNumY uint, resLsBits int,
-	inpDepth, idxY, idxCb, idxCr, inpLength uint) error {
+func parseColourMappingOctants(r *bits.AccErrEBSPReader, octantDepth uint, partNumY uint, resLsBits int,
+	inpDepth, idxY, idxCb, idxCr, inpLength uint) (map[string][4]Octant, error) {
+	var octs map[string][4]Octant
+
 	var splitOctantFlag bool
 	if inpDepth < octantDepth {
 		splitOctantFlag = r.ReadFlag()
@@ -429,42 +443,47 @@ func parseColourMappingOctantsSkip(r *bits.AccErrEBSPReader, octantDepth uint, p
 		for k := uint(0); k < 2; k++ {
 			for m := uint(0); m < 2; m++ {
 				for n := uint(0); n < 2; n++ {
-					err := parseColourMappingOctantsSkip(r, octantDepth, partNumY, resLsBits,
+					var err error
+					octs, err = parseColourMappingOctants(r, octantDepth, partNumY, resLsBits,
 						inpDepth+1, idxY+partNumY*k*inpLength/2, idxCb+m*inpLength/2, idxCr+n*inpLength/2, inpLength/2)
 					if err != nil {
-						return err
+						return octs, err
 					}
 				}
 			}
 		}
 	} else {
+		octs = make(map[string][4]Octant, partNumY)
 		for i := uint(0); i < partNumY; i++ {
-			//idxShiftY = idx_y + ((i << (cm_octant_depth − inp_depth));
+			// I decided to use map instead of multidimensional slice here
+			// [ idxShiftY ][ idxCb ][ idxCr ][ j ][ c ] looks scary and overcomplicated
+			key := makeKeyOctant(idxY+(i<<(octantDepth-inpDepth)), idxCb, idxCr)
+			var oct [4]Octant
 			for j := 0; j < 4; j++ {
-				codedResFlag := r.ReadFlag()
-				// [ idxShiftY ][ idx_cb ][ idx_cr ][ j ]
-				if codedResFlag {
-					// [ idxShiftY ][ idx_cb ][ idx_cr ][ j ]
+				oct[j].CodedResFlag = r.ReadFlag()
+				if oct[j].CodedResFlag {
 					for c := 0; c < 3; c++ {
-						// [idxShiftY][idx_cb][idx_cr][j][c]
-						resCoeffQ := r.ReadExpGolomb()
-						// [idxShiftY][idx_cb][idx_cr][j][c]
-						resCoeffR := r.Read(resLsBits)
-						if resCoeffQ != 0 || resCoeffR != 0 {
-							// res_coeff_s[idxShiftY][idx_cb][idx_cr][j][c]
-							_ = r.ReadFlag()
+						oct[j].CodedRes[c].ResCoeffQ = r.ReadExpGolomb()
+						oct[j].CodedRes[c].ResCoeffR = r.Read(resLsBits)
+						if oct[j].CodedRes[c].ResCoeffQ != 0 || oct[j].CodedRes[c].ResCoeffR != 0 {
+							oct[j].CodedRes[c].ResCoeffS = r.ReadFlag()
 						}
 					}
 				}
 			}
+			octs[key] = oct
 		}
 	}
 
 	if r.AccError() != nil {
-		return r.AccError()
+		return octs, r.AccError()
 	}
 
-	return nil
+	return octs, nil
+}
+
+func makeKeyOctant(idxShiftY, idxCb, idxCr uint) string {
+	return fmt.Sprintf("%d-%d-%d", idxShiftY, idxCb, idxCr)
 }
 
 func parseSccExtension(r *bits.AccErrEBSPReader) (*SccExtension, error) {
@@ -489,14 +508,16 @@ func parseSccExtension(r *bits.AccErrEBSPReader) (*SccExtension, error) {
 				ext.ChromaBitDepthEntryMinus8 = r.ReadExpGolomb()
 			}
 			ext.PalettePredictorInitializer = make([][]uint, numComps)
-			bitDepthEntry := int(ext.LumaBitDepthEntryMinus8 + 8)
-			for comp := 0; comp < numComps; comp++ {
-				if comp != 0 {
-					bitDepthEntry = int(ext.ChromaBitDepthEntryMinus8 + 8)
-				}
+			// Fill luma
+			for i := uint(0); i < ext.NumPalettePredictorInitializers; i++ {
+				ext.PalettePredictorInitializer[0] =
+					append(ext.PalettePredictorInitializer[0], r.Read(int(ext.LumaBitDepthEntryMinus8+8)))
+			}
+			// Fill chroma if any
+			for comp := 1; comp < numComps; comp++ {
 				for i := uint(0); i < ext.NumPalettePredictorInitializers; i++ {
 					ext.PalettePredictorInitializer[comp] =
-						append(ext.PalettePredictorInitializer[comp], r.Read(bitDepthEntry))
+						append(ext.PalettePredictorInitializer[comp], r.Read(int(ext.ChromaBitDepthEntryMinus8+8)))
 				}
 			}
 		}
