@@ -224,7 +224,7 @@ func (r *AccErrEBSPReader) ReadRbspTrailingBits() error {
 		return nil
 	}
 	if firstBit != 1 {
-		return fmt.Errorf("RbspTrailingBits don't start with 1")
+		return fmt.Errorf("rbspTrailingBits don't start with 1")
 	}
 	for {
 		b := r.Read(1)
@@ -236,7 +236,7 @@ func (r *AccErrEBSPReader) ReadRbspTrailingBits() error {
 			return nil
 		}
 		if b == 1 {
-			return fmt.Errorf("Another 1 in RbspTrailingBits")
+			return fmt.Errorf("another 1 in RbspTrailingBits")
 		}
 	}
 }
