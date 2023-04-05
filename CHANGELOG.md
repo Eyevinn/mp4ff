@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- stpp box handles optional empty lists properly (a single zero byte)
+- `stpp` box handles optional empty lists properly (a single zero byte)
+- AVC slice size value
 
 ## [0.34.1] - 2023-03-09
 

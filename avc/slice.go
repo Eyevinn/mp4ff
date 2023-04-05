@@ -346,11 +346,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		sh.SliceGroupChangeCycle = uint32(r.Read(nrBits))
 	}
 
-	/* compute the size in bytes. Round up if not an integral number of bytes .*/
+	// compute the size in bytes. The last byte may not be fully read
 	sh.Size = uint32(r.NrBytesRead())
-	if r.NrBitsReadInCurrentByte() > 0 {
-		sh.Size++
-	}
-
 	return &sh, nil
 }

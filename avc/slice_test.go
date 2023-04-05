@@ -29,7 +29,7 @@ func TestParseSliceHeader(t *testing.T) {
 		SliceQPDelta:           6,
 		SliceAlphaC0OffsetDiv2: -3,
 		SliceBetaOffsetDiv2:    -3,
-		Size:                   8,
+		Size:                   7,
 	}
 	data, err := ioutil.ReadFile("testdata/blackframe.264")
 	if err != nil {
