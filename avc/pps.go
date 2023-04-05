@@ -87,7 +87,7 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 			pps.SliceGroupChangeRateMinus1 = reader.ReadExpGolomb()
 		case 6:
 			// slice_group_id[i] has Ceil(Log2(num_slice_groups_minus1 +1) bits)
-			nrBits := ceilLog2(pps.NumSliceGroupsMinus1 + 1)
+			nrBits := bits.CeilLog2(pps.NumSliceGroupsMinus1 + 1)
 
 			for iGroup := uint(0); iGroup <= pps.NumSliceGroupsMinus1; iGroup++ {
 				sgi := reader.Read(nrBits)
@@ -169,15 +169,4 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 		return nil, fmt.Errorf("Not at end after reading rbsp_trailing_bits")
 	}
 	return pps, nil
-}
-
-// ceilLog2 - nr bits needed to represent numbers 0 - n-1 values
-func ceilLog2(n uint) int {
-	for i := 0; i < 32; i++ {
-		maxNr := uint(1 << i)
-		if maxNr >= n {
-			return i
-		}
-	}
-	return 32
 }

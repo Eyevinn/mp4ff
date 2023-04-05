@@ -12,15 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `stpp` box handles optional empty lists properly (a single zero byte)
 - AVC slice size value
 
+### Added
+
+- Exported function: bits.CeilLog2
+
 ## [0.34.1] - 2023-03-09
 
 ### Fixed
 
 - Only start new segment at start or styp box
-
-### Changed
-
--
 
 ## [0.34.0] - 2023-02-28
 
