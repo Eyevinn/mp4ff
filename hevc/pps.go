@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-// This parser based on Rec. ITU-T H.265 v5 (02/2018)
+// This parser based on Rec. ITU-T H.265 v5 (02/2018) and ISO/IEC 23008-2 Ed. 5
 
 // PPS - Picture Parameter Set
 type PPS struct {
@@ -55,12 +55,13 @@ type PPS struct {
 	RangeExtension                         *RangeExtension
 	MultilayerExtensionFlag                bool
 	MultilayerExtension                    *MultilayerExtension
-	D3ExtensionFlag                        bool
-	D3Extension                            *D3Extension
-	SccExtensionFlag                       bool
-	SccExtension                           *SccExtension
-	Extension4bits                         uint8
-	ExtensionDataFlag                      []bool
+	// PPS 3D extension
+	D3ExtensionFlag   bool
+	D3Extension       *D3Extension
+	SccExtensionFlag  bool
+	SccExtension      *SccExtension
+	Extension4bits    uint8
+	ExtensionDataFlag []bool
 }
 
 type RangeExtension struct {
@@ -144,6 +145,7 @@ type SccExtension struct {
 	PalettePredictorInitializer                [][]uint
 }
 
+// D3Extension represent PPS 3D extension
 type D3Extension struct {
 	DltsPresentFlag              bool
 	NumDepthLayersMinus1         uint8
@@ -468,8 +470,8 @@ func parseColourMappingOctants(r *bits.AccErrEBSPReader, octantDepth uint, partN
 	} else {
 		octs = make(map[string][4]Octant, partNumY)
 		for i := uint(0); i < partNumY; i++ {
-			// I decided to use map instead of multidimensional slice here
-			// [ idxShiftY ][ idxCb ][ idxCr ][ j ][ c ] looks scary and overcomplicated
+			// A map is used instead of the 5-dimensional array in the standard pseudo-code
+			// Key represent [ idxShiftY ][ idxCb ][ idxCr ] with idxShiftY variable part
 			key := makeKeyOctant(idxY+(i<<(octantDepth-inpDepth)), idxCb, idxCr)
 			var oct [4]Octant
 			for j := 0; j < 4; j++ {
@@ -590,7 +592,7 @@ func parseDeltaDlt(r *bits.AccErrEBSPReader, BitDepthForDepthLayers int) (*Delta
 			dd.MaxDiff = r.Read(BitDepthForDepthLayers)
 		}
 		if dd.NumValDeltaDlt > 2 && dd.MaxDiff > 0 {
-			dd.MinDiffMinus1 = r.Read(ceilLog2(dd.MaxDiff + 1))
+			dd.MinDiffMinus1 = r.Read(bits.CeilLog2(dd.MaxDiff + 1))
 		} else {
 			dd.MinDiffMinus1 = dd.MaxDiff - 1
 		}
@@ -600,7 +602,7 @@ func parseDeltaDlt(r *bits.AccErrEBSPReader, BitDepthForDepthLayers int) (*Delta
 				// variable minDiff is set equal to ( min_diff_minus1 + 1 )
 				// length of delta_val_diff_minus_min[ k ] syntax element is Ceil( Log2( max_diff − minDiff + 1 ) ) bits
 				dd.DeltaValDiffMinusMin =
-					append(dd.DeltaValDiffMinusMin, r.Read(ceilLog2(dd.MaxDiff-(dd.MinDiffMinus1+1)+1)))
+					append(dd.DeltaValDiffMinusMin, r.Read(bits.CeilLog2(dd.MaxDiff-(dd.MinDiffMinus1+1)+1)))
 			}
 		}
 	}
@@ -610,15 +612,4 @@ func parseDeltaDlt(r *bits.AccErrEBSPReader, BitDepthForDepthLayers int) (*Delta
 	}
 
 	return dd, nil
-}
-
-// ceilLog2 - nr bits needed to represent numbers 0 - n-1 values
-func ceilLog2(n uint) int {
-	for i := 0; i < 32; i++ {
-		maxNr := uint(1 << i)
-		if maxNr >= n {
-			return i
-		}
-	}
-	return 32
 }
