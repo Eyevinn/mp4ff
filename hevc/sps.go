@@ -3,6 +3,7 @@ package hevc
 import (
 	"bytes"
 	"fmt"
+	"io"
 
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/bits"
@@ -46,10 +47,23 @@ type SPS struct {
 	NumShortTermRefPicSets               byte
 	ShortTermRefPicSets                  []ShortTermRPS
 	LongTermRefPicsPresentFlag           bool
+	NumLongTermRefPics                   uint8
+	LongTermRefPicSets                   []LongTermRPS
 	SpsTemporalMvpEnabledFlag            bool
 	StrongIntraSmoothingEnabledFlag      bool
 	VUIParametersPresentFlag             bool
 	VUI                                  *VUIParameters
+	ExtensionPresentFlag                 bool
+	RangeExtensionFlag                   bool
+	MultilayerExtensionFlag              bool
+	D3ExtensionFlag                      bool
+	SccExtensionFlag                     bool
+	Extension4bits                       uint8
+	RangeExtension                       *SPSRangeExtension
+	MultilayerExtension                  *SPSMultilayerExtension
+	D3Extension                          *SPS3dExtension
+	SccExtension                         *SPSSccExtension
+	ExtensionDataFlag                    []bool
 }
 
 // ProfileTierLevel according to ISO/IEC 23008-2 Section 7.3.3
@@ -128,6 +142,61 @@ type BitstreamRestrictions struct {
 	MaxBitsPerMinCuDenom        uint
 	Log2MaxMvLengthHorizontal   uint
 	Log2MaxMvLengthVertical     uint
+}
+
+type LongTermRPS struct {
+	PocLsbLt               uint16
+	UsedByCurrPicLtFlag    bool
+	DeltaPocMsbPresentFlag bool
+	DeltaPocMsbCycleLt     uint
+}
+
+type SPSRangeExtension struct {
+	TransformSkipRotationEnabledFlag    bool
+	TransformSkipContextEnabledFlag     bool
+	ImplicitRdpcmEnabledFlag            bool
+	ExplicitRdpcmEnabledFlag            bool
+	ExtendedPrecisionProcessingFlag     bool
+	IntraSmoothingDisabledFlag          bool
+	HighPrecisionOffsetsEnabledFlag     bool
+	PersistentRiceAdaptationEnabledFlag bool
+	CabacBypassAlignmentEnabledFlag     bool
+}
+
+type SPSMultilayerExtension struct {
+	InterViewMvVertConstraintFlag bool
+}
+
+type SPS3dExtension struct {
+	IvDiMcEnabledFlag0     bool
+	IvMvScalEnabledFlag0   bool
+	Og2IvmcSubPbSizeMinus3 uint
+	IvResPredEnabledFlag   bool
+	DepthRefEnabledFlag    bool
+	VspMcEnabledFlag       bool
+	DbbpEnabledFlag        bool
+
+	IvDiMcEnabledFlag1          bool
+	IvMvScalEnabledFlag1        bool
+	TexMcEnabledFlag            bool
+	Log2TexmcSubPbSizeMinus3    uint
+	IntraContourEnabledFlag     bool
+	IntraDcOnlyWedgeEnabledFlag bool
+	CqtCuPartPredEnabledFlag    bool
+	InterDcOnlyEnabledFlag      bool
+	SkipIntraEnabledFlag        bool
+}
+
+type SPSSccExtension struct {
+	CurrPicRefEnabledFlag                   bool
+	PaletteModeEnabledFlag                  bool
+	PaletteMaxSize                          uint
+	DeltaPaletteMaxPredictorSize            uint
+	PalettePredictorInitializersPresentFlag bool
+	NumPalettePredictorInitializersMinus1   uint
+	PalettePredictorInitializer             [][]uint
+	MotionVectorResolutionControlIdc        uint8
+	IntraBoundaryFilteringDisabledFlag      bool
 }
 
 // ParseSPSNALUnit parses SPS NAL unit starting with NAL unit header
@@ -213,20 +282,27 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 		sps.PcmLoopFilterDisabledFlag = r.ReadFlag()
 	}
 	sps.NumShortTermRefPicSets = byte(r.ReadExpGolomb())
-	for idx := byte(0); idx < sps.NumShortTermRefPicSets; idx++ {
-		sps.ShortTermRefPicSets = append(sps.ShortTermRefPicSets, parseShortTermRPS(r, idx, sps.NumShortTermRefPicSets, sps))
-		if r.AccError() != nil { // Don't continue if we have an issue
-			return sps, r.AccError()
+	if sps.NumShortTermRefPicSets > 0 {
+		sps.ShortTermRefPicSets = make([]ShortTermRPS, sps.NumShortTermRefPicSets)
+		for idx := byte(0); idx < sps.NumShortTermRefPicSets; idx++ {
+			sps.ShortTermRefPicSets[idx] = parseShortTermRPS(r, idx, sps.NumShortTermRefPicSets, sps)
+			if r.AccError() != nil { // Don't continue if we have an issue
+				return sps, r.AccError()
+			}
 		}
 	}
-
 	sps.LongTermRefPicsPresentFlag = r.ReadFlag()
 	if sps.LongTermRefPicsPresentFlag {
-		// Get passed this without storing the information
-		numLongTermRefPics := r.ReadExpGolomb()
-		for i := uint(0); i < numLongTermRefPics; i++ {
-			/* ltRefPicPocLsbSps[i] */ _ = r.Read(int(sps.Log2MaxPicOrderCntLsbMinus4 + 4))
-			/* usedByCurrPicLtSps = */ _ = r.ReadFlag()
+		// value shall be in the range of 0 to 32, inclusive
+		sps.NumLongTermRefPics = uint8(r.ReadExpGolomb())
+		if sps.NumLongTermRefPics > 0 {
+			sps.LongTermRefPicSets = make([]LongTermRPS, sps.NumLongTermRefPics)
+			for i := uint8(0); i < sps.NumLongTermRefPics; i++ {
+				sps.LongTermRefPicSets[i] = LongTermRPS{
+					PocLsbLt:            uint16(r.Read(int(sps.Log2MaxPicOrderCntLsbMinus4 + 4))),
+					UsedByCurrPicLtFlag: r.ReadFlag(),
+				}
+			}
 		}
 	}
 	sps.SpsTemporalMvpEnabledFlag = r.ReadFlag()
@@ -236,7 +312,75 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 		sps.VUI = parseVUI(r)
 	}
 
-	return sps, r.AccError()
+	if r.AccError() != nil {
+		return nil, r.AccError()
+	}
+
+	sps.ExtensionPresentFlag = r.ReadFlag()
+	if sps.ExtensionPresentFlag {
+		sps.RangeExtensionFlag = r.ReadFlag()
+		sps.MultilayerExtensionFlag = r.ReadFlag()
+		sps.D3ExtensionFlag = r.ReadFlag()
+		sps.SccExtensionFlag = r.ReadFlag()
+		sps.Extension4bits = uint8(r.Read(4))
+	}
+
+	if sps.RangeExtensionFlag {
+		sps.RangeExtension = &SPSRangeExtension{
+			TransformSkipRotationEnabledFlag:    r.ReadFlag(),
+			TransformSkipContextEnabledFlag:     r.ReadFlag(),
+			ImplicitRdpcmEnabledFlag:            r.ReadFlag(),
+			ExplicitRdpcmEnabledFlag:            r.ReadFlag(),
+			ExtendedPrecisionProcessingFlag:     r.ReadFlag(),
+			IntraSmoothingDisabledFlag:          r.ReadFlag(),
+			HighPrecisionOffsetsEnabledFlag:     r.ReadFlag(),
+			PersistentRiceAdaptationEnabledFlag: r.ReadFlag(),
+			CabacBypassAlignmentEnabledFlag:     r.ReadFlag(),
+		}
+	}
+	if sps.MultilayerExtensionFlag {
+		sps.MultilayerExtension = &SPSMultilayerExtension{
+			InterViewMvVertConstraintFlag: r.ReadFlag(),
+		}
+	}
+	if sps.D3ExtensionFlag {
+		sps.D3Extension = parseSPS3dExtension(r)
+	}
+	if sps.SccExtensionFlag {
+		sps.SccExtension = parseSPSSccExtension(r, sps.ChromaFormatIDC,
+			sps.BitDepthLumaMinus8, sps.BitDepthChromaMinus8)
+	}
+	if sps.Extension4bits > 0 {
+		// Reserved for future use. Shall be empty
+		more, err := r.MoreRbspData()
+		if err != nil {
+			return nil, err
+		}
+		for more {
+			sps.ExtensionDataFlag = append(sps.ExtensionDataFlag, r.ReadFlag())
+			more, err = r.MoreRbspData()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	err := r.ReadRbspTrailingBits()
+	if err != nil {
+		if r.AccError() != nil {
+			return nil, r.AccError()
+		}
+		return nil, err
+	}
+	if r.AccError() != nil {
+		return nil, r.AccError()
+	}
+	_ = r.Read(1)
+	if r.AccError() != io.EOF {
+		return nil, fmt.Errorf("Not at end after reading rbsp_trailing_bits")
+	}
+
+	return sps, nil
 }
 
 // ImageSize - calculated width and height using ConformanceWindow
@@ -439,4 +583,63 @@ func readPastScalingListData(r *bits.AccErrEBSPReader) {
 			}
 		}
 	}
+}
+
+func parseSPS3dExtension(r *bits.AccErrEBSPReader) *SPS3dExtension {
+	ext := &SPS3dExtension{
+		IvDiMcEnabledFlag0:     r.ReadFlag(),
+		IvMvScalEnabledFlag0:   r.ReadFlag(),
+		Og2IvmcSubPbSizeMinus3: r.ReadExpGolomb(),
+		IvResPredEnabledFlag:   r.ReadFlag(),
+		DepthRefEnabledFlag:    r.ReadFlag(),
+		VspMcEnabledFlag:       r.ReadFlag(),
+		DbbpEnabledFlag:        r.ReadFlag(),
+
+		IvDiMcEnabledFlag1:          r.ReadFlag(),
+		IvMvScalEnabledFlag1:        r.ReadFlag(),
+		TexMcEnabledFlag:            r.ReadFlag(),
+		Log2TexmcSubPbSizeMinus3:    r.ReadExpGolomb(),
+		IntraContourEnabledFlag:     r.ReadFlag(),
+		IntraDcOnlyWedgeEnabledFlag: r.ReadFlag(),
+		CqtCuPartPredEnabledFlag:    r.ReadFlag(),
+		InterDcOnlyEnabledFlag:      r.ReadFlag(),
+		SkipIntraEnabledFlag:        r.ReadFlag(),
+	}
+	return ext
+}
+
+func parseSPSSccExtension(r *bits.AccErrEBSPReader, ChromaFormatIDC,
+	BitDepthLumaMinus8, BitDepthChromaMinus8 byte) *SPSSccExtension {
+	ext := &SPSSccExtension{}
+	ext.CurrPicRefEnabledFlag = r.ReadFlag()
+	ext.PaletteModeEnabledFlag = r.ReadFlag()
+	if ext.PaletteModeEnabledFlag {
+		ext.PaletteMaxSize = r.ReadExpGolomb()
+		ext.DeltaPaletteMaxPredictorSize = r.ReadExpGolomb()
+		ext.PalettePredictorInitializersPresentFlag = r.ReadFlag()
+		if ext.PalettePredictorInitializersPresentFlag {
+			ext.NumPalettePredictorInitializersMinus1 = r.ReadExpGolomb()
+			numComps := 3
+			if ChromaFormatIDC == 0 {
+				numComps = 1
+			}
+			ext.PalettePredictorInitializer = make([][]uint, numComps)
+			// Fill luma
+			for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1; i++ {
+				ext.PalettePredictorInitializer[0] =
+					append(ext.PalettePredictorInitializer[0], r.Read(int(BitDepthLumaMinus8+8)))
+			}
+			// Fill chroma if any
+			for comp := 1; comp < numComps; comp++ {
+				for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1; i++ {
+					ext.PalettePredictorInitializer[comp] =
+						append(ext.PalettePredictorInitializer[comp], r.Read(int(BitDepthChromaMinus8+8)))
+				}
+			}
+		}
+	}
+	ext.MotionVectorResolutionControlIdc = uint8(r.Read(2))
+	ext.IntraBoundaryFilteringDisabledFlag = r.ReadFlag()
+
+	return ext
 }
