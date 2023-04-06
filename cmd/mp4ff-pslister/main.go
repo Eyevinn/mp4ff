@@ -172,7 +172,7 @@ func run(inFile, vpsHex, spsHex, ppsHex, codec string, version, verbose bool) er
 		}
 		printHevcPS(vpsNalus, spsNalus, ppsNalus, verbose)
 	default:
-		return fmt.Errorf("Unknown codec %s", codec)
+		return fmt.Errorf("unknown codec %s", codec)
 	}
 	return nil
 }
@@ -195,23 +195,69 @@ func parseMp4File(r io.Reader, codec string, verbose bool) error {
 		return fmt.Errorf("DecodeFile: %w", err)
 	}
 
+	var trackID uint32
+	foundPS := false
+	foundCodec := ""
 	if parsedMp4.Moov != nil {
-		err := parseMp4Init(parsedMp4, verbose)
+		trackID, foundCodec, foundPS, err = parseMp4Init(parsedMp4, verbose)
 		if err != nil {
 			return fmt.Errorf("parseMp4Init: %w", err)
 		}
+		if codec != "" && codec != foundCodec {
+			return fmt.Errorf("codec mismatch: found %s vs specifed %s", foundCodec, codec)
+		}
+		if foundPS {
+			return nil
+		}
+		codec = foundCodec
+	}
+	if parsedMp4.IsFragmented() {
+		err = parseMp4Fragment(parsedMp4, trackID, codec, verbose)
+		if err != nil {
+			return fmt.Errorf("parseMp4Fragment: %w", err)
+		}
 		return nil
 	}
-	err = parseMp4Fragment(parsedMp4, codec, verbose)
-	if err != nil {
-		return fmt.Errorf("parseMp4Fragment: %w", err)
+	// Non-fragmented mp4 file with PS in samples
+	for _, trak := range parsedMp4.Moov.Traks {
+		if trak.Tkhd.TrackID == trackID {
+			stbl := trak.Mdia.Minf.Stbl
+			var offset int64
+			if stbl.Stco != nil {
+				offset = int64(stbl.Stco.ChunkOffset[0])
+			} else if stbl.Co64 != nil {
+				offset = int64(stbl.Co64.ChunkOffset[0])
+			}
+			size := stbl.Stsz.GetSampleSize(1)
+			// Next find bytes as slice in mdat
+			mdat := parsedMp4.Mdat
+			mdatPayloadStart := mdat.PayloadAbsoluteOffset()
+			offsetInMdatData := uint64(offset) - mdatPayloadStart
+			sampleData := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
+			fmt.Println(len(sampleData))
+			switch codec {
+			case "avc":
+				spsNalus, ppsNalus := avc.GetParameterSets(sampleData)
+				if len(spsNalus) == 0 {
+					return fmt.Errorf("no AVC SPS found")
+				}
+				printAvcPS(spsNalus, ppsNalus, verbose)
+			case "hevc":
+				vpsNalus, spsNalus, ppsNalus := hevc.GetParameterSets(sampleData)
+				if len(spsNalus) == 0 {
+					return fmt.Errorf("no HEVC SPS found")
+				}
+				printHevcPS(vpsNalus, spsNalus, ppsNalus, verbose)
+			default:
+				return fmt.Errorf("unknown codec: %s", codec)
+			}
+			break
+		}
 	}
 	return nil
 }
 
-func parseMp4Init(parsedMp4 *mp4.File, verbose bool) error {
-	found := false
-	codec := ""
+func parseMp4Init(parsedMp4 *mp4.File, verbose bool) (trackID uint32, codec string, foundPS bool, err error) {
 	for _, trak := range parsedMp4.Moov.Traks {
 		if trak.Mdia.Hdlr.HandlerType == "vide" {
 			stsd := trak.Mdia.Minf.Stbl.Stsd
@@ -222,8 +268,7 @@ func parseMp4Init(parsedMp4 *mp4.File, verbose bool) error {
 			} else {
 				continue
 			}
-			found = true
-			trackID := trak.Tkhd.TrackID
+			trackID = trak.Tkhd.TrackID
 			if verbose {
 				fmt.Printf("Video %s track ID=%d\n", codec, trackID)
 			}
@@ -231,31 +276,39 @@ func parseMp4Init(parsedMp4 *mp4.File, verbose bool) error {
 			case "avc":
 				spsNalus := stsd.AvcX.AvcC.SPSnalus
 				ppsNalus := stsd.AvcX.AvcC.PPSnalus
-				printAvcPS(spsNalus, ppsNalus, verbose)
-			case "hevc":
-				if stsd.HvcX.Type() == "hev1" {
-					fmt.Printf("Warning: there should be no parameter sets in sample descriptor hev1\n")
+				if len(spsNalus) == 0 {
+					return trackID, codec, false, nil
 				}
+				printAvcPS(spsNalus, ppsNalus, verbose)
+				return trackID, codec, true, nil
+			case "hevc":
 				vpsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_VPS)
 				spsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_SPS)
 				ppsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_PPS)
+				if len(vpsNalus) == 0 {
+					return trackID, codec, false, nil
+				}
+				if stsd.HvcX.Type() == "hev1" {
+					fmt.Printf("Warning: found parameter set nalus although there none in sample descriptor hev1\n")
+				}
 				printHevcPS(vpsNalus, spsNalus, ppsNalus, verbose)
+				return trackID, codec, true, nil
 			}
 		}
 	}
-	if !found {
-		return fmt.Errorf("No parsable video track found")
-	}
-	return nil
+	return 0, codec, false, fmt.Errorf("no parsable video track found")
 }
 
-func parseMp4Fragment(parsedMp4 *mp4.File, codec string, verbose bool) error {
+func parseMp4Fragment(parsedMp4 *mp4.File, trackID uint32, codec string, verbose bool) error {
 	found := false
 	if len(parsedMp4.Segments) == 0 || len(parsedMp4.Segments[0].Fragments) == 0 {
 		return fmt.Errorf("no moov or fragment found in mp4 file")
 	}
 	frag := parsedMp4.Segments[0].Fragments[0]
-	samples, err := frag.GetFullSamples(nil)
+	trex := mp4.TrexBox{
+		TrackID: trackID,
+	}
+	samples, err := frag.GetFullSamples(&trex)
 	if err != nil {
 		return fmt.Errorf("GetFullSamples: %w", err)
 	}
@@ -308,6 +361,7 @@ func printHevcPS(vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) {
 	for i, vps := range vpsNalus {
 		printPS("VPS", i+1, vps, nil, false)
 	}
+	spsMap := make(map[uint32]*hevc.SPS)
 	for i, sps := range spsNalus {
 		spsInfo, err := hevc.ParseSPSNALUnit(sps)
 		if err != nil {
@@ -315,12 +369,21 @@ func printHevcPS(vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) {
 			return
 		}
 		printPS("SPS", i+1, sps, spsInfo, verbose)
+		spsMap[uint32(spsInfo.SpsID)] = spsInfo
 	}
 	for i, pps := range ppsNalus {
-		printPS("PPS", i+1, pps, nil, false)
+		ppsInfo, err := hevc.ParsePPSNALUnit(pps, spsMap)
+		if err != nil {
+			fmt.Println("Could not parse PPS")
+			return
+		}
+		printPS("PPS", i+1, pps, ppsInfo, verbose)
 	}
-	sps, _ := hevc.ParseSPSNALUnit(spsNalus[0])
-	fmt.Printf("Codecs parameter (assuming hvc1) from SPS id %d: %s\n", sps.SpsID, hevc.CodecString("hvc1", sps))
+
+	if len(spsNalus) > 0 {
+		sps, _ := hevc.ParseSPSNALUnit(spsNalus[0])
+		fmt.Printf("Codecs parameter (assuming hvc1) from SPS id %d: %s\n", sps.SpsID, hevc.CodecString("hvc1", sps))
+	}
 }
 
 func printPS(name string, nr int, ps []byte, psInfo interface{}, verbose bool) {

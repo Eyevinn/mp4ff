@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Exported function: bits.CeilLog2
+- PPS parsing for HEVC
+- `mp4ff-pslister` now provides PPS details for HEVC
+- `mp4ff-pslister` now extracts inband parameter sets in progressive mp4 files
 
 ## [0.34.1] - 2023-03-09
 
