@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PPS parsing for HEVC
 - `mp4ff-pslister` now provides PPS details for HEVC
 - `mp4ff-pslister` now extracts inband parameter sets in progressive mp4 files
+- Complete parsing of HEVC SPS extensions
 
 ## [0.34.1] - 2023-03-09
 
