@@ -54,16 +54,17 @@ type SPS struct {
 	VUIParametersPresentFlag             bool
 	VUI                                  *VUIParameters
 	ExtensionPresentFlag                 bool
-	RangeExtensionFlag                   bool
-	MultilayerExtensionFlag              bool
-	D3ExtensionFlag                      bool
-	SccExtensionFlag                     bool
 	Extension4bits                       uint8
+	RangeExtensionFlag                   bool
 	RangeExtension                       *SPSRangeExtension
+	MultilayerExtensionFlag              bool
 	MultilayerExtension                  *SPSMultilayerExtension
-	D3Extension                          *SPS3dExtension
-	SccExtension                         *SPSSccExtension
-	ExtensionDataFlag                    []bool
+	// SPS 3D extension
+	D3ExtensionFlag   bool
+	D3Extension       *SPS3dExtension
+	SccExtensionFlag  bool
+	SccExtension      *SPSSccExtension
+	ExtensionDataFlag []bool
 }
 
 // ProfileTierLevel according to ISO/IEC 23008-2 Section 7.3.3
