@@ -494,6 +494,21 @@ type ShortTermRPS struct {
 	NumDeltaPocs    byte
 }
 
+func (st ShortTermRPS) CountInUsePics() uint8 {
+	var NumPicTotalCurr uint8
+	for _, n := range st.UsedByCurrPicS0 {
+		if n {
+			NumPicTotalCurr++
+		}
+	}
+	for _, p := range st.UsedByCurrPicS1 {
+		if p {
+			NumPicTotalCurr++
+		}
+	}
+	return NumPicTotalCurr
+}
+
 const maxSTRefPics = 16
 
 // parseShortTermRPS - short-term reference pictures with syntax from 7.3.7.

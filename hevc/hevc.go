@@ -27,6 +27,9 @@ const (
 	NALU_IDR_W_RADL = NaluType(19)
 	NALU_IDR_N_LP   = NaluType(20)
 	NALU_CRA        = NaluType(21)
+	// Reserved IRAP VCL NAL unit types
+	NALU_IRAP_VCL22 = NaluType(22)
+	NALU_IRAP_VCL23 = NaluType(23)
 	// NALU_VPS - VideoParameterSet NAL Unit
 	NALU_VPS = NaluType(32)
 	// NALU_SPS - SequenceParameterSet NAL Unit
