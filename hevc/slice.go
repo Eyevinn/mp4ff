@@ -93,11 +93,12 @@ type RefPicListsModification struct {
 type PredWeightTable struct {
 	LumaLog2WeightDenom        uint8
 	DeltaChromaLog2WeightDenom int8
-	WeightsL0                  []Weight
-	WeightsL1                  []Weight
+	WeightsL0                  []WeightingFactors
+	WeightsL1                  []WeightingFactors
 }
 
-type Weight struct {
+// WeightingFactors fields described in specification 7.4.7.3 (Weighted prediction parameters semantics)
+type WeightingFactors struct {
 	LumaWeightFlag    bool
 	ChromaWeightFlag  bool
 	DeltaLumaWeight   int8
@@ -133,16 +134,16 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 			sh.DependentSliceSegmentFlag = r.ReadFlag()
 		}
 		/*
+			Pseudocode from standard:
+
 			MinCbLog2SizeY = log2_min_luma_coding_block_size_minus3 + 3
 			CtbLog2SizeY = MinCbLog2SizeY + log2_diff_max_min_luma_coding_block_size
 			CtbSizeY = 1 << CtbLog2SizeY
-		*/
-		CtbSizeY := uint(1 << (sps.Log2MinLumaCodingBlockSizeMinus3 + 3 + sps.Log2DiffMaxMinLumaCodingBlockSize))
-		/*
 			PicWidthInCtbsY = Ceil( pic_width_in_luma_samples ÷ CtbSizeY )
 			PicHeightInCtbsY = Ceil( pic_height_in_luma_samples ÷ CtbSizeY )
 			PicSizeInCtbsY = PicWidthInCtbsY * PicHeightInCtbsY
 		*/
+		CtbSizeY := uint(1 << (sps.Log2MinLumaCodingBlockSizeMinus3 + 3 + sps.Log2DiffMaxMinLumaCodingBlockSize))
 		PicSizeInCtbsY := ceilDiv(uint(sps.PicWidthInLumaSamples), CtbSizeY) *
 			ceilDiv(uint(sps.PicHeightInLumaSamples), CtbSizeY)
 		sh.SegmentAddress = r.Read(bits.CeilLog2(PicSizeInCtbsY))
@@ -150,17 +151,19 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 
 	if !sh.DependentSliceSegmentFlag {
 		/*
+				Pseudocode from standard:
+
 				NumPicTotalCurr = 0
 				if( nal_unit_type != IDR_W_RADL && nal_unit_type != IDR_N_LP ) {
-				for( i = 0; i < NumNegativePics[ CurrRpsIdx ]; i++ ) if( UsedByCurrPicS0[ CurrRpsIdx ][ i ] )
-				NumPicTotalCurr++
-				for( i = 0; i < NumPositivePics[ CurrRpsIdx ]; i++ ) if( UsedByCurrPicS1[ CurrRpsIdx ][ i ] )
-			    NumPicTotalCurr++
-				for( i = 0; i < num_long_term_sps + num_long_term_pics; i++ ) if( UsedByCurrPicLt[ i ] )
-				NumPicTotalCurr++
+					for( i = 0; i < NumNegativePics[ CurrRpsIdx ]; i++ ) if( UsedByCurrPicS0[ CurrRpsIdx ][ i ] )
+						NumPicTotalCurr++
+					for( i = 0; i < NumPositivePics[ CurrRpsIdx ]; i++ ) if( UsedByCurrPicS1[ CurrRpsIdx ][ i ] )
+			    		NumPicTotalCurr++
+					for( i = 0; i < num_long_term_sps + num_long_term_pics; i++ ) if( UsedByCurrPicLt[ i ] )
+						NumPicTotalCurr++
 				}
 				if( pps_curr_pic_ref_enabled_flag )
-				NumPicTotalCurr++
+					NumPicTotalCurr++
 				NumPicTotalCurr += NumActiveRefLayerPics
 		*/
 		var NumPicTotalCurr uint8
@@ -201,7 +204,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 				}
 				sh.ShortTermRefPicSet = sps.ShortTermRefPicSets[sh.ShortTermRefPicSetIdx]
 			}
-			NumPicTotalCurr += sh.ShortTermRefPicSet.CountInUsePics()
+			NumPicTotalCurr += sh.ShortTermRefPicSet.countInUsePics()
 
 			if sps.LongTermRefPicsPresentFlag {
 				if sps.NumLongTermRefPics > 0 {
@@ -297,7 +300,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 				}
 			}
 			// MaxNumMergeCand = 5 − five_minus_max_num_merge_cand
-			//  value of MaxNumMergeCand shall be in the range of 1 to 5, inclusive
+			// value of MaxNumMergeCand shall be in the range of 1 to 5, inclusive
 			sh.FiveMinusMaxNumMergeCand = uint8(r.ReadExpGolomb())
 			if sps.SccExtension != nil && sps.SccExtension.MotionVectorResolutionControlIdc == 2 {
 				sh.UseIntegerMvFlag = r.ReadFlag()
@@ -371,6 +374,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		return nil, r.AccError()
 	}
 
+	// compute the size in bytes. last byte is always aligned
 	sh.Size = uint32(r.NrBytesRead())
 
 	return sh, nil
@@ -416,14 +420,16 @@ func parsePredWeightTable(r *bits.AccErrEBSPReader, sliceType SliceType,
 		pwt.DeltaChromaLog2WeightDenom = int8(r.ReadSignedGolomb())
 	}
 
-	pwt.WeightsL0 = make([]Weight, refIdxL0Minus1+1)
+	pwt.WeightsL0 = make([]WeightingFactors, refIdxL0Minus1+1)
 	for i := uint8(0); i <= refIdxL0Minus1; i++ {
+		// Not implemented
 		// if( ( pic_layer_id( RefPicList0[ i ] ) != nuh_layer_id ) | |
 		//( PicOrderCnt( RefPicList0[ i ] ) != PicOrderCnt( CurrPic ) ) )
 		pwt.WeightsL0[i].LumaWeightFlag = r.ReadFlag()
 	}
 	if chromaArrayType != 0 {
 		for i := uint8(0); i <= refIdxL0Minus1; i++ {
+			// Not implemented
 			// if( ( pic_layer_id( RefPicList0[ i ] ) != nuh_layer_id ) | |
 			//( PicOrderCnt( RefPicList0[ i ] ) != PicOrderCnt( CurrPic ) ) )
 			pwt.WeightsL0[i].ChromaWeightFlag = r.ReadFlag()
@@ -444,16 +450,18 @@ func parsePredWeightTable(r *bits.AccErrEBSPReader, sliceType SliceType,
 		}
 	}
 	if sliceType == SLICE_B {
-		pwt.WeightsL1 = make([]Weight, refIdxL1Minus1+1)
+		pwt.WeightsL1 = make([]WeightingFactors, refIdxL1Minus1+1)
 		for i := uint8(0); i <= refIdxL1Minus1; i++ {
+			// Not implemented
 			// if( ( pic_layer_id( RefPicList0[ i ] ) != nuh_layer_id ) | |
-			//( PicOrderCnt( RefPicList0[ i ] ) != PicOrderCnt( CurrPic ) ) )
+			//( PicOrderCnt( RefPicList1[ i ] ) != PicOrderCnt( CurrPic ) ) )
 			pwt.WeightsL1[i].LumaWeightFlag = r.ReadFlag()
 		}
 		if chromaArrayType != 0 {
 			for i := uint8(0); i <= refIdxL1Minus1; i++ {
+				// Not implemented
 				// if( ( pic_layer_id( RefPicList0[ i ] ) != nuh_layer_id ) | |
-				//( PicOrderCnt( RefPicList0[ i ] ) != PicOrderCnt( CurrPic ) ) )
+				//( PicOrderCnt( RefPicList1[ i ] ) != PicOrderCnt( CurrPic ) ) )
 				pwt.WeightsL1[i].ChromaWeightFlag = r.ReadFlag()
 			}
 		}

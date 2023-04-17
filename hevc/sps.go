@@ -494,7 +494,7 @@ type ShortTermRPS struct {
 	NumDeltaPocs    byte
 }
 
-func (st ShortTermRPS) CountInUsePics() uint8 {
+func (st ShortTermRPS) countInUsePics() uint8 {
 	var NumPicTotalCurr uint8
 	for _, n := range st.UsedByCurrPicS0 {
 		if n {
