@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+-
+
+## [0.35.0] - 2023-04-18
+
 ### Fixed
 
 - `stpp` box handles optional empty lists properly (a single zero byte)
@@ -14,11 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Exported function: bits.CeilLog2
+- Exported function: `bits.CeilLog2`
 - PPS parsing for HEVC
 - `mp4ff-pslister` now provides PPS details for HEVC
 - `mp4ff-pslister` now extracts inband parameter sets in progressive mp4 files
 - Complete parsing of HEVC SPS extensions
+- Parsing of HEVC slice header
+- `SetType` method for `mp4.AudioSampleEntryBox`
 
 ## [0.34.1] - 2023-03-09
 
@@ -382,7 +388,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.34.1...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.35.0...HEAD
+[0.35.0]: https://github.com/Eyevinn/mp4ff/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/Eyevinn/mp4ff/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/Eyevinn/mp4ff/compare/v0.33.2...v0.34.0
 [0.33.2]: https://github.com/Eyevinn/mp4ff/compare/v0.33.1...v0.33.2
