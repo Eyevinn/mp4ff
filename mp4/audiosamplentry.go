@@ -153,6 +153,11 @@ func (a *AudioSampleEntryBox) Type() string {
 	return a.name
 }
 
+// SetType sets the type (name) of the box
+func (a *AudioSampleEntryBox) SetType(name string) {
+	a.name = name
+}
+
 // Size - return calculated size
 func (a *AudioSampleEntryBox) Size() uint64 {
 	totalSize := uint64(nrAudioSampleBytesBeforeChildren)
