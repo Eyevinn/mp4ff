@@ -129,8 +129,44 @@ type VUIParameters struct {
 	PocProportionalToTimingFlag    bool
 	NumTicksPocDiffOneMinus1       uint
 	HrdParametersPresentFlag       bool
+	HrdParameters                  *HrdParameters
 	BitstreamRestrictionFlag       bool
 	BitstreamResctrictions         *BitstreamRestrictions
+}
+
+type HrdParameters struct {
+	NalHrdParametersPresentFlag            bool
+	VclHrdParametersPresentFlag            bool
+	SubPicHrdParamsPresentFlag             bool
+	TickDivisorMinus2                      uint8
+	DuCpbRemovalDelayIncrementLengthMinus1 uint8
+	SubPicCpbParamsInPicTimingSeiFlag      bool
+	DpbOutputDelayDuLengthMinus1           uint8
+	BitRateScale                           uint8
+	CpbSizeScale                           uint8
+	CpbSizeDuScale                         uint8
+	InitialCpbRemovalDelayLengthMinus1     uint8
+	AuCpbRemovalDelayLengthMinus1          uint8
+	DpbOutputDelayLengthMinus1             uint8
+	SubLayerHrd                            []SubLayerHrd
+}
+
+type SubLayerHrd struct {
+	FixedPicRateGeneralFlag     bool
+	FixedPicRateWithinCvsFlag   bool
+	ElementalDurationInTcMinus1 uint
+	LowDelayHrdFlag             bool
+	CpbCntMinus1                uint
+	NalHrdParameters            []SubLayerHrdParameters
+	VclHrdParameters            []SubLayerHrdParameters
+}
+
+type SubLayerHrdParameters struct {
+	BitRateValueMinus1   uint
+	CpbSizeValueMinus1   uint
+	CpbSizeDuValueMinus1 uint
+	BitRateDuValueMinus1 uint
+	CbrFlag              bool
 }
 
 // BitstreamRestrictrictions - optional information
@@ -310,7 +346,7 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps.StrongIntraSmoothingEnabledFlag = r.ReadFlag()
 	sps.VUIParametersPresentFlag = r.ReadFlag()
 	if sps.VUIParametersPresentFlag {
-		sps.VUI = parseVUI(r)
+		sps.VUI = parseVUI(r, sps.MaxSubLayersMinus1)
 	}
 
 	if r.AccError() != nil {
@@ -401,7 +437,7 @@ func (s *SPS) ImageSize() (width, height uint32) {
 
 // parseVUI - parse VUI (Visual Usability Information)
 // if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
-func parseVUI(r *bits.AccErrEBSPReader) *VUIParameters {
+func parseVUI(r *bits.AccErrEBSPReader, MaxSubLayersMinus1 byte) *VUIParameters {
 	vui := &VUIParameters{}
 	aspectRatioInfoPresentFlag := r.ReadFlag()
 	if aspectRatioInfoPresentFlag {
@@ -457,8 +493,7 @@ func parseVUI(r *bits.AccErrEBSPReader) *VUIParameters {
 		}
 		vui.HrdParametersPresentFlag = r.ReadFlag()
 		if vui.HrdParametersPresentFlag {
-			//TODO.  Add HrdParameters parsing according to E.3.2 if needed
-			return vui
+			vui.HrdParameters = parseHrdParameters(r, true, MaxSubLayersMinus1)
 		}
 	}
 	vui.BitstreamRestrictionFlag = r.ReadFlag()
@@ -467,6 +502,77 @@ func parseVUI(r *bits.AccErrEBSPReader) *VUIParameters {
 	}
 
 	return vui
+}
+
+func parseHrdParameters(r *bits.AccErrEBSPReader,
+	commonInfPresentFlag bool, maxNumSubLayersMinus1 byte) *HrdParameters {
+	hp := &HrdParameters{}
+	if commonInfPresentFlag {
+		hp.NalHrdParametersPresentFlag = r.ReadFlag()
+		hp.VclHrdParametersPresentFlag = r.ReadFlag()
+		if hp.NalHrdParametersPresentFlag || hp.VclHrdParametersPresentFlag {
+			hp.SubPicHrdParamsPresentFlag = r.ReadFlag()
+			if hp.SubPicHrdParamsPresentFlag {
+				hp.TickDivisorMinus2 = uint8(r.Read(8))
+				hp.DuCpbRemovalDelayIncrementLengthMinus1 = uint8(r.Read(5))
+				hp.SubPicCpbParamsInPicTimingSeiFlag = r.ReadFlag()
+				hp.DpbOutputDelayDuLengthMinus1 = uint8(r.Read(5))
+			}
+			hp.BitRateScale = uint8(r.Read(4))
+			hp.CpbSizeScale = uint8(r.Read(4))
+			if hp.SubPicHrdParamsPresentFlag {
+				hp.CpbSizeDuScale = uint8(r.Read(4))
+			}
+			hp.InitialCpbRemovalDelayLengthMinus1 = uint8(r.Read(5))
+			hp.AuCpbRemovalDelayLengthMinus1 = uint8(r.Read(5))
+			hp.DpbOutputDelayLengthMinus1 = uint8(r.Read(5))
+		}
+	}
+	hp.SubLayerHrd = make([]SubLayerHrd, maxNumSubLayersMinus1+1)
+	for i := byte(0); i <= maxNumSubLayersMinus1; i++ {
+		hp.SubLayerHrd[i].FixedPicRateGeneralFlag = r.ReadFlag()
+		if !hp.SubLayerHrd[i].FixedPicRateGeneralFlag {
+			hp.SubLayerHrd[i].FixedPicRateWithinCvsFlag = r.ReadFlag()
+		} else {
+			// when fixed_pic_rate_general_flag[ i ] is equal to 1, the value of
+			// fixed_pic_rate_within_cvs_flag[ i ] is inferred to be equal to 1.
+			hp.SubLayerHrd[i].FixedPicRateWithinCvsFlag = true
+		}
+
+		if hp.SubLayerHrd[i].FixedPicRateWithinCvsFlag {
+			hp.SubLayerHrd[i].ElementalDurationInTcMinus1 = r.ReadExpGolomb()
+		} else {
+			hp.SubLayerHrd[i].LowDelayHrdFlag = r.ReadFlag()
+		}
+
+		if !hp.SubLayerHrd[i].LowDelayHrdFlag {
+			hp.SubLayerHrd[i].CpbCntMinus1 = r.ReadExpGolomb()
+		}
+		if hp.NalHrdParametersPresentFlag {
+			hp.SubLayerHrd[i].NalHrdParameters = parseSubLayerHrdParameters(r,
+				hp.SubLayerHrd[i].CpbCntMinus1, hp.SubPicHrdParamsPresentFlag)
+		}
+		if hp.VclHrdParametersPresentFlag {
+			hp.SubLayerHrd[i].VclHrdParameters = parseSubLayerHrdParameters(r,
+				hp.SubLayerHrd[i].CpbCntMinus1, hp.SubPicHrdParamsPresentFlag)
+		}
+	}
+	return hp
+}
+
+func parseSubLayerHrdParameters(r *bits.AccErrEBSPReader,
+	cpbCntMinus1 uint, subPicHrdParamsPresentFlag bool) []SubLayerHrdParameters {
+	slhp := make([]SubLayerHrdParameters, cpbCntMinus1+1)
+	for i := uint(0); i <= cpbCntMinus1; i++ {
+		slhp[i].BitRateValueMinus1 = r.ReadExpGolomb()
+		slhp[i].CpbSizeValueMinus1 = r.ReadExpGolomb()
+		if subPicHrdParamsPresentFlag {
+			slhp[i].CpbSizeDuValueMinus1 = r.ReadExpGolomb()
+			slhp[i].BitRateDuValueMinus1 = r.ReadExpGolomb()
+		}
+		slhp[i].CbrFlag = r.ReadFlag()
+	}
+	return slhp
 }
 
 func parseBitstreamRestrictions(r *bits.AccErrEBSPReader) *BitstreamRestrictions {
