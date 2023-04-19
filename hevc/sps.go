@@ -154,18 +154,18 @@ type HrdParameters struct {
 type SubLayerHrd struct {
 	FixedPicRateGeneralFlag     bool
 	FixedPicRateWithinCvsFlag   bool
-	ElementalDurationInTcMinus1 uint
+	ElementalDurationInTcMinus1 uint16
 	LowDelayHrdFlag             bool
-	CpbCntMinus1                uint
+	CpbCntMinus1                uint8
 	NalHrdParameters            []SubLayerHrdParameters
 	VclHrdParameters            []SubLayerHrdParameters
 }
 
 type SubLayerHrdParameters struct {
-	BitRateValueMinus1   uint
-	CpbSizeValueMinus1   uint
-	CpbSizeDuValueMinus1 uint
-	BitRateDuValueMinus1 uint
+	BitRateValueMinus1   uint32
+	CpbSizeValueMinus1   uint32
+	CpbSizeDuValueMinus1 uint32
+	BitRateDuValueMinus1 uint32
 	CbrFlag              bool
 }
 
@@ -540,13 +540,15 @@ func parseHrdParameters(r *bits.AccErrEBSPReader,
 		}
 
 		if hp.SubLayerHrd[i].FixedPicRateWithinCvsFlag {
-			hp.SubLayerHrd[i].ElementalDurationInTcMinus1 = r.ReadExpGolomb()
+			// value shall be in the range of 0 to 2 047, inclusive
+			hp.SubLayerHrd[i].ElementalDurationInTcMinus1 = uint16(r.ReadExpGolomb())
 		} else {
 			hp.SubLayerHrd[i].LowDelayHrdFlag = r.ReadFlag()
 		}
 
 		if !hp.SubLayerHrd[i].LowDelayHrdFlag {
-			hp.SubLayerHrd[i].CpbCntMinus1 = r.ReadExpGolomb()
+			// value shall be in the range of 0 to 31, inclusive
+			hp.SubLayerHrd[i].CpbCntMinus1 = uint8(r.ReadExpGolomb())
 		}
 		if hp.NalHrdParametersPresentFlag {
 			hp.SubLayerHrd[i].NalHrdParameters = parseSubLayerHrdParameters(r,
@@ -561,14 +563,15 @@ func parseHrdParameters(r *bits.AccErrEBSPReader,
 }
 
 func parseSubLayerHrdParameters(r *bits.AccErrEBSPReader,
-	cpbCntMinus1 uint, subPicHrdParamsPresentFlag bool) []SubLayerHrdParameters {
+	cpbCntMinus1 uint8, subPicHrdParamsPresentFlag bool) []SubLayerHrdParameters {
 	slhp := make([]SubLayerHrdParameters, cpbCntMinus1+1)
-	for i := uint(0); i <= cpbCntMinus1; i++ {
-		slhp[i].BitRateValueMinus1 = r.ReadExpGolomb()
-		slhp[i].CpbSizeValueMinus1 = r.ReadExpGolomb()
+	for i := uint8(0); i <= cpbCntMinus1; i++ {
+		// values shall be in the range of 0 to 2^32 − 2, inclusive
+		slhp[i].BitRateValueMinus1 = uint32(r.ReadExpGolomb())
+		slhp[i].CpbSizeValueMinus1 = uint32(r.ReadExpGolomb())
 		if subPicHrdParamsPresentFlag {
-			slhp[i].CpbSizeDuValueMinus1 = r.ReadExpGolomb()
-			slhp[i].BitRateDuValueMinus1 = r.ReadExpGolomb()
+			slhp[i].CpbSizeDuValueMinus1 = uint32(r.ReadExpGolomb())
+			slhp[i].BitRateDuValueMinus1 = uint32(r.ReadExpGolomb())
 		}
 		slhp[i].CbrFlag = r.ReadFlag()
 	}
