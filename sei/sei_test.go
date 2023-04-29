@@ -3,9 +3,11 @@ package sei_test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/sei"
+	"github.com/go-test/deep"
 )
 
 func TestSEIStrings(t *testing.T) {
@@ -66,6 +68,88 @@ func TestContentLightLevelInformationSEI(t *testing.T) {
 	}
 }
 
+func TestPicTimingAvcSEI(t *testing.T) {
+	testCases := []struct {
+		seiPayload string // after SEI type byte
+		wantedSEI  sei.PicTimingAvcSEI
+	}{
+		{
+			"1b0509b80000",
+			sei.PicTimingAvcSEI{
+				CbpDbpDelay:      nil,
+				TimeOffsetLength: 0,
+				PictStruct:       1,
+				Clocks: []sei.ClockTSAvc{
+					{
+						ClockTimeStampFlag: true,
+						CtType:             1,
+						NuitFieldBasedFlag: true,
+						CountingType:       0,
+						NFrames:            9,
+						Hours:              0,
+						Minutes:            0,
+						Seconds:            46,
+						FullTimeStampFlag:  true,
+						CntDroppedFlag:     true,
+					},
+				},
+			},
+		},
+		{
+			"2b0509b80000",
+			sei.PicTimingAvcSEI{
+				CbpDbpDelay:      nil,
+				TimeOffsetLength: 0,
+				PictStruct:       2,
+				Clocks: []sei.ClockTSAvc{
+					{
+						ClockTimeStampFlag: true,
+						CtType:             1,
+						NuitFieldBasedFlag: true,
+						CountingType:       0,
+						NFrames:            9,
+						Hours:              0,
+						Minutes:            0,
+						Seconds:            46,
+						FullTimeStampFlag:  true,
+						CntDroppedFlag:     true,
+					},
+				},
+			},
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+			pl, err := hex.DecodeString(tc.seiPayload)
+			if err != nil {
+				t.Fail()
+			}
+			seiData := sei.NewSEIData(sei.SEIPicTimingType, pl)
+			msg, err := sei.DecodePicTimingAvcSEI(seiData)
+			if err != nil {
+				t.Error(err)
+			}
+			if msg.Type() != sei.SEIPicTimingType {
+				t.Errorf("got SEI type %d, wanted %d", msg.Type(), sei.SEIPicTimingType)
+			}
+			picTiming := msg.(*sei.PicTimingAvcSEI)
+			if len(picTiming.Clocks) != len(tc.wantedSEI.Clocks) {
+				t.Errorf("got %d clocks, wanted %d", len(picTiming.Clocks), len(tc.wantedSEI.Clocks))
+			}
+			diff := deep.Equal(picTiming, &tc.wantedSEI)
+			if diff != nil {
+				t.Errorf("case %d: %s", i, diff)
+			}
+			decPl := msg.Payload()
+			if !bytes.Equal(decPl, pl) {
+				t.Errorf("decoded payload differs from expected")
+				fmt.Printf("decPl: %s\n", hex.EncodeToString(decPl))
+				fmt.Printf("pl:    %s\n", hex.EncodeToString(pl))
+			}
+		})
+	}
+}
+
 func TestTimeCodeSEI(t *testing.T) {
 	seiHex := "60404198b410"
 	pl, err := hex.DecodeString(seiHex)
@@ -89,9 +173,12 @@ func TestTimeCodeSEI(t *testing.T) {
 const (
 	// The following examples are without NAL Unit header
 	sei0Hex      = "0007810f1c0050744080"
-	seiCEA608Hex = "0434b500314741393403cefffc9420fc94aefc9162fce56efc67bafc91b9fcb0b0fcbab0fcb0bafcb031fcbab0fcb080fc942cfc942f80"
-	seiHEVCMulti = "000a8000000300403dc017a6900105040000be05880660404198b41080"
-	seiHEVCHDR   = "891800000300000300000300000300000300000300000300000300000300000300000300009004000003000080"
+	seiCEA608Hex = "0434b500314741393403cefffc9420fc94aefc9162fce56efc67bafc91b9" +
+		"fcb0b0fcbab0fcb0bafcb031fcbab0fcb080fc942cfc942f80"
+	seiAVCMulti             = "0001c001061b0509b8000080"
+	missingRbspTrailingBits = "01061b0609b8000080"
+	seiHEVCMulti            = "000a8000000300403dc017a6900105040000be05880660404198b41080"
+	seiHEVCHDR              = "891800000300000300000300000300000300000300000300000300000300000300000300009004000003000080"
 )
 
 func TestParseSEI(t *testing.T) {
@@ -103,6 +190,17 @@ func TestParseSEI(t *testing.T) {
 		wantedTypes   []uint
 		wantedStrings []string
 	}{
+		{"AVC multi", sei.AVC, seiAVCMulti, []uint{0, 1},
+			[]string{
+				`SEIBufferingPeriodType (0), size=1, "c0"`,
+				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
+			},
+		},
+		{"Missing RBSP Trailing Bits", sei.AVC, missingRbspTrailingBits, []uint{1},
+			[]string{
+				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
+			},
+		},
 		{"Type 0", sei.AVC, sei0Hex, []uint{0}, []string{`SEIBufferingPeriodType (0), size=7, "810f1c00507440"`}},
 		{"CEA-608", sei.AVC, seiCEA608Hex, []uint{4},
 			[]string{`SEI type 4 CEA-608, size=52, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`}},

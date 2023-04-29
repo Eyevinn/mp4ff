@@ -237,7 +237,7 @@ func (sw *FixedSliceWriter) WriteFlag(f bool) {
 }
 
 // FlushBits - write remaining bits to the underlying .Writer.
-// bits will be left-shifted.
+// bits will be left-shifted and zeros appended to fill up a byte.
 func (sw *FixedSliceWriter) FlushBits() {
 	if sw.accError != nil {
 		return
