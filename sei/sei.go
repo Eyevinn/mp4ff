@@ -580,6 +580,10 @@ func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 		if err != nil {
 			return nil, err
 		}
+		if ar.AccError() == io.EOF {
+			// Handle case where RBSP trailing bits are not preset, although they should be.
+			break
+		}
 		if ar.AccError() != nil {
 			return nil, ar.AccError()
 		}
