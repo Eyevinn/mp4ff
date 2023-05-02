@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
--
+### Changed
+
+- SEI NAL unit allows missing a final byte with RBSP trailing bits
+
+### Fixed
+
+- Add WriteFlag method to SliceWriter interface (present in FixedSliceWriter)
+
+### Added
+
+- Support for SEI message 1 pic_timing for AVC
 
 ## [0.35.0] - 2023-04-18
 
