@@ -24,6 +24,7 @@ type SliceWriter interface {
 	WriteBytes(byteSlice []byte)
 	WriteUnityMatrix()
 	WriteBits(bits uint, n int)
+	WriteFlag(f bool)
 	FlushBits()
 }
 

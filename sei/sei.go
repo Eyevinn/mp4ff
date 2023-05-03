@@ -474,23 +474,39 @@ type SEIMessage interface {
 
 // DecodeSEIMessage decodes or at least provides some information about an SEIMessage.
 func DecodeSEIMessage(sd *SEIData, codec Codec) (SEIMessage, error) {
-	switch sd.Type() {
-	case SEIUserDataRegisteredITUtT35Type:
-		return DecodeUserDataRegisteredSEI(sd)
-	case SEIUserDataUnregisteredType:
-		return DecodeUserDataUnregisteredSEI(sd)
-	case SEITimeCodeType:
-		return DecodeTimeCodeSEI(sd)
-	case SEIMasteringDisplayColourVolumeType:
-		return DecodeMasteringDisplayColourVolumeSEI(sd)
-	case SEIContentLightLevelInformationType:
-		return DecodeContentLightLevelInformationSEI(sd)
+	switch codec {
+	case AVC:
+		switch sd.Type() {
+		case SEIPicTimingType:
+			return DecodePicTimingAvcSEI(sd)
+		case SEIUserDataRegisteredITUtT35Type:
+			return DecodeUserDataRegisteredSEI(sd)
+		case SEIUserDataUnregisteredType:
+			return DecodeUserDataUnregisteredSEI(sd)
+		default:
+			return DecodeGeneralSEI(sd), nil
+		}
+	case HEVC:
+		switch sd.Type() {
+		case SEIUserDataRegisteredITUtT35Type:
+			return DecodeUserDataRegisteredSEI(sd)
+		case SEIUserDataUnregisteredType:
+			return DecodeUserDataUnregisteredSEI(sd)
+		case SEITimeCodeType:
+			return DecodeTimeCodeSEI(sd)
+		case SEIMasteringDisplayColourVolumeType:
+			return DecodeMasteringDisplayColourVolumeSEI(sd)
+		case SEIContentLightLevelInformationType:
+			return DecodeContentLightLevelInformationSEI(sd)
+		default:
+			return DecodeGeneralSEI(sd), nil
+		}
 	default:
-		return DecodeGeneralSEI(sd), nil
+		return nil, fmt.Errorf("unknown codec type %d", codec)
 	}
 }
 
-// DcodeGenerealSEI is a fallback decoder for non-implemented SEI message types.
+// DecodeGeneralSEI is a fallback decoder for non-implemented SEI message types.
 func DecodeGeneralSEI(sd *SEIData) SEIMessage {
 	return &SEIData{
 		sd.Type(),
@@ -530,7 +546,7 @@ func (s *SEIData) Size() uint {
 	return uint(len(s.payload))
 }
 
-// ExtractSEIData parses ebsp (after slice header) and returns a slice of SEIData in rbsp format.
+// ExtractSEIData parses ebsp (after NALU header) and returns a slice of SEIData in rbsp format.
 func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 	ar := bits.NewAccErrEBSPReader(r)
 	for {
@@ -564,6 +580,10 @@ func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 		if err != nil {
 			return nil, err
 		}
+		if ar.AccError() == io.EOF {
+			// Handle case where RBSP trailing bits are not preset, although they should be.
+			break
+		}
 		if ar.AccError() != nil {
 			return nil, ar.AccError()
 		}
@@ -574,7 +594,8 @@ func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 	return seiData, nil
 }
 
-// WriteSEIMessages writes the messages in EBSP format with inserted Emulation Prevention bytes.
+// WriteSEIMessages writes the messages in EBSP format with RBSPTrailing bits.
+// The output corresponds to an SEI NAL unit payload.
 func WriteSEIMessages(w io.Writer, msgs []SEIMessage) error {
 	bw := bits.NewEBSPWriter(w)
 	for _, msg := range msgs {
