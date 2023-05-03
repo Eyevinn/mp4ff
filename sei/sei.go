@@ -6,11 +6,14 @@ package sei
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
+
+var ErrRbspTrailingBitsMissing = errors.New("rbsp_trailing_bits byte 0x80 is missing")
 
 const (
 	// Combined definition of AVC and HEVC messages. When names collide for the same number, AVC or HEVC is added in the name.
@@ -547,6 +550,8 @@ func (s *SEIData) Size() uint {
 }
 
 // ExtractSEIData parses ebsp (after NALU header) and returns a slice of SEIData in rbsp format.
+// In case the rbsp_trailing_bits 0x80 byte is missing at end, []seiData and
+// an ErrMissingRbspTrailingBits error are both returned.
 func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 	ar := bits.NewAccErrEBSPReader(r)
 	for {
@@ -581,8 +586,7 @@ func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 			return nil, err
 		}
 		if ar.AccError() == io.EOF {
-			// Handle case where RBSP trailing bits are not preset, although they should be.
-			break
+			return seiData, ErrRbspTrailingBitsMissing
 		}
 		if ar.AccError() != nil {
 			return nil, ar.AccError()

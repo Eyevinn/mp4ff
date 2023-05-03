@@ -184,32 +184,36 @@ const (
 func TestParseSEI(t *testing.T) {
 
 	testCases := []struct {
-		name          string
-		codec         sei.Codec
-		naluHex       string
-		wantedTypes   []uint
-		wantedStrings []string
+		name           string
+		codec          sei.Codec
+		naluHex        string
+		wantedTypes    []uint
+		wantedStrings  []string
+		expNonFatalErr error
 	}{
 		{"AVC multi", sei.AVC, seiAVCMulti, []uint{0, 1},
 			[]string{
 				`SEIBufferingPeriodType (0), size=1, "c0"`,
 				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
 			},
+			nil,
 		},
 		{"Missing RBSP Trailing Bits", sei.AVC, missingRbspTrailingBits, []uint{1},
 			[]string{
 				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
 			},
+			sei.ErrRbspTrailingBitsMissing,
 		},
-		{"Type 0", sei.AVC, sei0Hex, []uint{0}, []string{`SEIBufferingPeriodType (0), size=7, "810f1c00507440"`}},
+		{"Type 0", sei.AVC, sei0Hex, []uint{0}, []string{`SEIBufferingPeriodType (0), size=7, "810f1c00507440"`}, nil},
 		{"CEA-608", sei.AVC, seiCEA608Hex, []uint{4},
-			[]string{`SEI type 4 CEA-608, size=52, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`}},
+			[]string{`SEI type 4 CEA-608, size=52, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`}, nil},
 		{"HEVC multi", sei.HEVC, seiHEVCMulti, []uint{0, 1, 136},
 			[]string{
 				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
 				`SEIPicTimingType (1), size=5, "040000be05"`,
 				`SEITimeCodeType (136), size=6, time=13:49:12;08 offset=0`,
 			},
+			nil,
 		},
 		{"Type HDR HEVC", sei.HEVC, seiHEVCHDR, []uint{137, 144},
 			[]string{
@@ -217,6 +221,7 @@ func TestParseSEI(t *testing.T) {
 					" whitePoint=(0, 0), maxLum=0, minLum=0",
 				"SEIContentLightLevelInformationType (144) 4B: maxContentLightLevel=0, maxPicAverageLightLevel=0",
 			},
+			nil,
 		},
 	}
 
@@ -226,7 +231,7 @@ func TestParseSEI(t *testing.T) {
 		rs := bytes.NewReader(seiNALU)
 
 		seis, err := sei.ExtractSEIData(rs)
-		if err != nil {
+		if err != nil && err != tc.expNonFatalErr {
 			t.Error(err)
 		}
 		if len(seis) != len(tc.wantedStrings) {

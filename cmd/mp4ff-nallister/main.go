@@ -340,7 +340,9 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 			seiDatas, err := sei.ExtractSEIData(buf)
 			if err != nil {
 				fmt.Printf("  SEI: Got error %q\n", err)
-				continue
+				if err != sei.ErrRbspTrailingBitsMissing {
+					continue
+				}
 			}
 			for _, seiData := range seiDatas {
 				sei, err := sei.DecodeSEIMessage(&seiData, seiCodec)
