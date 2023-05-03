@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- SEI NAL unit allows missing a final byte with RBSP trailing bits
+- SEI NAL unit parser reports ErrRbspTrailingBitsMissing error together with NAL units.
+- mp4ff-nallister reports error and SEI data when `rbsp_trailing_bits` are missing.
 
 ### Fixed
 
