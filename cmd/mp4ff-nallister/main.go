@@ -236,6 +236,7 @@ func printAVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSe
 	msg := ""
 	var seiNALUs [][]byte
 	totLen := 0
+	var avcSPS *avc.SPS
 	for i, nalu := range nalus {
 		totLen += 4 + len(nalu)
 		if i > 0 {
@@ -243,7 +244,13 @@ func printAVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSe
 		}
 		naluType := avc.GetNaluType(nalu[0])
 		imgType := ""
+		var err error
 		switch naluType {
+		case avc.NALU_SPS:
+			avcSPS, err = avc.ParseSPSNALUnit(nalu, true)
+			if err != nil {
+				return fmt.Errorf("Error parsing SPS: %s", err)
+			}
 		case avc.NALU_NON_IDR, avc.NALU_IDR:
 			sliceType, err := avc.GetSliceTypeFromNALU(nalu)
 			if err == nil {
@@ -262,7 +269,7 @@ func printAVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSe
 		}
 	}
 	fmt.Printf("Sample %d, pts=%d (%dB):%s\n", nr, pts, totLen, msg)
-	printSEINALus(seiNALUs, "avc", seiLevel)
+	printSEINALus(seiNALUs, "avc", seiLevel, avcSPS)
 	if parameterSets {
 		for _, nalu := range nalus {
 			naluType := avc.GetNaluType(nalu[0])
@@ -298,7 +305,7 @@ func printHEVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterS
 		}
 	}
 	fmt.Printf("Sample %d, pts=%d (%dB):%s\n", nr, pts, totLen, msg)
-	printSEINALus(seiNALUs, "hevc", seiLevel)
+	printSEINALus(seiNALUs, "hevc", seiLevel, nil)
 	if parameterSets {
 		for _, nalu := range nalus {
 			naluType := hevc.GetNaluType(nalu[0])
@@ -316,7 +323,7 @@ func printHEVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterS
 }
 
 // printSEINALus - print interpreted information if seiLevel is >= 1. Add hex dump if seiLevel >= 2
-func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
+func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int, avcSPS *avc.SPS) {
 	if seiLevel < 1 {
 		return
 	}
@@ -344,13 +351,33 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int) {
 					continue
 				}
 			}
+			var seiMsg sei.SEIMessage
 			for _, seiData := range seiDatas {
-				sei, err := sei.DecodeSEIMessage(&seiData, seiCodec)
+				switch {
+				case codec == "avc" && seiData.Type() == sei.SEIPicTimingType && avcSPS != nil && avcSPS.VUI != nil:
+					var cbpDbpDelay *sei.CbpDbpDelay
+					var timeOffsetLen byte = 0
+					hrdParams := avcSPS.VUI.VclHrdParameters
+					if hrdParams == nil {
+						hrdParams = avcSPS.VUI.NalHrdParameters
+					}
+					if hrdParams != nil {
+						cbpDbpDelay = &sei.CbpDbpDelay{
+							CpbRemovalDelayLengthMinus1: byte(hrdParams.CpbRemovalDelayLengthMinus1),
+							DpbOutputDelayLengthMinus1:  byte(hrdParams.DpbOutputDelayLengthMinus1),
+						}
+						timeOffsetLen = byte(hrdParams.TimeOffsetLength)
+					}
+					seiMsg, err = sei.DecodePicTimingAvcSEIHRD(&seiData, cbpDbpDelay, timeOffsetLen)
+				default:
+					seiMsg, err = sei.DecodeSEIMessage(&seiData, seiCodec)
+				}
+
 				if err != nil {
 					fmt.Printf("  SEI: Got error %q\n", err)
 					continue
 				}
-				fmt.Printf("  * %s\n", sei)
+				fmt.Printf("  * %s\n", seiMsg.String())
 			}
 		}
 	}
