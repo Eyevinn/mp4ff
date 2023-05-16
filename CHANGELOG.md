@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- SEI NAL unit parser reports ErrRbspTrailingBitsMissing error together with NAL units.
-- mp4ff-nallister reports error and SEI data when `rbsp_trailing_bits` are missing.
+- SEI NAL unit parser reports ErrRbspTrailingBitsMissing error together with NAL units
+- mp4ff-nallister reports error and SEI data when `rbsp_trailing_bits` are missing
+- AVC SPS HRD parameter name corrected to DpbOutputDelayLengthMinus1
 
 ### Fixed
 
 - Add WriteFlag method to SliceWriter interface (present in FixedSliceWriter)
+- Parsing of AVC SEI pic_timing with HRD parameters
+- mp4ff-nallister handles AVC SEI pic_timing with HRD parameters if SPS is present
 
 ### Added
 
