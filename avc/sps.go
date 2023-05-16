@@ -100,7 +100,7 @@ type HrdParameters struct {
 	CpbEntries                         []CpbEntry
 	InitialCpbRemovalDelayLengthMinus1 uint
 	CpbRemovalDelayLengthMinus1        uint
-	DpbOutpuDelayLengthMinus1          uint
+	DpbOutputDelayLengthMinus1         uint
 	TimeOffsetLength                   uint
 }
 
@@ -357,7 +357,7 @@ func parseHrdParameters(r *bits.AccErrEBSPReader) *HrdParameters {
 	}
 	hp.InitialCpbRemovalDelayLengthMinus1 = r.Read(5)
 	hp.CpbRemovalDelayLengthMinus1 = r.Read(5)
-	hp.DpbOutpuDelayLengthMinus1 = r.Read(5)
+	hp.DpbOutputDelayLengthMinus1 = r.Read(5)
 	hp.TimeOffsetLength = r.Read(5)
 	return hp
 }
