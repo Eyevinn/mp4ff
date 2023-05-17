@@ -41,6 +41,7 @@ The examples and their functions are:
     as reading and writing `mdat` in lazy mode
 4. `multitrack` parses a fragmented file with multiple tracks
 5. `decrypt-cenc` decrypts a segmented mp4 file encrypted in `cenc` mode
+6. `combine-segs` combines single-track init and media segments into multi-track segments
 
 ## Library
 

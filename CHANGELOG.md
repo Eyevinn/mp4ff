@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for SEI message 1 pic_timing for AVC
+- Example `combine-segs` that shows how to multiplex init and media segments into multi-track segments
 
 ## [0.35.0] - 2023-04-18
 
