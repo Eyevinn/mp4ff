@@ -40,6 +40,7 @@ func DecodePicTimingAvcSEI(sd *SEIData) (SEIMessage, error) {
 
 // DecodePicTimingAvcSEIHRD decodes AVC SEI message 1 PicTiming with HRD parameters.
 // cbpDbpDelay length fields must be properly set if cbpDbpDelay is not nil.
+// It is assumed that pict_struct_present_flag is true, so that a 4-bit pict_struct value is present.
 func DecodePicTimingAvcSEIHRD(sd *SEIData, cbpDbpDelay *CbpDbpDelay, timeOffsetLen byte) (SEIMessage, error) {
 	buf := bytes.NewBuffer(sd.Payload())
 	br := bits.NewAccErrReader(buf)
@@ -49,6 +50,7 @@ func DecodePicTimingAvcSEIHRD(sd *SEIData, cbpDbpDelay *CbpDbpDelay, timeOffsetL
 		outCbDbpDelay.CpbRemovalDelay = uint(br.Read(int(cbpDbpDelay.CpbRemovalDelayLengthMinus1) + 1))
 		outCbDbpDelay.DpbOutputDelay = uint(br.Read(int(cbpDbpDelay.DpbOutputDelayLengthMinus1) + 1))
 	}
+
 	pictStruct := uint8(br.Read(4))
 	var numClockTS int
 	switch {
@@ -143,7 +145,7 @@ type ClockTSAvc struct {
 
 // String returns time stamp
 func (c ClockTSAvc) String() string {
-	return fmt.Sprintf("%02d:%02d:%02d;%02d offset=%d", c.Hours, c.Minutes, c.Seconds, c.NFrames, c.TimeOffsetValue)
+	return fmt.Sprintf("%02d:%02d:%02d:%02d offset=%d", c.Hours, c.Minutes, c.Seconds, c.NFrames, c.TimeOffsetValue)
 }
 
 // CreatePTClockTS creates a clock timestamp.

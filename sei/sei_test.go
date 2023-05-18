@@ -300,13 +300,13 @@ func TestParseSEI(t *testing.T) {
 		{"AVC multi", sei.AVC, seiAVCMulti, []uint{0, 1},
 			[]string{
 				`SEIBufferingPeriodType (0), size=1, "c0"`,
-				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
+				`SEIPicTimingType (1), size=6, time=00:00:46:09 offset=0`,
 			},
 			nil,
 		},
 		{"Missing RBSP Trailing Bits", sei.AVC, missingRbspTrailingBits, []uint{1},
 			[]string{
-				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
+				`SEIPicTimingType (1), size=6, time=00:00:46:09 offset=0`,
 			},
 			sei.ErrRbspTrailingBitsMissing,
 		},
@@ -317,7 +317,7 @@ func TestParseSEI(t *testing.T) {
 			[]string{
 				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
 				`SEIPicTimingType (1), size=5, "040000be05"`,
-				`SEITimeCodeType (136), size=6, time=13:49:12;08 offset=0`,
+				`SEITimeCodeType (136), size=6, time=13:49:12:08 offset=0`,
 			},
 			nil,
 		},
@@ -417,7 +417,7 @@ func TestParseAVCPicTimingWithHRD(t *testing.T) {
 	}{
 		{"PicTimingWithHRD", sei.AVC, sei1AVCEbsp, []uint{1},
 			[]string{
-				`SEIPicTimingType (1), size=13, time=01:47:41;08 offset=0`,
+				`SEIPicTimingType (1), size=13, time=01:47:41:08 offset=0`,
 			},
 			sei.ErrRbspTrailingBitsMissing,
 		},

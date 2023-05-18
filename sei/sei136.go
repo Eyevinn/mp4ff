@@ -33,7 +33,7 @@ type ClockTS struct {
 
 // String returns time stamp
 func (c ClockTS) String() string {
-	return fmt.Sprintf("%02d:%02d:%02d;%02d offset=%d", c.Hours, c.Minutes, c.Seconds, c.NFrames, c.TimeOffsetValue)
+	return fmt.Sprintf("%02d:%02d:%02d:%02d offset=%d", c.Hours, c.Minutes, c.Seconds, c.NFrames, c.TimeOffsetValue)
 }
 
 // CreateClockTS creates a clock timestamp with time parts set to -1.
