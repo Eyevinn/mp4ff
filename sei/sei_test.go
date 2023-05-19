@@ -70,9 +70,31 @@ func TestContentLightLevelInformationSEI(t *testing.T) {
 
 func TestPicTimingAvcSEI(t *testing.T) {
 	testCases := []struct {
-		seiPayload string // after SEI type byte
+		seiPayload string // after SEI type byte 01 and length byte(s)
 		wantedSEI  sei.PicTimingAvcSEI
 	}{
+		{
+			"0904078c1080",
+			sei.PicTimingAvcSEI{
+				CbpDbpDelay:      nil,
+				TimeOffsetLength: 0,
+				PictStruct:       0,
+				Clocks: []sei.ClockTSAvc{
+					{
+						ClockTimeStampFlag: true,
+						CtType:             0,
+						NuitFieldBasedFlag: true,
+						CountingType:       0,
+						NFrames:            7,
+						Hours:              1,
+						Minutes:            1,
+						Seconds:            35,
+						FullTimeStampFlag:  true,
+						CntDroppedFlag:     false,
+					},
+				},
+			},
+		},
 		{
 			"1b0509b80000",
 			sei.PicTimingAvcSEI{
@@ -117,6 +139,90 @@ func TestPicTimingAvcSEI(t *testing.T) {
 				},
 			},
 		},
+		{
+			"00000000000000021208114de1", // with HRD parameters
+			sei.PicTimingAvcSEI{
+				CbpDbpDelay: &sei.CbpDbpDelay{
+					CpbRemovalDelay:                    0,
+					DpbOutputDelay:                     1,
+					InitialCpbRemovalDelayLengthMinus1: 26,
+					CpbRemovalDelayLengthMinus1:        30,
+					DpbOutputDelayLengthMinus1:         31,
+				},
+				TimeOffsetLength: 0,
+				PictStruct:       0,
+				Clocks: []sei.ClockTSAvc{
+					{
+						ClockTimeStampFlag: true,
+						CtType:             0,
+						NuitFieldBasedFlag: true,
+						CountingType:       0,
+						NFrames:            8,
+						Hours:              1,
+						Minutes:            47,
+						Seconds:            41,
+						FullTimeStampFlag:  true,
+						CntDroppedFlag:     false,
+					},
+				},
+			},
+		},
+		{
+			"00000008000000021208313de1", // with HRD parameters
+			sei.PicTimingAvcSEI{
+				CbpDbpDelay: &sei.CbpDbpDelay{
+					CpbRemovalDelay:                    4,
+					DpbOutputDelay:                     1,
+					InitialCpbRemovalDelayLengthMinus1: 26,
+					CpbRemovalDelayLengthMinus1:        30,
+					DpbOutputDelayLengthMinus1:         31,
+				},
+				TimeOffsetLength: 0,
+				PictStruct:       0,
+				Clocks: []sei.ClockTSAvc{
+					{
+						ClockTimeStampFlag: true,
+						CtType:             0,
+						NuitFieldBasedFlag: true,
+						CountingType:       0,
+						NFrames:            24,
+						Hours:              1,
+						Minutes:            47,
+						Seconds:            39,
+						FullTimeStampFlag:  true,
+						CntDroppedFlag:     false,
+					},
+				},
+			},
+		},
+		{
+			"0000000c000000021208313de1", // with HRD parameters
+			sei.PicTimingAvcSEI{
+				CbpDbpDelay: &sei.CbpDbpDelay{
+					CpbRemovalDelay:                    6,
+					DpbOutputDelay:                     1,
+					InitialCpbRemovalDelayLengthMinus1: 26,
+					CpbRemovalDelayLengthMinus1:        30,
+					DpbOutputDelayLengthMinus1:         31,
+				},
+				TimeOffsetLength: 0,
+				PictStruct:       0,
+				Clocks: []sei.ClockTSAvc{
+					{
+						ClockTimeStampFlag: true,
+						CtType:             0,
+						NuitFieldBasedFlag: true,
+						CountingType:       0,
+						NFrames:            24,
+						Hours:              1,
+						Minutes:            47,
+						Seconds:            39,
+						FullTimeStampFlag:  true,
+						CntDroppedFlag:     false,
+					},
+				},
+			},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
@@ -125,7 +231,7 @@ func TestPicTimingAvcSEI(t *testing.T) {
 				t.Fail()
 			}
 			seiData := sei.NewSEIData(sei.SEIPicTimingType, pl)
-			msg, err := sei.DecodePicTimingAvcSEI(seiData)
+			msg, err := sei.DecodePicTimingAvcSEIHRD(seiData, tc.wantedSEI.CbpDbpDelay, tc.wantedSEI.TimeOffsetLength)
 			if err != nil {
 				t.Error(err)
 			}
@@ -194,13 +300,13 @@ func TestParseSEI(t *testing.T) {
 		{"AVC multi", sei.AVC, seiAVCMulti, []uint{0, 1},
 			[]string{
 				`SEIBufferingPeriodType (0), size=1, "c0"`,
-				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
+				`SEIPicTimingType (1), size=6, time=00:00:46:09 offset=0`,
 			},
 			nil,
 		},
 		{"Missing RBSP Trailing Bits", sei.AVC, missingRbspTrailingBits, []uint{1},
 			[]string{
-				`SEIPicTimingType (1), size=6, time=00:00:46;09 offset=0`,
+				`SEIPicTimingType (1), size=6, time=00:00:46:09 offset=0`,
 			},
 			sei.ErrRbspTrailingBitsMissing,
 		},
@@ -211,7 +317,7 @@ func TestParseSEI(t *testing.T) {
 			[]string{
 				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
 				`SEIPicTimingType (1), size=5, "040000be05"`,
-				`SEITimeCodeType (136), size=6, time=13:49:12;08 offset=0`,
+				`SEITimeCodeType (136), size=6, time=13:49:12:08 offset=0`,
 			},
 			nil,
 		},
@@ -288,4 +394,58 @@ func TestWriteSEI(t *testing.T) {
 		}
 	}
 
+}
+
+func TestParseAVCPicTimingWithHRD(t *testing.T) {
+	sei1AVCEbsp := "010d00000300000300000300021208114de180"
+	cbpDelay := sei.CbpDbpDelay{
+		CpbRemovalDelay:                    0,
+		DpbOutputDelay:                     0,
+		InitialCpbRemovalDelayLengthMinus1: 26,
+		CpbRemovalDelayLengthMinus1:        30,
+		DpbOutputDelayLengthMinus1:         31,
+	}
+	timeOffsetLen := byte(0)
+
+	testCases := []struct {
+		name           string
+		codec          sei.Codec
+		naluHex        string
+		wantedTypes    []uint
+		wantedStrings  []string
+		expNonFatalErr error
+	}{
+		{"PicTimingWithHRD", sei.AVC, sei1AVCEbsp, []uint{1},
+			[]string{
+				`SEIPicTimingType (1), size=13, time=01:47:41:08 offset=0`,
+			},
+			sei.ErrRbspTrailingBitsMissing,
+		},
+	}
+
+	for _, tc := range testCases {
+		seiNALU, _ := hex.DecodeString(tc.naluHex)
+
+		rs := bytes.NewReader(seiNALU)
+
+		seis, err := sei.ExtractSEIData(rs)
+		if err != nil && err != tc.expNonFatalErr {
+			t.Error(err)
+		}
+		if len(seis) != len(tc.wantedStrings) {
+			t.Errorf("%s: Not %d but %d sei messages found", tc.name, len(tc.wantedStrings), len(seis))
+		}
+		for i := range seis {
+			seiMessage, err := sei.DecodePicTimingAvcSEIHRD(&seis[i], &cbpDelay, timeOffsetLen)
+			if err != nil {
+				t.Error(err)
+			}
+			if seiMessage.Type() != tc.wantedTypes[i] {
+				t.Errorf("%s: got SEI type %d instead of %d", tc.name, seiMessage.Type(), tc.wantedTypes[i])
+			}
+			if seiMessage.String() != tc.wantedStrings[i] {
+				t.Errorf("%s: got %q instead of %q", tc.name, seiMessage.String(), tc.wantedStrings[i])
+			}
+		}
+	}
 }

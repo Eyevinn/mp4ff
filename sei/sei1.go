@@ -27,6 +27,10 @@ type CbpDbpDelay struct {
 	DpbOutputDelay  uint
 	// InitialCpbRemovalDelayLengthMinus1 comes from SPS HRD and is 5 bits
 	InitialCpbRemovalDelayLengthMinus1 byte
+	// CpbRemovalDelayLengthMinus1 comes from SPS HRD and is 5 bits
+	CpbRemovalDelayLengthMinus1 byte
+	// DpbOutputDelayLengthMinus1 comes from SPS HRD and is 5 bits
+	DpbOutputDelayLengthMinus1 byte
 }
 
 // DecodePicTimingAvcSEI decodes SEI message 1 TimeCode without HRD parameters.
@@ -35,9 +39,18 @@ func DecodePicTimingAvcSEI(sd *SEIData) (SEIMessage, error) {
 }
 
 // DecodePicTimingAvcSEIHRD decodes AVC SEI message 1 PicTiming with HRD parameters.
+// cbpDbpDelay length fields must be properly set if cbpDbpDelay is not nil.
+// It is assumed that pict_struct_present_flag is true, so that a 4-bit pict_struct value is present.
 func DecodePicTimingAvcSEIHRD(sd *SEIData, cbpDbpDelay *CbpDbpDelay, timeOffsetLen byte) (SEIMessage, error) {
 	buf := bytes.NewBuffer(sd.Payload())
 	br := bits.NewAccErrReader(buf)
+	var outCbDbpDelay CbpDbpDelay
+	if cbpDbpDelay != nil {
+		outCbDbpDelay = *cbpDbpDelay
+		outCbDbpDelay.CpbRemovalDelay = uint(br.Read(int(cbpDbpDelay.CpbRemovalDelayLengthMinus1) + 1))
+		outCbDbpDelay.DpbOutputDelay = uint(br.Read(int(cbpDbpDelay.DpbOutputDelayLengthMinus1) + 1))
+	}
+
 	pictStruct := uint8(br.Read(4))
 	var numClockTS int
 	switch {
@@ -54,6 +67,9 @@ func DecodePicTimingAvcSEIHRD(sd *SEIData, cbpDbpDelay *CbpDbpDelay, timeOffsetL
 		PictStruct: pictStruct,
 		Clocks:     make([]ClockTSAvc, 0, numClockTS),
 	}
+	if cbpDbpDelay != nil {
+		tc.CbpDbpDelay = &outCbDbpDelay
+	}
 	for i := 0; i < numClockTS; i++ {
 		c := DecodeClockTSAvc(br, timeOffsetLen)
 		tc.Clocks = append(tc.Clocks, c)
@@ -69,6 +85,10 @@ func (s *PicTimingAvcSEI) Type() uint {
 // Payload returns the SEI raw rbsp payload.
 func (s *PicTimingAvcSEI) Payload() []byte {
 	sw := bits.NewFixedSliceWriter(int(s.Size()))
+	if s.CbpDbpDelay != nil {
+		sw.WriteBits(uint(s.CbpDbpDelay.CpbRemovalDelay), int(s.CbpDbpDelay.CpbRemovalDelayLengthMinus1)+1)
+		sw.WriteBits(uint(s.CbpDbpDelay.DpbOutputDelay), int(s.CbpDbpDelay.DpbOutputDelayLengthMinus1)+1)
+	}
 	sw.WriteBits(uint(s.PictStruct), 4)
 	for _, c := range s.Clocks {
 		c.WriteToSliceWriter(sw)
@@ -91,7 +111,12 @@ func (s *PicTimingAvcSEI) String() string {
 
 // Size is size in bytes of raw SEI message rbsp payload.
 func (s *PicTimingAvcSEI) Size() uint {
-	nrBits := 4 // pict_struct
+	nrBits := 0
+	if s.CbpDbpDelay != nil {
+		nrBits += int(s.CbpDbpDelay.CpbRemovalDelayLengthMinus1) + 1
+		nrBits += int(s.CbpDbpDelay.DpbOutputDelayLengthMinus1) + 1
+	}
+	nrBits += 4 // pict_struct
 	for _, c := range s.Clocks {
 		nrBits += c.NrBits()
 	}
@@ -120,7 +145,7 @@ type ClockTSAvc struct {
 
 // String returns time stamp
 func (c ClockTSAvc) String() string {
-	return fmt.Sprintf("%02d:%02d:%02d;%02d offset=%d", c.Hours, c.Minutes, c.Seconds, c.NFrames, c.TimeOffsetValue)
+	return fmt.Sprintf("%02d:%02d:%02d:%02d offset=%d", c.Hours, c.Minutes, c.Seconds, c.NFrames, c.TimeOffsetValue)
 }
 
 // CreatePTClockTS creates a clock timestamp.
