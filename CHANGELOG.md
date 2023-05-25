@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add WriteFlag method to SliceWriter interface (present in FixedSliceWriter)
 - Parsing of AVC SEI pic_timing with HRD parameters
 - mp4ff-nallister handles AVC SEI pic_timing with HRD parameters if SPS is present
+- fix error in TimeOffset output of SEI 136
 
 ### Added
 

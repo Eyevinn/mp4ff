@@ -128,7 +128,7 @@ func (s *TimeCodeSEI) Payload() []byte {
 			}
 			sw.WriteBits(uint(c.TimeOffsetLength), 5)
 			if c.TimeOffsetLength > 0 {
-				sw.WriteBits(uint(c.TimeOffsetLength), int(c.TimeOffsetLength))
+				sw.WriteBits(uint(c.TimeOffsetValue), int(c.TimeOffsetLength))
 			}
 		}
 	}
