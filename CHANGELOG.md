@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.36.0] - 2023-06-07
+
 ### Changed
 
 - SEI NAL unit parser reports ErrRbspTrailingBitsMissing error together with NAL units
@@ -404,7 +408,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/Eyevinn/mp4ff/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/Eyevinn/mp4ff/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/Eyevinn/mp4ff/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/Eyevinn/mp4ff/compare/v0.33.2...v0.34.0
