@@ -697,7 +697,7 @@ func readPastScalingListData(r *bits.AccErrEBSPReader) {
 					coefNum = 64
 				}
 				if sizeId > 1 {
-					_ = r.ReadExpGolomb // scaling_list_dc_coef_minus8[sizeId − 2][matrixId]
+					_ = r.ReadExpGolomb() // scaling_list_dc_coef_minus8[sizeId − 2][matrixId]
 					// nextCoef = scaling_list_dc_coef_minus8[sizeId − 2][matrixId] + 8
 				}
 				for i := 0; i < coefNum; i++ {

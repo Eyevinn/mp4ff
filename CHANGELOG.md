@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+### Fixed
+
+- discard of parsing HEVC SPS data
 
 ## [0.36.0] - 2023-06-07
 
