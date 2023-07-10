@@ -16,13 +16,21 @@ type StsdBox struct {
 	Version     byte
 	Flags       uint32
 	SampleCount uint32
-	AvcX        *VisualSampleEntryBox
-	HvcX        *VisualSampleEntryBox
-	Mp4a        *AudioSampleEntryBox
-	AC3         *AudioSampleEntryBox
-	EC3         *AudioSampleEntryBox
-	Wvtt        *WvttBox
-	Children    []Box
+	// AvcX is a pointer to box with name avc1 or avc3
+	AvcX *VisualSampleEntryBox
+	// HvcX is a pointer to a box with name hvc1 or hev1
+	HvcX *VisualSampleEntryBox
+	// Mp4a is a pointer to to a box with name mp4a
+	Mp4a *AudioSampleEntryBox
+	// AC3 is a pointer to a box with name ac-3
+	AC3 *AudioSampleEntryBox
+	// EC3 is a pointer to a box with name ec-3
+	EC3 *AudioSampleEntryBox
+	// Wvtt is a pointer to a WvttBox
+	Wvtt *WvttBox
+	// Stpp is a pointer to a StppBox
+	Stpp     *StppBox
+	Children []Box
 }
 
 // NewStsdBox - Generate a new empty stsd box
@@ -30,7 +38,7 @@ func NewStsdBox() *StsdBox {
 	return &StsdBox{}
 }
 
-// AddChild - Add a child box and update SampleCount
+// AddChild - Add a child box, set relevant pointer, and update SampleCount
 func (s *StsdBox) AddChild(box Box) {
 	switch box.Type() {
 	case "avc1", "avc3":
@@ -45,6 +53,8 @@ func (s *StsdBox) AddChild(box Box) {
 		s.EC3 = box.(*AudioSampleEntryBox)
 	case "wvtt":
 		s.Wvtt = box.(*WvttBox)
+	case "stpp":
+		s.Stpp = box.(*StppBox)
 	}
 	s.Children = append(s.Children, box)
 	s.SampleCount++
@@ -93,7 +103,7 @@ func DecodeStsd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	//Note higher startPos below since not simple container
+	// Note higher startPos below since not simple container
 	children, err := DecodeContainerChildren(hdr, startPos+16, startPos+hdr.Size, r)
 	if err != nil {
 		return nil, err
@@ -119,7 +129,7 @@ func DecodeStsd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 func DecodeStsdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	sampleCount := sr.ReadUint32()
-	//Note higher startPos below since not simple container
+	// Note higher startPos below since not simple container
 	children, err := DecodeContainerChildrenSR(hdr, startPos+16, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err

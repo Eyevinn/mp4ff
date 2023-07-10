@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pointer to stpp sample entry in StsdBox
+- Doc strings for pointers in StsdBox
+
 ### Fixed
 
 - discard of parsing HEVC SPS data
