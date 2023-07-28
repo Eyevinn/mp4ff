@@ -166,12 +166,15 @@ func (b *SttsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// GetSampleNrAtTime - get sample number at or as soon as possible after time
+// GetSampleNrAtTime returns the 1-based sample number at or as soon as possible after time.
+// Match a final single zero duration if present.
+// If time is too big to reach, an error is returned.
 // Time is calculated by summing up durations of previous samples
 func (b *SttsBox) GetSampleNrAtTime(sampleStartTime uint64) (sampleNr uint32, err error) {
 	accTime := uint64(0)
 	accNr := uint32(0)
-	for i := 0; i < len(b.SampleCount); i++ {
+	nrEntries := len(b.SampleCount)
+	for i := 0; i < nrEntries; i++ {
 		timeDelta := uint64(b.SampleTimeDelta[i])
 		if sampleStartTime < accTime+uint64(b.SampleCount[i])*timeDelta {
 			relTime := (sampleStartTime - accTime)
@@ -183,6 +186,11 @@ func (b *SttsBox) GetSampleNrAtTime(sampleStartTime uint64) (sampleNr uint32, er
 		}
 		accNr += b.SampleCount[i]
 		accTime += timeDelta * uint64(b.SampleCount[i])
+	}
+	// Check if there is a final single zero duration and time matches.
+	if b.SampleTimeDelta[nrEntries-1] == 0 && b.SampleCount[nrEntries-1] == 1 &&
+		sampleStartTime == accTime {
+		return accNr, nil
 	}
 	return 0, fmt.Errorf("no matching sample found for time=%d", sampleStartTime)
 }

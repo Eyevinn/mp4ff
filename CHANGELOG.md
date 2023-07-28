@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - discard of parsing HEVC SPS data
+- `SttsBox.GetSampleNrAtTime` now supports a final zero sample duration
 
 ## [0.36.0] - 2023-06-07
 
