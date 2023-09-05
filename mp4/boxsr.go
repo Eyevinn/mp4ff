@@ -27,6 +27,7 @@ func init() {
 		"dac3":    DecodeDac3SR,
 		"data":    DecodeDataSR,
 		"dec3":    DecodeDec3SR,
+		"desc":    DecodeGenericContainerBoxSR,
 		"dinf":    DecodeDinfSR,
 		"dpnd":    DecodeTrefTypeSR,
 		"dref":    DecodeDrefSR,
@@ -126,7 +127,10 @@ func init() {
 		"vttC":    DecodeVttCSR,
 		"vtte":    DecodeVtteSR,
 		"wvtt":    DecodeWvttSR,
-		"\xa9too": DecodeCTooSR,
+		"\xa9cpy": DecodeGenericContainerBoxSR,
+		"\xa9nam": DecodeGenericContainerBoxSR,
+		"\xa9too": DecodeGenericContainerBoxSR,
+		"\xa9ART": DecodeGenericContainerBoxSR,
 	}
 }
 

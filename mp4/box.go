@@ -36,6 +36,7 @@ func init() {
 		"dac3":    DecodeDac3,
 		"data":    DecodeData,
 		"dec3":    DecodeDec3,
+		"desc":    DecodeGenericContainerBox,
 		"dinf":    DecodeDinf,
 		"dpnd":    DecodeTrefType,
 		"dref":    DecodeDref,
@@ -135,7 +136,10 @@ func init() {
 		"vttC":    DecodeVttC,
 		"vtte":    DecodeVtte,
 		"wvtt":    DecodeWvtt,
-		"\xa9too": DecodeCToo,
+		"\xa9cpy": DecodeGenericContainerBox,
+		"\xa9nam": DecodeGenericContainerBox,
+		"\xa9too": DecodeGenericContainerBox,
+		"\xa9ART": DecodeGenericContainerBox,
 	}
 }
 

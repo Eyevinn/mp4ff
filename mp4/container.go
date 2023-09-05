@@ -17,6 +17,75 @@ type ContainerBox interface {
 	Info(w io.Writer, specificBoxLevels, indent, indentStep string) error
 }
 
+// GenericContainerBox is a generic container box with no special child pointers
+type GenericContainerBox struct {
+	name     string
+	Children []Box
+}
+
+func NewGenericContainerBox(name string) *GenericContainerBox {
+	return &GenericContainerBox{name: name}
+}
+
+func (b *GenericContainerBox) Type() string {
+	return b.name
+}
+
+func (b *GenericContainerBox) Size() uint64 {
+	return containerSize(b.Children)
+}
+
+// Encode - write GenericContainerBox to w
+func (b *GenericContainerBox) Encode(w io.Writer) error {
+	return EncodeContainer(b, w)
+}
+
+// Encode - write minf container to sw
+func (b *GenericContainerBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeContainerSW(b, sw)
+}
+
+// Info - write box-specific information
+func (b *GenericContainerBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
+}
+
+// GetChildren - list of child boxes
+func (b *GenericContainerBox) GetChildren() []Box {
+	return b.Children
+}
+
+// DecodeGenericContainerBox - box-specific decode
+func DecodeGenericContainerBox(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
+	if err != nil {
+		return nil, err
+	}
+	m := NewGenericContainerBox(hdr.Name)
+	for _, c := range children {
+		m.AddChild(c)
+	}
+	return m, nil
+}
+
+// DecodeGenericContainerBoxSR - box-specific decode
+func DecodeGenericContainerBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
+	if err != nil {
+		return nil, err
+	}
+	m := NewGenericContainerBox(hdr.Name)
+	for _, c := range children {
+		m.AddChild(c)
+	}
+	return m, nil
+}
+
+// AddChild - Add a child box
+func (b *GenericContainerBox) AddChild(child Box) {
+	b.Children = append(b.Children, child)
+}
+
 func containerSize(children []Box) uint64 {
 	var contentSize uint64 = 0
 	for _, child := range children {

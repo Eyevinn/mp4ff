@@ -12,67 +12,6 @@ type CTooBox struct {
 	Children []Box
 }
 
-// DecodeCToo - box-specific decode
-func DecodeCToo(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
-	if err != nil {
-		return nil, err
-	}
-	b := &CTooBox{}
-	for _, c := range children {
-		b.AddChild(c)
-	}
-	return b, nil
-}
-
-// DecodeCTooSR - box-specific decode
-func DecodeCTooSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
-	if err != nil {
-		return nil, err
-	}
-	b := &CTooBox{}
-	for _, c := range children {
-		b.AddChild(c)
-	}
-	return b, nil
-}
-
-// AddChild - Add a child box and update SampleCount
-func (b *CTooBox) AddChild(child Box) {
-	b.Children = append(b.Children, child)
-}
-
-// Type - box type
-func (b *CTooBox) Type() string {
-	return "\xa9too"
-}
-
-// Size - calculated size of box
-func (b *CTooBox) Size() uint64 {
-	return containerSize(b.Children)
-}
-
-// GetChildren - list of child boxes
-func (b *CTooBox) GetChildren() []Box {
-	return b.Children
-}
-
-// Encode - write minf container to w
-func (b *CTooBox) Encode(w io.Writer) error {
-	return EncodeContainer(b, w)
-}
-
-// Encode - write minf container to sw
-func (b *CTooBox) EncodeSW(sw bits.SliceWriter) error {
-	return EncodeContainerSW(b, sw)
-}
-
-// Info - box-specific Info
-func (b *CTooBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	return ContainerInfo(b, w, specificBoxLevels, indent, indentStep)
-}
-
 // DataBox - data box used by ffmpeg for providing information.
 type DataBox struct {
 	Data []byte
