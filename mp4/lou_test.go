@@ -16,7 +16,7 @@ func TestTlou(t *testing.T) {
 					BsTruePeakLevel:        1086,
 					MeasurementSystemForTP: 2,
 					ReliabilityForTP:       3,
-					Measurements: []*Measurement{
+					Measurements: []Measurement{
 						{
 							MethodDefinition:  1,
 							MethodValue:       121,
@@ -39,7 +39,7 @@ func TestTlou(t *testing.T) {
 					BsTruePeakLevel:        1086,
 					MeasurementSystemForTP: 2,
 					ReliabilityForTP:       3,
-					Measurements: []*Measurement{
+					Measurements: []Measurement{
 						{
 							MethodDefinition:  4,
 							MethodValue:       124,
@@ -74,7 +74,7 @@ func TestAlou(t *testing.T) {
 					BsTruePeakLevel:        1086,
 					MeasurementSystemForTP: 2,
 					ReliabilityForTP:       3,
-					Measurements: []*Measurement{
+					Measurements: []Measurement{
 						{
 							MethodDefinition:  1,
 							MethodValue:       121,
@@ -97,7 +97,7 @@ func TestAlou(t *testing.T) {
 					BsTruePeakLevel:        1086,
 					MeasurementSystemForTP: 2,
 					ReliabilityForTP:       3,
-					Measurements: []*Measurement{
+					Measurements: []Measurement{
 						{
 							MethodDefinition:  4,
 							MethodValue:       124,

@@ -29,7 +29,7 @@ type LoudnessBase struct {
 	BsTruePeakLevel        int16
 	MeasurementSystemForTP uint8
 	ReliabilityForTP       uint8
-	Measurements           []*Measurement
+	Measurements           []Measurement
 }
 
 type Measurement struct {
@@ -55,10 +55,16 @@ func decodeLoudnessBaseBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader
 	}
 	var loudnessBaseCount uint8
 	if b.Version >= 1 {
-		loudnessBaseCount = 0x3f & sr.ReadUint8()
+		loudnessInfoTypeAndCount := sr.ReadUint8()
+		loudnessInfoType := (loudnessInfoTypeAndCount >> 6) & 0x3
+		if loudnessInfoType != 0 {
+			return nil, fmt.Errorf("loudnessInfoType %d not supported", loudnessInfoType)
+		}
+		loudnessBaseCount = 0x3f & loudnessInfoTypeAndCount
 	} else {
 		loudnessBaseCount = 1
 	}
+	b.LoudnessBases = make([]*LoudnessBase, 0, loudnessBaseCount)
 
 	for a := uint8(0); a < loudnessBaseCount; a++ {
 		l := &LoudnessBase{}
@@ -75,8 +81,9 @@ func decodeLoudnessBaseBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader
 		l.MeasurementSystemForTP = measurementSystemAndReliablityForTP >> 4
 		l.ReliabilityForTP = measurementSystemAndReliablityForTP & 0x0f
 		measurementCount := sr.ReadUint8()
+		l.Measurements = make([]Measurement, 0, measurementCount)
 		for i := uint8(0); i < measurementCount; i++ {
-			m := &Measurement{}
+			m := Measurement{}
 			m.MethodDefinition = sr.ReadUint8()
 			m.MethodValue = sr.ReadUint8()
 			measurementSystemAndReliablity := sr.ReadUint8()
@@ -96,9 +103,9 @@ func (b *loudnessBaseBox) size() uint64 {
 	}
 	for _, l := range b.LoudnessBases {
 		if b.Version >= 1 {
-			size += 8 + int(len(l.Measurements)*3)
+			size += 8 + len(l.Measurements)*3
 		} else {
-			size += 7 + int(len(l.Measurements)*3)
+			size += 7 + len(l.Measurements)*3
 		}
 	}
 	return uint64(size)
@@ -140,7 +147,7 @@ func (b *loudnessBaseBox) encodeSW(sw bits.SliceWriter) error {
 			sw.WriteUint8(measurementSystemAndReliablity)
 		}
 	}
-	return nil
+	return sw.AccError()
 }
 
 func (b *loudnessBaseBox) info(realBox Box, w io.Writer, specificBoxLevels, indent, indentStep string) error {
