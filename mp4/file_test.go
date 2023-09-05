@@ -269,3 +269,33 @@ func createFragment(t *testing.T, seqNr, dur uint32, decTime uint64) *Fragment {
 	})
 	return frag
 }
+
+func TestGetSegmentBoundariesFromSidx(t *testing.T) {
+	file, err := os.Open("./testdata/bbb5s_aac_sidx.mp4")
+	if err != nil {
+		t.Error(err)
+	}
+
+	parsedFile, err := DecodeFile(file)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(parsedFile.Segments) != 3 {
+		t.Errorf("not 3 segments in file but %d", len(parsedFile.Segments))
+	}
+}
+
+func TestGetSegmentBoundariesFromMfra(t *testing.T) {
+	file, err := os.Open("./testdata/bbb5s_aac.isma")
+	if err != nil {
+		t.Error(err)
+	}
+
+	parsedFile, err := DecodeFile(file, WithDecodeFlags(DecISMFlag))
+	if err != nil {
+		t.Error(err)
+	}
+	if len(parsedFile.Segments) != 3 {
+		t.Errorf("not 3 segments in file but %d", len(parsedFile.Segments))
+	}
+}

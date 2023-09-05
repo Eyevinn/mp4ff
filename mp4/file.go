@@ -31,10 +31,12 @@ type File struct {
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Sidx         *SidxBox        // The first sidx box for a DASH OnDemand file
 	Sidxs        []*SidxBox      // All sidx boxes for a DASH OnDemand file
+	tfra         *TfraBox        // Single tfra box read at end for segmentation of ISM files
 	Segments     []*MediaSegment // Media segments
 	Children     []Box           // All top-level boxes in order
 	FragEncMode  EncFragFileMode // Determine how fragmented files are encoded
 	EncOptimize  EncOptimize     // Bit field with optimizations being done at encoding
+	fileDecFlags DecFileFlags    // Bit field with flags for decoding
 	isFragmented bool
 	fileDecMode  DecFileMode
 }
@@ -58,6 +60,15 @@ const (
 	// DecModeLazyMdat - do not read mdat data into memory.
 	// Thus, decode process requires less memory and faster.
 	DecModeLazyMdat
+)
+
+// DecFileFlags can be combined for special decoding options
+type DecFileFlags uint32
+
+const (
+	DecNoFlags DecFileFlags = 0
+	// DecISMFlag tries to read mfra box at end to find segment boundaries (for ISM files)
+	DecISMFlag DecFileFlags = 1
 )
 
 // EncOptimize - encoder optimization mode
@@ -99,7 +110,8 @@ func ReadMP4File(path string) (*File, error) {
 		return nil, err
 	}
 	defer f.Close()
-	mp4Root, err := DecodeFile(f)
+
+	mp4Root, err := DecodeFile(f, WithDecodeFlags(DecISMFlag))
 	if err != nil {
 		return nil, err
 	}
@@ -147,14 +159,24 @@ func DecodeFile(r io.Reader, options ...Option) (*File, error) {
 		}
 	}
 
+	if (f.fileDecFlags & DecISMFlag) != 0 {
+		err := f.findAndReadMfra(r)
+		if err != nil {
+			return nil, fmt.Errorf("checkMfra: %w", err)
+		}
+	}
+
 LoopBoxes:
 	for {
 		var box Box
 		var err error
-		if f.fileDecMode == DecModeLazyMdat {
+		switch f.fileDecMode {
+		case DecModeLazyMdat:
 			box, err = DecodeBoxLazyMdat(boxStartPos, rs)
-		} else {
+		case DecModeNormal:
 			box, err = DecodeBox(boxStartPos, r)
+		default:
+			return nil, fmt.Errorf("unknown DecFileMode=%d", f.fileDecMode)
 		}
 		if err == io.EOF {
 			break LoopBoxes
@@ -193,6 +215,7 @@ LoopBoxes:
 		lastBoxType = boxType
 		boxStartPos += boxSize
 	}
+	f.tfra = nil // Not needed anymore
 	return f, nil
 }
 
@@ -242,7 +265,7 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 	case *EmsgBox:
 		// emsg box is only added at the start of a fragment (inside a segment).
 		// The case that a segment starts without an emsg is also handled.
-		f.startSegmentIfNeeded(box)
+		f.startSegmentIfNeeded(box, boxStartPos)
 		lastSeg := f.LastSegment()
 		if len(lastSeg.Fragments) == 0 {
 			lastSeg.AddFragment(NewFragment())
@@ -253,7 +276,7 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		f.isFragmented = true
 		moof := box
 		moof.StartPos = boxStartPos
-		f.startSegmentIfNeeded(moof)
+		f.startSegmentIfNeeded(moof, boxStartPos)
 		currSeg := f.LastSegment()
 		lastFrag := currSeg.LastFragment()
 		if lastFrag == nil || lastFrag.Moof != nil {
@@ -272,13 +295,74 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 	f.Children = append(f.Children, child)
 }
 
-// startSegmentIfNeeded starts a new segment if there is none.
-func (f *File) startSegmentIfNeeded(b Box) {
-	if len(f.Segments) == 0 {
+// startSegmentIfNeeded starts a new segment if there is none or if position match with sidx.
+func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
+	segStart := false
+	idx := len(f.Segments)
+	switch {
+	case f.Sidx != nil:
+		startPos := f.Sidx.AnchorPoint
+		for i, ref := range f.Sidx.SidxRefs {
+			if i == idx {
+				if boxStartPos == startPos {
+					segStart = true
+				}
+				break
+			}
+			startPos += uint64(ref.ReferencedSize)
+		}
+	case f.tfra != nil:
+		if boxStartPos == uint64(f.tfra.Entries[idx].MoofOffset) {
+			segStart = true
+		}
+	default:
+		segStart = (idx == 0)
+	}
+	if segStart {
 		f.isFragmented = true
 		f.AddMediaSegment(NewMediaSegmentWithoutStyp())
 		return
 	}
+}
+
+// findAndReadMfra tries to find a tfra box inside an mfra box at the end of the file
+func (f *File) findAndReadMfra(r io.Reader) error {
+	rs, ok := r.(io.ReadSeeker)
+	if !ok {
+		return fmt.Errorf("expecting readseeker when decoding file ISM file")
+	}
+	mfroSize := int64(16) // This is the fixed size of the mfro box
+	pos, err := rs.Seek(-mfroSize, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("could not seek %d bytes from end: %w", mfroSize, err)
+	}
+	b, err := DecodeBox(uint64(pos), rs) // mfro
+	if err != nil {
+		return fmt.Errorf("could not decode mfro box: %w", err)
+	}
+	mfro, ok := b.(*MfroBox)
+	if !ok {
+		return fmt.Errorf("expecting mfro box, but got %T", b)
+	}
+	mfraSize := int64(mfro.ParentSize)
+	pos, err = rs.Seek(-mfraSize, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("could not seek %d bytes from end: %w", mfraSize, err)
+	}
+	b, err = DecodeBox(uint64(pos), rs) // mfra
+	if err != nil {
+		return fmt.Errorf("could not decode mfra box: %w", err)
+	}
+	mfra, ok := b.(*MfraBox)
+	if !ok {
+		return fmt.Errorf("expecting mfra box, but got %T", b)
+	}
+	if len(mfra.Tfras) != 1 {
+		return fmt.Errorf("only supports exactly one tfra in mfra")
+	}
+	f.tfra = mfra.Tfra
+	_, err = rs.Seek(0, io.SeekStart)
+	return err
 }
 
 // AddSidx adds a sidx box to the File and not a MediaSegment.
@@ -470,6 +554,11 @@ func WithEncodeMode(mode EncFragFileMode) Option {
 // WithDecodeMode sets up DecFileMode
 func WithDecodeMode(mode DecFileMode) Option {
 	return func(f *File) { f.fileDecMode = mode }
+}
+
+// WithDecodeFlags sets up DecodeFlags
+func WithDecodeFlags(flags DecFileFlags) Option {
+	return func(f *File) { f.fileDecFlags = flags }
 }
 
 // CopySampleData copies sample data from a track in a progressive mp4 file to w.
