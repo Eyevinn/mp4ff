@@ -20,6 +20,7 @@ var decoders map[string]BoxDecoder
 func init() {
 	decoders = map[string]BoxDecoder{
 		"ac-3":    DecodeAudioSampleEntry,
+		"alou":    DecodeAlou,
 		"avc1":    DecodeVisualSampleEntry,
 		"avc3":    DecodeVisualSampleEntry,
 		"avcC":    DecodeAvcC,
@@ -61,6 +62,7 @@ func init() {
 		"iods":    DecodeUnknown,
 		"ipir":    DecodeTrefType,
 		"kind":    DecodeKind,
+		"ludt":    DecodeLudt,
 		"mdat":    DecodeMdat,
 		"mehd":    DecodeMehd,
 		"mdhd":    DecodeMdhd,
@@ -113,6 +115,7 @@ func init() {
 		"tfhd":    DecodeTfhd,
 		"tfra":    DecodeTfra,
 		"tkhd":    DecodeTkhd,
+		"tlou":    DecodeTlou,
 		"traf":    DecodeTraf,
 		"trak":    DecodeTrak,
 		"tref":    DecodeTref,
