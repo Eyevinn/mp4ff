@@ -42,7 +42,7 @@ func DecodeLudtSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 }
 
 // AddChild - add child box
-func (b *LudtBox) AddChild(child Box) error {
+func (b *LudtBox) AddChild(child Box) {
 	switch box := child.(type) {
 	case *TlouBox:
 		b.Loudness = append(b.Loudness, box)
@@ -50,7 +50,6 @@ func (b *LudtBox) AddChild(child Box) error {
 		b.AlbumLoudness = append(b.AlbumLoudness, box)
 	}
 	b.Children = append(b.Children, child)
-	return nil
 }
 
 // Size - calculated size of box
