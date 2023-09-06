@@ -12,6 +12,7 @@ func TestSidx(t *testing.T) {
 	sidx.Timescale = 48000
 	sidx.EarliestPresentationTime = 12
 	sidx.FirstOffset = 1024
+	sidx.AnchorPoint = 1068
 
 	ref := SidxRef{
 		ReferenceType:      0, // Media

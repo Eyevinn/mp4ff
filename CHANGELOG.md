@@ -12,10 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Loudness boxes `ludt`, `tlou`, and `alou`
 - Description boxes `desc`, `©cpy`, `©nam`, `©ART` boxes
 - `GenericContainerBox` struct
+- new `DecFileFlags` provide option to `DecodeFile` to look for mfra box
 
 ### Changed
 
 - Made `©too` use `GenericContainerBox`
+- SidxBox got new attribute `AnchorPoint`
+
+### Fixed
+
+- DecodeFile uses sidx or mfra data to find segment boundaries
 
 ## [0.37.0] - 2023-08-14
 

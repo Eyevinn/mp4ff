@@ -39,8 +39,11 @@ type SidxBox struct {
 	ReferenceID              uint32
 	Timescale                uint32
 	EarliestPresentationTime uint64
-	FirstOffset              uint64
-	SidxRefs                 []SidxRef
+	// FirstOffset is offset of first media segment relative to AnchorPoint
+	FirstOffset uint64
+	// AnchorPoint is first byte offset after SidxBox
+	AnchorPoint uint64
+	SidxRefs    []SidxRef
 }
 
 // SidxRef - reference as used inside SidxBox
@@ -81,6 +84,7 @@ func DecodeSidxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.EarliestPresentationTime = sr.ReadUint64()
 		b.FirstOffset = sr.ReadUint64()
 	}
+	b.AnchorPoint = startPos + b.FirstOffset + hdr.Size
 	sr.SkipBytes(2)
 	refCount := sr.ReadUint16()
 	for i := 0; i < int(refCount); i++ {
