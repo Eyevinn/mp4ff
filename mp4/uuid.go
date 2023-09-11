@@ -11,10 +11,18 @@ import (
 )
 
 const (
-	// UUIDTfxd - MSS tfxd UUID
+	// The following UUIDs belong to Microsoft Smooth Streaming Protocol (MSS)
+
+	// UUIDMssSm - MSS StreamManifest UUID [MS-SSTR 2.2.7.2]
+	UUIDMssSm = "3c2fe51b-efee-40a3-ae815300199dc348"
+
+	// UUIDMssLs - MSS LiveServerManifest UUID [MS-SSTR 2.2.7.3]
+	UUIDMssLsm = "a5d40b30-e814-11dd-ba2f-0800200c9a66"
+
+	// UUIDTfxd - MSS tfxd UUID [MS-SSTR 2.2.4.4]
 	UUIDTfxd = "6d1d9b05-42d5-44e6-80e2-141daff757b2"
 
-	// UUIDTfrf - MSS tfrf UUID
+	// UUIDTfrf - MSS tfrf UUID [MS-SSTR 2.2.4.5]
 	UUIDTfrf = "d4807ef2-ca39-4695-8e54-26cb9e46a79f"
 )
 
