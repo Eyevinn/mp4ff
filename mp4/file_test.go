@@ -276,7 +276,7 @@ func TestGetSegmentBoundariesFromSidx(t *testing.T) {
 		t.Error(err)
 	}
 
-	parsedFile, err := DecodeFile(file)
+	parsedFile, err := DecodeFile(file, WithDecodeFlags(DecISMFlag))
 	if err != nil {
 		t.Error(err)
 	}

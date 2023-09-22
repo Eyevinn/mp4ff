@@ -326,6 +326,7 @@ func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
 }
 
 // findAndReadMfra tries to find a tfra box inside an mfra box at the end of the file
+// If no mfro box is found, no error is reported.
 func (f *File) findAndReadMfra(r io.Reader) error {
 	rs, ok := r.(io.ReadSeeker)
 	if !ok {
@@ -338,7 +339,9 @@ func (f *File) findAndReadMfra(r io.Reader) error {
 	}
 	b, err := DecodeBox(uint64(pos), rs) // mfro
 	if err != nil {
-		return fmt.Errorf("could not decode mfro box: %w", err)
+		// Not an mfro box here, just reset and return
+		_, err = rs.Seek(0, io.SeekStart)
+		return err
 	}
 	mfro, ok := b.(*MfroBox)
 	if !ok {
