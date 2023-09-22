@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.38.1] - 2023-09-22
+
+### Fixed
+  - ReadMP4File() failed when mfro not present
+
 ## [0.38.0] - 2023-09-06
 
 ### Added
@@ -436,7 +443,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.38.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.38.1...HEAD
+[0.38.1]: https://github.com/Eyevinn/mp4ff/compare/v0.37.0...v0.38.0
 [0.38.0]: https://github.com/Eyevinn/mp4ff/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/Eyevinn/mp4ff/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/Eyevinn/mp4ff/compare/v0.35.0...v0.36.0
