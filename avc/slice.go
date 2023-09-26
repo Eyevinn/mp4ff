@@ -208,6 +208,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	if sliceType != SLICE_I && sliceType != SLICE_SI {
 		sh.RefPicListModificationL0Flag = r.ReadFlag()
 		if sh.RefPicListModificationL0Flag {
+		refPicListL0Loop:
 			for {
 				sh.ModificationOfPicNumsIDC = uint32(r.ReadExpGolomb())
 				switch sh.ModificationOfPicNumsIDC {
@@ -216,10 +217,10 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 				case 2:
 					sh.LongTermPicNum = uint32(r.ReadExpGolomb())
 				case 3:
-					break
+					break refPicListL0Loop
 				}
 				if r.AccError() != nil {
-					break
+					break refPicListL0Loop
 				}
 			}
 		}
@@ -227,6 +228,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	if sliceType == SLICE_B {
 		sh.RefPicListModificationL1Flag = r.ReadFlag()
 		if sh.RefPicListModificationL1Flag {
+		refPicListL1Loop:
 			for {
 				sh.ModificationOfPicNumsIDC = uint32(r.ReadExpGolomb())
 				switch sh.ModificationOfPicNumsIDC {
@@ -235,7 +237,10 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 				case 2:
 					sh.LongTermPicNum = uint32(r.ReadExpGolomb())
 				case 3:
-					break
+					break refPicListL1Loop
+				}
+				if r.AccError() != nil {
+					break refPicListL1Loop
 				}
 			}
 		}
@@ -299,6 +304,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		} else {
 			sh.AdaptiveRefPicMarkingModeFlag = r.ReadFlag()
 			if sh.AdaptiveRefPicMarkingModeFlag {
+			adaptiveRefPicLoop:
 				for {
 					memoryManagementControlOperation := r.ReadExpGolomb()
 					switch memoryManagementControlOperation {
@@ -313,7 +319,10 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 					case 4:
 						sh.MaxLongTermFrameIdxPlus1 = uint32(r.ReadExpGolomb())
 					case 0:
-						break
+						break adaptiveRefPicLoop
+					}
+					if r.AccError() != nil {
+						break adaptiveRefPicLoop
 					}
 				}
 			}
