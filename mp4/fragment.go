@@ -17,6 +17,7 @@ type Fragment struct {
 	Children    []Box       // All top-level boxes in order
 	nextTrunNr  uint32      // To handle multi-trun cases
 	EncOptimize EncOptimize // Bit field with optimizations being done at encoding
+	StartPos    uint64      // Start position in file added by parser
 }
 
 // NewFragment creates an empty MP4 Fragment.
@@ -127,12 +128,16 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 		traf = moof.Traf // The first one
 	}
 	tfhd := traf.Tfhd
-	baseTime := traf.Tfdt.BaseMediaDecodeTime()
+	var baseTime uint64
+	if traf.Tfdt != nil {
+		baseTime = traf.Tfdt.BaseMediaDecodeTime()
+	}
 	moofStartPos := moof.StartPos
 	var samples []FullSample
 	for _, trun := range traf.Truns {
 		totalDur := trun.AddSampleDefaultValues(tfhd, trex)
-		var baseOffset uint64
+		// The default is moofStartPos according to Section 8.8.7.1
+		baseOffset := moofStartPos
 		if tfhd.HasBaseDataOffset() {
 			baseOffset = tfhd.BaseDataOffset
 		} else if tfhd.DefaultBaseIfMoof() {

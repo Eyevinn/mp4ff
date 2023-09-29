@@ -94,3 +94,13 @@ func (m *MfraBox) GetChildren() []Box {
 func (m *MfraBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	return ContainerInfo(m, w, specificBoxLevels, indent, indentStep)
 }
+
+// FindEntry - find tfra entry for given moof start offset and trackID. Return nil if not found.
+func (m *MfraBox) FindEntry(moofStart uint64, trackID uint32) *TfraEntry {
+	for _, tfra := range m.Tfras {
+		if tfra.TrackID == trackID {
+			return tfra.FindEntry(moofStart)
+		}
+	}
+	return nil
+}

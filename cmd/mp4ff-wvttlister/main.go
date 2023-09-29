@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -15,7 +16,7 @@ import (
 var usg = `Usage of mp4ff-wvttlister:
 
 mp4ff-wvttlister lists and displays content of wvtt (WebVTT in ISOBMFF) samples.
-Use track with given non-zero track ID or first wvtt track found in an asset.
+Uses track with given non-zero track ID or first wvtt track found in an asset.
 `
 
 var usage = func() {
@@ -49,26 +50,33 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer ifd.Close()
-	parsedMp4, err := mp4.DecodeFile(ifd)
+
+	err = run(ifd, os.Stdout, *trackID, *maxNrSamples)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func run(ifd io.ReadSeeker, w io.Writer, trackID, maxNrSamples int) error {
+	parsedMp4, err := mp4.DecodeFile(ifd, mp4.WithDecodeFlags(mp4.DecISMFlag))
+	if err != nil {
+		return err
+	}
 
 	if !parsedMp4.IsFragmented() { // Progressive file
-		err = parseProgressiveMp4(parsedMp4, uint32(*trackID), *maxNrSamples)
+		err = parseProgressiveMp4(parsedMp4, w, uint32(trackID), maxNrSamples)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
-			os.Exit(1)
+			return err
 		}
-		return
+		return nil
 	}
 
 	// Fragmented file
-	err = parseFragmentedMp4(parsedMp4, uint32(*trackID), *maxNrSamples)
+	err = parseFragmentedMp4(parsedMp4, w, uint32(trackID), maxNrSamples)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		return err
 	}
+	return nil
 }
 
 func findTrack(moov *mp4.MoovBox, hdlrType string, trackID uint32) (*mp4.TrakBox, error) {
@@ -84,10 +92,10 @@ func findTrack(moov *mp4.MoovBox, hdlrType string, trackID uint32) (*mp4.TrakBox
 		}
 		return inTrak, nil
 	}
-	return nil, fmt.Errorf("No matching track found")
+	return nil, fmt.Errorf("no matching track found")
 }
 
-func parseProgressiveMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
+func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples int) error {
 	wvttTrak, err := findTrack(f.Moov, "text", trackID)
 	if err != nil {
 		return err
@@ -95,10 +103,10 @@ func parseProgressiveMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
 
 	stbl := wvttTrak.Mdia.Minf.Stbl
 	if stbl.Stsd.Wvtt == nil {
-		return fmt.Errorf("No wvtt track found")
+		return fmt.Errorf("no wvtt track found")
 	}
 
-	fmt.Printf("Track %d, timescale = %d\n", wvttTrak.Tkhd.TrackID, wvttTrak.Mdia.Mdhd.Timescale)
+	fmt.Fprintf(w, "Track %d, timescale = %d\n", wvttTrak.Tkhd.TrackID, wvttTrak.Mdia.Mdhd.Timescale)
 	err = stbl.Stsd.Wvtt.VttC.Info(os.Stdout, "", "  ", "  ")
 	if err != nil {
 		return err
@@ -129,7 +137,7 @@ func parseProgressiveMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
 		// Next find sample bytes as slice in mdat
 		offsetInMdatData := uint64(offset) - mdatPayloadStart
 		sample := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
-		err = printWvttSample(sample, sampleNr, decTime+uint64(cto), dur)
+		err = printWvttSample(w, sample, sampleNr, decTime+uint64(cto), dur)
 		if err != nil {
 			return err
 		}
@@ -140,7 +148,7 @@ func parseProgressiveMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
 	return nil
 }
 
-func parseFragmentedMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
+func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples int) error {
 	var wvttTrex *mp4.TrexBox
 	if f.Init != nil { // Print vttC header and timescale if moov-box is present
 		wvttTrak, err := findTrack(f.Init.Moov, "text", trackID)
@@ -150,11 +158,11 @@ func parseFragmentedMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
 
 		stbl := wvttTrak.Mdia.Minf.Stbl
 		if stbl.Stsd.Wvtt == nil {
-			return fmt.Errorf("No wvtt track found")
+			return fmt.Errorf("no wvtt track found")
 		}
 
-		fmt.Printf("Track %d, timescale = %d\n", wvttTrak.Tkhd.TrackID, wvttTrak.Mdia.Mdhd.Timescale)
-		err = stbl.Stsd.Wvtt.VttC.Info(os.Stdout, "", "  ", "  ")
+		fmt.Fprintf(w, "Track %d, timescale = %d\n", wvttTrak.Tkhd.TrackID, wvttTrak.Mdia.Mdhd.Timescale)
+		err = stbl.Stsd.Wvtt.VttC.Info(w, "  ", "", "  ")
 		if err != nil {
 			return err
 		}
@@ -167,16 +175,29 @@ func parseFragmentedMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
 	iSamples := make([]mp4.FullSample, 0)
 	for _, iSeg := range f.Segments {
 		for _, iFrag := range iSeg.Fragments {
+			var tfraTime uint64
+			if f.Mfra != nil {
+				moofOffset := iFrag.Moof.StartPos
+				entry := f.Mfra.FindEntry(moofOffset, iFrag.Moof.Traf.Tfhd.TrackID)
+				if entry != nil {
+					tfraTime = entry.Time
+				}
+			}
 			fSamples, err := iFrag.GetFullSamples(wvttTrex)
 			if err != nil {
 				return err
+			}
+			if tfraTime != 0 && fSamples[0].DecodeTime == 0 {
+				for i := range fSamples {
+					fSamples[i].DecodeTime += tfraTime
+				}
 			}
 			iSamples = append(iSamples, fSamples...)
 		}
 	}
 	var err error
 	for i, sample := range iSamples {
-		err = printWvttSample(sample.Data, i+1, sample.PresentationTime(), sample.Dur)
+		err = printWvttSample(w, sample.Data, i+1, sample.PresentationTime(), sample.Dur)
 
 		if err != nil {
 			return err
@@ -188,12 +209,12 @@ func parseFragmentedMp4(f *mp4.File, trackID uint32, maxNrSamples int) error {
 	return nil
 }
 
-func printWvttSample(sample []byte, nr int, pts uint64, dur uint32) error {
-	fmt.Printf("Sample %d, pts=%d, dur=%d\n", nr, pts, dur)
+func printWvttSample(w io.Writer, sample []byte, nr int, pts uint64, dur uint32) error {
+	fmt.Fprintf(w, "Sample %d, pts=%d, dur=%d\n", nr, pts, dur)
 	buf := bytes.NewBuffer(sample)
 	box, err := mp4.DecodeBox(0, buf)
 	if err != nil {
 		return err
 	}
-	return box.Info(os.Stdout, "", "  ", "  ")
+	return box.Info(w, "  ", "", "  ")
 }

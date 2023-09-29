@@ -31,7 +31,8 @@ type File struct {
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Sidx         *SidxBox        // The first sidx box for a DASH OnDemand file
 	Sidxs        []*SidxBox      // All sidx boxes for a DASH OnDemand file
-	tfra         *TfraBox        // Single tfra box read at end for segmentation of ISM files
+	tfra         *TfraBox        // Single tfra box read first if DecISMFlag set
+	Mfra         *MfraBox        // MfraBox for ISM files
 	Segments     []*MediaSegment // Media segments
 	Children     []Box           // All top-level boxes in order
 	FragEncMode  EncFragFileMode // Determine how fragmented files are encoded
@@ -261,14 +262,14 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 	case *StypBox:
 		// Starts a new segment
 		f.isFragmented = true
-		f.AddMediaSegment(NewMediaSegmentWithStyp(box))
+		f.AddMediaSegment(&MediaSegment{Styp: box, StartPos: boxStartPos})
 	case *EmsgBox:
 		// emsg box is only added at the start of a fragment (inside a segment).
 		// The case that a segment starts without an emsg is also handled.
 		f.startSegmentIfNeeded(box, boxStartPos)
 		lastSeg := f.LastSegment()
 		if len(lastSeg.Fragments) == 0 {
-			lastSeg.AddFragment(NewFragment())
+			lastSeg.AddFragment(&Fragment{StartPos: boxStartPos})
 		}
 		frag := lastSeg.LastFragment()
 		frag.AddChild(box)
@@ -280,7 +281,7 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		currSeg := f.LastSegment()
 		lastFrag := currSeg.LastFragment()
 		if lastFrag == nil || lastFrag.Moof != nil {
-			currSeg.AddFragment(NewFragment())
+			currSeg.AddFragment(&Fragment{StartPos: boxStartPos})
 		}
 		frag := currSeg.LastFragment()
 		frag.AddChild(moof)
@@ -291,11 +292,13 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 			currentFragment := f.LastSegment().LastFragment()
 			currentFragment.AddChild(box)
 		}
+	case *MfraBox:
+		f.Mfra = box
 	}
 	f.Children = append(f.Children, child)
 }
 
-// startSegmentIfNeeded starts a new segment if there is none or if position match with sidx.
+// startSegmentIfNeeded starts a new segment if there is none or if position match with sidx of tfra.
 func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
 	segStart := false
 	idx := len(f.Segments)
@@ -320,7 +323,13 @@ func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
 	}
 	if segStart {
 		f.isFragmented = true
-		f.AddMediaSegment(NewMediaSegmentWithoutStyp())
+		ms := MediaSegment{
+			Styp:        nil,
+			Fragments:   nil,
+			EncOptimize: OptimizeNone,
+			StartPos:    boxStartPos,
+		}
+		f.AddMediaSegment(&ms)
 		return
 	}
 }
@@ -440,6 +449,12 @@ func (f *File) Encode(w io.Writer) error {
 					seg.EncOptimize = f.EncOptimize
 				}
 				err := seg.Encode(w)
+				if err != nil {
+					return err
+				}
+			}
+			if f.Mfra != nil {
+				err := f.Mfra.Encode(w)
 				if err != nil {
 					return err
 				}

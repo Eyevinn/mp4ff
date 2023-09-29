@@ -20,11 +20,11 @@ type TfraBox struct {
 
 // TfraEntry - reference as used inside TfraBox
 type TfraEntry struct {
-	Time        int64
-	MoofOffset  int64
-	TrafNumber  uint32
-	TrunNumber  uint32
-	SampleDelta uint32
+	Time         uint64
+	MoofOffset   uint64
+	TrafNumber   uint32
+	TrunNumber   uint32
+	SampleNumber uint32
 }
 
 // DecodeTfra - box-specific decode
@@ -55,11 +55,11 @@ func DecodeTfraSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	for i := uint32(0); i < nrEntries; i++ {
 		te := TfraEntry{}
 		if b.Version == 1 {
-			te.Time = sr.ReadInt64()
-			te.MoofOffset = sr.ReadInt64()
+			te.Time = sr.ReadUint64()
+			te.MoofOffset = sr.ReadUint64()
 		} else {
-			te.Time = int64(sr.ReadInt32())
-			te.MoofOffset = int64(sr.ReadInt32())
+			te.Time = uint64(sr.ReadUint32())
+			te.MoofOffset = uint64(sr.ReadUint32())
 		}
 		switch b.LengthSizeOfTrafNum {
 		case 0:
@@ -83,13 +83,13 @@ func DecodeTfraSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		}
 		switch b.LengthSizeOfSampleNum {
 		case 0:
-			te.SampleDelta = uint32(sr.ReadUint8())
+			te.SampleNumber = uint32(sr.ReadUint8())
 		case 1:
-			te.SampleDelta = uint32(sr.ReadUint16())
+			te.SampleNumber = uint32(sr.ReadUint16())
 		case 2:
-			te.SampleDelta = uint32(sr.ReadUint24())
+			te.SampleNumber = uint32(sr.ReadUint24())
 		case 3:
-			te.SampleDelta = sr.ReadUint32()
+			te.SampleNumber = sr.ReadUint32()
 		}
 		b.Entries = append(b.Entries, te)
 	}
@@ -140,11 +140,11 @@ func (b *TfraBox) EncodeSW(sw bits.SliceWriter) error {
 	for _, e := range b.Entries {
 
 		if b.Version == 1 {
-			sw.WriteInt64(e.Time)
-			sw.WriteInt64(e.MoofOffset)
+			sw.WriteUint64(e.Time)
+			sw.WriteUint64(e.MoofOffset)
 		} else {
-			sw.WriteInt32(int32(e.Time))
-			sw.WriteInt32(int32(e.MoofOffset))
+			sw.WriteUint32(uint32(e.Time))
+			sw.WriteUint32(uint32(e.MoofOffset))
 		}
 		switch b.LengthSizeOfTrafNum {
 		case 0:
@@ -168,13 +168,13 @@ func (b *TfraBox) EncodeSW(sw bits.SliceWriter) error {
 		}
 		switch b.LengthSizeOfSampleNum {
 		case 0:
-			sw.WriteUint8(byte(e.SampleDelta))
+			sw.WriteUint8(byte(e.SampleNumber))
 		case 1:
-			sw.WriteUint16(uint16(e.SampleDelta))
+			sw.WriteUint16(uint16(e.SampleNumber))
 		case 2:
-			sw.WriteUint24(uint32(e.SampleDelta))
+			sw.WriteUint24(uint32(e.SampleNumber))
 		case 3:
-			sw.WriteUint32(uint32(e.SampleDelta))
+			sw.WriteUint32(uint32(e.SampleNumber))
 		}
 	}
 	return sw.AccError()
@@ -189,8 +189,18 @@ func (b *TfraBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	if level >= 1 {
 		for i, e := range b.Entries {
 			bd.write(" - %d: time=%d moofOffset=%d trafNr=%d trunNr=%d sampleDelta=%d",
-				i+1, e.Time, e.MoofOffset, e.TrafNumber, e.TrunNumber, e.SampleDelta)
+				i+1, e.Time, e.MoofOffset, e.TrafNumber, e.TrunNumber, e.SampleNumber)
 		}
 	}
 	return bd.err
+}
+
+// FindEntry - find entry for moofStart. Return nil if not found
+func (b *TfraBox) FindEntry(moofStart uint64) *TfraEntry {
+	for _, e := range b.Entries {
+		if uint64(e.MoofOffset) == moofStart {
+			return &e
+		}
+	}
+	return nil
 }

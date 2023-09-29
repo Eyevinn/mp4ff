@@ -11,11 +11,11 @@ func TestMfra(t *testing.T) {
 		LengthSizeOfSampleNum: 2,
 	}
 	te := TfraEntry{
-		Time:        3145,
-		MoofOffset:  1892,
-		TrafNumber:  1,
-		TrunNumber:  2,
-		SampleDelta: 1,
+		Time:         3145,
+		MoofOffset:   1892,
+		TrafNumber:   1,
+		TrunNumber:   2,
+		SampleNumber: 1,
 	}
 	tfra.Entries = append(tfra.Entries, te)
 	err := mfra.AddChild(tfra)

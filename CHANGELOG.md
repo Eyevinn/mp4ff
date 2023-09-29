@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+### Changed
+
+- TfraEntry Time and MoofOffset types changed to unsigned
+- TfraEntr attribute name SampleDelta corrected to SampleNumber
+
+### Added
+
+- MediaSegment and Fragment have new StartPos attribute
+- mp4.File now has Mfra pointer
+- MfraBox has new method FindEntry
+
+### Fixed
+
+- mp4ff-wvttlister works with Unified Streaming wvtt ismt file
+- Fragment.GetFullSamples() allows tfdt to be absent
+- Fragment.GetFullSamples() defaults to offset being moof
+- mp4ff-wvttlister works for Unified Streaming wvtt asset
 
 ## [0.38.1] - 2023-09-22
 

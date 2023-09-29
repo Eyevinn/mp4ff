@@ -13,6 +13,7 @@ type MediaSegment struct {
 	Sidxs       []*SidxBox // All sidx boxes in a segment
 	Fragments   []*Fragment
 	EncOptimize EncOptimize
+	StartPos    uint64 // Start position in file
 }
 
 // NewMediaSegment - create empty MediaSegment with CMAF styp box
