@@ -38,24 +38,23 @@ func cropStblChildren(traks []*mp4.TrakBox, trakOuts map[uint32]*trakOut) (err e
 
 func cropStts(b *mp4.SttsBox, lastSampleNr uint32) {
 	var countedSamples uint32 = 0
-	var nrEntries int
+	lastEntry := -1
 	for i := 0; i < len(b.SampleCount); i++ {
+		if countedSamples < lastSampleNr {
+			lastEntry++
+		}
 		if countedSamples+b.SampleCount[i] >= lastSampleNr {
-			countedSamples += b.SampleCount[i]
-			nrEntries = i + 1
-			continue
+			break
 		}
-		// Now 0 or more remains in a last entry
-		nrEntries = i
-		remaining := lastSampleNr - countedSamples
-		if remaining > 0 {
-			b.SampleCount[i] = remaining
-			nrEntries = i + 1
-		}
-		break
+		countedSamples += b.SampleCount[i]
 	}
-	b.SampleCount = b.SampleCount[:nrEntries]
-	b.SampleTimeDelta = b.SampleTimeDelta[:nrEntries]
+	remaining := lastSampleNr - countedSamples
+	if remaining > 0 {
+		b.SampleCount[lastEntry] = remaining
+	}
+
+	b.SampleCount = b.SampleCount[:lastEntry+1]
+	b.SampleTimeDelta = b.SampleTimeDelta[:lastEntry+1]
 }
 
 func cropStss(b *mp4.StssBox, lastSampleNr uint32) {

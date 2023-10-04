@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fragment.GetFullSamples() allows tfdt to be absent
 - Fragment.GetFullSamples() defaults to offset being moof
 - mp4ff-wvttlister works for Unified Streaming wvtt asset
+- mp4crop now crops elst entries
+- mp4crop now handles multiple sample durations correctly
 
 ## [0.38.1] - 2023-09-22
 
