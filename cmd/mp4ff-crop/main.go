@@ -40,8 +40,6 @@ func parseOptions() {
 		fmt.Fprintf(os.Stderr, "%s [-d duration] <inFile> <outFile>\n", name)
 		flag.PrintDefaults()
 	}
-
-	flag.Parse()
 }
 
 func main() {
@@ -326,10 +324,25 @@ func updateChunkOffsets(inMP4 *mp4.File, firstOffset uint64) {
 func writeUptoMdat(inMP4 *mp4.File, endTime, endTimescale uint64, w io.Writer) error {
 	pos := uint64(0)
 	mvhd := inMP4.Moov.Mvhd
-	duration := endTime * uint64(mvhd.Timescale) / endTimescale
-	mvhd.Duration = duration
+	newDur := endTime * uint64(mvhd.Timescale) / endTimescale
+	mvhd.Duration = newDur
 	for _, trak := range inMP4.Moov.Traks {
-		trak.Tkhd.Duration = duration
+		prevDur := trak.Tkhd.Duration
+		trak.Tkhd.Duration = newDur
+		if newDur > prevDur {
+			return fmt.Errorf("new duration %d larger than previous %d", newDur, prevDur)
+		}
+		durDiff := prevDur - newDur
+		if trak.Edts != nil {
+			for i := range trak.Edts.Elst {
+				for j := range trak.Edts.Elst[i].Entries {
+					prevDur := trak.Edts.Elst[i].Entries[j].SegmentDuration
+					if prevDur > durDiff {
+						trak.Edts.Elst[i].Entries[j].SegmentDuration -= durDiff
+					}
+				}
+			}
+		}
 	}
 	for _, box := range inMP4.Children {
 		if box.Type() != "mdat" {
