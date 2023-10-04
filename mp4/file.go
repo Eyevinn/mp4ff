@@ -354,7 +354,9 @@ func (f *File) findAndReadMfra(r io.Reader) error {
 	}
 	mfro, ok := b.(*MfroBox)
 	if !ok {
-		return fmt.Errorf("expecting mfro box, but got %T", b)
+		// Not an mfro box here, just reset and return
+		_, err = rs.Seek(0, io.SeekStart)
+		return err
 	}
 	mfraSize := int64(mfro.ParentSize)
 	pos, err = rs.Seek(-mfraSize, io.SeekEnd)
