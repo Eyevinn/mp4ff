@@ -26,11 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - mp4ff-wvttlister works for Unified Streaming wvtt asset
 - mp4crop now crops elst entries
 - mp4crop now handles multiple sample durations correctly
+- HEVC SPS parsing details
 
 ## [0.38.1] - 2023-09-22
 
 ### Fixed
-  - ReadMP4File() failed when mfro not present
+
+- ReadMP4File() failed when mfro not present
 
 ## [0.38.0] - 2023-09-06
 

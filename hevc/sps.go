@@ -644,9 +644,9 @@ func parseShortTermRPS(r *bits.AccErrEBSPReader, idx, numSTRefPicSets byte, sps 
 		//deltaRps := (1 - (deltaRpsSign << 1)) * (absDeltaRpsMinus1 + 1)
 		refIdx := idx - deltaIdx
 		numDeltaPocs := sps.ShortTermRefPicSets[refIdx].NumDeltaPocs
-		for j := byte(0); j < numDeltaPocs; j++ {
+		for j := byte(0); j <= numDeltaPocs; j++ {
 			usedByCurrPicFlag := r.ReadFlag()
-			useDeltaFlag := false
+			useDeltaFlag := true
 			if !usedByCurrPicFlag {
 				useDeltaFlag = r.ReadFlag()
 			}
