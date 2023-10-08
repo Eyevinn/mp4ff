@@ -13,7 +13,6 @@ import (
 type TrunBox struct {
 	Version          byte
 	Flags            uint32
-	sampleCount      uint32
 	DataOffset       int32
 	firstSampleFlags uint32 // interpreted same way as SampleFlags
 	Samples          []Sample
@@ -37,10 +36,9 @@ func DecodeTrun(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	versionAndFlags := s.ReadUint32()
 	sampleCount := s.ReadUint32()
 	t := &TrunBox{
-		Version:     byte(versionAndFlags >> 24),
-		Flags:       versionAndFlags & flagsMask,
-		sampleCount: sampleCount,
-		Samples:     make([]Sample, sampleCount),
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
+		Samples: make([]Sample, 0, sampleCount),
 	}
 
 	if t.HasDataOffset() {
@@ -52,7 +50,7 @@ func DecodeTrun(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	var i uint32
-	for i = 0; i < t.sampleCount; i++ {
+	for i = 0; i < sampleCount; i++ {
 		var dur, size, flags uint32
 		var cto int32
 		if t.HasSampleDuration() {
@@ -69,7 +67,7 @@ func DecodeTrun(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 		if t.HasSampleCompositionTimeOffset() {
 			cto = s.ReadInt32()
 		}
-		t.Samples[i] = Sample{flags, dur, size, cto}
+		t.Samples = append(t.Samples, Sample{flags, dur, size, cto})
 	}
 
 	return t, nil
@@ -80,10 +78,9 @@ func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	versionAndFlags := sr.ReadUint32()
 	sampleCount := sr.ReadUint32()
 	t := &TrunBox{
-		Version:     byte(versionAndFlags >> 24),
-		Flags:       versionAndFlags & flagsMask,
-		sampleCount: sampleCount,
-		Samples:     make([]Sample, sampleCount),
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
+		Samples: make([]Sample, 0, sampleCount),
 	}
 
 	if t.HasDataOffset() {
@@ -95,7 +92,7 @@ func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	}
 
 	var i uint32
-	for i = 0; i < t.sampleCount; i++ {
+	for i = 0; i < sampleCount; i++ {
 		var dur, size, flags uint32
 		var cto int32
 		if t.HasSampleDuration() {
@@ -112,7 +109,7 @@ func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		if t.HasSampleCompositionTimeOffset() {
 			cto = sr.ReadInt32()
 		}
-		t.Samples[i] = Sample{flags, dur, size, cto}
+		t.Samples = append(t.Samples, Sample{flags, dur, size, cto})
 	}
 
 	return t, sr.AccError()
@@ -123,7 +120,6 @@ func CreateTrun(writeOrderNr uint32) *TrunBox {
 	trun := &TrunBox{
 		Version:          1,     // Signed composition_time_offset
 		Flags:            0xf01, // Data offset and all sample data present
-		sampleCount:      0,
 		DataOffset:       0,
 		firstSampleFlags: 0,
 		Samples:          nil,
@@ -157,7 +153,7 @@ func (t *TrunBox) AddSampleDefaultValues(tfhd *TfhdBox, trex *TrexBox) (totalDur
 	}
 	var i uint32
 	totalDur = 0
-	for i = 0; i < t.sampleCount; i++ {
+	for i = 0; i < t.SampleCount(); i++ {
 		if !t.HasSampleDuration() {
 			t.Samples[i].Dur = defaultSampleDuration
 		}
@@ -193,7 +189,7 @@ func (t *TrunBox) RemoveFirstSampleFlags() {
 
 // SampleCount - return how many samples are defined
 func (t *TrunBox) SampleCount() uint32 {
-	return t.sampleCount
+	return uint32(len(t.Samples))
 }
 
 // HasDataOffset - interpreted dataOffsetPresent flag
@@ -253,7 +249,7 @@ func (t *TrunBox) Size() uint64 {
 	if t.HasSampleCompositionTimeOffset() {
 		bytesPerSample += 4
 	}
-	sz += int(t.sampleCount) * bytesPerSample
+	sz += int(t.SampleCount()) * bytesPerSample
 	return uint64(sz)
 }
 
@@ -276,7 +272,7 @@ func (t *TrunBox) EncodeSW(sw bits.SliceWriter) error {
 	}
 	versionAndFlags := (uint32(t.Version) << 24) + t.Flags
 	sw.WriteUint32(versionAndFlags)
-	sw.WriteUint32(t.sampleCount)
+	sw.WriteUint32(t.SampleCount())
 	if t.HasDataOffset() {
 		if t.DataOffset == 0 {
 			panic("trun data offset not set")
@@ -287,7 +283,7 @@ func (t *TrunBox) EncodeSW(sw bits.SliceWriter) error {
 		sw.WriteUint32(t.firstSampleFlags)
 	}
 	var i uint32
-	for i = 0; i < t.sampleCount; i++ {
+	for i = 0; i < t.SampleCount(); i++ {
 		if t.HasSampleDuration() {
 			sw.WriteUint32(t.Samples[i].Dur)
 		}
@@ -308,7 +304,7 @@ func (t *TrunBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - specificBoxLevels trun:1 gives details
 func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
-	bd.write(" - sampleCount: %d", t.sampleCount)
+	bd.write(" - sampleCount: %d", t.SampleCount())
 	level := getInfoLevel(t, specificBoxLevels)
 	if level > 0 {
 		if t.HasDataOffset() {
@@ -317,7 +313,7 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		if t.HasFirstSampleFlags() {
 			bd.write(" - firstSampleFlags: %08x (%s)", t.firstSampleFlags, DecodeSampleFlags(t.firstSampleFlags))
 		}
-		for i := 0; i < int(t.sampleCount); i++ {
+		for i := 0; i < int(t.SampleCount()); i++ {
 			msg := fmt.Sprintf(" - sample[%d]:", i+1)
 			if t.HasSampleDuration() {
 				msg += fmt.Sprintf(" dur=%d", t.Samples[i].Dur)
@@ -415,19 +411,16 @@ func (t *TrunBox) GetSampleInterval(startSampleNr, endSampleNr uint32, baseDecod
 // AddFullSample - add Sample part of FullSample
 func (t *TrunBox) AddFullSample(s *FullSample) {
 	t.Samples = append(t.Samples, s.Sample)
-	t.sampleCount++
 }
 
 // AddSample - add a Sample
 func (t *TrunBox) AddSample(s Sample) {
 	t.Samples = append(t.Samples, s)
-	t.sampleCount++
 }
 
 // AddSamples - add a a slice of Sample
 func (t *TrunBox) AddSamples(s []Sample) {
 	t.Samples = append(t.Samples, s...)
-	t.sampleCount += uint32(len(s))
 }
 
 // Duration - calculate total duration of all samples given defaultSampleDuration
@@ -444,10 +437,14 @@ func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 
 // GetSampleNrForRelativeTime - get sample number for exact relative time (calculated from summing durations)
 func (t *TrunBox) GetSampleNrForRelativeTime(deltaTime uint64, defaultSampleDuration uint32) (uint32, error) {
+	sampleCount := t.SampleCount()
+	if sampleCount == 0 {
+		return 0, fmt.Errorf("no samples in trun")
+	}
 	if !t.HasSampleDuration() {
 		nr := deltaTime / uint64(defaultSampleDuration)
-		if nr >= uint64(t.sampleCount) {
-			return 0, fmt.Errorf("time %d is bigger than largest time %d", deltaTime, (t.sampleCount-1)*defaultSampleDuration)
+		if nr >= uint64(sampleCount) {
+			return 0, fmt.Errorf("time %d is bigger than largest time %d", deltaTime, (sampleCount-1)*defaultSampleDuration)
 		}
 		if nr*uint64(defaultSampleDuration) == deltaTime {
 			return uint32(nr) + 1, nil

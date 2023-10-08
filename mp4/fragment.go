@@ -422,7 +422,7 @@ func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
 	moof := f.Moof
 	traf := moof.Traf
 	trun := traf.Trun
-	if trun.sampleCount == 0 {
+	if trun.SampleCount() == 0 {
 		traf.Tfdt.SetBaseMediaDecodeTime(sItvl.FirstDecodeTime)
 	}
 	trun.AddSamples(sItvl.Samples)
