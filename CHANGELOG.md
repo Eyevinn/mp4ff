@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - mp4.File now has Mfra pointer
 - MfraBox has new method FindEntry
 - MediaSegment, Fragment, and Trun method CommonSampleDuration
+- Added two MSS UUID constants
 
 ### Fixed
 
