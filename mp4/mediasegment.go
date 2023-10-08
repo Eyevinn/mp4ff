@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -193,4 +194,24 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 		}
 	}
 	return outFragments, nil
+}
+
+// CommonSampleDuration returns a common non-zero sample duration for a track defined by trex if available.
+func (s *MediaSegment) CommonSampleDuration(trex *TrexBox) (uint32, error) {
+	if trex == nil {
+		return 0, fmt.Errorf("trex not set")
+	}
+	var commonDur uint32
+	for i, frag := range s.Fragments {
+		cDur, err := frag.CommonSampleDuration(trex)
+		if err != nil {
+			return 0, fmt.Errorf("fragment.CommonSampleDuration: %w", err)
+		}
+		if i == 0 {
+			commonDur = cDur
+		} else if commonDur != cDur {
+			return 0, fmt.Errorf("different common sample duration in fragment %d", i+1)
+		}
+	}
+	return commonDur, nil
 }

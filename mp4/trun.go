@@ -423,7 +423,7 @@ func (t *TrunBox) AddSamples(s []Sample) {
 	t.Samples = append(t.Samples, s...)
 }
 
-// Duration - calculate total duration of all samples given defaultSampleDuration
+// Duration returns the total duration of all samples given defaultSampleDuration
 func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 	if !t.HasSampleDuration() {
 		return uint64(defaultSampleDuration) * uint64(t.SampleCount())
@@ -433,6 +433,23 @@ func (t *TrunBox) Duration(defaultSampleDuration uint32) uint64 {
 		total += uint64(s.Dur)
 	}
 	return total
+}
+
+// CommonSampleDuration returns the common duration if all samples have the same duration, otherwise 0.
+func (t *TrunBox) CommonSampleDuration(defaultSampleDuration uint32) uint32 {
+	if !t.HasSampleDuration() {
+		return defaultSampleDuration
+	}
+	if t.SampleCount() == 0 {
+		return 0
+	}
+	commonDur := t.Samples[0].Dur
+	for i := 1; i < int(t.SampleCount()); i++ {
+		if t.Samples[i].Dur != commonDur {
+			return 0
+		}
+	}
+	return commonDur
 }
 
 // GetSampleNrForRelativeTime - get sample number for exact relative time (calculated from summing durations)
