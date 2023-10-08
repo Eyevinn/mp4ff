@@ -153,3 +153,40 @@ func TestFirstSampleFlags(t *testing.T) {
 		t.Error("firstSampleFlags present after removal")
 	}
 }
+
+func TestCommonDuration(t *testing.T) {
+	cases := []struct {
+		commonDur       uint32
+		sampleDurs      []uint32
+		wantedCommonDur uint32
+	}{
+		{
+			commonDur:       1024,
+			sampleDurs:      []uint32{0, 0},
+			wantedCommonDur: 1024,
+		},
+		{
+			commonDur:       0,
+			sampleDurs:      []uint32{2048, 2048},
+			wantedCommonDur: 2048,
+		},
+		{
+			commonDur:       0,
+			sampleDurs:      []uint32{2047, 2049},
+			wantedCommonDur: 0,
+		},
+	}
+	for _, c := range cases {
+		trun := CreateTrun(0)
+		for _, s := range c.sampleDurs {
+			trun.AddSample(Sample{Dur: s})
+		}
+		if c.commonDur != 0 {
+			trun.Flags &= ^TrunSampleDurationPresentFlag
+		}
+		gotCommonDur := trun.CommonSampleDuration(c.commonDur)
+		if gotCommonDur != c.wantedCommonDur {
+			t.Errorf("got common duration %d instead of %d", gotCommonDur, c.wantedCommonDur)
+		}
+	}
+}

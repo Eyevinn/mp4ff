@@ -422,10 +422,53 @@ func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
 	moof := f.Moof
 	traf := moof.Traf
 	trun := traf.Trun
+	if len(moof.Trafs) != 1 || len(traf.Truns) != 1 {
+		return fmt.Errorf("not exactly one track and one trun in fragment")
+	}
 	if trun.SampleCount() == 0 {
 		traf.Tfdt.SetBaseMediaDecodeTime(sItvl.FirstDecodeTime)
 	}
 	trun.AddSamples(sItvl.Samples)
 	f.Mdat.AddSampleDataPart(sItvl.Data)
 	return nil
+}
+
+// CommonSampleDuration returns a common non-zero sample duration for a track defined by trex if available.
+func (f *Fragment) CommonSampleDuration(trex *TrexBox) (uint32, error) {
+	if trex == nil {
+		return 0, fmt.Errorf("trex not set")
+	}
+	moof := f.Moof
+	var traf *TrafBox
+	trackID := trex.TrackID
+	for _, t := range moof.Trafs {
+		if t.Tfhd.TrackID == trackID {
+			traf = t
+			break
+		}
+	}
+	if traf == nil {
+		return 0, fmt.Errorf("no track with trex trackID=%d", trackID)
+	}
+	commonDur := trex.DefaultSampleDuration
+	if traf.Tfhd.HasDefaultSampleDuration() {
+		commonDur = traf.Tfhd.DefaultSampleDuration
+	}
+	for _, trun := range traf.Truns {
+		cDur := trun.CommonSampleDuration(commonDur)
+		if commonDur != 0 {
+			if cDur != commonDur {
+				commonDur = 0
+			}
+		} else {
+			commonDur = cDur
+		}
+		if commonDur == 0 {
+			break
+		}
+	}
+	if commonDur == 0 {
+		return 0, fmt.Errorf("no common sample duration")
+	}
+	return commonDur, nil
 }
