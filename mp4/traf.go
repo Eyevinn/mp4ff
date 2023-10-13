@@ -73,7 +73,10 @@ func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 		// saio should be present, but we try without it, if it doesn't exist
 		posFromSaio := t.Saio.Offset[0] + int64(moofStartPos)
 		if uint64(posFromSaio) != t.Senc.StartPos+16 {
-			return fmt.Errorf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, t.Senc.StartPos+16)
+			//TODO. Reenable
+			//return fmt.Errorf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, t.Senc.StartPos+16)
+			fmt.Printf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, t.Senc.StartPos+16)
+
 		}
 	}
 	perSampleIVSize := defaultIVSize

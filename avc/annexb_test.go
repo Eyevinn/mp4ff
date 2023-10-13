@@ -2,6 +2,7 @@ package avc
 
 import (
 	"bytes"
+	"math/rand"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -229,5 +230,18 @@ func TestGetFirstAVCVideoNALUFromByteStream(t *testing.T) {
 		if !bytes.Equal(gotNalu, tc.firstVideoNALU) {
 			t.Errorf("%s: extracted nalu %q differs from input %q", tc.name, gotNalu, tc.firstVideoNALU)
 		}
+	}
+}
+
+func BenchmarkByteStreamToNaluSample(b *testing.B) {
+	l := 1024 * 1024
+	data := make([]byte, l)
+	s := rand.NewSource(42)
+	r := rand.New(s)
+	for i := 0; i < l; i++ {
+		data[i] = byte(r.Intn(256))
+	}
+	for j := 0; j < b.N; j++ {
+		_ = ConvertByteStreamToNaluSample(data)
 	}
 }

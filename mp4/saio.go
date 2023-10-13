@@ -15,6 +15,18 @@ type SaioBox struct {
 	Offset               []int64
 }
 
+// Return a new SaioBox with one offset to be updated later
+func NewSaioBox() *SaioBox {
+	return &SaioBox{
+		Offset: []int64{-1},
+	}
+}
+
+// SetOffset sets offset for first (and only) entry
+func (b *SaioBox) SetOffset(offset int64) {
+	b.Offset[0] = offset
+}
+
 // DecodeSaio - box-specific decode
 func DecodeSaio(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)

@@ -23,6 +23,8 @@ Some useful command line tools are available in `cmd`.
 3. `mp4ff-nallister` lists NALUs and picture types for video in progressive or fragmented file
 4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
 5. `mp4ff-crop` shortens a progressive mp4 file to a specified duration
+6. `mp4ff-encrypt` encrypts a fragmented file using cenc or cbcs Common Encryption scheme
+7. `mp4ff-decrypt` decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
 
 You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
 
@@ -40,8 +42,7 @@ The examples and their functions are:
     This tool has been extended to support generation of segments with multiple tracks as well
     as reading and writing `mdat` in lazy mode
 4. `multitrack` parses a fragmented file with multiple tracks
-5. `decrypt-cenc` decrypts a segmented mp4 file encrypted in `cenc` mode
-6. `combine-segs` combines single-track init and media segments into multi-track segments
+5. `combine-segs` combines single-track init and media segments into multi-track segments
 
 ## Library
 

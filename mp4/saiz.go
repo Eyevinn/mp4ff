@@ -49,6 +49,35 @@ func DecodeSaizSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &b, sr.AccError()
 }
 
+// NewSaizBox creates a SaizBox with appropriate size allocated.
+func NewSaizBox(capacity int) *SaizBox {
+	return &SaizBox{
+		SampleInfo: make([]byte, 0, capacity),
+	}
+}
+
+// AddSampleInfo adds a sampleinfo info based on parameters provided.
+// If no length field, don't update the sample field (typicall audio cbcs)
+func (b *SaizBox) AddSampleInfo(iv []byte, subsamplePatterns []SubSamplePattern) {
+	size := len(iv)
+	if len(subsamplePatterns) > 0 {
+		size += 2 + len(subsamplePatterns)*6
+		b.SampleInfo = append(b.SampleInfo, byte(size))
+	} else if size > 0 {
+		switch b.DefaultSampleInfoSize {
+		case 0:
+			b.DefaultSampleInfoSize = byte(size)
+		default:
+			if byte(size) != b.DefaultSampleInfoSize {
+				panic("inconsistent sample info size")
+			}
+		}
+	}
+	if size > 0 {
+		b.SampleCount++
+	}
+}
+
 // Type - return box type
 func (b *SaizBox) Type() string {
 	return "saiz"

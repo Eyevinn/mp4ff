@@ -7,13 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New CLI app: mp4ff-encrypt to encrypt segments
+- New CLI app: mp4ff-decrypt to decrypt segments
+- New encyption-related functions in mp4
+  - GetAVCProtectRanges to fine protection ranges for AVC video
+  - CryptSampleCenc for encrypting of decrypting with cenc scheme
+  - EncryptSampleCbcs - for encrypting with cbcs scheme
+  - DecryptSampleCbcs - for decrypting with cbcs scheme
+  - InitProtect to protect an init segment
+  - EncryptFragment to encrypt a fragment
+  - DecryptInit to extract and remove  decryption info from an init segment
+  - DecryptFragment to decrypt a fragment
+  - ExtractInitProtect to generate data needed for encryption
+- AccErrEBSPReader.NrBitsRead method
+- PsshBoxesFromBase64 and PsshBoxesFromBytes functions
+
 ### Fixed
 
 - SPS.ChromaArrayType method
-
-### Added
-
-- AccErrEBSPReader.NrBitsRead method
+- Makefile now builds all CLI applications with version
 
 ## [0.39.0] - 2023-10-13
 
