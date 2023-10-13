@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- nothing yet
+### Fixed
+
+- SPS.ChromaArrayType method
+
+### Added
+
+- AccErrEBSPReader.NrBitsRead method
 
 ## [0.39.0] - 2023-10-13
 
