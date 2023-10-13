@@ -261,9 +261,9 @@ func (s *SPS) PicStructPresent() bool {
 	return s.VUI.PicStructPresentFlag
 }
 
-// ChromaArrayType as defined in Section 7.4.2.1.1
+// ChromaArrayType as defined in Section 7.4.2.1.1 under separate_colour_plane_flag
 func (s *SPS) ChromaArrayType() byte {
-	if s.SeparateColourPlaneFlag {
+	if !s.SeparateColourPlaneFlag {
 		return byte(s.ChromaFormatIDC)
 	}
 	return 0
