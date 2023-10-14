@@ -248,9 +248,9 @@ func TestPicTimingAvcSEI(t *testing.T) {
 			}
 			decPl := msg.Payload()
 			if !bytes.Equal(decPl, pl) {
+				t.Logf("decPl: %s\n", hex.EncodeToString(decPl))
+				t.Logf("pl:    %s\n", hex.EncodeToString(pl))
 				t.Errorf("decoded payload differs from expected")
-				fmt.Printf("decPl: %s\n", hex.EncodeToString(decPl))
-				fmt.Printf("pl:    %s\n", hex.EncodeToString(pl))
 			}
 		})
 	}

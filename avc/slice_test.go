@@ -2,7 +2,6 @@ package avc
 
 import (
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -61,8 +60,7 @@ func TestParseSliceHeader_BlackFrame(t *testing.T) {
 		}
 	}
 	if diff := deep.Equal(wantedHdr, *gotHdr); diff != nil {
-		fmt.Printf("Got Slice Header: %+v\n Diff is: ", *gotHdr)
-		t.Error(diff)
+		t.Errorf("Got slice header %+v. Diff=%v", *gotHdr, diff)
 	}
 }
 
@@ -112,11 +110,9 @@ func TestParseSliceHeader_TwoFrames(t *testing.T) {
 		}
 	}
 	if diff := deep.Equal(wantedIdrHdr, *gotIdrHdr); diff != nil {
-		fmt.Printf("Got IDR Slice Header: %+v\n Diff is: ", *gotIdrHdr)
-		t.Error(diff)
+		t.Errorf("Got IDR Slice Header: %+v\n Diff is: %v", *gotIdrHdr, diff)
 	}
 	if diff := deep.Equal(wantedNonIdrHdr, *gotNonIdrHdr); diff != nil {
-		fmt.Printf("Got NON_IDR Slice Header: %+v\n Diff is: ", *gotNonIdrHdr)
-		t.Error(diff)
+		t.Errorf("Got NON_IDR Slice Header: %+v\n Diff is: %v", *gotNonIdrHdr, diff)
 	}
 }

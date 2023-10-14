@@ -3,7 +3,6 @@ package mp4
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -29,8 +28,7 @@ func TestDecodeDescriptor(t *testing.T) {
 		t.Error(err)
 	}
 	if !bytes.Equal(sw.Bytes(), esDesc) {
-		t.Error("written es descriptor differs from read")
-		fmt.Printf("%s\n", hex.EncodeToString(sw.Bytes()))
-		fmt.Printf("%s\n", hex.EncodeToString(esDesc))
+		t.Errorf("written es descriptor differs from read\n%s\n%s",
+			hex.EncodeToString(sw.Bytes()), hex.EncodeToString(esDesc))
 	}
 }

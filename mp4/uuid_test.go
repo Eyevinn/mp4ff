@@ -3,7 +3,6 @@ package mp4
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 )
 
@@ -51,7 +50,7 @@ func TestUUIDVariants(t *testing.T) {
 
 		if !bytes.Equal(inRawBox, outRawBox) {
 			for i := 0; i < len(inRawBox); i++ {
-				fmt.Printf("%3d %02x %02x\n", i, inRawBox[i], outRawBox[i])
+				t.Logf("%3d %02x %02x\n", i, inRawBox[i], outRawBox[i])
 			}
 			t.Errorf("%s: Non-matching in and out binaries", ti.expectedSubType)
 		}

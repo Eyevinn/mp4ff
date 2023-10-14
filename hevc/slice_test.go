@@ -1,10 +1,10 @@
 package hevc
 
 import (
-	"fmt"
-	"github.com/Eyevinn/mp4ff/avc"
 	"io/ioutil"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/avc"
 
 	"github.com/go-test/deep"
 )
@@ -113,7 +113,6 @@ func TestParseSliceHeader(t *testing.T) {
 		}
 	}
 	if diff := deep.Equal(wantedHdr, gotHdr); diff != nil {
-		fmt.Printf("Got Slice Header: %+v\n Diff is: ", gotHdr)
-		t.Error(diff)
+		t.Errorf("Got Slice Header: %+v\n Diff is %v", gotHdr, diff)
 	}
 }
