@@ -34,6 +34,15 @@ func (r *AccErrEBSPReader) NrBytesRead() int {
 	return r.pos + 1 // Starts at -1
 }
 
+// NrBitsRead - how many bits read into parser
+func (r *AccErrEBSPReader) NrBitsRead() int {
+	nrBits := r.NrBytesRead() * 8
+	if r.NrBitsReadInCurrentByte() != 8 {
+		nrBits += r.NrBitsReadInCurrentByte() - 8
+	}
+	return nrBits
+}
+
 // NrBitsReadInCurrentByte - how many bits have been read
 func (r *AccErrEBSPReader) NrBitsReadInCurrentByte() int {
 	return 8 - r.n

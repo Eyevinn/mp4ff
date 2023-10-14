@@ -104,6 +104,7 @@ type SliceHeader struct {
 	ModificationOfPicNumsIDC      uint32
 	AbsDiffPicNumMinus1           uint32
 	LongTermPicNum                uint32
+	AbsDiffViewIdxMinus1          uint32
 	LumaLog2WeightDenom           uint32
 	ChromaLog2WeightDenom         uint32
 	DifferenceOfPicNumsMinus1     uint32
@@ -129,6 +130,7 @@ type SliceHeader struct {
 	AdaptiveRefPicMarkingModeFlag bool
 }
 
+// ParseSliceHeader parses AVC slice header following the syntax in ISO/IEC 14496-10 section 7.3.3
 func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) (*SliceHeader, error) {
 	sh := SliceHeader{}
 	buf := bytes.NewBuffer(nalu)
@@ -204,7 +206,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		}
 	}
 
-	// ref_pic_list_modification (nal unit type != 20)
+	// ref_pic_list_modification (nal unit type != 20 or 21) Section G.3.3.3.1.1
 	if sliceType != SLICE_I && sliceType != SLICE_SI {
 		sh.RefPicListModificationL0Flag = r.ReadFlag()
 		if sh.RefPicListModificationL0Flag {
@@ -216,6 +218,8 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 					sh.AbsDiffPicNumMinus1 = uint32(r.ReadExpGolomb())
 				case 2:
 					sh.LongTermPicNum = uint32(r.ReadExpGolomb())
+				case 4, 5:
+					sh.AbsDiffViewIdxMinus1 = uint32(r.ReadExpGolomb())
 				case 3:
 					break refPicListL0Loop
 				}
@@ -236,6 +240,8 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 					sh.AbsDiffPicNumMinus1 = uint32(r.ReadExpGolomb())
 				case 2:
 					sh.LongTermPicNum = uint32(r.ReadExpGolomb())
+				case 4, 5:
+					sh.AbsDiffViewIdxMinus1 = uint32(r.ReadExpGolomb())
 				case 3:
 					break refPicListL1Loop
 				}
@@ -249,9 +255,9 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 
 	if pps.WeightedPredFlag && (sliceType == SLICE_P || sliceType == SLICE_SP) ||
 		(pps.WeightedBipredIDC == 1 && sliceType == SLICE_B) {
-		// pred_weight_table
+		// pred_weight_table, section 7.3.3.2
 		sh.LumaLog2WeightDenom = uint32(r.ReadExpGolomb())
-		if sps.ChromaArrayType() != 0 {
+		if sps.ChromaArrayType() != 0 { // chroma_idc != 0 in Bento4
 			sh.ChromaLog2WeightDenom = uint32(r.ReadExpGolomb())
 		}
 
@@ -281,9 +287,9 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 					_ = r.ReadExpGolomb() // luma_weight_l1[i] = SignedGolomb()
 					_ = r.ReadExpGolomb() // luma_offset_l1[i] = SignedGolomb()
 				}
-				if sps.ChromaFormatIDC != 0 {
-					chromaWeightL0Flag := r.ReadFlag()
-					if chromaWeightL0Flag {
+				if sps.ChromaArrayType() != 0 {
+					chromaWeightL1Flag := r.ReadFlag()
+					if chromaWeightL1Flag {
 						// Just parse, don't store this
 						for j := 0; j < 2; j++ {
 							_ = r.ReadSignedGolomb() // chroma_weight_l1[i][j] = SignedGolomb()
@@ -350,12 +356,12 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		pps.SliceGroupMapType >= 3 &&
 		pps.SliceGroupMapType <= 5 {
 		picSizeInMapUnits := pps.PicSizeInMapUnitsMinus1 + 1
-		sliceGroupChangeRage := pps.SliceGroupChangeRateMinus1 + 1
-		nrBits := int(math.Ceil(math.Log2(float64(picSizeInMapUnits/sliceGroupChangeRage + 1))))
+		sliceGroupChangeRate := pps.SliceGroupChangeRateMinus1 + 1
+		nrBits := int(math.Ceil(math.Log2(float64(picSizeInMapUnits/sliceGroupChangeRate + 1))))
 		sh.SliceGroupChangeCycle = uint32(r.Read(nrBits))
 	}
 
-	// compute the size in bytes. The last byte may not be fully read
+	// compute the size in bytes. The last byte may not be fully parsed
 	sh.Size = uint32(r.NrBytesRead())
 	return &sh, nil
 }

@@ -116,3 +116,32 @@ func TestParseSliceHeader_TwoFrames(t *testing.T) {
 		t.Errorf("Got NON_IDR Slice Header: %+v\n Diff is: %v", *gotNonIdrHdr, diff)
 	}
 }
+
+func TestParseSliceHeaderLength(t *testing.T) {
+	spsHex := "6764001eacd940a02ff9610000030001000003003c8f162d96"
+	ppsHex := "68ebecb22c"
+	naluStartHex := "419a6649e10f2653022fff8700000302c8a32d32"
+	spsData, _ := hex.DecodeString(spsHex)
+	sps, err := ParseSPSNALUnit(spsData, true)
+	if err != nil {
+		t.Error(err)
+	}
+	spsMap := make(map[uint32]*SPS, 1)
+	spsMap[uint32(sps.ParameterID)] = sps
+	ppsData, _ := hex.DecodeString(ppsHex)
+	pps, err := ParsePPSNALUnit(ppsData, spsMap)
+	if err != nil {
+		t.Error(err)
+	}
+	ppsMap := make(map[uint32]*PPS, 1)
+	ppsMap[uint32(pps.PicParameterSetID)] = pps
+	naluStart, _ := hex.DecodeString(naluStartHex)
+	sh, err := ParseSliceHeader(naluStart, spsMap, ppsMap)
+	if err != nil {
+		t.Error(err)
+	}
+	wantedSliceHeaderSize := uint32(11)
+	if sh.Size != wantedSliceHeaderSize {
+		t.Errorf("got %d want %d", sh.Size, wantedSliceHeaderSize)
+	}
+}
