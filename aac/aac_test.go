@@ -3,7 +3,6 @@ package aac
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -46,7 +45,7 @@ func TestAudioSpecificConfigEncodeDecode(t *testing.T) {
 			t.Error(err)
 		}
 		ascBytes := buf.Bytes()
-		fmt.Printf("ASC: %s\n", hex.EncodeToString(ascBytes))
+		t.Logf("ASC: %s\n", hex.EncodeToString(ascBytes))
 
 		readBuf := bytes.NewBuffer(ascBytes)
 		gotAsc, err := DecodeAudioSpecificConfig(readBuf)
