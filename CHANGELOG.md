@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- fix AVC slice header parsing #272
 - mp4ff-wvttlister works with Unified Streaming wvtt ismt file
 - Fragment.GetFullSamples() allows tfdt to be absent
 - Fragment.GetFullSamples() defaults to offset being moof
