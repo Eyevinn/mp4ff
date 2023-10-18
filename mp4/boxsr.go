@@ -11,10 +11,12 @@ var decodersSR map[string]BoxDecoderSR
 func init() {
 	decodersSR = map[string]BoxDecoderSR{
 		"ac-3":    DecodeAudioSampleEntrySR,
+		"av01":    DecodeVisualSampleEntrySR,
 		"avc1":    DecodeVisualSampleEntrySR,
 		"avc3":    DecodeVisualSampleEntrySR,
 		"alou":    DecodeAlouBoxSR,
 		"avcC":    DecodeAvcCSR,
+		"av1C":    DecodeAv1CSR,
 		"btrt":    DecodeBtrtSR,
 		"cdat":    DecodeCdatSR,
 		"cdsc":    DecodeTrefTypeSR,

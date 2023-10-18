@@ -21,9 +21,11 @@ func init() {
 	decoders = map[string]BoxDecoder{
 		"ac-3":    DecodeAudioSampleEntry,
 		"alou":    DecodeAlou,
+		"av01":    DecodeVisualSampleEntry,
 		"avc1":    DecodeVisualSampleEntry,
 		"avc3":    DecodeVisualSampleEntry,
 		"avcC":    DecodeAvcC,
+		"av1C":    DecodeAv1C,
 		"btrt":    DecodeBtrt,
 		"cdat":    DecodeCdat,
 		"cdsc":    DecodeTrefType,
