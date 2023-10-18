@@ -14,8 +14,7 @@ func TestDecodeAV1DecConfRec(t *testing.T) {
 	byteData, _ := hex.DecodeString(av1DecoderConfigRecord)
 	configOBUsBytes, _ := hex.DecodeString(configOBUs)
 
-	wanted := DecConfRec{
-		Marker:                           1,
+	wanted := CodecConfRec{
 		Version:                          1,
 		SeqProfile:                       0,
 		SeqLevelIdx0:                     9,
@@ -31,7 +30,7 @@ func TestDecodeAV1DecConfRec(t *testing.T) {
 		ConfigOBUs:                       configOBUsBytes,
 	}
 
-	got, err := DecodeAV1DecConfRec(byteData)
+	got, err := DecodeAV1CodecConfRec(byteData)
 	if err != nil {
 		t.Error("Error parsing Av1DecoderConfigRecord")
 	}
