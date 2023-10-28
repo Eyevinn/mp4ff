@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -36,13 +37,13 @@ func TestDecryptFiles(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		raw, err := ioutil.ReadFile(tc.inFile)
+		ifh, err := os.Open(tc.inFile)
 		if err != nil {
 			t.Error(err)
 		}
-		inBuf := bytes.NewBuffer(raw)
 		buf := bytes.Buffer{}
-		err = start(inBuf, &buf, tc.hexKey)
+		err = decryptFile(ifh, nil, &buf, tc.hexKey)
+		ifh.Close()
 		if err != nil {
 			t.Error(err)
 		}
@@ -70,7 +71,7 @@ func BenchmarkDecodeCenc(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		inBuf := bytes.NewBuffer(raw)
 		outBuf.Reset()
-		err = start(inBuf, outBuf, hexKey)
+		err = decryptFile(inBuf, nil, outBuf, hexKey)
 		if err != nil {
 			b.Error(err)
 		}

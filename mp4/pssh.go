@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -25,6 +26,18 @@ func (u UUID) String() string {
 		return h
 	}
 	return fmt.Sprintf("%s-%s-%s-%s-%s", h[0:8], h[8:12], h[12:16], h[16:20], h[20:32])
+}
+
+// NewUUIDFromHex creates a UUID from a hexadecimal string with 32 chars
+func NewUUIDFromHex(h string) (UUID, error) {
+	if len(h) != 32 {
+		return nil, fmt.Errorf("hex has %d chars, not 32", len(h))
+	}
+	s, err := hex.DecodeString(h)
+	if err != nil {
+		return nil, err
+	}
+	return UUID(s), nil
 }
 
 func systemName(systemID UUID) string {
@@ -144,4 +157,34 @@ func (b *PsshBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		bd.write(" - data: %s", hex.EncodeToString(b.Data))
 	}
 	return bd.err
+}
+
+// PsshBoxesFromDBytesextracts pssh boxes from slice of bytes
+func PsshBoxesFromBytes(psshData []byte) ([]*PsshBox, error) {
+	psshBoxes := make([]*PsshBox, 0, 1)
+	sr := bits.NewFixedSliceReader(psshData)
+	pos := uint64(0)
+	for pos < uint64(len(psshData)) {
+		box, err := DecodeBoxSR(pos, sr)
+		if err != nil {
+			return nil, fmt.Errorf("decode pssh box: %w", err)
+		}
+		pssh, ok := box.(*PsshBox)
+		if !ok {
+			return nil, fmt.Errorf("expected pssh box, got %s", box.Type())
+		}
+		psshBoxes = append(psshBoxes, pssh)
+		pos += pssh.Size()
+	}
+	return psshBoxes, nil
+}
+
+// PsshBoxesFromBase64 extracts pssh boxes from base64-encoded string
+func PsshBoxesFromBase64(psshBase64 string) ([]*PsshBox, error) {
+	enc := base64.StdEncoding
+	data, err := enc.DecodeString(psshBase64)
+	if err != nil {
+		return nil, fmt.Errorf("decode pssh base64: %w", err)
+	}
+	return PsshBoxesFromBytes(data)
 }

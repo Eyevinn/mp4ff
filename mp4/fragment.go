@@ -147,9 +147,14 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 			baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 		}
 		mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
-		offsetInMdat := baseOffset - mdat.PayloadAbsoluteOffset()
-		if offsetInMdat > mdatDataLength {
-			return nil, fmt.Errorf("offset in mdata beyond size")
+		var offsetInMdat uint64
+		if baseOffset > 0 {
+			offsetInMdat = baseOffset - mdat.PayloadAbsoluteOffset()
+			if offsetInMdat > mdatDataLength {
+				return nil, fmt.Errorf("offset in mdata beyond size")
+			}
+		} else {
+			offsetInMdat = 0
 		}
 		samples = append(samples, trun.GetFullSamples(uint32(offsetInMdat), baseTime, mdat)...)
 		baseTime += totalDur // Next trun start after this

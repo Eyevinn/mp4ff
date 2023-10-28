@@ -33,7 +33,7 @@ type SencBox struct {
 	Flags            uint32
 	SampleCount      uint32
 	StartPos         uint64
-	rawData          []byte
+	rawData          []byte                 // intermediate storage when reading
 	IVs              []InitializationVector // 8 or 16 bytes if present
 	SubSamples       [][]SubSamplePattern
 }
@@ -41,6 +41,18 @@ type SencBox struct {
 // CreateSencBox - create an empty SencBox
 func CreateSencBox() *SencBox {
 	return &SencBox{}
+}
+
+// NewSencBox returns a SencBox with capacity for IVs and SubSamples.
+func NewSencBox(ivCapacity, subSampleCapacity int) *SencBox {
+	s := SencBox{}
+	if ivCapacity > 0 {
+		s.IVs = make([]InitializationVector, 0, ivCapacity)
+	}
+	if subSampleCapacity > 0 {
+		s.SubSamples = make([][]SubSamplePattern, 0, subSampleCapacity)
+	}
+	return &s
 }
 
 // SencSample - sample in SencBox
@@ -51,17 +63,19 @@ type SencSample struct {
 
 // AddSample - add a senc sample with possible IV and subsamples
 func (s *SencBox) AddSample(sample SencSample) error {
-	if s.SampleCount == 0 {
-		s.perSampleIVSize = byte(len(sample.IV))
-	} else {
-		if len(sample.IV) != int(s.perSampleIVSize) {
-			return fmt.Errorf("mix of IV lengths")
+	if len(sample.IV) != 0 {
+		if s.SampleCount == 0 {
+			s.perSampleIVSize = byte(len(sample.IV))
+		} else {
+			if len(sample.IV) != int(s.perSampleIVSize) {
+				return fmt.Errorf("mix of IV lengths")
+			}
+		}
+		if len(sample.IV) != 0 {
+			s.IVs = append(s.IVs, sample.IV)
 		}
 	}
 
-	if len(sample.IV) != 0 {
-		s.IVs = append(s.IVs, sample.IV)
-	}
 	if len(sample.SubSamples) > 0 {
 		s.SubSamples = append(s.SubSamples, sample.SubSamples)
 		s.Flags |= UseSubSampleEncryption
@@ -305,7 +319,7 @@ func (s *SencBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	perSampleIVSize := s.GetPerSampleIVSize()
 	bd.write(" - perSampleIVSize: %d", perSampleIVSize)
 	level := getInfoLevel(s, specificBoxLevels)
-	if level > 0 {
+	if level > 0 && (perSampleIVSize > 0 || s.Flags&UseSubSampleEncryption != 0) {
 		for i := 0; i < int(s.SampleCount); i++ {
 			line := fmt.Sprintf(" - sample[%d]:", i+1)
 			if perSampleIVSize > 0 {
