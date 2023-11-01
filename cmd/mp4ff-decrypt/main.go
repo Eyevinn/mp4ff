@@ -79,7 +79,7 @@ func main() {
 		}
 		defer inith.Close()
 	}
-	err = decryptFile(ifh, ofh, inith, opts.hexKey)
+	err = decryptFile(ifh, inith, ofh, opts.hexKey)
 	if err != nil {
 		log.Fatalln(err)
 	}
