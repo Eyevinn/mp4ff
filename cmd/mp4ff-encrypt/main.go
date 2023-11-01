@@ -1,3 +1,4 @@
+// mp4ff-encrypt encrypts a fragmented mp4 file using Common Encryption using cenc or cbcs scheme.
 package main
 
 import (
@@ -15,7 +16,7 @@ import (
 
 var usg = `Usage of %s:
 
-%s encrypts a fragmented mp4 file encrypted using Common Encryption with cenc or cbcs scheme.
+%s encrypts a fragmented mp4 file using Common Encryption using cenc or cbcs scheme.
 For a media segment, it needs an init segment with encryption information.
 `
 
