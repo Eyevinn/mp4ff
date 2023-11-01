@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet
 
+## [0.40.1] - 2023-11-01
+
+### Fixed
+
+- Swap of parameters in mp4ff-decrypt
+
 ## [0.40.0] - 2023-10-28
 
 ### Added
@@ -32,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - SPS.ChromaArrayType method
 - Makefile now builds all CLI applications with version
+
+### Changed
+
+- Removed examples/decrypt-cenc and instead made cmd/mp4ff-decrypt
 
 ## [0.39.0] - 2023-10-13
 
@@ -494,7 +504,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.40.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.40.1...HEAD
+[0.40.1]: https://github.com/Eyevinn/mp4ff/compare/v0.40.0...v0.40.1
 [0.40.0]: https://github.com/Eyevinn/mp4ff/compare/v0.39.0...v0.40.0
 [0.39.0]: https://github.com/Eyevinn/mp4ff/compare/v0.38.0...v0.39.0
 [0.38.1]: https://github.com/Eyevinn/mp4ff/compare/v0.37.0...v0.38.0
