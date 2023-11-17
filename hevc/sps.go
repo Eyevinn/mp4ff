@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Eyevinn/mp4ff/avc"
-	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/nwaschbuesch-frameio/mp4ff/avc"
+	"github.com/nwaschbuesch-frameio/mp4ff/bits"
 )
 
 // SPS - HEVC SPS parameters
