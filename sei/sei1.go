@@ -40,6 +40,7 @@ func DecodePicTimingAvcSEI(sd *SEIData) (SEIMessage, error) {
 
 // DecodePicTimingAvcSEIHRD decodes AVC SEI message 1 PicTiming with HRD parameters.
 // cbpDbpDelay length fields must be properly set if cbpDbpDelay is not nil.
+// The delay values in cbpDbpDelay will then be set by the decoder by reading the bits.
 // It is assumed that pict_struct_present_flag is true, so that a 4-bit pict_struct value is present.
 func DecodePicTimingAvcSEIHRD(sd *SEIData, cbpDbpDelay *CbpDbpDelay, timeOffsetLen byte) (SEIMessage, error) {
 	buf := bytes.NewBuffer(sd.Payload())
