@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+### Fixed
+
+- Test of AVC PicTiming SEI with cbpDbpDelay set
+- mp4ff-nallister has nicer output for annexb streams
+- mp4ff-nallister handles AVC PicTiming SEI with cbpDbpDelay set
 
 ## [0.40.1] - 2023-11-01
 
