@@ -282,10 +282,16 @@ const (
 	seiCEA608Hex = "0434b500314741393403cefffc9420fc94aefc9162fce56efc67bafc91b9" +
 		"fcb0b0fcbab0fcb0bafcb031fcbab0fcb080fc942cfc942f80"
 	seiAVCMulti             = "0001c001061b0509b8000080"
+	seiAVCPicTiming         = "010f00011a00000300090c2e268a000003004080"
 	missingRbspTrailingBits = "01061b0509b80000"
 	seiHEVCMulti            = "000a8000000300403dc017a6900105040000be05880660404198b41080"
 	seiHEVCHDR              = "891800000300000300000300000300000300000300000300000300000300000300000300009004000003000080"
 )
+
+type avcHRD struct {
+	cbpDelay      *sei.CbpDbpDelay
+	timeOffsetLen byte
+}
 
 func TestParseSEI(t *testing.T) {
 
@@ -293,27 +299,43 @@ func TestParseSEI(t *testing.T) {
 		name           string
 		codec          sei.Codec
 		naluHex        string
+		avcHRD         *avcHRD
 		wantedTypes    []uint
 		wantedStrings  []string
 		expNonFatalErr error
 	}{
-		{"AVC multi", sei.AVC, seiAVCMulti, []uint{0, 1},
+		{"AVC PicTiming", sei.AVC, seiAVCPicTiming,
+			&avcHRD{
+				cbpDelay: &sei.CbpDbpDelay{
+					InitialCpbRemovalDelayLengthMinus1: 23,
+					CpbRemovalDelayLengthMinus1:        23,
+					DpbOutputDelayLengthMinus1:         23,
+				},
+				timeOffsetLen: 24,
+			},
+			[]uint{1},
+			[]string{
+				`SEIPicTimingType (1), size=15, time=20:40:09:46 offset=24`,
+			},
+			nil,
+		},
+		{"AVC multi", sei.AVC, seiAVCMulti, nil, []uint{0, 1},
 			[]string{
 				`SEIBufferingPeriodType (0), size=1, "c0"`,
 				`SEIPicTimingType (1), size=6, time=00:00:46:09 offset=0`,
 			},
 			nil,
 		},
-		{"Missing RBSP Trailing Bits", sei.AVC, missingRbspTrailingBits, []uint{1},
+		{"Missing RBSP Trailing Bits", sei.AVC, missingRbspTrailingBits, nil, []uint{1},
 			[]string{
 				`SEIPicTimingType (1), size=6, time=00:00:46:09 offset=0`,
 			},
 			sei.ErrRbspTrailingBitsMissing,
 		},
-		{"Type 0", sei.AVC, sei0Hex, []uint{0}, []string{`SEIBufferingPeriodType (0), size=7, "810f1c00507440"`}, nil},
-		{"CEA-608", sei.AVC, seiCEA608Hex, []uint{4},
+		{"Type 0", sei.AVC, sei0Hex, nil, []uint{0}, []string{`SEIBufferingPeriodType (0), size=7, "810f1c00507440"`}, nil},
+		{"CEA-608", sei.AVC, seiCEA608Hex, nil, []uint{4},
 			[]string{`SEI type 4 CEA-608, size=52, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`}, nil},
-		{"HEVC multi", sei.HEVC, seiHEVCMulti, []uint{0, 1, 136},
+		{"HEVC multi", sei.HEVC, seiHEVCMulti, nil, []uint{0, 1, 136},
 			[]string{
 				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
 				`SEIPicTimingType (1), size=5, "040000be05"`,
@@ -321,7 +343,7 @@ func TestParseSEI(t *testing.T) {
 			},
 			nil,
 		},
-		{"Type HDR HEVC", sei.HEVC, seiHEVCHDR, []uint{137, 144},
+		{"Type HDR HEVC", sei.HEVC, seiHEVCHDR, nil, []uint{137, 144},
 			[]string{
 				"SEIMasteringDisplayColourVolumeType (137) 24B: primaries=(0, 0) (0, 0) (0, 0)," +
 					" whitePoint=(0, 0), maxLum=0, minLum=0",
@@ -344,7 +366,13 @@ func TestParseSEI(t *testing.T) {
 			t.Errorf("%s: Not %d but %d sei messages found", tc.name, len(tc.wantedStrings), len(seis))
 		}
 		for i := range seis {
-			seiMessage, err := sei.DecodeSEIMessage(&seis[i], tc.codec)
+			var seiMessage sei.SEIMessage
+			if tc.avcHRD == nil {
+				seiMessage, err = sei.DecodeSEIMessage(&seis[i], tc.codec)
+			} else {
+				seiMessage, err = sei.DecodePicTimingAvcSEIHRD(&seis[i], tc.avcHRD.cbpDelay, tc.avcHRD.timeOffsetLen)
+
+			}
 			if err != nil {
 				t.Error(err)
 			}

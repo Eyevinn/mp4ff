@@ -68,13 +68,30 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if *codec == "avc" {
-			err = printAVCNalus(nalus, 0, 0, *seiLevel, *parameterSets, *printRaw)
-		} else {
-			err = printHEVCNalus(nalus, 0, 0, *seiLevel, *parameterSets, *printRaw)
-		}
+		frames, err := findAnnexBFrames(nalus, *codec)
 		if err != nil {
 			log.Fatal(err)
+		}
+		var avcSPS *avc.SPS
+		for i, frame := range frames {
+			if *codec == "avc" {
+				if avcSPS == nil {
+					for _, nalu := range frame {
+						if avc.GetNaluType(nalu[0]) == avc.NALU_SPS {
+							avcSPS, err = avc.ParseSPSNALUnit(nalu, true)
+							if err != nil {
+								log.Fatal(err)
+							}
+						}
+					}
+				}
+				err = printAVCNalus(avcSPS, frame, i+1, 0, *seiLevel, *parameterSets, *printRaw)
+			} else {
+				err = printHEVCNalus(frame, i+1, 0, *seiLevel, *parameterSets, *printRaw)
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 		os.Exit(0)
 	}
@@ -109,18 +126,27 @@ func main() {
 func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
 	videoTrak, ok := findFirstVideoTrak(f.Moov)
 	if !ok {
-		return fmt.Errorf("No video track found")
+		return fmt.Errorf("no video track found")
 	}
 
+	var avcSPS *avc.SPS
+	var err error
 	stbl := videoTrak.Mdia.Minf.Stbl
 	if stbl.Stsd.AvcX != nil {
 		codec = "avc"
+		if stbl.Stsd.AvcX.AvcC != nil {
+			avcSPS, err = avc.ParseSPSNALUnit(stbl.Stsd.AvcX.AvcC.SPSnalus[0], true)
+			if err != nil {
+				return fmt.Errorf("error parsing SPS: %s", err)
+			}
+		}
 	} else if stbl.Stsd.HvcX != nil {
 		codec = "hevc"
 	}
 	nrSamples := stbl.Stsz.SampleNumber
 	mdat := f.Mdat
 	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
+
 	for sampleNr := 1; sampleNr <= int(nrSamples); sampleNr++ {
 		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(sampleNr)
 		if err != nil {
@@ -145,11 +171,21 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel i
 		}
 		switch codec {
 		case "avc", "h.264", "h264":
-			err = printAVCNalus(nalus, sampleNr, decTime+uint64(cto), seiLevel, parameterSets, nrRaw)
+			if avcSPS == nil {
+				for _, nalu := range nalus {
+					if avc.GetNaluType(nalu[0]) == avc.NALU_SPS {
+						avcSPS, err = avc.ParseSPSNALUnit(nalu, true)
+						if err != nil {
+							return fmt.Errorf("error parsing SPS: %s", err)
+						}
+					}
+				}
+			}
+			err = printAVCNalus(avcSPS, nalus, sampleNr, decTime+uint64(cto), seiLevel, parameterSets, nrRaw)
 		case "hevc", "h.265", "h265":
 			err = printHEVCNalus(nalus, sampleNr, decTime+uint64(cto), seiLevel, parameterSets, nrRaw)
 		default:
-			return fmt.Errorf("Unknown codec: %s", codec)
+			return fmt.Errorf("unknown codec: %s", codec)
 		}
 		if err != nil {
 			return err
@@ -184,15 +220,23 @@ func getChunkOffset(stbl *mp4.StblBox, chunkNr int) int64 {
 
 func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
 	var trex *mp4.TrexBox
+	var avcSPS *avc.SPS
+	var err error
 	if f.Init != nil { // Auto-detect codec if moov box is there
 		moov := f.Init.Moov
 		videoTrak, ok := findFirstVideoTrak(moov)
 		if !ok {
-			return fmt.Errorf("No video track found")
+			return fmt.Errorf("no video track found")
 		}
 		stbl := videoTrak.Mdia.Minf.Stbl
 		if stbl.Stsd.AvcX != nil {
 			codec = "avc"
+			if stbl.Stsd.AvcX.AvcC != nil {
+				avcSPS, err = avc.ParseSPSNALUnit(stbl.Stsd.AvcX.AvcC.SPSnalus[0], true)
+				if err != nil {
+					return fmt.Errorf("error parsing SPS: %s", err)
+				}
+			}
 		} else if stbl.Stsd.HvcX != nil {
 			codec = "hevc"
 		}
@@ -215,11 +259,11 @@ func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel in
 		}
 		switch codec {
 		case "avc", "h.264", "h264":
-			err = printAVCNalus(nalus, i+1, s.PresentationTime(), seiLevel, parameterSets, nrRaw)
+			err = printAVCNalus(avcSPS, nalus, i+1, s.PresentationTime(), seiLevel, parameterSets, nrRaw)
 		case "hevc", "h.265", "h265":
 			err = printHEVCNalus(nalus, i+1, s.PresentationTime(), seiLevel, parameterSets, nrRaw)
 		default:
-			return fmt.Errorf("Unknown codec: %s", codec)
+			return fmt.Errorf("unknown codec: %s", codec)
 		}
 
 		if err != nil {
@@ -232,11 +276,10 @@ func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel in
 	return nil
 }
 
-func printAVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSets bool, nrRaw int) error {
+func printAVCNalus(avcSPS *avc.SPS, nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSets bool, nrRaw int) error {
 	msg := ""
 	var seiNALUs [][]byte
 	totLen := 0
-	var avcSPS *avc.SPS
 	for i, nalu := range nalus {
 		totLen += 4 + len(nalu)
 		if i > 0 {
@@ -249,7 +292,7 @@ func printAVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSe
 		case avc.NALU_SPS:
 			avcSPS, err = avc.ParseSPSNALUnit(nalu, true)
 			if err != nil {
-				return fmt.Errorf("Error parsing SPS: %s", err)
+				return fmt.Errorf("error parsing SPS: %s", err)
 			}
 		case avc.NALU_NON_IDR, avc.NALU_IDR:
 			sliceType, err := avc.GetSliceTypeFromNALU(nalu)
@@ -388,4 +431,38 @@ func bytesToStringN(data []byte, maxNrBytes int) string {
 		return hex.EncodeToString(data[:maxNrBytes]) + "..."
 	}
 	return hex.EncodeToString(data)
+}
+
+func findAnnexBFrames(nalus [][]byte, codec string) ([][][]byte, error) {
+	var isAUD func([]byte) bool
+	switch codec {
+	case "avc":
+		isAUD = isAvcAudNalu
+	case "hevc":
+		isAUD = isHEVCAudNalu
+	default:
+		return nil, fmt.Errorf("unknown codec: %s", codec)
+	}
+	var frames [][][]byte
+	frameStart := 0
+	for i, nalu := range nalus {
+		if isAUD(nalu) {
+			if i > frameStart {
+				frames = append(frames, nalus[frameStart:i])
+				frameStart = i
+			}
+		}
+	}
+	if frameStart < len(nalus) {
+		frames = append(frames, nalus[frameStart:])
+	}
+	return frames, nil
+}
+
+func isAvcAudNalu(nalu []byte) bool {
+	return avc.GetNaluType(nalu[0]) == avc.NALU_AUD
+}
+
+func isHEVCAudNalu(nalu []byte) bool {
+	return hevc.GetNaluType(nalu[0]) == hevc.NALU_AUD
 }
