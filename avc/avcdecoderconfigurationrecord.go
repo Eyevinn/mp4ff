@@ -102,12 +102,14 @@ func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 	// ISO/IEC 14496-15 2017 says that
 	// Compatible extensions to this record will extend it and
 	// will not change the configuration version code.
-	//Readers should be prepared to ignore unrecognized
+	// Readers should be prepared to ignore unrecognized
 	// data beyond the definition of the data they understand
-	//(e.g. after the parameter sets in this specification).
+	// (e.g. after the parameter sets in this specification).
 
 	switch AVCProfileIndication {
-	case 100, 110, 122, 144: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
+	case 66, 77, 88: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
+		// No extra bytes
+	default:
 		if pos == len(data) { // Not according to standard, but have been seen
 			adcr.NoTrailingInfo = true
 			return adcr, nil
@@ -119,8 +121,6 @@ func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 		if adcr.NumSPSExt != 0 {
 			return adcr, ErrCannotParseAVCExtension
 		}
-	default:
-		// No more data to read
 	}
 
 	return adcr, nil
@@ -136,7 +136,7 @@ func (a *DecConfRec) Size() uint64 {
 		totalSize += 2 + len(nalu)
 	}
 	switch a.AVCProfileIndication {
-	case 66, 77, 88: // From ISO/IEC 14496-15 2019 Section 5.3.1.1.2
+	case 66, 77, 88: // From ISO/IEC 14496-15 2017 Section 5.3.1.1.2
 		// No extra bytes
 	default:
 		if !a.NoTrailingInfo {
