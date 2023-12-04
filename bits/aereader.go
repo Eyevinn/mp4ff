@@ -54,6 +54,16 @@ func (r *AccErrReader) Read(n int) uint {
 	return value
 }
 
+// ReadSigned reads a 2-complemented signed int with n bits.
+func (r *AccErrReader) ReadSigned(n int) int {
+	nr := int(r.Read(n))
+	firstBit := nr >> (n - 1)
+	if firstBit == 1 {
+		nr |= -1 << n
+	}
+	return nr
+}
+
 // ReadFlag - read 1 bit into flag. Return false if error now or previously
 func (r *AccErrReader) ReadFlag() bool {
 	bit := r.Read(1)
