@@ -12,6 +12,7 @@ import (
 func TestDecryptFiles(t *testing.T) {
 	testCases := []struct {
 		name            string
+		initFile        string
 		inFile          string
 		expectedOutFile string
 		hexKey          string
@@ -34,6 +35,19 @@ func TestDecryptFiles(t *testing.T) {
 			expectedOutFile: "../../mp4/testdata/cbcs_audiodec.mp4",
 			hexKey:          "5ffd93861fa776e96cccd934898fc1c8",
 		},
+		{
+			name:            "PIFF audio",
+			initFile:        "testdata/PIFF/audio/init.mp4",
+			inFile:          "testdata/PIFF/audio/segment-1.0001.m4s",
+			expectedOutFile: "testdata/PIFF/audio/segment-1.0001_dec.m4s",
+			hexKey:          "602a9289bfb9b1995b75ac63f123fc86",
+		},
+		{
+			name:            "PIFF video",
+			inFile:          "testdata/PIFF/video/complseg-1.0001.mp4",
+			expectedOutFile: "testdata/PIFF/video/complseg-1.0001_dec.mp4",
+			hexKey:          "602a9289bfb9b1995b75ac63f123fc86",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -42,7 +56,14 @@ func TestDecryptFiles(t *testing.T) {
 			t.Error(err)
 		}
 		buf := bytes.Buffer{}
-		err = decryptFile(ifh, nil, &buf, tc.hexKey)
+		var initFH *os.File
+		if tc.initFile != "" {
+			initFH, err = os.Open(tc.initFile)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+		err = decryptFile(ifh, initFH, &buf, tc.hexKey)
 		ifh.Close()
 		if err != nil {
 			t.Error(err)

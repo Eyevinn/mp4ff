@@ -19,6 +19,7 @@ type TrafBox struct {
 	Sbgp     *SbgpBox
 	Sgpd     *SgpdBox
 	Senc     *SencBox
+	UUIDSenc *UUIDBox // A PIFF box of subtype senc
 	Trun     *TrunBox // The first TrunBox
 	Truns    []*TrunBox
 	Children []Box
@@ -59,23 +60,37 @@ func DecodeTrafSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 // ContainsSencBox - is there a senc box in traf and is it parsed
 // If not parsed, call ParseReadSenc to parse it
 func (t *TrafBox) ContainsSencBox() (ok, parsed bool) {
-	if t.Senc != nil {
-		return true, !t.Senc.readButNotParsed
+	for _, c := range t.Children {
+		switch box := c.(type) {
+		case *SencBox:
+			return true, !box.readButNotParsed
+		case *UUIDBox: // PIFF
+			if box.SubType() == "senc" {
+				return true, !box.Senc.readButNotParsed
+			}
+		}
 	}
 	return false, false
 }
 
+// ParseReadSenc makes a second round to parse a senc box previously read
 func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
-	if t.Senc == nil {
-		return fmt.Errorf("no senc box")
+	if t.Senc == nil && t.UUIDSenc == nil {
+		return fmt.Errorf("no senc box or uuid senc box")
+	}
+	var senc *SencBox
+	if t.Senc != nil {
+		senc = t.Senc
+	} else {
+		senc = t.UUIDSenc.Senc
 	}
 	if t.Saio != nil {
 		// saio should be present, but we try without it, if it doesn't exist
 		posFromSaio := t.Saio.Offset[0] + int64(moofStartPos)
-		if uint64(posFromSaio) != t.Senc.StartPos+16 {
+		if uint64(posFromSaio) != senc.StartPos+16 {
 			//TODO. Reenable
-			//return fmt.Errorf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, t.Senc.StartPos+16)
-			fmt.Printf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, t.Senc.StartPos+16)
+			//return fmt.Errorf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, senc.StartPos+16)
+			fmt.Printf("offset from saio (%d) and moof differs from senc data start %d", posFromSaio, senc.StartPos+16)
 
 		}
 	}
@@ -104,7 +119,7 @@ func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 		seigEntry := sgpdEntry.(*SeigSampleGroupEntry)
 		perSampleIVSize = seigEntry.PerSampleIVSize
 	}
-	err := t.Senc.ParseReadBox(perSampleIVSize, t.Saiz)
+	err := senc.ParseReadBox(perSampleIVSize, t.Saiz)
 	if err != nil {
 		return err
 	}
@@ -133,6 +148,10 @@ func (t *TrafBox) AddChild(child Box) error {
 			t.Trun = box
 		}
 		t.Truns = append(t.Truns, box)
+	case *UUIDBox:
+		if box.SubType() == "senc" {
+			t.UUIDSenc = box
+		}
 	default:
 	}
 	t.Children = append(t.Children, child)
@@ -258,16 +277,21 @@ func (t *TrafBox) RemoveEncryptionBoxes() uint64 {
 	remainingChildren := make([]Box, 0, len(t.Children))
 	var nrBytesRemoved uint64 = 0
 	for _, ch := range t.Children {
-		switch ch.Type() {
-		case "saiz":
+		switch box := ch.(type) {
+		case *SaizBox:
 			nrBytesRemoved += ch.Size()
 			t.Saiz = nil
-		case "saio":
+		case *SaioBox:
 			nrBytesRemoved += ch.Size()
 			t.Saio = nil
-		case "senc":
+		case *SencBox:
 			nrBytesRemoved += ch.Size()
 			t.Senc = nil
+		case *UUIDBox:
+			if box.SubType() == "senc" {
+				nrBytesRemoved += ch.Size()
+				t.UUIDSenc = nil
+			}
 		default:
 			remainingChildren = append(remainingChildren, ch)
 		}
