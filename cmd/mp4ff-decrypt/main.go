@@ -103,7 +103,7 @@ func decryptFile(r, initR io.Reader, w io.Writer, hexKey string) error {
 		return fmt.Errorf("file not fragmented. Not supported")
 	}
 
-	var init *mp4.InitSegment
+	init := inMp4.Init
 
 	if inMp4.Init == nil {
 		if initR == nil {
@@ -114,11 +114,6 @@ func decryptFile(r, initR io.Reader, w io.Writer, hexKey string) error {
 			return fmt.Errorf("could not decode init file: %w", err)
 		}
 		init = iSeg.Init
-	} else {
-		init = inMp4.Init
-		if init == nil {
-			return fmt.Errorf("no init segment part of file")
-		}
 	}
 
 	decryptInfo, err := mp4.DecryptInit(init)
