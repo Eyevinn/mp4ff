@@ -35,6 +35,35 @@ func TestAccErrReader(t *testing.T) {
 	}
 }
 
+func TestAccErrReaderSigned(t *testing.T) {
+	input := []byte{0xff, 0x0c} // 1111 1111 0000 1100
+	rd := bytes.NewReader(input)
+	reader := NewAccErrReader(rd)
+
+	cases := []struct {
+		n    int
+		want int
+	}{
+		{2, -1}, // 11
+		{3, -1}, // 111
+		{5, -4}, // 11100
+		{3, 1},  // 001
+		{3, -4}, // 100
+	}
+
+	for _, tc := range cases {
+		got := reader.ReadSigned(tc.n)
+
+		if got != tc.want {
+			t.Errorf("Read(%d)=%b, want=%b", tc.n, got, tc.want)
+		}
+	}
+	err := reader.AccError()
+	if err != nil {
+		t.Errorf("Got accumulated error: %s", err.Error())
+	}
+}
+
 func TestBadAccErrReader(t *testing.T) {
 	// Check that reading beyond EOF provides value = 0 after acc error
 	input := []byte{0xff, 0x0f} // 1111 1111 0000 1111

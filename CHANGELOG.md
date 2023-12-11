@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Parsing of AVCDecoderConfigurationRecord
+- Parsing of time offset in AVC PicTiming SEI
 
 ## [0.40.2] - 2023-11-17
 

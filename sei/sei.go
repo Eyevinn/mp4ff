@@ -605,7 +605,8 @@ func WriteSEIMessages(w io.Writer, msgs []SEIMessage) error {
 	for _, msg := range msgs {
 		bw.WriteSEIValue(msg.Type())
 		bw.WriteSEIValue(msg.Size())
-		for _, b := range msg.Payload() {
+		pl := msg.Payload()
+		for _, b := range pl {
 			bw.Write(uint(b), 8)
 		}
 	}

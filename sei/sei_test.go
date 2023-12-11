@@ -315,7 +315,7 @@ func TestParseSEI(t *testing.T) {
 			},
 			[]uint{1},
 			[]string{
-				`SEIPicTimingType (1), size=15, time=20:40:09:46 offset=24`,
+				`SEIPicTimingType (1), size=15, time=20:40:09:46 offset=0`,
 			},
 			nil,
 		},
@@ -425,7 +425,7 @@ func TestWriteSEI(t *testing.T) {
 }
 
 func TestParseAVCPicTimingWithHRD(t *testing.T) {
-	sei1AVCEbsp := "010d00000300000300000300021208114de180"
+	sei1AVCEbsp := "011000000300000300000300021208114de10000030080"
 	cbpDelay := sei.CbpDbpDelay{
 		CpbRemovalDelay:                    0,
 		DpbOutputDelay:                     0,
@@ -433,47 +433,57 @@ func TestParseAVCPicTimingWithHRD(t *testing.T) {
 		CpbRemovalDelayLengthMinus1:        30,
 		DpbOutputDelayLengthMinus1:         31,
 	}
-	timeOffsetLen := byte(0)
+	timeOffsetLen := byte(24)
 
 	testCases := []struct {
 		name           string
 		codec          sei.Codec
-		naluHex        string
+		naluPayloadHex string
 		wantedTypes    []uint
 		wantedStrings  []string
 		expNonFatalErr error
 	}{
 		{"PicTimingWithHRD", sei.AVC, sei1AVCEbsp, []uint{1},
 			[]string{
-				`SEIPicTimingType (1), size=13, time=01:47:41:08 offset=0`,
+				`SEIPicTimingType (1), size=16, time=01:47:41:08 offset=0`,
 			},
 			sei.ErrRbspTrailingBitsMissing,
 		},
 	}
 
 	for _, tc := range testCases {
-		seiNALU, _ := hex.DecodeString(tc.naluHex)
-
-		rs := bytes.NewReader(seiNALU)
-
-		seis, err := sei.ExtractSEIData(rs)
+		seiNaluPayload, _ := hex.DecodeString(tc.naluPayloadHex)
+		r := bytes.NewReader(seiNaluPayload)
+		seis, err := sei.ExtractSEIData(r)
 		if err != nil && err != tc.expNonFatalErr {
 			t.Error(err)
 		}
 		if len(seis) != len(tc.wantedStrings) {
 			t.Errorf("%s: Not %d but %d sei messages found", tc.name, len(tc.wantedStrings), len(seis))
 		}
+		var messages []sei.SEIMessage
 		for i := range seis {
 			seiMessage, err := sei.DecodePicTimingAvcSEIHRD(&seis[i], &cbpDelay, timeOffsetLen)
 			if err != nil {
 				t.Error(err)
 			}
+			messages = append(messages, seiMessage)
 			if seiMessage.Type() != tc.wantedTypes[i] {
 				t.Errorf("%s: got SEI type %d instead of %d", tc.name, seiMessage.Type(), tc.wantedTypes[i])
 			}
 			if seiMessage.String() != tc.wantedStrings[i] {
 				t.Errorf("%s: got %q instead of %q", tc.name, seiMessage.String(), tc.wantedStrings[i])
 			}
+		}
+		buf := bytes.Buffer{}
+		err = sei.WriteSEIMessages(&buf, messages)
+		if err != nil {
+			t.Error(err)
+		}
+		output := buf.Bytes()
+		if !bytes.Equal(output, seiNaluPayload) {
+			t.Errorf("%s: wanted %s but got %s", tc.name,
+				tc.naluPayloadHex, hex.EncodeToString(output))
 		}
 	}
 }

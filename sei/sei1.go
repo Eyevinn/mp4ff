@@ -75,6 +75,7 @@ func DecodePicTimingAvcSEIHRD(sd *SEIData, cbpDbpDelay *CbpDbpDelay, timeOffsetL
 		c := DecodeClockTSAvc(br, timeOffsetLen)
 		tc.Clocks = append(tc.Clocks, c)
 	}
+	tc.TimeOffsetLength = timeOffsetLen
 	return &tc, br.AccError()
 }
 
@@ -186,7 +187,7 @@ func DecodeClockTSAvc(br *bits.AccErrReader, timeOffsetLen byte) ClockTSAvc {
 			}
 		}
 		if c.TimeOffsetLength > 0 {
-			c.TimeOffsetValue = int(c.TimeOffsetLength)
+			c.TimeOffsetValue = br.ReadSigned(int(c.TimeOffsetLength))
 		}
 	}
 	return c
@@ -246,7 +247,7 @@ func (c ClockTSAvc) WriteToSliceWriter(sw bits.SliceWriter) {
 			}
 		}
 		if c.TimeOffsetLength > 0 {
-			sw.WriteBits(uint(c.TimeOffsetLength), int(c.TimeOffsetLength))
+			sw.WriteBits(uint(c.TimeOffsetValue), int(c.TimeOffsetLength))
 		}
 	}
 }
