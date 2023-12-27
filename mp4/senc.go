@@ -146,6 +146,7 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 		// No subsamples
 		if perSampleIVSize == 0 { // Infer the size
 			perSampleIVSize = byte(nrBytesLeft / s.SampleCount)
+			s.perSampleIVSize = perSampleIVSize
 		}
 
 		s.IVs = make([]InitializationVector, 0, s.SampleCount)
