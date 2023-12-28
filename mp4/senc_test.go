@@ -124,3 +124,26 @@ func TestAddSamples(t *testing.T) {
 	err = senc.AddSample(SencSample{iv8, []SubSamplePattern{{20, 2000}}})
 	assertError(t, err, "Should have got error due to different iv size")
 }
+
+// TestImplicitIVSize tests that the implicit IV size is correctly calculated (perSampleIVSize != 0)
+func TestImplicitIVSize(t *testing.T) {
+	testCases := []struct {
+		inputFile        string
+		expectedSencSize int
+	}{
+		{inputFile: "testdata/2xSencNoMdat.mp4", expectedSencSize: 2248},
+	}
+
+	for _, tc := range testCases {
+		// Read the file
+		m, err := ReadMP4File(tc.inputFile)
+		if err != nil {
+			t.Error(err)
+		}
+		frag := m.Segments[0].Fragments[0]
+		senc := frag.Moof.Traf.Senc
+		if int(senc.Size()) != tc.expectedSencSize {
+			t.Errorf("Expected senc size %d, got %d", tc.expectedSencSize, senc.Size())
+		}
+	}
+}
