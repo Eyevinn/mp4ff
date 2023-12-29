@@ -573,8 +573,14 @@ func DecryptFragment(frag *Fragment, di DecryptInfo, key []byte) error {
 			if err != nil {
 				return err
 			}
+			var senc *SencBox
+			if traf.Senc != nil {
+				senc = traf.Senc
+			} else {
+				senc = traf.UUIDSenc.Senc
+			}
 
-			err = decryptSamplesInPlace(schemeType, samples, key, tenc, traf.Senc)
+			err = decryptSamplesInPlace(schemeType, samples, key, tenc, senc)
 			if err != nil {
 				return err
 			}

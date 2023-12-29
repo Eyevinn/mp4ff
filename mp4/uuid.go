@@ -24,6 +24,9 @@ const (
 
 	// UUIDTfrf - MSS tfrf UUID [MS-SSTR 2.2.4.5]
 	UUIDTfrf = "d4807ef2-ca39-4695-8e54-26cb9e46a79f"
+
+	// UUIDPiffSenc - PIFF UUID for Sample Encryption Box (PIFF 1.1 spec)
+	UUIDPiffSenc = "a2394f52-5a9b-4f14-a244-6c427c648df4"
 )
 
 // uuid - compact representation of UUID
@@ -62,8 +65,9 @@ func mustCreateUUID(u string) uuid {
 }
 
 var (
-	uuidTfxd uuid = mustCreateUUID(UUIDTfxd)
-	uuidTfrf uuid = mustCreateUUID(UUIDTfrf)
+	uuidTfxd     uuid = mustCreateUUID(UUIDTfxd)
+	uuidTfrf     uuid = mustCreateUUID(UUIDTfrf)
+	uuidPiffSenc uuid = mustCreateUUID(UUIDPiffSenc)
 )
 
 // UUIDBox - Used as container for MSS boxes tfxd and tfrf
@@ -72,6 +76,8 @@ type UUIDBox struct {
 	uuid           uuid
 	Tfxd           *TfxdData
 	Tfrf           *TfrfData
+	Senc           *SencBox
+	StartPos       uint64
 	UnknownPayload []byte
 }
 
@@ -117,7 +123,7 @@ func DecodeUUIDBox(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeUUIDBoxSR - decode a UUID box including tfxd or tfrf
 func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	b := &UUIDBox{}
+	b := &UUIDBox{StartPos: startPos}
 	copy(b.uuid[:], sr.ReadBytes(16))
 	switch b.UUID() {
 	case UUIDTfxd:
@@ -132,6 +138,14 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 			return nil, err
 		}
 		b.Tfrf = tfrf
+	case UUIDPiffSenc:
+		// This is like a SencBox except that there is no size and type. Offset and sizes must be slightly adjusted.
+		subHdr := BoxHeader{"senc", hdr.Size - 16, 8}
+		box, err := DecodeSencSR(subHdr, b.StartPos+16, sr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode senc in UUID: %w", err)
+		}
+		b.Senc = box.(*SencBox)
 	default:
 		b.UnknownPayload = sr.ReadBytes(int(hdr.Size) - 8 - 16)
 	}
@@ -152,6 +166,8 @@ func (b *UUIDBox) Size() uint64 {
 		size += b.Tfxd.size()
 	case u.Equal(uuidTfrf):
 		size += b.Tfrf.size()
+	case u.Equal(uuidPiffSenc):
+		size += b.Senc.Size() - 8 // -8 because no header
 	default:
 		size += uint64(len(b.UnknownPayload))
 	}
@@ -197,6 +213,8 @@ func (b *UUIDBox) SubType() string {
 		return "tfxd"
 	case u.Equal(uuidTfrf):
 		return "tfrf"
+	case u.Equal(uuidPiffSenc):
+		return "senc"
 	default:
 		return "unknown"
 	}
@@ -298,6 +316,11 @@ func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		case "tfrf":
 			for i := 0; i < int(b.Tfrf.FragmentCount); i++ {
 				bd.write(" - [%d]: absTime=%d absDur=%d", i+1, b.Tfrf.FragmentAbsoluteTimes[i], b.Tfrf.FragmentAbsoluteDurations[i])
+			}
+		case "senc":
+			err := b.Senc.Info(w, specificBoxLevels, indent+"    ", indentStep)
+			if err != nil {
+				return fmt.Errorf("piff senc: %w", err)
 			}
 		default:
 			bd.write(" - payload: %s", hex.EncodeToString(b.UnknownPayload))
