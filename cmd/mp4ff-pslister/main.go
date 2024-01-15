@@ -359,7 +359,12 @@ func printAvcPS(spsNalus, ppsNalus [][]byte, verbose bool) {
 
 func printHevcPS(vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) {
 	for i, vps := range vpsNalus {
-		printPS("VPS", i+1, vps, nil, false)
+		vpsInfo, err := hevc.ParseVPSNALUnit(vps)
+		if err != nil {
+			fmt.Println("Could not parse VPS")
+			return
+		}
+		printPS("VPS", i+1, vps, vpsInfo, false)
 	}
 	spsMap := make(map[uint32]*hevc.SPS)
 	for i, sps := range spsNalus {
