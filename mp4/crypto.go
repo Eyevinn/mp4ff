@@ -270,7 +270,7 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 		sinf.AddChild(&frma)
 		se.AddChild(&sinf)
 		switch veType {
-		case "avc1":
+		case "avc1", "avc3":
 			ipd.ProtFunc, err = getAVCProtFunc(se.AvcC)
 			if err != nil {
 				return nil, fmt.Errorf("get avc protect func: %w", err)
@@ -287,7 +287,7 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 			}
 
 		default:
-			return nil, fmt.Errorf("visual sample entry type %s not yet supported", se.Type())
+			return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
 		}
 	case *AudioSampleEntryBox:
 		aeType := se.Type()
