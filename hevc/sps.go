@@ -73,15 +73,78 @@ type ProfileTierLevel struct {
 	GeneralTierFlag                  bool
 	GeneralProfileIDC                byte
 	GeneralProfileCompatibilityFlags uint32
-	GeneralConstraintIndicatorFlags  uint64 // 48 bits
 	GeneralProgressiveSourceFlag     bool
 	GeneralInterlacedSourceFlag      bool
 	GeneralNonPackedConstraintFlag   bool
 	GeneralFrameOnlyConstraintFlag   bool
-	// 43 + 1 bits of info
-	GeneralLevelIDC byte
-	// Sublayer stuff
+	// GeneralConstraintIndicatorFlags is 4 + 43+1 bits including the 4 flags above from GeneralProgressiveSourceFlag
+	GeneralConstraintIndicatorFlags uint64
+	GeneralLevelIDC                 byte
+	SubLayers                       []SubLayer
+}
 
+type SubLayer struct {
+	ProfilePresentFlag        bool
+	LevelPresentFlag          bool
+	ProfileSpace              byte
+	TierFlag                  bool
+	ProfileIDC                byte
+	ProfileCompatibilityFlags uint32
+	ProgressiveSourceFlag     bool
+	InterlacedSourceFlag      bool
+	NonPackedConstraintFlag   bool
+	FrameOnlyConstraintFlag   bool
+	ConstraintFlags           uint64 // 43+1 bits
+	LayerIDC                  byte
+}
+
+func flagFrom(flags uint64, bitNr uint) bool {
+	return (flags & (1 << bitNr)) != 0
+}
+
+func parseProfileTierLevel(r *bits.AccErrEBSPReader, profilePresentFlag bool, maxNumSubLayersMinus1 byte) ProfileTierLevel {
+	ptl := ProfileTierLevel{}
+	if profilePresentFlag {
+		ptl.GeneralProfileSpace = byte(r.Read(2))
+		ptl.GeneralTierFlag = r.ReadFlag()
+		ptl.GeneralProfileIDC = byte(r.Read(5))
+		ptl.GeneralProfileCompatibilityFlags = uint32(r.Read(32))
+		ptl.GeneralConstraintIndicatorFlags = uint64(r.Read(48))
+		ptl.GeneralProgressiveSourceFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 47)
+		ptl.GeneralInterlacedSourceFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 46)
+		ptl.GeneralNonPackedConstraintFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 45)
+		ptl.GeneralFrameOnlyConstraintFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 44)
+
+		ptl.GeneralLevelIDC = byte(r.Read(8))
+		if maxNumSubLayersMinus1 > 0 {
+			ptl.SubLayers = make([]SubLayer, maxNumSubLayersMinus1)
+			for i := byte(0); i < maxNumSubLayersMinus1; i++ {
+				ptl.SubLayers[i].ProfilePresentFlag = r.ReadFlag()
+				ptl.SubLayers[i].LevelPresentFlag = r.ReadFlag()
+			}
+			if maxNumSubLayersMinus1 < 8 {
+				nrReservedZeroBits := 2 * (8 - int(maxNumSubLayersMinus1))
+				_ = r.Read(nrReservedZeroBits)
+			}
+			for i := byte(0); i < maxNumSubLayersMinus1; i++ {
+				if ptl.SubLayers[i].ProfilePresentFlag {
+					ptl.SubLayers[i].ProfileSpace = byte(r.Read(2))
+					ptl.SubLayers[i].TierFlag = r.ReadFlag()
+					ptl.SubLayers[i].ProfileIDC = byte(r.Read(5))
+					ptl.SubLayers[i].ProfileCompatibilityFlags = uint32(r.Read(32))
+					ptl.SubLayers[i].ConstraintFlags = uint64(r.Read(48)) // Including 4 flags from ProgressiveSourceFlag and forward
+					ptl.SubLayers[i].ProgressiveSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 47)
+					ptl.SubLayers[i].InterlacedSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 46)
+					ptl.SubLayers[i].NonPackedConstraintFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 45)
+					ptl.SubLayers[i].FrameOnlyConstraintFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 44)
+				}
+				if ptl.SubLayers[i].LevelPresentFlag {
+					ptl.SubLayers[i].LayerIDC = byte(r.Read(8))
+				}
+			}
+		}
+	}
+	return ptl
 }
 
 // ConformanceWindow according to ISO/IEC 23008-2
@@ -253,15 +316,7 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps.VpsID = byte(r.Read(4))
 	sps.MaxSubLayersMinus1 = byte(r.Read(3))
 	sps.TemporalIDNestingFlag = r.ReadFlag()
-	sps.ProfileTierLevel.GeneralProfileSpace = byte(r.Read(2))
-	sps.ProfileTierLevel.GeneralTierFlag = r.ReadFlag()
-	sps.ProfileTierLevel.GeneralProfileIDC = byte(r.Read(5))
-	sps.ProfileTierLevel.GeneralProfileCompatibilityFlags = uint32(r.Read(32))
-	sps.ProfileTierLevel.GeneralConstraintIndicatorFlags = uint64(r.Read(48))
-	sps.ProfileTierLevel.GeneralLevelIDC = byte(r.Read(8))
-	if sps.MaxSubLayersMinus1 != 0 {
-		return sps, nil // Cannot parse any further
-	}
+	sps.ProfileTierLevel = parseProfileTierLevel(r, true, sps.MaxSubLayersMinus1)
 	sps.SpsID = byte(r.ReadExpGolomb())
 	sps.ChromaFormatIDC = byte(r.ReadExpGolomb())
 	if sps.ChromaFormatIDC == 3 {

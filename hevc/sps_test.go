@@ -38,10 +38,10 @@ func TestSPSParser1(t *testing.T) {
 			GeneralProfileIDC:                2,
 			GeneralProfileCompatibilityFlags: 536870912,
 			GeneralConstraintIndicatorFlags:  193514046488576,
-			GeneralProgressiveSourceFlag:     false,
+			GeneralProgressiveSourceFlag:     true,
 			GeneralInterlacedSourceFlag:      false,
-			GeneralNonPackedConstraintFlag:   false,
-			GeneralFrameOnlyConstraintFlag:   false,
+			GeneralNonPackedConstraintFlag:   true,
+			GeneralFrameOnlyConstraintFlag:   true,
 			GeneralLevelIDC:                  123,
 		},
 		SpsID:                   0,
@@ -170,7 +170,7 @@ func TestSPSParser1(t *testing.T) {
 	}
 	got, err := ParseSPSNALUnit(byteData)
 	if err != nil {
-		t.Error("Error parsing SPS")
+		t.Fatal("Error parsing SPS")
 	}
 
 	if diff := deep.Equal(*got, wanted); diff != nil {
@@ -206,10 +206,10 @@ func TestSPSParser2(t *testing.T) {
 			GeneralProfileIDC:                2,
 			GeneralProfileCompatibilityFlags: 536870912,
 			GeneralConstraintIndicatorFlags:  193514046488576,
-			GeneralProgressiveSourceFlag:     false,
+			GeneralProgressiveSourceFlag:     true,
 			GeneralInterlacedSourceFlag:      false,
-			GeneralNonPackedConstraintFlag:   false,
-			GeneralFrameOnlyConstraintFlag:   false,
+			GeneralNonPackedConstraintFlag:   true,
+			GeneralFrameOnlyConstraintFlag:   true,
 			GeneralLevelIDC:                  156,
 		},
 		SpsID:                   0,
