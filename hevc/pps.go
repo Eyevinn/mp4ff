@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/Eyevinn/mp4ff/bits"
 	"io"
+
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // This parser based on Rec. ITU-T H.265 v5 (02/2018) and ISO/IEC 23008-2 Ed. 5
@@ -171,7 +172,7 @@ type DeltaDlt struct {
 
 // HEVC PPS errors
 var (
-	ErrNotPPS = errors.New("Not an PPS NAL unit")
+	ErrNotPPS = errors.New("not an PPS NAL unit")
 )
 
 // ParsePPSNALUnit - Parse AVC PPS NAL unit starting with NAL header
@@ -317,7 +318,7 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	}
 	_ = r.Read(1)
 	if r.AccError() != io.EOF {
-		return nil, fmt.Errorf("Not at end after reading rbsp_trailing_bits")
+		return nil, fmt.Errorf("not at end after reading rbsp_trailing_bits")
 	}
 	return pps, nil
 }
