@@ -102,6 +102,7 @@ func flagFrom(flags uint64, bitNr uint) bool {
 	return (flags & (1 << bitNr)) != 0
 }
 
+// parseProfileTierLevel follows ISO/IEC 23008-2 Section 7.3.3
 func parseProfileTierLevel(r *bits.AccErrEBSPReader, profilePresentFlag bool, maxNumSubLayersMinus1 byte) ProfileTierLevel {
 	ptl := ProfileTierLevel{}
 	if profilePresentFlag {
@@ -114,33 +115,32 @@ func parseProfileTierLevel(r *bits.AccErrEBSPReader, profilePresentFlag bool, ma
 		ptl.GeneralInterlacedSourceFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 46)
 		ptl.GeneralNonPackedConstraintFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 45)
 		ptl.GeneralFrameOnlyConstraintFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 44)
-
-		ptl.GeneralLevelIDC = byte(r.Read(8))
-		if maxNumSubLayersMinus1 > 0 {
-			ptl.SubLayers = make([]SubLayer, maxNumSubLayersMinus1)
-			for i := byte(0); i < maxNumSubLayersMinus1; i++ {
-				ptl.SubLayers[i].ProfilePresentFlag = r.ReadFlag()
-				ptl.SubLayers[i].LevelPresentFlag = r.ReadFlag()
+	}
+	ptl.GeneralLevelIDC = byte(r.Read(8))
+	if maxNumSubLayersMinus1 > 0 {
+		ptl.SubLayers = make([]SubLayer, maxNumSubLayersMinus1)
+		for i := byte(0); i < maxNumSubLayersMinus1; i++ {
+			ptl.SubLayers[i].ProfilePresentFlag = r.ReadFlag()
+			ptl.SubLayers[i].LevelPresentFlag = r.ReadFlag()
+		}
+		if maxNumSubLayersMinus1 < 8 {
+			nrReservedZeroBits := 2 * (8 - int(maxNumSubLayersMinus1))
+			_ = r.Read(nrReservedZeroBits)
+		}
+		for i := byte(0); i < maxNumSubLayersMinus1; i++ {
+			if ptl.SubLayers[i].ProfilePresentFlag {
+				ptl.SubLayers[i].ProfileSpace = byte(r.Read(2))
+				ptl.SubLayers[i].TierFlag = r.ReadFlag()
+				ptl.SubLayers[i].ProfileIDC = byte(r.Read(5))
+				ptl.SubLayers[i].ProfileCompatibilityFlags = uint32(r.Read(32))
+				ptl.SubLayers[i].ConstraintFlags = uint64(r.Read(48)) // Including 4 flags from ProgressiveSourceFlag and forward
+				ptl.SubLayers[i].ProgressiveSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 47)
+				ptl.SubLayers[i].InterlacedSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 46)
+				ptl.SubLayers[i].NonPackedConstraintFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 45)
+				ptl.SubLayers[i].FrameOnlyConstraintFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 44)
 			}
-			if maxNumSubLayersMinus1 < 8 {
-				nrReservedZeroBits := 2 * (8 - int(maxNumSubLayersMinus1))
-				_ = r.Read(nrReservedZeroBits)
-			}
-			for i := byte(0); i < maxNumSubLayersMinus1; i++ {
-				if ptl.SubLayers[i].ProfilePresentFlag {
-					ptl.SubLayers[i].ProfileSpace = byte(r.Read(2))
-					ptl.SubLayers[i].TierFlag = r.ReadFlag()
-					ptl.SubLayers[i].ProfileIDC = byte(r.Read(5))
-					ptl.SubLayers[i].ProfileCompatibilityFlags = uint32(r.Read(32))
-					ptl.SubLayers[i].ConstraintFlags = uint64(r.Read(48)) // Including 4 flags from ProgressiveSourceFlag and forward
-					ptl.SubLayers[i].ProgressiveSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 47)
-					ptl.SubLayers[i].InterlacedSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 46)
-					ptl.SubLayers[i].NonPackedConstraintFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 45)
-					ptl.SubLayers[i].FrameOnlyConstraintFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 44)
-				}
-				if ptl.SubLayers[i].LevelPresentFlag {
-					ptl.SubLayers[i].LayerIDC = byte(r.Read(8))
-				}
+			if ptl.SubLayers[i].LevelPresentFlag {
+				ptl.SubLayers[i].LayerIDC = byte(r.Read(8))
 			}
 		}
 	}
@@ -469,7 +469,7 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	}
 	_ = r.Read(1)
 	if r.AccError() != io.EOF {
-		return nil, fmt.Errorf("Not at end after reading rbsp_trailing_bits")
+		return nil, fmt.Errorf("not at end after reading rbsp_trailing_bits")
 	}
 
 	return sps, nil
