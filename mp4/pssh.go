@@ -5,16 +5,18 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // UUIDs for different DRM systems
 const (
-	UUIDPlayReady = "9a04f079-9840-4286-ab92-e65be0885f95"
-	UUIDWidevine  = "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
-	UUIDFairPlay  = "94CE86FB-07FF-4F43-ADB8-93D2FA968CA2"
-	UUID_VCAS     = "9a27dd82-fde2-4725-8cbc-4234aa06ec09"
+	UUIDPlayReady   = "9a04f079-9840-4286-ab92-e65be0885f95"
+	UUIDWidevine    = "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+	UUIDFairPlay    = "94ce86fb-07ff-4f43-adb8-93d2fa968ca2"
+	UUID_VCAS       = "9a27dd82-fde2-4725-8cbc-4234aa06ec09"
+	UUID_W3C_COMMON = "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
 )
 
 // UUID - 16-byte KeyID or SystemID
@@ -28,8 +30,11 @@ func (u UUID) String() string {
 	return fmt.Sprintf("%s-%s-%s-%s-%s", h[0:8], h[8:12], h[12:16], h[16:20], h[20:32])
 }
 
-// NewUUIDFromHex creates a UUID from a hexadecimal string with 32 chars
+// NewUUIDFromHex creates a UUID from a hexadecimal string with 32 chars or 36 chars (with dashes)
 func NewUUIDFromHex(h string) (UUID, error) {
+	if len(h) == 36 {
+		h = strings.ReplaceAll(h, "-", "")
+	}
 	if len(h) != 32 {
 		return nil, fmt.Errorf("hex has %d chars, not 32", len(h))
 	}
@@ -40,8 +45,10 @@ func NewUUIDFromHex(h string) (UUID, error) {
 	return UUID(s), nil
 }
 
-func systemName(systemID UUID) string {
+// ProtectionSystemName returns name of protection system if known.
+func ProtectionSystemName(systemID UUID) string {
 	uStr := systemID.String()
+	uStr = strings.ToLower(uStr)
 	switch uStr {
 	case UUIDPlayReady:
 		return "PlayReady"
@@ -51,6 +58,8 @@ func systemName(systemID UUID) string {
 		return "FairPlay"
 	case UUID_VCAS:
 		return "Verimatrix VCAS"
+	case UUID_W3C_COMMON:
+		return "W3C Common PSSH box"
 	default:
 		return "Unknown"
 	}
@@ -146,7 +155,7 @@ func (b *PsshBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box info to w
 func (b *PsshBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
-	bd.write(" - systemID: %s (%s)", b.SystemID, systemName(b.SystemID))
+	bd.write(" - systemID: %s (%s)", b.SystemID, ProtectionSystemName(b.SystemID))
 	if b.Version > 0 {
 		for i, kid := range b.KIDs {
 			bd.write(" - KID[%d]=%s", i+1, kid)
