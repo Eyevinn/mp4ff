@@ -2,6 +2,7 @@ package sei
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -11,11 +12,11 @@ import (
 // The corresponding SEI 1 for HEVC is very different.
 type PicTimingAvcSEI struct {
 	// CbpDbpDelay is optional and triggered by VUI HRD data
-	CbpDbpDelay *CbpDbpDelay
+	CbpDbpDelay *CbpDbpDelay `json:"-"`
 	// TimeOffsetLength is 5 bits and comes from SPS HRD if present
-	TimeOffsetLength uint8
-	PictStruct       uint8
-	Clocks           []ClockTSAvc
+	TimeOffsetLength uint8        `json:"-"`
+	PictStruct       uint8        `json:"pict_struct"`
+	Clocks           []ClockTSAvc `json:"clocks"`
 }
 
 // CbpDbpDelay carries the optional data on CpbDpbDelay.
@@ -148,6 +149,16 @@ type ClockTSAvc struct {
 // String returns time stamp
 func (c ClockTSAvc) String() string {
 	return fmt.Sprintf("%02d:%02d:%02d:%02d offset=%d", c.Hours, c.Minutes, c.Seconds, c.NFrames, c.TimeOffsetValue)
+}
+
+func (c *ClockTSAvc) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Time   string `json:"time"`
+		Offset int    `json:"offset"`
+	}{
+		Time:   fmt.Sprintf("%02d:%02d:%02d:%02d", c.Hours, c.Minutes, c.Seconds, c.NFrames),
+		Offset: c.TimeOffsetValue,
+	})
 }
 
 // CreatePTClockTS creates a clock timestamp.
