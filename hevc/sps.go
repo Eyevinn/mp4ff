@@ -214,6 +214,11 @@ type HrdParameters struct {
 	SubLayerHrd                            []SubLayerHrd
 }
 
+// CpbDpbDelaysPresentFlag is defined in ISO/IEC 23008-2 Section E.3.2.
+func (h *HrdParameters) CpbDpbDelaysPresentFlag() bool {
+	return h.NalHrdParametersPresentFlag || h.VclHrdParametersPresentFlag
+}
+
 type SubLayerHrd struct {
 	FixedPicRateGeneralFlag     bool
 	FixedPicRateWithinCvsFlag   bool
