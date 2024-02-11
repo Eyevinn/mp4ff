@@ -248,6 +248,29 @@ func (s *InitSegment) GetMediaType() string {
 	}
 }
 
+// TweakSingleTrakLive assures that there is only one track and removes any mehd box.
+func (s *InitSegment) TweakSingleTrakLive() error {
+	if len(s.Moov.Traks) != 1 {
+		return fmt.Errorf("only one track allowed for live")
+	}
+	mvex := s.Moov.Mvex
+	if mvex == nil {
+		return fmt.Errorf("no mvex box found")
+
+	}
+	mehd := mvex.Mehd
+	if mehd != nil {
+		for i, c := range mvex.Children {
+			if c == mehd {
+				mvex.Children = append(mvex.Children[:i], mvex.Children[i+1:]...)
+				mvex.Mehd = nil
+				break
+			}
+		}
+	}
+	return nil
+}
+
 // SetAACDescriptor - Modify a TrakBox by adding AAC SampleDescriptor
 // objType is one of AAClc, HEAACv1, HEAACv2
 // For HEAAC, the samplingFrequency is the base frequency (normally 24000)
