@@ -225,17 +225,21 @@ LoopBoxes:
 			moof := box.(*MoofBox)
 			for _, traf := range moof.Trafs {
 				if ok, parsed := traf.ContainsSencBox(); ok && !parsed {
+					isEncrypted := true
 					defaultIVSize := byte(0) // Should get this from tenc in sinf
 					if f.Moov != nil {
 						trackID := traf.Tfhd.TrackID
+						isEncrypted = f.Moov.IsEncrypted(trackID)
 						sinf := f.Moov.GetSinf(trackID)
 						if sinf != nil && sinf.Schi != nil && sinf.Schi.Tenc != nil {
 							defaultIVSize = sinf.Schi.Tenc.DefaultPerSampleIVSize
 						}
 					}
-					err = traf.ParseReadSenc(defaultIVSize, moof.StartPos)
-					if err != nil {
-						return nil, err
+					if isEncrypted {
+						err = traf.ParseReadSenc(defaultIVSize, moof.StartPos)
+						if err != nil {
+							return nil, err
+						}
 					}
 				}
 			}

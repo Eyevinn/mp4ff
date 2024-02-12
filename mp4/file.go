@@ -69,7 +69,11 @@ type DecFileFlags uint32
 const (
 	DecNoFlags DecFileFlags = 0
 	// DecISMFlag tries to read mfra box at end to find segment boundaries (for ISM files)
-	DecISMFlag DecFileFlags = 1
+	DecISMFlag DecFileFlags = (1 << 0)
+	// DecStartOnMoof starts a segment at each moof boundary
+	// This is provided no styp, or sidx/mfra box gives other information
+	DecStartOnMoof = (1 << 1)
+	// if no styp box, or sidx/mfra strudture
 )
 
 // EncOptimize - encoder optimization mode
@@ -197,17 +201,21 @@ LoopBoxes:
 			moof := box.(*MoofBox)
 			for _, traf := range moof.Trafs {
 				if ok, parsed := traf.ContainsSencBox(); ok && !parsed {
+					isEncrypted := true
 					defaultIVSize := byte(0) // Should get this from tenc in sinf
 					if f.Moov != nil {
 						trackID := traf.Tfhd.TrackID
+						isEncrypted = f.Moov.IsEncrypted(trackID)
 						sinf := f.Moov.GetSinf(trackID)
 						if sinf != nil && sinf.Schi != nil && sinf.Schi.Tenc != nil {
 							defaultIVSize = sinf.Schi.Tenc.DefaultPerSampleIVSize
 						}
 					}
-					err = traf.ParseReadSenc(defaultIVSize, moof.StartPos)
-					if err != nil {
-						return nil, err
+					if isEncrypted { // Don't do if encryption boxes still remain, but are not
+						err = traf.ParseReadSenc(defaultIVSize, moof.StartPos)
+						if err != nil {
+							return nil, err
+						}
 					}
 				}
 			}
@@ -318,6 +326,8 @@ func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
 		if boxStartPos == uint64(f.tfra.Entries[idx].MoofOffset) {
 			segStart = true
 		}
+	case (f.fileDecFlags & DecStartOnMoof) != 0:
+		segStart = true
 	default:
 		segStart = (idx == 0)
 	}
@@ -698,6 +708,160 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 			return fmt.Errorf("write error: %w", err)
 		}
 	}
+	return nil
+}
+
+func (f *File) UpdateSidx(addIfNotExists, nonZeroEPT bool) error {
+
+	if !f.IsFragmented() {
+		return fmt.Errorf("input file is not fragmented")
+	}
+
+	initSeg := f.Init
+	if initSeg == nil {
+		return fmt.Errorf("input file does not have an init segment")
+	}
+
+	segs := f.Segments
+	if len(segs) == 0 {
+		return fmt.Errorf("input file does not have any media segments")
+	}
+	exists := f.Sidx != nil
+	if !exists && !addIfNotExists {
+		return nil
+	}
+
+	refTrak := findReferenceTrak(initSeg)
+	trex, ok := initSeg.Moov.Mvex.GetTrex(refTrak.Tkhd.TrackID)
+	if !ok {
+		return fmt.Errorf("no trex box found for track %d", refTrak.Tkhd.TrackID)
+	}
+	segDatas, err := findSegmentData(segs, refTrak, trex)
+	if err != nil {
+		return fmt.Errorf("failed to find segment data: %w", err)
+	}
+
+	var sidx *SidxBox
+	if exists {
+		sidx = f.Sidx
+	} else {
+		sidx = &SidxBox{}
+	}
+	fillSidx(sidx, refTrak, segDatas, nonZeroEPT)
+	if !exists {
+		err = insertSidx(f, segDatas, sidx)
+		if err != nil {
+			return fmt.Errorf("failed to insert sidx box: %w", err)
+		}
+	}
+	return nil
+}
+
+func findReferenceTrak(initSeg *InitSegment) *TrakBox {
+	var trak *TrakBox
+	for _, trak = range initSeg.Moov.Traks {
+		if trak.Mdia.Hdlr.HandlerType == "vide" {
+			return trak
+		}
+	}
+	for _, trak = range initSeg.Moov.Traks {
+		if trak.Mdia.Hdlr.HandlerType == "soun" {
+			return trak
+		}
+	}
+	return initSeg.Moov.Traks[0]
+}
+
+type segData struct {
+	startPos         uint64
+	presentationTime uint64
+	baseDecodeTime   uint64
+	dur              uint32
+	size             uint32
+}
+
+// findSegmentData returns a slice of segment media data using a reference track.
+func findSegmentData(segs []*MediaSegment, refTrak *TrakBox, trex *TrexBox) ([]segData, error) {
+	segDatas := make([]segData, 0, len(segs))
+	for _, seg := range segs {
+		var firstCompositionTimeOffest int64
+		dur := uint32(0)
+		var baseTime uint64
+		for fIdx, frag := range seg.Fragments {
+			for _, traf := range frag.Moof.Trafs {
+				tfhd := traf.Tfhd
+				if tfhd.TrackID == refTrak.Tkhd.TrackID { // Find track that gives sidx time values
+					if fIdx == 0 {
+						baseTime = traf.Tfdt.BaseMediaDecodeTime()
+					}
+					for i, trun := range traf.Truns {
+						trun.AddSampleDefaultValues(tfhd, trex)
+						samples := trun.GetSamples()
+						for j, sample := range samples {
+							if fIdx == 0 && i == 0 && j == 0 {
+								firstCompositionTimeOffest = int64(sample.CompositionTimeOffset)
+							}
+							dur += sample.Dur
+						}
+					}
+				}
+			}
+		}
+		sd := segData{
+			startPos:         seg.StartPos,
+			presentationTime: uint64(int64(baseTime) + firstCompositionTimeOffest),
+			baseDecodeTime:   baseTime,
+			dur:              dur,
+			size:             uint32(seg.Size()),
+		}
+		segDatas = append(segDatas, sd)
+	}
+	return segDatas, nil
+}
+
+func fillSidx(sidx *SidxBox, refTrak *TrakBox, segDatas []segData, nonZeroEPT bool) {
+	ept := uint64(0)
+	if nonZeroEPT {
+		ept = segDatas[0].presentationTime
+	}
+	sidx.Version = 1
+	sidx.Timescale = refTrak.Mdia.Mdhd.Timescale
+	sidx.ReferenceID = 1
+	sidx.EarliestPresentationTime = ept
+	sidx.FirstOffset = 0
+	sidx.SidxRefs = make([]SidxRef, 0, len(segDatas))
+
+	for _, segData := range segDatas {
+		size := segData.size
+		sidx.SidxRefs = append(sidx.SidxRefs, SidxRef{
+			ReferencedSize:     size,
+			SubSegmentDuration: segData.dur,
+			StartsWithSAP:      1,
+			SAPType:            1,
+		})
+	}
+}
+
+func insertSidx(inFile *File, segDatas []segData, sidx *SidxBox) error {
+	// insert sidx box before first media segment
+	// TODO. Handle case where startPos is not reliable. Maybe first box of first segment
+	firstMediaBox, err := inFile.Segments[0].FirstBox()
+	if err != nil {
+		return fmt.Errorf("could not find position to insert sidx box: %w", err)
+	}
+	var mediaStartIdx = 0
+	for i, ch := range inFile.Children {
+		if ch == firstMediaBox {
+			mediaStartIdx = i
+			break
+		}
+	}
+	if mediaStartIdx == 0 {
+		return fmt.Errorf("could not find position to insert sidx box")
+	}
+	inFile.Children = append(inFile.Children[:mediaStartIdx], append([]Box{sidx}, inFile.Children[mediaStartIdx:]...)...)
+	inFile.Sidx = sidx
+	inFile.Sidxs = []*SidxBox{sidx}
 	return nil
 }
 

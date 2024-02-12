@@ -3,18 +3,28 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
 ### Added
 
-- New TryDecodeMfro function
-- New mp4ff-subslister tool replacing mp4ff-wvttlister, but also supporting stpp
+- New `TryDecodeMfro` function
+- New `mp4ff-subslister` tool replacing `mp4ff-wvttlister`. It supports `wvtt` and `stpp`
+- `File.UpdateSidx()` to update or add a top level sidx box for a fragmented file
+- `mp4.DecStartSegmentOnMoof` flag to make the Decoder interpret every moof as
+  a new segment start, unless styp, sidx, or mfra boxes give that information.
+- New example `add-sidx` shows how on can add a top-level `sidx` box to a fragmented file.
+  It further has the option to remove unused encryption boxes, and to interpret each
+  moof box as starting a new segment.
+- New method `MoovBox.IsEncrypted()` checks if an encrypted codec is signaled
 
 ### Fixed
 
 - More robust check for mfro at the end of file
+- GetTrex() return value
+- Can now write PIFF `uuid` box that has previously been read
+- Does now avoid the second parsing of `senc` box if the file is ot encrypted as seen in moov box.
 
 ### Removed
 

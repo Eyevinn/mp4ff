@@ -21,6 +21,10 @@ initcreator multitrack resegmenter segmenter:
 test: prepare
 	go test ./...
 
+.PHONY: testsum
+testsum: prepare
+	gotestsum
+
 .PHONY: coverage
 coverage:
 	# Ignore (allow) packages without any tests

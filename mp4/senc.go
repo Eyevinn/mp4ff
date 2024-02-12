@@ -284,10 +284,19 @@ func (s *SencBox) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
+	err = s.EncodeSWNoHdr(sw)
+	return err
+}
 
+// EncodeSWNoHdr encodes without header (useful for PIFF box)
+func (s *SencBox) EncodeSWNoHdr(sw bits.SliceWriter) error {
 	versionAndFlags := (uint32(s.Version) << 24) + s.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(s.SampleCount)
+	if s.readButNotParsed {
+		sw.WriteBytes(s.rawData)
+		return sw.AccError()
+	}
 	perSampleIVSize := s.GetPerSampleIVSize()
 	for i := 0; i < int(s.SampleCount); i++ {
 		if perSampleIVSize > 0 {
