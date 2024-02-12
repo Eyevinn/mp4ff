@@ -211,3 +211,37 @@ func TestGenerateInitSegment(t *testing.T) {
 		t.Errorf("Generated init segment different from %s", goldenAssetPath)
 	}
 }
+
+func TestInitTweakSingleTrakLive(t *testing.T) {
+	// Check that mehd box is removed and that multiple tracks is not allowed.
+	goldenAssetPath := "testdata/golden_init_video.mp4"
+	r, err := os.Open(goldenAssetPath)
+	if err != nil {
+		t.Error(err)
+	}
+	f, err := DecodeFile(r)
+	if err != nil {
+		t.Error(err)
+	}
+	moov := f.Init.Moov
+	mvex := moov.Mvex
+	mehd := MehdBox{
+		FragmentDuration: 1000,
+	}
+	mvex.AddChild(&mehd)
+	err = f.Init.TweakSingleTrakLive()
+	if err != nil {
+		t.Error(err)
+	}
+	if mvex.Mehd != nil {
+		t.Errorf("Mehd not removed")
+	}
+	f.Init.AddEmptyTrack(180000, "video", "und")
+	err = f.Init.TweakSingleTrakLive()
+	wantedErrMsg := "only one track allowed for live"
+	if err == nil {
+		t.Errorf("Did not get error")
+	} else if err.Error() != wantedErrMsg {
+		t.Errorf(`Did not get error %q but %q"`, wantedErrMsg, err)
+	}
+}
