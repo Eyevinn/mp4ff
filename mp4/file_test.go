@@ -299,3 +299,29 @@ func TestGetSegmentBoundariesFromMfra(t *testing.T) {
 		t.Errorf("not 3 segments in file but %d", len(parsedFile.Segments))
 	}
 }
+
+func TestUpdateSidx(t *testing.T) {
+	file, err := os.Open("./testdata/prog_8s_dec_dashinit.mp4")
+	if err != nil {
+		t.Error(err)
+	}
+
+	parsedFile, err := DecodeFile(file)
+	if err != nil {
+		t.Error(err)
+	}
+	err = parsedFile.UpdateSidx(false, false)
+	if err != nil {
+		t.Error(err)
+	}
+	if parsedFile.Sidx != nil {
+		t.Error("sidx should not be present")
+	}
+	err = parsedFile.UpdateSidx(true, false)
+	if err != nil {
+		t.Error(err)
+	}
+	if parsedFile.Sidx == nil {
+		t.Error("sidx should be present")
+	}
+}

@@ -97,8 +97,8 @@ func (m *MvexBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 func (m *MvexBox) GetTrex(trackID uint32) (trex *TrexBox, ok bool) {
 	for _, trex := range m.Trexs {
 		if trex.TrackID == trackID {
-			return trex, false
+			return trex, true
 		}
 	}
-	return nil, true
+	return nil, false
 }

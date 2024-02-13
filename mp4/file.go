@@ -697,6 +697,157 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 	return nil
 }
 
+func (f *File) UpdateSidx(addIfNotExists, nonZeroEPT bool) error {
+
+	if !f.IsFragmented() {
+		return fmt.Errorf("input file is not fragmented")
+	}
+
+	initSeg := f.Init
+	if initSeg == nil {
+		return fmt.Errorf("input file does not have an init segment")
+	}
+
+	segs := f.Segments
+	if len(segs) == 0 {
+		return fmt.Errorf("input file does not have any media segments")
+	}
+	exists := f.Sidx != nil
+	if !exists && !addIfNotExists {
+		return nil
+	}
+
+	refTrak := findReferenceTrak(initSeg)
+	trex, ok := initSeg.Moov.Mvex.GetTrex(refTrak.Tkhd.TrackID)
+	if !ok {
+		return fmt.Errorf("no trex box found for track %d", refTrak.Tkhd.TrackID)
+	}
+	segDatas, err := findSegmentData(segs, refTrak, trex)
+	if err != nil {
+		return fmt.Errorf("failed to find segment data: %w", err)
+	}
+
+	var sidx *SidxBox
+	if exists {
+		sidx = f.Sidx
+	} else {
+		sidx = &SidxBox{}
+	}
+	fillSidx(sidx, refTrak, segDatas, nonZeroEPT)
+	if !exists {
+		err = insertSidx(f, segDatas, sidx)
+		if err != nil {
+			return fmt.Errorf("failed to insert sidx box: %w", err)
+		}
+	}
+	return nil
+}
+
+func findReferenceTrak(initSeg *InitSegment) *TrakBox {
+	var trak *TrakBox
+	for _, trak = range initSeg.Moov.Traks {
+		if trak.Mdia.Hdlr.HandlerType == "vide" {
+			return trak
+		}
+	}
+	for _, trak = range initSeg.Moov.Traks {
+		if trak.Mdia.Hdlr.HandlerType == "soun" {
+			return trak
+		}
+	}
+	return initSeg.Moov.Traks[0]
+}
+
+type segData struct {
+	startPos         uint64
+	presentationTime uint64
+	baseDecodeTime   uint64
+	dur              uint32
+	size             uint32
+}
+
+func findSegmentData(segs []*MediaSegment, refTrak *TrakBox, trex *TrexBox) ([]segData, error) {
+	segDatas := make([]segData, 0, len(segs))
+	for _, seg := range segs {
+		frag := seg.Fragments[0]
+		for _, traf := range frag.Moof.Trafs {
+			tfhd := traf.Tfhd
+			if tfhd.TrackID == refTrak.Tkhd.TrackID {
+				// Found the track that the sidx should be based on
+				baseTime := traf.Tfdt.BaseMediaDecodeTime()
+				dur := uint32(0)
+				var firstCompositionTimeOffest int64
+				for i, trun := range traf.Truns {
+					trun.AddSampleDefaultValues(tfhd, trex)
+					samples := trun.GetSamples()
+					for j, sample := range samples {
+						if i == 0 && j == 0 {
+							firstCompositionTimeOffest = int64(sample.CompositionTimeOffset)
+						}
+						dur += sample.Dur
+					}
+				}
+				sd := segData{
+					startPos:         seg.StartPos,
+					presentationTime: uint64(int64(baseTime) + firstCompositionTimeOffest),
+					baseDecodeTime:   baseTime,
+					dur:              dur,
+					size:             uint32(seg.Size()),
+				}
+				segDatas = append(segDatas, sd)
+				break
+			}
+		}
+	}
+	return segDatas, nil
+}
+
+func fillSidx(sidx *SidxBox, refTrak *TrakBox, segDatas []segData, nonZeroEPT bool) {
+	ept := uint64(0)
+	if nonZeroEPT {
+		ept = segDatas[0].presentationTime
+	}
+	sidx.Version = 1
+	sidx.Timescale = refTrak.Mdia.Mdhd.Timescale
+	sidx.ReferenceID = 1
+	sidx.EarliestPresentationTime = ept
+	sidx.FirstOffset = 0
+	sidx.SidxRefs = make([]SidxRef, 0, len(segDatas))
+
+	for _, segData := range segDatas {
+		size := segData.size
+		sidx.SidxRefs = append(sidx.SidxRefs, SidxRef{
+			ReferencedSize:     size,
+			SubSegmentDuration: segData.dur,
+			StartsWithSAP:      1,
+			SAPType:            1,
+		})
+	}
+}
+
+func insertSidx(inFile *File, segDatas []segData, sidx *SidxBox) error {
+	// insert sidx box before first media segment
+	// TODO. Handle case where startPos is not reliable. Maybe first box of first segment
+	firstMediaBox, err := inFile.Segments[0].FirstBox()
+	if err != nil {
+		return fmt.Errorf("could not find position to insert sidx box: %w", err)
+	}
+	var mediaStartIdx = 0
+	for i, ch := range inFile.Children {
+		if ch == firstMediaBox {
+			mediaStartIdx = i
+			break
+		}
+	}
+	if mediaStartIdx == 0 {
+		return fmt.Errorf("could not find position to insert sidx box")
+	}
+	inFile.Children = append(inFile.Children[:mediaStartIdx], append([]Box{sidx}, inFile.Children[mediaStartIdx:]...)...)
+	inFile.Sidx = sidx
+	inFile.Sidxs = []*SidxBox{sidx}
+	return nil
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
