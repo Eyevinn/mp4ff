@@ -45,7 +45,7 @@ func DecodePicTimingAvcSEI(sd *SEIData) (SEIMessage, error) {
 // It is assumed that pict_struct_present_flag is true, so that a 4-bit pict_struct value is present.
 func DecodePicTimingAvcSEIHRD(sd *SEIData, cbpDbpDelay *CbpDbpDelay, timeOffsetLen byte) (SEIMessage, error) {
 	buf := bytes.NewBuffer(sd.Payload())
-	br := bits.NewAccErrReader(buf)
+	br := bits.NewReader(buf)
 	var outCbDbpDelay CbpDbpDelay
 	if cbpDbpDelay != nil {
 		outCbDbpDelay = *cbpDbpDelay
@@ -168,7 +168,7 @@ func CreateClockTSAvc(timeOffsetLen byte) ClockTSAvc {
 	}
 }
 
-func DecodeClockTSAvc(br *bits.AccErrReader, timeOffsetLen byte) ClockTSAvc {
+func DecodeClockTSAvc(br *bits.Reader, timeOffsetLen byte) ClockTSAvc {
 	c := CreateClockTSAvc(timeOffsetLen)
 	c.ClockTimeStampFlag = br.ReadFlag()
 	if c.ClockTimeStampFlag {

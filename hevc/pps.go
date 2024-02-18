@@ -182,7 +182,7 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	pps := &PPS{}
 
 	rd := bytes.NewReader(data)
-	r := bits.NewAccErrEBSPReader(rd)
+	r := bits.NewEBSPReader(rd)
 	// Note! First two bytes are NALU Header
 
 	naluHdrBits := r.Read(16)
@@ -323,7 +323,7 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	return pps, nil
 }
 
-func parseRangeExtension(r *bits.AccErrEBSPReader, transformSkipEnabled bool) (*RangeExtension, error) {
+func parseRangeExtension(r *bits.EBSPReader, transformSkipEnabled bool) (*RangeExtension, error) {
 	ext := &RangeExtension{}
 	if transformSkipEnabled {
 		ext.Log2MaxTransformSkipBlockSizeMinus2 = r.ReadExpGolomb()
@@ -349,7 +349,7 @@ func parseRangeExtension(r *bits.AccErrEBSPReader, transformSkipEnabled bool) (*
 	return ext, nil
 }
 
-func parseMultilayerExtension(r *bits.AccErrEBSPReader) (*MultilayerExtension, error) {
+func parseMultilayerExtension(r *bits.EBSPReader) (*MultilayerExtension, error) {
 	ext := &MultilayerExtension{}
 	ext.PocResetInfoPresentFlag = r.ReadFlag()
 	ext.InferScalingListFlag = r.ReadFlag()
@@ -404,7 +404,7 @@ func parseMultilayerExtension(r *bits.AccErrEBSPReader) (*MultilayerExtension, e
 	return ext, nil
 }
 
-func parseColourMappingTable(r *bits.AccErrEBSPReader) (*ColourMappingTable, error) {
+func parseColourMappingTable(r *bits.EBSPReader) (*ColourMappingTable, error) {
 	cm := &ColourMappingTable{}
 	// value shall be in the range of 0 to 61, inclusive
 	cm.NumCmRefLayersMinus1 = uint8(r.ReadExpGolomb())
@@ -447,7 +447,7 @@ func parseColourMappingTable(r *bits.AccErrEBSPReader) (*ColourMappingTable, err
 	return cm, nil
 }
 
-func parseColourMappingOctants(r *bits.AccErrEBSPReader, octantDepth uint, partNumY uint, resLsBits int,
+func parseColourMappingOctants(r *bits.EBSPReader, octantDepth uint, partNumY uint, resLsBits int,
 	inpDepth, idxY, idxCb, idxCr, inpLength uint) (map[string][4]Octant, error) {
 	var octs map[string][4]Octant
 
@@ -502,7 +502,7 @@ func makeKeyOctant(idxShiftY, idxCb, idxCr uint) string {
 	return fmt.Sprintf("%d-%d-%d", idxShiftY, idxCb, idxCr)
 }
 
-func parseSccExtension(r *bits.AccErrEBSPReader) (*SccExtension, error) {
+func parseSccExtension(r *bits.EBSPReader) (*SccExtension, error) {
 	ext := &SccExtension{}
 	ext.CurrPicRefEnabledFlag = r.ReadFlag()
 	ext.ResidualAdaptiveColourTransformEnabledFlag = r.ReadFlag()
@@ -546,7 +546,7 @@ func parseSccExtension(r *bits.AccErrEBSPReader) (*SccExtension, error) {
 	return ext, nil
 }
 
-func parse3dExtension(r *bits.AccErrEBSPReader) (*D3Extension, error) {
+func parse3dExtension(r *bits.EBSPReader) (*D3Extension, error) {
 	ext := &D3Extension{}
 	ext.DltsPresentFlag = r.ReadFlag()
 	if ext.DltsPresentFlag {
@@ -585,7 +585,7 @@ func parse3dExtension(r *bits.AccErrEBSPReader) (*D3Extension, error) {
 	return ext, nil
 }
 
-func parseDeltaDlt(r *bits.AccErrEBSPReader, BitDepthForDepthLayers int) (*DeltaDlt, error) {
+func parseDeltaDlt(r *bits.EBSPReader, BitDepthForDepthLayers int) (*DeltaDlt, error) {
 	dd := &DeltaDlt{}
 	dd.NumValDeltaDlt = r.Read(BitDepthForDepthLayers)
 	if dd.NumValDeltaDlt > 0 {

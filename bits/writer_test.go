@@ -1,40 +1,12 @@
-package bits
+package bits_test
 
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/bits"
 )
-
-func TestReader(t *testing.T) {
-	input := []byte{0xff, 0x0f} // 1111 1111 0000 1111
-	rd := bytes.NewReader(input)
-	reader := NewReader(rd)
-
-	cases := []struct {
-		n    int
-		want uint
-	}{
-		{2, 3},  // 11
-		{3, 7},  // 111
-		{5, 28}, // 11100
-		{3, 1},  // 001
-		{3, 7},  // 111
-	}
-
-	for _, tc := range cases {
-		got, err := reader.Read(tc.n)
-		if err != nil && err != io.EOF {
-			t.Fatalf("Read(%d) should not fail: %s", tc.n, err)
-		}
-
-		if got != tc.want {
-			t.Errorf("Read(%d)=%b, want=%b", tc.n, got, tc.want)
-		}
-
-	}
-}
 
 func TestWriter(t *testing.T) {
 	cases := []struct {
@@ -53,18 +25,18 @@ func TestWriter(t *testing.T) {
 
 	for _, tc := range cases {
 		var buf bytes.Buffer
-		writer := NewWriter(&buf)
+		writer := bits.NewWriter(&buf)
 
 		for _, input := range tc.inputs {
 			writer.Write(input, tc.size)
 		}
-		err := writer.Error()
+		err := writer.AccError()
 		if err != nil {
 			t.Fatalf("Write should not fail: %s", err)
 		}
 
 		writer.Flush()
-		err = writer.Error()
+		err = writer.AccError()
 		if err != nil {
 			t.Fatalf("Flush should not fail: %s", err)
 		}
@@ -86,7 +58,7 @@ func TestMask(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		m := mask(tc.input)
+		m := bits.Mask(tc.input)
 		if got := fmt.Sprintf("%08b", m); got != tc.want {
 			t.Errorf("mask(%d)=%s,want=%s", tc.input, got, tc.want)
 		}

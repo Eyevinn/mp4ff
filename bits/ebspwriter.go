@@ -4,9 +4,9 @@ import (
 	"io"
 )
 
-// EBSPWriter - write bits and insert start-code emulation prevention bytes as necessary.
-// Cease writing at first error.
-// Errors that have occurred can later be checked with AccError().
+// EBSPWriter write bits and insert start-code emulation prevention bytes as necessary.
+// Ceases writing at first error.
+// The first error can later be checked with AccError().
 type EBSPWriter struct {
 	wr  io.Writer // underlying writer
 	err error     // The first error caused by any write operation
@@ -32,10 +32,10 @@ func (w *EBSPWriter) Write(bits uint, n int) {
 		return
 	}
 	w.v <<= uint(n)
-	w.v |= bits & mask(n)
+	w.v |= bits & Mask(n)
 	w.n += n
 	for w.n >= 8 {
-		b := (w.v >> (uint(w.n) - 8)) & mask(8)
+		b := (w.v >> (uint(w.n) - 8)) & Mask(8)
 		if w.nr0 == 2 && b <= 3 {
 			w.out[0] = 0x3 // start code emulation prevention
 			_, err := w.wr.Write(w.out)
@@ -58,7 +58,7 @@ func (w *EBSPWriter) Write(bits uint, n int) {
 		}
 		w.n -= 8
 	}
-	w.v &= mask(8)
+	w.v &= Mask(8)
 }
 
 // WriteExpGolomb - write an exponential Golomb code

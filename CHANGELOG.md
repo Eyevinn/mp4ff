@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - InitSegment.TweakSingleTrakLive changes an init segment to fit live streaming
+- Made bits.Mask() function public
+
+### Changed
+
+- All readers and writers in bits package now stop working at first error and provides the first error as AccError()
+- Renamed bits.AccErrReader, bits.AccErrEBSPReader, bits.AccErrWriter to corresponiding names without AccErr
+- Renamed bits.SliceWriterError to bits.ErrSliceWrite
 
 ## [0.42.0] - 2024-01-26
 

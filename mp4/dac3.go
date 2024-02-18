@@ -85,13 +85,14 @@ func decodeDac3FromData(data []byte) (Box, error) {
 	buf := bytes.NewBuffer(data)
 	br := bits.NewReader(buf)
 	b := Dac3Box{}
-	b.FSCod = byte(br.MustRead(2))
-	b.BSID = byte(br.MustRead(5))
-	b.BSMod = byte(br.MustRead(3))
-	b.ACMod = byte(br.MustRead(3))
-	b.LFEOn = byte(br.MustRead(1))
-	b.BitRateCode = byte(br.MustRead(5))
+	b.FSCod = byte(br.Read(2))
+	b.BSID = byte(br.Read(5))
+	b.BSMod = byte(br.Read(3))
+	b.ACMod = byte(br.Read(3))
+	b.LFEOn = byte(br.Read(1))
+	b.BitRateCode = byte(br.Read(5))
 	// 5 bits reserved follows
+	_ = br.Read(5)
 	return &b, nil
 }
 

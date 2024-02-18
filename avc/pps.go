@@ -52,7 +52,7 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	pps := &PPS{}
 
 	rd := bytes.NewReader(data)
-	reader := bits.NewAccErrEBSPReader(rd)
+	reader := bits.NewEBSPReader(rd)
 	// Note! First byte is NAL Header
 
 	naluHdr := reader.Read(8)

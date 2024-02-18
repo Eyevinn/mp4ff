@@ -2,12 +2,23 @@ package bits
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
 
-// AccErrEBSPReader - Reader that drops start code emulation 0x03 after two bytes of 0x00
-type AccErrEBSPReader struct {
+// ESBPReader errors
+var (
+	ErrNotReadSeeker = errors.New("reader does not support Seek")
+)
+
+const (
+	startCodeEmulationPreventionByte = 0x03
+)
+
+// EBSPReader reads an EBSP bitstream dropping start-code emulation bytes.
+// It also supports checking for more rbsp data and reading rbsp_trailing_bits.
+type EBSPReader struct {
 	rd        io.Reader
 	err       error
 	n         int  // current number of bits
@@ -16,26 +27,26 @@ type AccErrEBSPReader struct {
 	zeroCount int // Count number of zero bytes read
 }
 
-// NewAccErrEBSPReader - return a new reader accumulating errors.
-func NewAccErrEBSPReader(rd io.Reader) *AccErrEBSPReader {
-	return &AccErrEBSPReader{
+// NewEBSPReader return a new EBSP reader stopping reading at first error.
+func NewEBSPReader(rd io.Reader) *EBSPReader {
+	return &EBSPReader{
 		rd:  rd,
 		pos: -1,
 	}
 }
 
-// AccError - accumulated error
-func (r *AccErrEBSPReader) AccError() error {
+// AccError returns the accumulated error. If no error, returns nil.
+func (r *EBSPReader) AccError() error {
 	return r.err
 }
 
-// NrBytesRead - how many bytes read into parser
-func (r *AccErrEBSPReader) NrBytesRead() int {
+// NrBytesRead returns how many bytes read into parser.
+func (r *EBSPReader) NrBytesRead() int {
 	return r.pos + 1 // Starts at -1
 }
 
-// NrBitsRead - how many bits read into parser
-func (r *AccErrEBSPReader) NrBitsRead() int {
+// NrBitsRead returns total number of bits read into parser.
+func (r *EBSPReader) NrBitsRead() int {
 	nrBits := r.NrBytesRead() * 8
 	if r.NrBitsReadInCurrentByte() != 8 {
 		nrBits += r.NrBitsReadInCurrentByte() - 8
@@ -43,13 +54,13 @@ func (r *AccErrEBSPReader) NrBitsRead() int {
 	return nrBits
 }
 
-// NrBitsReadInCurrentByte - how many bits have been read
-func (r *AccErrEBSPReader) NrBitsReadInCurrentByte() int {
+// NrBitsReadInCurrentByte returns number of bits read in current byte.
+func (r *EBSPReader) NrBitsReadInCurrentByte() int {
 	return 8 - r.n
 }
 
-// Read - read n bits and return 0 if (previous) error
-func (r *AccErrEBSPReader) Read(n int) uint {
+// Read reads n bits and respects and accumulates errors. If error, returns 0.
+func (r *EBSPReader) Read(n int) uint {
 	if r.err != nil {
 		return 0
 	}
@@ -84,13 +95,13 @@ func (r *AccErrEBSPReader) Read(n int) uint {
 	v := r.v >> uint(r.n-n)
 
 	r.n -= n
-	r.v &= mask(r.n)
+	r.v &= Mask(r.n)
 
 	return v
 }
 
-// Read - read n bytes and return nil if (previous) error or if n bytes not available
-func (r *AccErrEBSPReader) ReadBytes(n int) []byte {
+// ReadBytes read n bytes and return nil if new or accumulated error.
+func (r *EBSPReader) ReadBytes(n int) []byte {
 	if r.err != nil {
 		return nil
 	}
@@ -105,13 +116,13 @@ func (r *AccErrEBSPReader) ReadBytes(n int) []byte {
 	return payload
 }
 
-// ReadFlag - read 1 bit into bool. Return false if not possible
-func (r *AccErrEBSPReader) ReadFlag() bool {
+// ReadFlag reads 1 bit and translates a bool.
+func (r *EBSPReader) ReadFlag() bool {
 	return r.Read(1) == 1
 }
 
-// ReadExpGolomb - Read one unsigned exponential golomb code. Return 0 if error
-func (r *AccErrEBSPReader) ReadExpGolomb() uint {
+// ReadExpGolomb reads one unsigned exponential Golomb code.
+func (r *EBSPReader) ReadExpGolomb() uint {
 	if r.err != nil {
 		return 0
 	}
@@ -138,8 +149,8 @@ func (r *AccErrEBSPReader) ReadExpGolomb() uint {
 	return res + endBits
 }
 
-// ReadSignedGolomb - Read one signed exponential golomb code. Return 0 if error
-func (r *AccErrEBSPReader) ReadSignedGolomb() int {
+// ReadSignedGolomb reads one signed exponential Golomb code.
+func (r *EBSPReader) ReadSignedGolomb() int {
 	if r.err != nil {
 		return 0
 	}
@@ -153,18 +164,18 @@ func (r *AccErrEBSPReader) ReadSignedGolomb() int {
 	return -int(unsignedGolomb / 2)
 }
 
-// IsSeeker - does reader support Seek
-func (r *AccErrEBSPReader) IsSeeker() bool {
+// IsSeeker returns tru if underluing reader supports Seek interface.
+func (r *EBSPReader) IsSeeker() bool {
 	_, ok := r.rd.(io.ReadSeeker)
 	return ok
 }
 
-// MoreRbspData - false if next bit is 1 and last 1 in fullSlice.
-// Underlying reader must support ReadSeeker interface to reset after check
-// Return false, nil if underlying error
-func (r *AccErrEBSPReader) MoreRbspData() (bool, error) {
+// MoreRbspData returns false if next bit is 1 and last 1-bit in fullSlice.
+// Underlying reader must support ReadSeeker interface to reset after check.
+// Return false, nil if underlying error.
+func (r *EBSPReader) MoreRbspData() (bool, error) {
 	if !r.IsSeeker() {
-		return false, ErrNotReedSeeker
+		return false, ErrNotReadSeeker
 	}
 	// Find out if next position is the last 1
 	stateCopy := *r
@@ -203,12 +214,12 @@ func (r *AccErrEBSPReader) MoreRbspData() (bool, error) {
 	return more, nil
 }
 
-// reset EBSPReader based on copy of previous state
-func (r *AccErrEBSPReader) reset(prevState AccErrEBSPReader) error {
+// reset resets EBSPReader based on copy of previous state.
+func (r *EBSPReader) reset(prevState EBSPReader) error {
 	rdSeek, ok := r.rd.(io.ReadSeeker)
 
 	if !ok {
-		return ErrNotReedSeeker
+		return ErrNotReadSeeker
 	}
 
 	_, err := rdSeek.Seek(int64(prevState.pos+1), 0)
@@ -222,9 +233,9 @@ func (r *AccErrEBSPReader) reset(prevState AccErrEBSPReader) error {
 	return nil
 }
 
-// ReadRbspTrailingBits - read rbsp_traling_bits. Return error if wrong pattern
-// If other error, return nil and let AccError provide that error
-func (r *AccErrEBSPReader) ReadRbspTrailingBits() error {
+// ReadRbspTrailingBits reads rbsp_traling_bits. Returns error if wrong pattern.
+// If other error, returns nil and let AccError() provide that error.
+func (r *EBSPReader) ReadRbspTrailingBits() error {
 	if r.err != nil {
 		return nil
 	}
@@ -250,9 +261,9 @@ func (r *AccErrEBSPReader) ReadRbspTrailingBits() error {
 	}
 }
 
-// SetError - set an error if not already set.
-func (r *AccErrEBSPReader) SetError(err error) {
-	if r.err != nil {
+// SetError sets an error if not already set.
+func (r *EBSPReader) SetError(err error) {
+	if r.err == nil {
 		r.err = err
 	}
 }

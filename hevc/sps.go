@@ -103,7 +103,7 @@ func flagFrom(flags uint64, bitNr uint) bool {
 }
 
 // parseProfileTierLevel follows ISO/IEC 23008-2 Section 7.3.3
-func parseProfileTierLevel(r *bits.AccErrEBSPReader, profilePresentFlag bool, maxNumSubLayersMinus1 byte) ProfileTierLevel {
+func parseProfileTierLevel(r *bits.EBSPReader, profilePresentFlag bool, maxNumSubLayersMinus1 byte) ProfileTierLevel {
 	ptl := ProfileTierLevel{}
 	if profilePresentFlag {
 		ptl.GeneralProfileSpace = byte(r.Read(2))
@@ -310,7 +310,7 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps := &SPS{}
 
 	rd := bytes.NewReader(data)
-	r := bits.NewAccErrEBSPReader(rd)
+	r := bits.NewEBSPReader(rd)
 	// Note! First two bytes are NALU Header
 
 	naluHdrBits := r.Read(16)
@@ -497,7 +497,7 @@ func (s *SPS) ImageSize() (width, height uint32) {
 
 // parseVUI - parse VUI (Visual Usability Information)
 // if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
-func parseVUI(r *bits.AccErrEBSPReader, MaxSubLayersMinus1 byte) *VUIParameters {
+func parseVUI(r *bits.EBSPReader, MaxSubLayersMinus1 byte) *VUIParameters {
 	vui := &VUIParameters{}
 	aspectRatioInfoPresentFlag := r.ReadFlag()
 	if aspectRatioInfoPresentFlag {
@@ -564,7 +564,7 @@ func parseVUI(r *bits.AccErrEBSPReader, MaxSubLayersMinus1 byte) *VUIParameters 
 	return vui
 }
 
-func parseHrdParameters(r *bits.AccErrEBSPReader,
+func parseHrdParameters(r *bits.EBSPReader,
 	commonInfPresentFlag bool, maxNumSubLayersMinus1 byte) *HrdParameters {
 	hp := &HrdParameters{}
 	if commonInfPresentFlag {
@@ -622,7 +622,7 @@ func parseHrdParameters(r *bits.AccErrEBSPReader,
 	return hp
 }
 
-func parseSubLayerHrdParameters(r *bits.AccErrEBSPReader,
+func parseSubLayerHrdParameters(r *bits.EBSPReader,
 	cpbCntMinus1 uint8, subPicHrdParamsPresentFlag bool) []SubLayerHrdParameters {
 	slhp := make([]SubLayerHrdParameters, cpbCntMinus1+1)
 	for i := uint8(0); i <= cpbCntMinus1; i++ {
@@ -638,7 +638,7 @@ func parseSubLayerHrdParameters(r *bits.AccErrEBSPReader,
 	return slhp
 }
 
-func parseBitstreamRestrictions(r *bits.AccErrEBSPReader) *BitstreamRestrictions {
+func parseBitstreamRestrictions(r *bits.EBSPReader) *BitstreamRestrictions {
 	br := BitstreamRestrictions{}
 	br.TilesFixedStructureFlag = r.ReadFlag()
 	br.MVOverPicBoundariesFlag = r.ReadFlag()
@@ -682,7 +682,7 @@ const maxSTRefPics = 16
 
 // parseShortTermRPS - short-term reference pictures with syntax from 7.3.7.
 // Focus is on reading/parsing beyond this structure in SPS (and possibly in slice header)
-func parseShortTermRPS(r *bits.AccErrEBSPReader, idx, numSTRefPicSets byte, sps *SPS) ShortTermRPS {
+func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS) ShortTermRPS {
 	stps := ShortTermRPS{}
 
 	interRPSPredFlag := false
@@ -740,7 +740,7 @@ func parseShortTermRPS(r *bits.AccErrEBSPReader, idx, numSTRefPicSets byte, sps 
 }
 
 // readPastScalingListData - read and parse all bits of scaling list, without storing values
-func readPastScalingListData(r *bits.AccErrEBSPReader) {
+func readPastScalingListData(r *bits.EBSPReader) {
 	for sizeId := 0; sizeId < 4; sizeId++ {
 		nrMatrixIds := 6
 		if sizeId == 3 {
@@ -770,7 +770,7 @@ func readPastScalingListData(r *bits.AccErrEBSPReader) {
 	}
 }
 
-func parseSPS3dExtension(r *bits.AccErrEBSPReader) *SPS3dExtension {
+func parseSPS3dExtension(r *bits.EBSPReader) *SPS3dExtension {
 	ext := &SPS3dExtension{
 		IvDiMcEnabledFlag0:     r.ReadFlag(),
 		IvMvScalEnabledFlag0:   r.ReadFlag(),
@@ -793,7 +793,7 @@ func parseSPS3dExtension(r *bits.AccErrEBSPReader) *SPS3dExtension {
 	return ext
 }
 
-func parseSPSSccExtension(r *bits.AccErrEBSPReader, ChromaFormatIDC,
+func parseSPSSccExtension(r *bits.EBSPReader, ChromaFormatIDC,
 	BitDepthLumaMinus8, BitDepthChromaMinus8 byte) *SPSSccExtension {
 	ext := &SPSSccExtension{}
 	ext.CurrPicRefEnabledFlag = r.ReadFlag()

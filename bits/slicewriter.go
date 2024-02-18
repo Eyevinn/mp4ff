@@ -4,6 +4,8 @@ import (
 	"errors"
 )
 
+var ErrSliceWrite = errors.New("overflow in SliceWriter")
+
 type SliceWriter interface {
 	Len() int
 	Capacity() int
@@ -27,5 +29,3 @@ type SliceWriter interface {
 	WriteFlag(f bool)
 	FlushBits()
 }
-
-var SliceWriterError = errors.New("overflow in SliceWriter")

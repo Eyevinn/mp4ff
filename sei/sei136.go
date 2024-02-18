@@ -41,7 +41,7 @@ func CreateClockTS() ClockTS {
 	return ClockTS{}
 }
 
-func DecodeClockTS(br *bits.AccErrReader) ClockTS {
+func DecodeClockTS(br *bits.Reader) ClockTS {
 	c := CreateClockTS()
 	c.ClockTimeStampFlag = br.ReadFlag()
 	if c.ClockTimeStampFlag {
@@ -80,7 +80,7 @@ func DecodeClockTS(br *bits.AccErrReader) ClockTS {
 // DecodeTimeCodeSEI decodes SEI message 136 TimeCode.
 func DecodeTimeCodeSEI(sd *SEIData) (SEIMessage, error) {
 	buf := bytes.NewBuffer(sd.Payload())
-	br := bits.NewAccErrReader(buf)
+	br := bits.NewReader(buf)
 	numClockTS := int(br.Read(2))
 	tc := TimeCodeSEI{make([]ClockTS, 0, numClockTS)}
 	for i := 0; i < numClockTS; i++ {

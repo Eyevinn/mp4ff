@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 )
 
-// AccErrReader - bit reader that accumulates error
-// First error can be fetched as reader.AccError()
-type AccErrReader struct {
+// Reader is a bit reader that stops reading at first error and stores it.
+// First error can be fetched usiin AccError().
+type Reader struct {
 	rd     io.Reader
 	err    error
 	nrBits int  // current number of bits
@@ -17,19 +17,19 @@ type AccErrReader struct {
 }
 
 // AccError - accumulated error is first error that occurred
-func (r *AccErrReader) AccError() error {
+func (r *Reader) AccError() error {
 	return r.err
 }
 
-// NewAccErrReader - return a new Reader
-func NewAccErrReader(rd io.Reader) *AccErrReader {
-	return &AccErrReader{
+// NewReader return a new Reader that accumulates errors.
+func NewReader(rd io.Reader) *Reader {
+	return &Reader{
 		rd: rd,
 	}
 }
 
 // Read - read n bits. Return 0, if error now or previously
-func (r *AccErrReader) Read(n int) uint {
+func (r *Reader) Read(n int) uint {
 	if r.err != nil {
 		return 0
 	}
@@ -49,13 +49,13 @@ func (r *AccErrReader) Read(n int) uint {
 	value := r.value >> uint(r.nrBits-n)
 
 	r.nrBits -= n
-	r.value &= mask(r.nrBits)
+	r.value &= Mask(r.nrBits)
 
 	return value
 }
 
 // ReadSigned reads a 2-complemented signed int with n bits.
-func (r *AccErrReader) ReadSigned(n int) int {
+func (r *Reader) ReadSigned(n int) int {
 	nr := int(r.Read(n))
 	firstBit := nr >> (n - 1)
 	if firstBit == 1 {
@@ -64,8 +64,8 @@ func (r *AccErrReader) ReadSigned(n int) int {
 	return nr
 }
 
-// ReadFlag - read 1 bit into flag. Return false if error now or previously
-func (r *AccErrReader) ReadFlag() bool {
+// ReadFlag reads 1 bit and interprets as a boolean flag. Returns false if error now or previously.
+func (r *Reader) ReadFlag() bool {
 	bit := r.Read(1)
 	if r.err != nil {
 		return false
@@ -73,19 +73,8 @@ func (r *AccErrReader) ReadFlag() bool {
 	return bit == 1
 }
 
-// ReadFlag - Read i(v) which is 2-complement of n bits
-func (r *AccErrReader) ReadVInt(n int) int {
-	uval := r.Read(n)
-	var ival int
-
-	if uval >= 1<<(n/2) {
-		ival = int(uval) - (1 << n)
-	}
-	return ival
-}
-
-// ReadRemainingBytes - read remaining bytes if byte-aligned
-func (r *AccErrReader) ReadRemainingBytes() []byte {
+// ReadRemainingBytes reads remaining bytes if byte-aligned. Returns nil if error now or previously.
+func (r *Reader) ReadRemainingBytes() []byte {
 	if r.err != nil {
 		return nil
 	}

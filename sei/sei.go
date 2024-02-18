@@ -553,7 +553,7 @@ func (s *SEIData) Size() uint {
 // In case the rbsp_trailing_bits 0x80 byte is missing at end, []seiData and
 // an ErrMissingRbspTrailingBits error are both returned.
 func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
-	ar := bits.NewAccErrEBSPReader(r)
+	ar := bits.NewEBSPReader(r)
 	for {
 		payloadType := uint(0)
 		for {
