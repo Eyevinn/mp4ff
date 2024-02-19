@@ -85,7 +85,7 @@ func DecodeDec3SR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 
 func decodeDec3FromData(data []byte) (Box, error) {
 	buf := bytes.NewBuffer(data)
-	br := bits.NewAccErrReader(buf)
+	br := bits.NewReader(buf)
 	b := Dec3Box{}
 	b.DataRate = uint16(br.Read(13))
 	nrSubs := br.Read(3) + 1 // There must be one base stream

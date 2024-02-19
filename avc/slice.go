@@ -66,16 +66,11 @@ func GetSliceTypeFromNALU(data []byte) (sliceType SliceType, err error) {
 	r := bits.NewEBSPReader(bytes.NewReader((data[1:])))
 
 	// first_mb_in_slice
-	if _, err = r.ReadExpGolomb(); err != nil {
-		return
+	_ = r.ReadExpGolomb()
+	sliceType = SliceType(r.ReadExpGolomb())
+	if r.AccError() != nil {
+		err = r.AccError()
 	}
-
-	// slice_type
-	var st uint
-	if st, err = r.ReadExpGolomb(); err != nil {
-		return
-	}
-	sliceType = SliceType(st)
 	if sliceType > 9 {
 		err = ErrInvalidSliceType
 		return
@@ -134,7 +129,7 @@ type SliceHeader struct {
 func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) (*SliceHeader, error) {
 	sh := SliceHeader{}
 	buf := bytes.NewBuffer(nalu)
-	r := bits.NewAccErrEBSPReader(buf)
+	r := bits.NewEBSPReader(buf)
 	nalHdr := r.Read(8)
 	naluType := GetNaluType(byte(nalHdr))
 	switch naluType {

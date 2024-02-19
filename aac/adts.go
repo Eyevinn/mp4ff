@@ -59,7 +59,7 @@ func (a ADTSHeader) Encode() []byte {
 
 // DecodeADTSHeader by first looking for sync word
 func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
-	br := bits.NewAccErrReader(r)
+	br := bits.NewReader(r)
 	tsPacketSize := 188 // Find sync 0xfff in first 188 bytes (MPEG-TS related)
 	syncFound := false
 	offset = 0

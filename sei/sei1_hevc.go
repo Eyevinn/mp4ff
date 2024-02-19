@@ -43,7 +43,7 @@ type HEVCFrameFieldInfo struct {
 
 func DecodePicTimingHevcSEI(sd *SEIData, exPar HEVCPicTimingParams) (SEIMessage, error) {
 	buf := bytes.NewBuffer(sd.Payload())
-	br := bits.NewAccErrEBSPReader(buf)
+	br := bits.NewEBSPReader(buf)
 	pt := PicTimingHevcSEI{
 		payload: sd.Payload(),
 	}

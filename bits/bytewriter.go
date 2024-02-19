@@ -5,26 +5,27 @@ import (
 	"io"
 )
 
-// AccErrByteWriter - writer that wraps an io.Writer and accumulates error
-type AccErrByteWriter struct {
+// ByteWriter - writer that wraps an io.Writer and accumulates error.
+// Only the first error is saved, but any later calls will not panic.
+type ByteWriter struct {
 	w   io.Writer
 	err error
 }
 
-// NewAccErrByteWriter - create accumulated error writer around io.Writer
-func NewAccErrByteWriter(w io.Writer) *AccErrByteWriter {
-	return &AccErrByteWriter{
+// NewByteWriter creates accumulated error writer around io.Writer.
+func NewByteWriter(w io.Writer) *ByteWriter {
+	return &ByteWriter{
 		w: w,
 	}
 }
 
 // AccError - return accumulated error
-func (a *AccErrByteWriter) AccError() error {
+func (a *ByteWriter) AccError() error {
 	return a.err
 }
 
 // WriteUint8 - write a byte
-func (a *AccErrByteWriter) WriteUint8(b byte) {
+func (a *ByteWriter) WriteUint8(b byte) {
 	if a.err != nil {
 		return
 	}
@@ -32,7 +33,7 @@ func (a *AccErrByteWriter) WriteUint8(b byte) {
 }
 
 // WriteUint16 - write uint16
-func (a *AccErrByteWriter) WriteUint16(u uint16) {
+func (a *ByteWriter) WriteUint16(u uint16) {
 	if a.err != nil {
 		return
 	}
@@ -40,7 +41,7 @@ func (a *AccErrByteWriter) WriteUint16(u uint16) {
 }
 
 // WriteUint32 - write uint32
-func (a *AccErrByteWriter) WriteUint32(u uint32) {
+func (a *ByteWriter) WriteUint32(u uint32) {
 	if a.err != nil {
 		return
 	}
@@ -48,7 +49,7 @@ func (a *AccErrByteWriter) WriteUint32(u uint32) {
 }
 
 // WriteUint48 - write uint48
-func (a *AccErrByteWriter) WriteUint48(u uint64) {
+func (a *ByteWriter) WriteUint48(u uint64) {
 	if a.err != nil {
 		return
 	}
@@ -62,7 +63,7 @@ func (a *AccErrByteWriter) WriteUint48(u uint64) {
 }
 
 // WriteUint64 - write uint64
-func (a *AccErrByteWriter) WriteUint64(u uint64) {
+func (a *ByteWriter) WriteUint64(u uint64) {
 	if a.err != nil {
 		return
 	}
@@ -70,7 +71,7 @@ func (a *AccErrByteWriter) WriteUint64(u uint64) {
 }
 
 // WriteSlice - write a slice
-func (a *AccErrByteWriter) WriteSlice(s []byte) {
+func (a *ByteWriter) WriteSlice(s []byte) {
 	if a.err != nil {
 		return
 	}

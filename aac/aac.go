@@ -76,7 +76,7 @@ var ReverseFrequencies = map[int]byte{
 
 // DecodeAudioSpecificConfig -
 func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
-	br := bits.NewAccErrReader(r)
+	br := bits.NewReader(r)
 
 	asc := &AudioSpecificConfig{}
 	audioObjectType := byte(br.Read(5))
@@ -150,11 +150,11 @@ func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 	}
 	bw.Write(0x00, 3) // GASpecificConfig
 	bw.Flush()
-	return bw.Error()
+	return bw.AccError()
 }
 
 // getFrequency - either from 4-bit index or 24-bit value
-func getFrequency(br *bits.AccErrReader) (frequency int, ok bool) {
+func getFrequency(br *bits.Reader) (frequency int, ok bool) {
 	frequencyIndex := br.Read(4)
 	if frequencyIndex == 0x0f {
 		f := br.Read(24)

@@ -371,10 +371,20 @@ func (f *File) findAndReadMfra(r io.Reader) error {
 	if !ok {
 		return fmt.Errorf("expecting mfra box, but got %T", b)
 	}
-	if len(mfra.Tfras) != 1 {
-		return fmt.Errorf("only supports exactly one tfra in mfra")
+	f.tfra = mfra.Tfras[0]
+	for i := 1; i < len(mfra.Tfras); i++ {
+		if mfra.Tfras[i].TrackID == f.tfra.TrackID {
+			return fmt.Errorf("only one tfra box per trackID is supported")
+		}
+		if len(mfra.Tfras[i].Entries) != len(f.tfra.Entries) {
+			return fmt.Errorf("tfra boxes with different number of entries are not supported")
+		}
+		for j := 0; j < len(mfra.Tfras[i].Entries); j++ {
+			if mfra.Tfras[i].Entries[j].MoofOffset != f.tfra.Entries[j].MoofOffset {
+				return fmt.Errorf("tfra boxes with different moof offsets for different tracks are not supported")
+			}
+		}
 	}
-	f.tfra = mfra.Tfra
 	_, err = rs.Seek(0, io.SeekStart)
 	return err
 }

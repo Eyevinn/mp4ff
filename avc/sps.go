@@ -117,7 +117,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	sps := &SPS{}
 
 	rd := bytes.NewReader(data)
-	reader := bits.NewAccErrEBSPReader(rd)
+	reader := bits.NewEBSPReader(rd)
 	// Note! First byte is NAL Header
 
 	nalHdr := reader.Read(8)
@@ -271,7 +271,7 @@ func (s *SPS) ChromaArrayType() byte {
 
 // parseVUI - parse VUI (Visual Usability Information)
 // if parseVUIBeyondAspectRatio is false, stop after AspectRatio has been parsed
-func parseVUI(reader *bits.AccErrEBSPReader, parseVUIBeyondAspectRatio bool) *VUIParameters {
+func parseVUI(reader *bits.EBSPReader, parseVUIBeyondAspectRatio bool) *VUIParameters {
 	vui := &VUIParameters{}
 	var err error
 	aspectRatioInfoPresentFlag := reader.ReadFlag()
@@ -342,7 +342,7 @@ func parseVUI(reader *bits.AccErrEBSPReader, parseVUIBeyondAspectRatio bool) *VU
 	return vui
 }
 
-func parseHrdParameters(r *bits.AccErrEBSPReader) *HrdParameters {
+func parseHrdParameters(r *bits.EBSPReader) *HrdParameters {
 	hp := &HrdParameters{}
 	hp.CpbCountMinus1 = r.ReadExpGolomb()
 
@@ -380,7 +380,7 @@ func GetSARfromIDC(index uint) (uint, uint, error) {
 	return aspectRatioTable[index-1][0], aspectRatioTable[index-1][1], nil
 }
 
-func readScalingList(reader *bits.AccErrEBSPReader, sizeOfScalingList int) ScalingList {
+func readScalingList(reader *bits.EBSPReader, sizeOfScalingList int) ScalingList {
 	scalingList := make([]int, sizeOfScalingList)
 	lastScale := 8
 	nextScale := 8
