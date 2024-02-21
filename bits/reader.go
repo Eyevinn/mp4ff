@@ -10,10 +10,11 @@ import (
 // Reader is a bit reader that stops reading at first error and stores it.
 // First error can be fetched usiin AccError().
 type Reader struct {
-	rd     io.Reader
-	err    error
-	nrBits int  // current number of bits
-	value  uint // current accumulated value
+	rd    io.Reader
+	err   error
+	n     int  // current number of bits
+	value uint // current accumulated value
+	pos   int  // current position in reader (in bytes)
 }
 
 // AccError - accumulated error is first error that occurred
@@ -24,7 +25,8 @@ func (r *Reader) AccError() error {
 // NewReader return a new Reader that accumulates errors.
 func NewReader(rd io.Reader) *Reader {
 	return &Reader{
-		rd: rd,
+		rd:  rd,
+		pos: -1,
 	}
 }
 
@@ -34,7 +36,7 @@ func (r *Reader) Read(n int) uint {
 		return 0
 	}
 
-	for r.nrBits < n {
+	for r.n < n {
 		r.value <<= 8
 		var newByte uint8
 		err := binary.Read(r.rd, binary.BigEndian, &newByte)
@@ -42,14 +44,15 @@ func (r *Reader) Read(n int) uint {
 			r.err = err
 			return 0
 		}
+		r.pos++
 		r.value |= uint(newByte)
 
-		r.nrBits += 8
+		r.n += 8
 	}
-	value := r.value >> uint(r.nrBits-n)
+	value := r.value >> uint(r.n-n)
 
-	r.nrBits -= n
-	r.value &= Mask(r.nrBits)
+	r.n -= n
+	r.value &= Mask(r.n)
 
 	return value
 }
@@ -78,8 +81,8 @@ func (r *Reader) ReadRemainingBytes() []byte {
 	if r.err != nil {
 		return nil
 	}
-	if r.nrBits != 0 {
-		r.err = fmt.Errorf("%d bit instead of byte alignment when reading remaining bytes", r.nrBits)
+	if r.n != 0 {
+		r.err = fmt.Errorf("%d bit instead of byte alignment when reading remaining bytes", r.n)
 		return nil
 	}
 	rest, err := ioutil.ReadAll(r.rd)
@@ -88,4 +91,23 @@ func (r *Reader) ReadRemainingBytes() []byte {
 		return nil
 	}
 	return rest
+}
+
+// NrBytesRead returns how many bytes read into parser.
+func (r *Reader) NrBytesRead() int {
+	return r.pos + 1 // Starts at -1
+}
+
+// NrBitsRead returns total number of bits read into parser.
+func (r *Reader) NrBitsRead() int {
+	nrBits := r.NrBytesRead() * 8
+	if r.NrBitsReadInCurrentByte() != 8 {
+		nrBits += r.NrBitsReadInCurrentByte() - 8
+	}
+	return nrBits
+}
+
+// NrBitsReadInCurrentByte returns number of bits read in current byte.
+func (r *Reader) NrBitsReadInCurrentByte() int {
+	return 8 - r.n
 }
