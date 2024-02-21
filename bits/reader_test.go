@@ -15,21 +15,29 @@ func TestAccErrReader(t *testing.T) {
 		reader := bits.NewReader(rd)
 
 		cases := []struct {
-			n    int
-			want uint
+			readNrBits  int
+			want        uint
+			nrBytesRead int
+			nrBitsRead  int
 		}{
-			{2, 3},  // 11
-			{3, 7},  // 111
-			{5, 28}, // 11100
-			{3, 1},  // 001
-			{3, 7},  // 111
+			{2, 3, 1, 2},   // 11
+			{3, 7, 1, 5},   // 111
+			{5, 28, 2, 10}, // 11100
+			{3, 1, 2, 13},  // 001
+			{3, 7, 2, 16},  // 111
 		}
 
 		for _, tc := range cases {
-			got := reader.Read(tc.n)
+			got := reader.Read(tc.readNrBits)
 
 			if got != tc.want {
-				t.Errorf("Read(%d)=%b, want=%b", tc.n, got, tc.want)
+				t.Errorf("Read(%d)=%b, want=%b", tc.readNrBits, got, tc.want)
+			}
+			if reader.NrBytesRead() != tc.nrBytesRead {
+				t.Errorf("NrBytesRead()=%d, want=%d", reader.NrBytesRead(), tc.nrBytesRead)
+			}
+			if reader.NrBitsRead() != tc.nrBitsRead {
+				t.Errorf("NrBitsRead()=%d, want=%d", reader.NrBitsRead(), tc.nrBitsRead)
 			}
 		}
 		err := reader.AccError()
@@ -109,8 +117,8 @@ func TestAccErrReaderSigned(t *testing.T) {
 	reader := bits.NewReader(rd)
 
 	cases := []struct {
-		n    int
-		want int
+		readNrBits int
+		want       int
 	}{
 		{2, -1}, // 11
 		{3, -1}, // 111
@@ -120,10 +128,10 @@ func TestAccErrReaderSigned(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		got := reader.ReadSigned(tc.n)
+		got := reader.ReadSigned(tc.readNrBits)
 
 		if got != tc.want {
-			t.Errorf("Read(%d)=%b, want=%b", tc.n, got, tc.want)
+			t.Errorf("Read(%d)=%b, want=%b", tc.readNrBits, got, tc.want)
 		}
 	}
 	err := reader.AccError()

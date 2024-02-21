@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - InitSegment.TweakSingleTrakLive changes an init segment to fit live streaming
 - Made bits.Mask() function public
+- New counter methods added to bits.Reader
 
 ### Changed
 
