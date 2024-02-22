@@ -12,12 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - InitSegment.TweakSingleTrakLive changes an init segment to fit live streaming
 - Made bits.Mask() function public
 - New counter methods added to bits.Reader
+- colr box support for nclc and unknown colour_type
 
 ### Changed
 
 - All readers and writers in bits package now stop working at first error and provides the first error as AccError()
 - Renamed bits.AccErrReader, bits.AccErrEBSPReader, bits.AccErrWriter to corresponiding names without AccErr
 - Renamed bits.SliceWriterError to bits.ErrSliceWrite
+- colr box supports unknown colrType
 
 ## [0.42.0] - 2024-01-26
 

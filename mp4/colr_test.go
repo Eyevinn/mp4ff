@@ -29,6 +29,16 @@ func TestColrEncodeDecode(t *testing.T) {
 			ColorType:  unrestrictedICCType,
 			ICCProfile: []byte{1, 2, 2, 43, 4, 5},
 		},
+		{
+			ColorType:               quickTimeColorParameters,
+			ColorPrimaries:          1,
+			TransferCharacteristics: 1,
+			MatrixCoefficients:      1,
+		},
+		{
+			ColorType:      "xyzd",
+			UnknownPayload: []byte{0x0, 0x1, 0x0, 0x1},
+		},
 	}
 	for _, tc := range cases {
 		boxDiffAfterEncodeAndDecode(t, &tc)
