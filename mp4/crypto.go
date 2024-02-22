@@ -526,7 +526,7 @@ func DecryptInit(init *InitSegment) (DecryptInfo, error) {
 			}
 		}
 	}
-	_ = moov.RemovePsshs()
+	di.Psshs = moov.RemovePsshs()
 	return di, nil
 }
 

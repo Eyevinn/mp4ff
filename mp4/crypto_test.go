@@ -189,3 +189,25 @@ func TestEncryptDecryptAVC(t *testing.T) {
 		}
 	}
 }
+
+func TestDecryptInit(t *testing.T) {
+	encFile := "testdata/prog_8s_enc_dashinit.mp4"
+	mp4f, err := ReadMP4File(encFile)
+	if err != nil {
+		t.Error(err)
+	}
+	init := mp4f.Init
+	decInfo, err := DecryptInit(init)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(decInfo.Psshs) != 1 {
+		t.Error("Pssh not extracted")
+	}
+	for _, tr := range decInfo.TrackInfos {
+		schemeType := tr.Sinf.Schm.SchemeType
+		if schemeType != "cenc" {
+			t.Errorf("Expected cenc, got %s", schemeType)
+		}
+	}
+}
