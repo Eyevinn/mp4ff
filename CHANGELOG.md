@@ -84,6 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - SPS.ChromaArrayType method
 - Makefile now builds all CLI applications with version
+- DecryptInit extracts pssh boxes
 
 ### Changed
 
