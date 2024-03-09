@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - kind box full-box header
+- stpp support when the optional fields do not even have a zero-termination byte
 
 ## [0.42.0] - 2024-01-26
 

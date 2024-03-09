@@ -12,12 +12,13 @@ import (
 //
 // Contained in : Media Information Box (minf)
 type StppBox struct {
-	Namespace          string   // Mandatory
-	SchemaLocation     string   // Optional but at least a zero-byte termination
-	AuxiliaryMimeTypes string   // Optional, but required if auxiliary types present
-	Btrt               *BtrtBox // Optional
-	Children           []Box
-	DataReferenceIndex uint16
+	Namespace                 string   // Mandatory
+	SchemaLocation            string   // Optional
+	AuxiliaryMimeTypes        string   // Optional, but required if auxiliary types present
+	Btrt                      *BtrtBox // Optional
+	Children                  []Box
+	DataReferenceIndex        uint16
+	nrMissingOptionalEndBytes byte // 0, 1, or 2 depending on whether SchemaLocation and AuxiliaryMimeTypes have a zero end byte
 }
 
 // NewStppBox - Create new stpp box
@@ -25,10 +26,11 @@ type StppBox struct {
 // schemaLocation and auxiliaryMimeTypes are optional but must at least have a zero byte.
 func NewStppBox(namespace, schemaLocation, auxiliaryMimeTypes string) *StppBox {
 	return &StppBox{
-		Namespace:          namespace,
-		DataReferenceIndex: 1,
-		SchemaLocation:     schemaLocation,
-		AuxiliaryMimeTypes: auxiliaryMimeTypes,
+		Namespace:                 namespace,
+		DataReferenceIndex:        1,
+		SchemaLocation:            schemaLocation,
+		AuxiliaryMimeTypes:        auxiliaryMimeTypes,
+		nrMissingOptionalEndBytes: 0,
 	}
 }
 
@@ -71,10 +73,14 @@ func DecodeStppSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	b.Namespace = sr.ReadZeroTerminatedString(hdr.payloadLen() - 8)
 	if maxLen := remainingBytes(sr, initPos, payloadLen); maxLen > 0 {
 		b.SchemaLocation = sr.ReadZeroTerminatedString(maxLen)
+	} else {
+		b.nrMissingOptionalEndBytes++
 	}
 
 	if maxLen := remainingBytes(sr, initPos, payloadLen); maxLen > 0 {
 		b.AuxiliaryMimeTypes = sr.ReadZeroTerminatedString(maxLen)
+	} else {
+		b.nrMissingOptionalEndBytes++
 	}
 	if err := sr.AccError(); err != nil {
 		return nil, fmt.Errorf("DecodeStpp: %w", err)
@@ -110,41 +116,25 @@ func (b *StppBox) Size() uint64 {
 	totalSize := uint64(boxHeaderSize + nrSampleEntryBytes + len(b.Namespace) + 1)
 	totalSize += uint64(len(b.SchemaLocation)) + 1
 	totalSize += uint64(len(b.AuxiliaryMimeTypes)) + 1
+	totalSize -= uint64(b.nrMissingOptionalEndBytes)
 	for _, child := range b.Children {
 		totalSize += child.Size()
 	}
 	return totalSize
 }
 
-// Encode - write box to w
+// Encode - write box to w via a SliceWriter
 func (b *StppBox) Encode(w io.Writer) error {
-	err := EncodeHeader(b, w)
+	sw := bits.NewFixedSliceWriter(int(b.Size()))
+	err := b.EncodeSW(sw)
 	if err != nil {
 		return err
 	}
-	buf := makebuf(b)
-	sw := bits.NewFixedSliceWriterFromSlice(buf)
-	sw.WriteZeroBytes(6)
-	sw.WriteUint16(b.DataReferenceIndex)
-	sw.WriteString(b.Namespace, true)
-	sw.WriteString(b.SchemaLocation, true)
-	sw.WriteString(b.AuxiliaryMimeTypes, true)
-	_, err = w.Write(buf[:sw.Offset()]) // Only write written bytes
-	if err != nil {
-		return err
-	}
-
-	// Next output child boxes in order
-	for _, child := range b.Children {
-		err = child.Encode(w)
-		if err != nil {
-			return err
-		}
-	}
+	_, err = w.Write(sw.Bytes())
 	return err
 }
 
-// Encode - write box to w
+// EncodeSW - write box to sw
 func (b *StppBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
@@ -153,8 +143,8 @@ func (b *StppBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
 	sw.WriteString(b.Namespace, true)
-	sw.WriteString(b.SchemaLocation, true)
-	sw.WriteString(b.AuxiliaryMimeTypes, true)
+	sw.WriteString(b.SchemaLocation, b.nrMissingOptionalEndBytes < 2)
+	sw.WriteString(b.AuxiliaryMimeTypes, b.nrMissingOptionalEndBytes < 1)
 
 	// Next output child boxes in order
 	for _, child := range b.Children {

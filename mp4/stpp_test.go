@@ -3,6 +3,7 @@ package mp4
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -41,6 +42,7 @@ func TestStppEncDec(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		t.Logf("Test case: %+v", tc)
 		stpp := NewStppBox(tc.namespace, tc.schemaLocation, tc.mimeTypes)
 		if tc.hasBtrt {
 			btrt := &BtrtBox{}
@@ -83,5 +85,29 @@ func TestStppWithEmtptyLists(t *testing.T) {
 	if !bytes.Equal(data, outData) {
 		t.Error("written stpp box differs from read")
 	}
+}
 
+// TestDecodeStppWithMissingAuxiliaryMimeTypes tests decoding of stpp
+// where the auxiliary mime types are missing (not even a zero byte).
+func TestDecodeStppWithMissingAuxiliaryMimeTypes(t *testing.T) {
+	hexData := ("0000002b737470700000000000000001" +
+		"687474703a2f2f7777772e77332e6f72" +
+		"672f6e732f74746d6c0000")
+	hexData = strings.Replace(hexData, " ", "", -1)
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Error(err)
+	}
+	sr := bits.NewFixedSliceReader(data)
+	box, err := DecodeBoxSR(0, sr)
+	if err != nil {
+		t.Error(err)
+	}
+	stpp, ok := box.(*StppBox)
+	if !ok {
+		t.Error("not an stpp box")
+	}
+	if int(stpp.Size()) != len(data) {
+		t.Errorf("stpp size %d not same as %d", stpp.Size(), len(data))
+	}
 }
