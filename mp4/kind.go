@@ -9,6 +9,8 @@ import (
 
 // KindBox - Track Kind Box
 type KindBox struct {
+	Version   byte
+	Flags     uint32
 	SchemeURI string
 	Value     string
 }
@@ -25,14 +27,17 @@ func DecodeKind(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeKindSR - box-specific decode
 func DecodeKindSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	maxLen := hdr.payloadLen() - 1
+	versionAndFlags := sr.ReadUint32()
+	maxLen := hdr.payloadLen() - 4 - 1
 	schemeURI := sr.ReadZeroTerminatedString(maxLen)
-	maxLen = hdr.payloadLen() - 1
+	maxLen = hdr.payloadLen() - 4 - len(schemeURI) - 1
 	value := sr.ReadZeroTerminatedString(maxLen)
 	if err := sr.AccError(); err != nil {
 		return nil, fmt.Errorf("decode kind: %w", err)
 	}
 	b := KindBox{
+		Version:   byte(versionAndFlags >> 24),
+		Flags:     versionAndFlags & flagsMask,
 		SchemeURI: schemeURI,
 		Value:     value,
 	}
@@ -46,7 +51,7 @@ func (b *KindBox) Type() string {
 
 // Size - calculated size of box
 func (b *KindBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(b.SchemeURI) + 1 + len(b.Value) + 1)
+	return uint64(boxHeaderSize + 4 + len(b.SchemeURI) + 1 + len(b.Value) + 1)
 }
 
 // Encode - write box to w
@@ -66,6 +71,8 @@ func (b *KindBox) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
+	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+	sw.WriteUint32(versionAndFlags)
 	sw.WriteString(b.SchemeURI, true)
 	sw.WriteString(b.Value, true)
 	return sw.AccError()
@@ -73,7 +80,7 @@ func (b *KindBox) EncodeSW(sw bits.SliceWriter) error {
 
 // Info - write box-specific information
 func (b *KindBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
-	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - schemeURI: %s", b.SchemeURI)
 	bd.write(" - value: %s", b.Value)
 	return bd.err
