@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed bits.SliceWriterError to bits.ErrSliceWrite
 - colr box supports unknown colrType
 
+### Fixed
+
+- kind box full-box header
+
 ## [0.42.0] - 2024-01-26
 
 ### Fixed
@@ -84,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - SPS.ChromaArrayType method
 - Makefile now builds all CLI applications with version
+- DecryptInit extracts pssh boxes
 
 ### Changed
 
