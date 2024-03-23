@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made bits.Mask() function public
 - New counter methods added to bits.Reader
 - colr box support for nclc and unknown colour_type
+- av01, encv, and enca direct pointers in stsd
 
 ### Changed
 
