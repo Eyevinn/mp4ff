@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var wanted = `Track 1, timescale = 1000
+var wantedSampleShort = `Track 1, timescale = 1000
 [vttC] size=14
  - config: "WEBVTT"
 Sample 1, pts=0, dur=6640
@@ -54,28 +54,58 @@ Sample 8, pts=14680, dur=5320
    - sourceID: 1833399447
 `
 
-func TestWvttLister(t *testing.T) {
-	testFile := "testdata/sample_short.ismt"
+var wantedMultiVttc = `Sample 1, pts=291054710760, dur=2560
+[vttc] size=113
+  [sttg] size=46
+   - settings: align:middle line:61%,end position:49%
+  [payl] size=59
+   - cueText: "<c.white.bg_black>dans \"mulot\". Bravo, Agathe !</c>"
+[vttc] size=117
+  [sttg] size=46
+   - settings: align:middle line:68%,end position:49%
+  [payl] size=63
+   - cueText: "<c.white.bg_black>Ouais ! Belle gosse ! Voici 2 M !</c>"
+`
 
-	ifh, err := os.Open(testFile)
-	if err != nil {
-		t.Error(err)
+func TestWvttLister(t *testing.T) {
+
+	testCases := []struct {
+		testFile string
+		wanted   string
+	}{
+		{
+			testFile: "testdata/sample_short.ismt",
+			wanted:   wantedSampleShort,
+		},
+		{
+			testFile: "testdata/multi_vttc.mp4",
+			wanted:   wantedMultiVttc,
+		},
 	}
-	defer ifh.Close()
-	var w bytes.Buffer
-	err = run(ifh, &w, 0, -1)
-	if err != nil {
-		t.Error(err)
-	}
-	got := w.String()
-	gotLines := strings.Split(got, "\n")
-	wantedLines := strings.Split(wanted, "\n")
-	if len(gotLines) != len(wantedLines) {
-		t.Errorf("got %d lines, wanted %d", len(gotLines), len(wantedLines))
-	}
-	for i := range gotLines {
-		if gotLines[i] != wantedLines[i] {
-			t.Errorf("line %d: got: %q\n wanted %q", i, gotLines[i], wantedLines[i])
-		}
+
+	for _, tc := range testCases {
+		t.Run(tc.testFile, func(t *testing.T) {
+			ifh, err := os.Open(tc.testFile)
+			if err != nil {
+				t.Error(err)
+			}
+			defer ifh.Close()
+			var w bytes.Buffer
+			err = run(ifh, &w, 0, -1)
+			if err != nil {
+				t.Error(err)
+			}
+			got := w.String()
+			gotLines := strings.Split(got, "\n")
+			wantedLines := strings.Split(tc.wanted, "\n")
+			if len(gotLines) != len(wantedLines) {
+				t.Errorf("got %d lines, wanted %d", len(gotLines), len(wantedLines))
+			}
+			for i := range gotLines {
+				if gotLines[i] != wantedLines[i] {
+					t.Errorf("line %d: got: %q\n wanted %q", i, gotLines[i], wantedLines[i])
+				}
+			}
+		})
 	}
 }

@@ -212,9 +212,23 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 func printWvttSample(w io.Writer, sample []byte, nr int, pts uint64, dur uint32) error {
 	fmt.Fprintf(w, "Sample %d, pts=%d, dur=%d\n", nr, pts, dur)
 	buf := bytes.NewBuffer(sample)
-	box, err := mp4.DecodeBox(0, buf)
-	if err != nil {
-		return err
+	pos := 0
+	for {
+		box, err := mp4.DecodeBox(uint64(pos), buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		err = box.Info(w, "  ", "", "  ")
+		if err != nil {
+			return err
+		}
+		pos += int(box.Size())
+		if pos >= len(sample) {
+			break
+		}
 	}
-	return box.Info(w, "  ", "", "  ")
+	return nil
 }
