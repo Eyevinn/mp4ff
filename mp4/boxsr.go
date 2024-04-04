@@ -214,9 +214,6 @@ LoopBoxes:
 			return nil, err
 		}
 		boxType, boxSize := box.Type(), box.Size()
-		if err != nil {
-			return nil, err
-		}
 		switch boxType {
 		case "mdat":
 			if f.isFragmented {

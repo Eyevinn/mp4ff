@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.43.0] - 2024-04-04
+
 ### Added
 
 - InitSegment.TweakSingleTrakLive changes an init segment to fit live streaming
@@ -25,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - kind box full-box header
-- stpp support when the optional fields do not even have a zero-termination byte
+- stpp support when the optional fields do not have a zero-termination byte
 - mp4ff-wvttlister now lists all boxes in a sample
 
 ## [0.42.0] - 2024-01-26
@@ -558,7 +562,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.42.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.43.0...HEAD
+[0.43.0]: https://github.com/Eyevinn/mp4ff/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/Eyevinn/mp4ff/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/Eyevinn/mp4ff/compare/v0.40.2...v0.41.0
 [0.40.2]: https://github.com/Eyevinn/mp4ff/compare/v0.40.1...v0.40.2
