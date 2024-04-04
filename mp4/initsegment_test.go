@@ -18,17 +18,13 @@ const pps1nalu = "685bdf20"
 func parseInitFile(fileName string) (*File, error) {
 	fd, err := os.Open(fileName)
 	if err != nil {
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	defer fd.Close()
 
 	f, err := DecodeFile(fd)
 	if err != io.EOF && err != nil {
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	if f.IsFragmented() && f.Init.Ftyp == nil {
 		return nil, fmt.Errorf("No ftyp present")
@@ -175,9 +171,7 @@ func TestGenerateInitSegment(t *testing.T) {
 
 	initRead, err := DecodeFile(&buf)
 	if err != io.EOF && err != nil {
-		if err != nil {
-			t.Error(err)
-		}
+		t.Error(err)
 	}
 	if initRead.Moov.Size() != init.Moov.Size() {
 		t.Errorf("Mismatch generated vs read moov size: %d != %d", init.Moov.Size(), initRead.Moov.Size())
