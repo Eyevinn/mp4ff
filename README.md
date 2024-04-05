@@ -21,7 +21,7 @@ Some useful command line tools are available in `cmd`.
 2. `mp4ff-pslister` extracts and displays SPS and PPS for AVC or HEVC in a mp4 or a bytestream (Annex B) file.
     Partial information is printed for HEVC.
 3. `mp4ff-nallister` lists NALUs and picture types for video in progressive or fragmented file
-4. `mp4ff-wvttlister` lists details of wvtt (WebVTT in ISOBMFF) samples
+4. `mp4ff-subslister` lists details of wvtt or stpp (WebVTT or TTML in ISOBMFF) subtitle samples
 5. `mp4ff-crop` shortens a progressive mp4 file to a specified duration
 6. `mp4ff-encrypt` encrypts a fragmented file using cenc or cbcs Common Encryption scheme
 7. `mp4ff-decrypt` decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
