@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+
+### Added
+
+- New TryDecodeMfro function
+
+### Fixed
+
+- More robust check for mfro at the end of file
 
 ## [0.43.0] - 2024-04-04
 

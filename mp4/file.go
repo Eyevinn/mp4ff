@@ -346,14 +346,8 @@ func (f *File) findAndReadMfra(r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("could not seek %d bytes from end: %w", mfroSize, err)
 	}
-	b, err := DecodeBox(uint64(pos), rs) // mfro
+	mfro, err := TryDecodeMfro(uint64(pos), rs) // mfro
 	if err != nil {
-		// Not an mfro box here, just reset and return
-		_, err = rs.Seek(0, io.SeekStart)
-		return err
-	}
-	mfro, ok := b.(*MfroBox)
-	if !ok {
 		// Not an mfro box here, just reset and return
 		_, err = rs.Seek(0, io.SeekStart)
 		return err
@@ -363,7 +357,7 @@ func (f *File) findAndReadMfra(r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("could not seek %d bytes from end: %w", mfraSize, err)
 	}
-	b, err = DecodeBox(uint64(pos), rs) // mfra
+	b, err := DecodeBox(uint64(pos), rs) // mfra
 	if err != nil {
 		return fmt.Errorf("could not decode mfra box: %w", err)
 	}
