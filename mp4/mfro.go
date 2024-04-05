@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -12,6 +13,23 @@ type MfroBox struct {
 	Version    byte
 	Flags      uint32
 	ParentSize uint32
+}
+
+// TryDecodeMfro only decode an MfroBox and return it.
+// If it is not an MfroBox, it returns nil and an error.
+func TryDecodeMfro(startPos uint64, r io.Reader) (*MfroBox, error) {
+	hdr, err := DecodeHeader(r)
+	if err != nil {
+		return nil, err
+	}
+	if hdr.Name != "mfro" {
+		return nil, fmt.Errorf("not an mfro box")
+	}
+	box, err := DecodeMfro(hdr, startPos, r)
+	if err != nil {
+		return nil, err
+	}
+	return box.(*MfroBox), nil
 }
 
 // DecodeMfro - box-specific decode
