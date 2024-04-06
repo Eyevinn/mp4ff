@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
 ### Added
 
 - New TryDecodeMfro function
+- New mp4ff-subslister tool replacing mp4ff-wvttlister, but also supporting stpp
 
 ### Fixed
 
 - More robust check for mfro at the end of file
+
+### Removed
+
+- mp4ff-wvttlister tool removed and replaced by mp4ff-subslister
 
 ## [0.43.0] - 2024-04-04
 

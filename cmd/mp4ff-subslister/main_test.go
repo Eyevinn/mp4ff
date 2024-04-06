@@ -7,9 +7,7 @@ import (
 	"testing"
 )
 
-var wantedSampleShort = `Track 1, timescale = 1000
-[vttC] size=14
- - config: "WEBVTT"
+var wantedWvttShort = `Track 1, timescale = 1000
 Sample 1, pts=0, dur=6640
 [vttc] size=52
   [sttg] size=18
@@ -67,7 +65,50 @@ var wantedMultiVttc = `Sample 1, pts=291054710760, dur=2560
    - cueText: "<c.white.bg_black>Ouais ! Belle gosse ! Voici 2 M !</c>"
 `
 
-func TestWvttLister(t *testing.T) {
+var wantedStppCombined = `Track 1, timescale = 90000
+  [stpp] size=43
+   - dataReferenceIndex: 1
+   - nameSpace: "http://www.w3.org/ns/ttml"
+   - schemaLocation: ""
+   - auxiliaryMimeTypes: ""
+Sample 1, pts=0, dur=540000
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling" xml:lang="eng" ` +
+	`xmlns:ttp="http://www.w3.org/ns/ttml#parameter" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" ` +
+	`xmlns:ebuttm="urn:ebu:tt:metadata" xmlns:ebutts="urn:ebu:tt:style" xml:space="default" ` +
+	`ttp:timeBase="media" ttp:cellResolution="32 15">
+  <head>
+    <metadata/>
+    <styling>
+      <style xml:id="default" tts:fontStyle="normal" tts:fontFamily="sansSerif" tts:fontSize="100%" ` +
+	`tts:lineHeight="normal" tts:textAlign="center" ebutts:linePadding="0.5c"/>
+      <style xml:id="white_black" tts:backgroundColor="black" tts:color="white"/>
+    </styling>
+    <layout>
+      <region xml:id="ttx_11" tts:origin="10% 84%" tts:extent="80% 15%" tts:overflow="visible"/>
+      <region xml:id="ttx_9" tts:origin="10% 70%" tts:extent="80% 15%" tts:overflow="visible"/>
+    </layout>
+  </head>
+  <body style="default">
+    <div>
+      <p begin="00:00:02.520" end="00:00:04.120" region="ttx_9" tts:textAlign="right">
+        <span style="white_black">-Pourquoi ?</span>
+      </p>
+      <p begin="00:00:02.520" end="00:00:04.120" region="ttx_11" tts:textAlign="center">
+        <span style="white_black">-J'ai...</span>
+      </p>
+      <p begin="00:00:04.520" end="00:00:06.600" region="ttx_9" tts:textAlign="center">
+        <span style="white_black">J'ai un tas de trucs à faire.</span>
+      </p>
+      <p begin="00:00:04.520" end="00:00:06.600" region="ttx_11" tts:textAlign="center">
+        <span style="white_black">-Non !</span>
+      </p>
+    </div>
+  </body>
+</tt>
+`
+
+func TestSubsLister(t *testing.T) {
 
 	testCases := []struct {
 		testFile string
@@ -75,11 +116,15 @@ func TestWvttLister(t *testing.T) {
 	}{
 		{
 			testFile: "testdata/sample_short.ismt",
-			wanted:   wantedSampleShort,
+			wanted:   wantedWvttShort,
 		},
 		{
 			testFile: "testdata/multi_vttc.mp4",
 			wanted:   wantedMultiVttc,
+		},
+		{
+			testFile: "testdata/stpp_combined.mp4",
+			wanted:   wantedStppCombined,
 		},
 	}
 
@@ -105,6 +150,9 @@ func TestWvttLister(t *testing.T) {
 				if gotLines[i] != wantedLines[i] {
 					t.Errorf("line %d: got: %q\n wanted %q", i, gotLines[i], wantedLines[i])
 				}
+			}
+			if got != tc.wanted {
+				t.Errorf("got: %q\n wanted %q", got, tc.wanted)
 			}
 		})
 	}

@@ -1,4 +1,4 @@
-// mp4ff-wvttlister - list wvtt (WebVTT in ISOBMFF) samples
+// mp4ff-subslister - list wvtt or stpp (WebVTT or TTML in ISOBMFF) samples
 package main
 
 import (
@@ -13,10 +13,11 @@ import (
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
-var usg = `Usage of mp4ff-wvttlister:
+var usg = `Usage of mp4ff-subslister:
 
-mp4ff-wvttlister lists and displays content of wvtt (WebVTT in ISOBMFF) samples.
-Uses track with given non-zero track ID or first wvtt track found in an asset.
+mp4ff-subslister lists and displays content of wvtt or stpp samples.
+These corresponds to WebVTT or TTML subtitles in ISOBMFF files.
+Uses track with given non-zero track ID or first subtitle track found in an asset.
 `
 
 var usage = func() {
@@ -35,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("mp4ff-wvttlister %s\n", mp4.GetVersion())
+		fmt.Printf("mp4ff-subslister %s\n", mp4.GetVersion())
 		os.Exit(0)
 	}
 
@@ -95,22 +96,20 @@ func findTrack(moov *mp4.MoovBox, hdlrType string, trackID uint32) (*mp4.TrakBox
 	return nil, fmt.Errorf("no matching track found")
 }
 
+type subtitleTrack struct {
+	variant string
+	trak    *mp4.TrakBox
+}
+
 func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples int) error {
-	wvttTrak, err := findTrack(f.Moov, "text", trackID)
+	subsTrak, err := findWvttTrack(f.Moov, w, trackID)
 	if err != nil {
-		return err
+		subsTrak, err = findStppTrack(f.Moov, w, trackID)
+		if err != nil {
+			return fmt.Errorf("no subtitle track found: %w", err)
+		}
 	}
-
-	stbl := wvttTrak.Mdia.Minf.Stbl
-	if stbl.Stsd.Wvtt == nil {
-		return fmt.Errorf("no wvtt track found")
-	}
-
-	fmt.Fprintf(w, "Track %d, timescale = %d\n", wvttTrak.Tkhd.TrackID, wvttTrak.Mdia.Mdhd.Timescale)
-	err = stbl.Stsd.Wvtt.VttC.Info(os.Stdout, "", "  ", "  ")
-	if err != nil {
-		return err
-	}
+	stbl := subsTrak.trak.Mdia.Minf.Stbl
 	nrSamples := stbl.Stsz.SampleNumber
 	mdat := f.Mdat
 	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
@@ -137,7 +136,12 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 		// Next find sample bytes as slice in mdat
 		offsetInMdatData := uint64(offset) - mdatPayloadStart
 		sample := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
-		err = printWvttSample(w, sample, sampleNr, decTime+uint64(cto), dur)
+		switch subsTrak.variant {
+		case "wvtt":
+			err = printWvttSample(w, sample, sampleNr, decTime+uint64(cto), dur)
+		case "stpp":
+			err = printStppSample(w, sample, sampleNr, decTime+uint64(cto), dur)
+		}
 		if err != nil {
 			return err
 		}
@@ -148,27 +152,65 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 	return nil
 }
 
+func findWvttTrack(moov *mp4.MoovBox, w io.Writer, trackID uint32) (*subtitleTrack, error) {
+	subsTrak, err := findTrack(moov, "text", trackID)
+	if err != nil {
+		return nil, err
+	}
+
+	stbl := subsTrak.Mdia.Minf.Stbl
+	if stbl.Stsd.Wvtt == nil {
+		return nil, fmt.Errorf("no wvtt track found")
+	}
+
+	fmt.Fprintf(w, "Track %d, timescale = %d\n", subsTrak.Tkhd.TrackID, subsTrak.Mdia.Mdhd.Timescale)
+	err = stbl.Stsd.Wvtt.VttC.Info(os.Stdout, "", "  ", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &subtitleTrack{
+		variant: "wvtt",
+		trak:    subsTrak,
+	}, nil
+}
+
+func findStppTrack(moov *mp4.MoovBox, w io.Writer, trackID uint32) (*subtitleTrack, error) {
+	subsTrak, err := findTrack(moov, "subt", trackID)
+	if err != nil {
+		return nil, err
+	}
+
+	stbl := subsTrak.Mdia.Minf.Stbl
+	if stbl.Stsd.Stpp == nil {
+		return nil, fmt.Errorf("no stpp track found")
+	}
+
+	fmt.Fprintf(w, "Track %d, timescale = %d\n", subsTrak.Tkhd.TrackID, subsTrak.Mdia.Mdhd.Timescale)
+	err = stbl.Stsd.Stpp.Info(w, "", "  ", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &subtitleTrack{
+		variant: "stpp",
+		trak:    subsTrak,
+	}, nil
+}
+
 func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples int) error {
-	var wvttTrex *mp4.TrexBox
+	var subsTrex *mp4.TrexBox
+	var subsTrak *subtitleTrack
+	var err error
 	if f.Init != nil { // Print vttC header and timescale if moov-box is present
-		wvttTrak, err := findTrack(f.Init.Moov, "text", trackID)
+		subsTrak, err = findWvttTrack(f.Moov, w, trackID)
 		if err != nil {
-			return err
-		}
-
-		stbl := wvttTrak.Mdia.Minf.Stbl
-		if stbl.Stsd.Wvtt == nil {
-			return fmt.Errorf("no wvtt track found")
-		}
-
-		fmt.Fprintf(w, "Track %d, timescale = %d\n", wvttTrak.Tkhd.TrackID, wvttTrak.Mdia.Mdhd.Timescale)
-		err = stbl.Stsd.Wvtt.VttC.Info(w, "  ", "", "  ")
-		if err != nil {
-			return err
+			subsTrak, err = findStppTrack(f.Moov, w, trackID)
+			if err != nil {
+				return fmt.Errorf("no subtitle track found: %w", err)
+			}
 		}
 		for _, trex := range f.Init.Moov.Mvex.Trexs {
-			if trex.TrackID == wvttTrak.Tkhd.TrackID {
-				wvttTrex = trex
+			if trex.TrackID == subsTrak.trak.Tkhd.TrackID {
+				subsTrex = trex
 			}
 		}
 	}
@@ -183,7 +225,7 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 					tfraTime = entry.Time
 				}
 			}
-			fSamples, err := iFrag.GetFullSamples(wvttTrex)
+			fSamples, err := iFrag.GetFullSamples(subsTrex)
 			if err != nil {
 				return err
 			}
@@ -195,9 +237,28 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 			iSamples = append(iSamples, fSamples...)
 		}
 	}
-	var err error
+	if subsTrak == nil {
+		if len(iSamples) == 0 {
+			return fmt.Errorf("no subtitle samples found")
+		}
+		variant := "stpp"
+		if iSamples[0].Data[0] == 0 { // Only wvtt start with a length field.
+			variant = "wvtt"
+		}
+
+		subsTrak = &subtitleTrack{
+			variant: variant,
+		}
+	}
 	for i, sample := range iSamples {
-		err = printWvttSample(w, sample.Data, i+1, sample.PresentationTime(), sample.Dur)
+		switch subsTrak.variant {
+		case "wvtt":
+			err = printWvttSample(w, sample.Data, i+1, sample.PresentationTime(), sample.Dur)
+		case "stpp":
+			err = printStppSample(w, sample.Data, i+1, sample.PresentationTime(), sample.Dur)
+		default:
+			return fmt.Errorf("unknown subtitle track type")
+		}
 
 		if err != nil {
 			return err
@@ -231,4 +292,10 @@ func printWvttSample(w io.Writer, sample []byte, nr int, pts uint64, dur uint32)
 		}
 	}
 	return nil
+}
+
+func printStppSample(w io.Writer, sample []byte, nr int, pts uint64, dur uint32) error {
+	fmt.Fprintf(w, "Sample %d, pts=%d, dur=%d\n", nr, pts, dur)
+	_, err := w.Write(sample)
+	return err
 }
