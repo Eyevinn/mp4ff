@@ -2,13 +2,13 @@
 all: test check coverage build
 
 .PHONY: build
-build: mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-wvttlister examples
+build: mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-subslister examples
 
 .PHONY: prepare
 prepare:
 	go mod vendor
 
-mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-wvttlister:
+mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-subslister:
 	go build -ldflags "-X github.com/Eyevinn/mp4ff/mp4.commitVersion=$$(git describe --tags HEAD) -X github.com/Eyevinn/mp4ff/mp4.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@/main.go
 
 .PHONY: examples
@@ -20,6 +20,10 @@ initcreator multitrack resegmenter segmenter:
 .PHONY: test
 test: prepare
 	go test ./...
+
+.PHONY: testsum
+testsum: prepare
+	gotestsum
 
 .PHONY: coverage
 coverage:

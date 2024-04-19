@@ -157,3 +157,21 @@ func (m *MoovBox) GetSinf(trackID uint32) *SinfBox {
 	}
 	return nil
 }
+
+// IsEncrypted returns true if SampleEntryBox is "encv" or "enca"
+func (m *MoovBox) IsEncrypted(trackID uint32) bool {
+	for _, trak := range m.Traks {
+		if trak.Tkhd.TrackID == trackID {
+			stsd := trak.Mdia.Minf.Stbl.Stsd
+			sd := stsd.Children[0] // Get first (and only)
+			switch box := sd.(type) {
+			case *VisualSampleEntryBox:
+				return box.Type() == "encv"
+			case *AudioSampleEntryBox:
+				return box.Type() == "enca"
+			}
+		}
+	}
+	return false
+
+}

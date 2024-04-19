@@ -197,6 +197,8 @@ func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
 		err = b.Tfxd.encode(sw)
 	case u.Equal(uuidTfrf):
 		err = b.Tfrf.encode(sw)
+	case u.Equal(uuidPiffSenc):
+		err = b.Senc.EncodeSWNoHdr(sw)
 	default:
 		sw.WriteBytes(b.UnknownPayload)
 	}
