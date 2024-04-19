@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.44.0] - 2024-04-19
+
 ### Added
 
 - New `TryDecodeMfro` function
@@ -583,7 +587,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.43.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/Eyevinn/mp4ff/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/Eyevinn/mp4ff/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/Eyevinn/mp4ff/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/Eyevinn/mp4ff/compare/v0.40.2...v0.41.0
