@@ -309,27 +309,33 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 // startSegmentIfNeeded starts a new segment if there is none or if position match with sidx of tfra.
 func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
 	segStart := false
-	idx := len(f.Segments)
+	segIdx := len(f.Segments)
 	switch {
 	case f.Sidx != nil:
-		startPos := f.Sidx.AnchorPoint
-		for i, ref := range f.Sidx.SidxRefs {
-			if i == idx {
-				if boxStartPos == startPos {
-					segStart = true
+		idx := 0
+	sidxLoop:
+		for _, sx := range f.Sidxs {
+			startPos := sx.AnchorPoint
+			for _, ref := range sx.SidxRefs {
+				if ref.ReferenceType == 1 {
+					continue sidxLoop
 				}
-				break
+				if boxStartPos == startPos && idx == segIdx {
+					segStart = true
+					break sidxLoop
+				}
+				startPos += uint64(ref.ReferencedSize)
+				idx++
 			}
-			startPos += uint64(ref.ReferencedSize)
 		}
 	case f.tfra != nil:
-		if boxStartPos == uint64(f.tfra.Entries[idx].MoofOffset) {
+		if boxStartPos == uint64(f.tfra.Entries[segIdx].MoofOffset) {
 			segStart = true
 		}
 	case (f.fileDecFlags & DecStartOnMoof) != 0:
 		segStart = true
 	default:
-		segStart = (idx == 0)
+		segStart = (segIdx == 0)
 	}
 	if segStart {
 		f.isFragmented = true
@@ -561,6 +567,9 @@ func (f *File) Info(w io.Writer, specificBoxLevels, indent, indentStep string) e
 
 // LastSegment - Currently last segment
 func (f *File) LastSegment() *MediaSegment {
+	if len(f.Segments) == 0 {
+		return nil
+	}
 	return f.Segments[len(f.Segments)-1]
 }
 
