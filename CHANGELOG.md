@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+### Fixed
+
+- support for parsing of hierarchical sidx boxes
+
+### Added
+
+- support for ssix box
+- support for leva box
 
 ## [0.44.0] - 2024-04-19
 
