@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+const (
+	infoVersionNone         = -1
+	infoVersionGroupingType = -2
+	infoVersionDescriptor   = -3
+)
+
 type boxLike interface {
 	Type() string
 	Size() uint64
@@ -33,17 +39,24 @@ func fixStartingCopyrightChar(boxType string) string {
 }
 
 // newInfoDumper - make an infoDumper with indent
+// write version if >= 0
 // set Version to -1 if not present for box
 // set Version to -2 for sample group entries
+// set Version to -3 for descriptors
 func newInfoDumper(w io.Writer, indent string, b boxLike, version int, flags uint32) *infoDumper {
 	bd := infoDumper{w, indent, b, nil}
 	utf8BoxType := fixStartingCopyrightChar(b.Type())
-	if version == -1 {
-		bd.write("[%s] size=%d", utf8BoxType, b.Size())
-	} else if version >= 0 {
+	switch {
+	case version >= 0:
 		bd.write("[%s] size=%d version=%d flags=%06x", utf8BoxType, b.Size(), version, flags)
-	} else { // version = -2
+	case version == infoVersionNone:
+		bd.write("[%s] size=%d", utf8BoxType, b.Size())
+	case version == infoVersionGroupingType:
 		bd.write("GroupingType %q size=%d", utf8BoxType, b.Size())
+	case version == infoVersionDescriptor:
+		bd.write("Descriptor %q size=2+%d", b.Type(), b.Size())
+	default:
+		bd.write("Unknown version %d", version)
 	}
 	return &bd
 }
@@ -68,6 +81,9 @@ func getInfoLevel(b boxLike, specificBoxLevels string) (level int) {
 	}
 	boxesLevels := strings.Split(specificBoxLevels, ",")
 	boxType := b.Type()
+	if _, ok := b.(Descriptor); ok {
+		boxType = "esds"
+	}
 	var err error
 	for _, bl := range boxesLevels {
 		splitPos := strings.Index(bl, ":")
