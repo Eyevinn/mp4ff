@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -178,7 +177,7 @@ func run(inFile, vpsHex, spsHex, ppsHex, codec string, version, verbose bool) er
 }
 
 func getNalusFromBytestream(f io.Reader) ([][]byte, error) {
-	byteStream, err := ioutil.ReadAll(f)
+	byteStream, err := io.ReadAll(f)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -46,7 +45,7 @@ func compareOrUpdateGolden(t *testing.T, genData []byte, path string) (err error
 	}
 
 	// Compare with golden dump file
-	golden, err := ioutil.ReadFile(path)
+	golden, err := os.ReadFile(path)
 	if err != nil {
 		t.Error(err)
 	}

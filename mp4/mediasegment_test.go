@@ -3,7 +3,6 @@ package mp4
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -42,7 +41,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		t.Error(err)
 	}
 
-	inSeg, err := ioutil.ReadFile(inFile)
+	inSeg, err := os.ReadFile(inFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +91,7 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 			t.Error(err)
 		}
 	} else {
-		goldenFrag, err := ioutil.ReadFile(goldenFragPath)
+		goldenFrag, err := os.ReadFile(goldenFragPath)
 		if err != nil {
 			t.Error(err)
 		}
@@ -125,7 +124,7 @@ func TestDecodeEncodeNoOptimize(t *testing.T) {
 
 	inFile := "testdata/1.m4s"
 
-	data, err := ioutil.ReadFile(inFile)
+	data, err := os.ReadFile(inFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +173,7 @@ func TestMoofEncrypted(t *testing.T) {
 		t.Error(err)
 	}
 
-	inSeg, err := ioutil.ReadFile(inFile)
+	inSeg, err := os.ReadFile(inFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +196,7 @@ func TestMoofEncrypted(t *testing.T) {
 }
 
 func TestDecodeEncodeCencFragmentedFile(t *testing.T) {
-	inData, err := ioutil.ReadFile("testdata/prog_8s_enc_dashinit.mp4")
+	inData, err := os.ReadFile("testdata/prog_8s_enc_dashinit.mp4")
 	if err != nil {
 		t.Fatal(err)
 	}

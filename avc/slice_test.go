@@ -2,7 +2,7 @@ package avc
 
 import (
 	"encoding/hex"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -30,7 +30,7 @@ func TestParseSliceHeader_BlackFrame(t *testing.T) {
 		SliceBetaOffsetDiv2:    -3,
 		Size:                   7,
 	}
-	data, err := ioutil.ReadFile("testdata/blackframe.264")
+	data, err := os.ReadFile("testdata/blackframe.264")
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,7 +71,7 @@ func TestParseSliceHeader_TwoFrames(t *testing.T) {
 		Size: 5, NumRefIdxActiveOverrideFlag: true, RefPicListModificationL0Flag: true,
 	}
 
-	data, err := ioutil.ReadFile("testdata/two-frames.264")
+	data, err := os.ReadFile("testdata/two-frames.264")
 	if err != nil {
 		t.Error(err)
 	}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -87,7 +86,7 @@ func TestGetMultiTrackSamples(t *testing.T) {
 		t.Error(err)
 	}
 
-	inFileRaw, err := ioutil.ReadFile(filePath)
+	inFileRaw, err := os.ReadFile(filePath)
 	if err != nil {
 		t.Error(err)
 	}

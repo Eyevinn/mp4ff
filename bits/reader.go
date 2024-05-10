@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // Reader is a bit reader that stops reading at first error and stores it.
@@ -85,7 +84,7 @@ func (r *Reader) ReadRemainingBytes() []byte {
 		r.err = fmt.Errorf("%d bit instead of byte alignment when reading remaining bytes", r.n)
 		return nil
 	}
-	rest, err := ioutil.ReadAll(r.rd)
+	rest, err := io.ReadAll(r.rd)
 	if err != nil {
 		r.err = err
 		return nil

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -88,7 +87,7 @@ func TestMoovParsingWithBtrt(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	initFileBytes, err := ioutil.ReadFile(initFile)
+	initFileBytes, err := os.ReadFile(initFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,7 +120,7 @@ func TestMoovWithCenc(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	initFileBytes, err := ioutil.ReadFile(initFile)
+	initFileBytes, err := os.ReadFile(initFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -196,7 +195,7 @@ func TestGenerateInitSegment(t *testing.T) {
 		return
 	}
 
-	golden, err := ioutil.ReadFile(goldenAssetPath)
+	golden, err := os.ReadFile(goldenAssetPath)
 	if err != nil {
 		t.Error(err)
 	}

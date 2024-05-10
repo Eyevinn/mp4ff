@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -99,7 +98,7 @@ func main() {
 
 	var psshData []byte
 	if opts.psshFile != "" {
-		psshData, err = ioutil.ReadFile(opts.psshFile)
+		psshData, err = os.ReadFile(opts.psshFile)
 		if err != nil {
 			log.Fatalf("could not read pssh data from file: %s", err)
 		}

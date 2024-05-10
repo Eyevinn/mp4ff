@@ -1,7 +1,7 @@
 package hevc
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/avc"
@@ -82,7 +82,7 @@ func TestParseSliceHeader(t *testing.T) {
 			Size:                     10,
 		},
 	}
-	data, err := ioutil.ReadFile("testdata/blackframe.265")
+	data, err := os.ReadFile("testdata/blackframe.265")
 	if err != nil {
 		t.Error(err)
 	}

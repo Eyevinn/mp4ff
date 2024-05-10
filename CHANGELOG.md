@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- minimum Go version 1.16.
+- ioutil imports replaced by io and os imports
+
 ### Fixed
 
 - support for parsing of hierarchical sidx boxes
