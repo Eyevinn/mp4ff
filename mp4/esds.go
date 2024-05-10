@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -94,8 +93,9 @@ func (e *EsdsBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box-specific information
 func (e *EsdsBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, e, int(e.Version), e.Flags)
-	bd.write(" - maxBitrate: %d", e.DecConfigDescriptor.MaxBitrate)
-	bd.write(" - avgBitrate: %d", e.DecConfigDescriptor.AvgBitrate)
-	bd.write(" - decConfig: %s", hex.EncodeToString(e.DecConfigDescriptor.DecSpecificInfo.DecConfig))
+	err := e.ESDescriptor.Info(bd.w, specificBoxLevels, indent+indentStep, indentStep)
+	if err != nil {
+		return err
+	}
 	return bd.err
 }
