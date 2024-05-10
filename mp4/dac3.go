@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -62,7 +61,7 @@ type Dac3Box struct {
 
 // DecodeDac3 - box-specific decode
 func DecodeDac3(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}

@@ -1,14 +1,14 @@
 package bits_test
 
 import (
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
 func BenchmarkWrite(b *testing.B) {
-	writer := bits.NewWriter(ioutil.Discard)
+	writer := bits.NewWriter(io.Discard)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		writer.Write(0xff, 8)
@@ -20,7 +20,7 @@ func BenchmarkWrite(b *testing.B) {
 }
 
 func BenchmarkEbspWrite(b *testing.B) {
-	writer := bits.NewEBSPWriter(ioutil.Discard)
+	writer := bits.NewEBSPWriter(io.Discard)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		writer.Write(0xff, 8)

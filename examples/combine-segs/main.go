@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -40,7 +39,7 @@ func main() {
 func combineInitSegments(files []string, newTrackIDs []uint32) (*mp4.InitSegment, error) {
 	var combinedInit *mp4.InitSegment
 	for i := 0; i < len(files); i++ {
-		data, err := ioutil.ReadFile(files[i])
+		data, err := os.ReadFile(files[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to read init segment: %w", err)
 		}
@@ -78,7 +77,7 @@ func combineMediaSegments(files []string, newTrackIDs []uint32) (*mp4.MediaSegme
 	var combinedSeg *mp4.MediaSegment
 	var outFrag *mp4.Fragment
 	for i := 0; i < len(files); i++ {
-		data, err := ioutil.ReadFile(files[i])
+		data, err := os.ReadFile(files[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to read media segment: %w", err)
 		}

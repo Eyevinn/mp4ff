@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -68,7 +67,7 @@ func TestDecryptFiles(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedOut, err := ioutil.ReadFile(tc.expectedOutFile)
+		expectedOut, err := os.ReadFile(tc.expectedOutFile)
 		if err != nil {
 			t.Error(err)
 		}
@@ -83,7 +82,7 @@ func TestDecryptFiles(t *testing.T) {
 func BenchmarkDecodeCenc(b *testing.B) {
 	inFile := "../../mp4/testdata/prog_8s_enc_dashinit.mp4"
 	hexKey := "63cb5f7184dd4b689a5c5ff11ee6a328"
-	raw, err := ioutil.ReadFile(inFile)
+	raw, err := os.ReadFile(inFile)
 	if err != nil {
 		b.Error(err)
 	}

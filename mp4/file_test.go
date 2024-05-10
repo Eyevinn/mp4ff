@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -124,7 +123,7 @@ func TestDecodeEncode(t *testing.T) {
 	testFiles := []string{"./testdata/prog_8s.mp4", "./testdata/multi_sidx_segment.m4s"}
 
 	for _, testFile := range testFiles {
-		rawInput, err := ioutil.ReadFile("./testdata/prog_8s.mp4")
+		rawInput, err := os.ReadFile("./testdata/prog_8s.mp4")
 		if err != nil {
 			t.Error(err)
 		}

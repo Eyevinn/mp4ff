@@ -3,7 +3,7 @@ package mp4
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -29,7 +29,7 @@ func compareOrUpdateInfo(t *testing.T, b Informer, path string) error {
 	}
 
 	// Compare with golden dump file
-	golden, err := ioutil.ReadFile(path)
+	golden, err := os.ReadFile(path)
 	if err != nil {
 		t.Error(err)
 	}

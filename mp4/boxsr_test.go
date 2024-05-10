@@ -2,7 +2,7 @@ package mp4
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -17,7 +17,7 @@ func TestDecodeEncodeSRW(t *testing.T) {
 	}
 	for _, testFile := range testFiles {
 
-		inData, err := ioutil.ReadFile(testFile)
+		inData, err := os.ReadFile(testFile)
 		if err != nil {
 			t.Error(err)
 		}

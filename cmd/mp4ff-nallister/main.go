@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -59,7 +58,7 @@ func main() {
 	}
 	// First try to handle Annex B file
 	if *annexB {
-		data, err := ioutil.ReadFile(inFilePath)
+		data, err := os.ReadFile(inFilePath)
 		if err != nil {
 			log.Fatal(err)
 		}

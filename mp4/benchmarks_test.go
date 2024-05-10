@@ -2,7 +2,7 @@ package mp4
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -12,7 +12,7 @@ func TestDecodEncodeFile(t *testing.T) {
 		"prog_8s.mp4",
 	}
 	for _, testFile := range testFiles {
-		raw, err := ioutil.ReadFile("testdata/" + testFile)
+		raw, err := os.ReadFile("testdata/" + testFile)
 		if err != nil {
 			t.Error(err)
 		}
@@ -43,7 +43,7 @@ func BenchmarkDecodeFile(b *testing.B) {
 		"prog_8s.mp4",
 	}
 	for _, testFile := range testFiles {
-		raw, _ := ioutil.ReadFile("testdata/" + testFile)
+		raw, _ := os.ReadFile("testdata/" + testFile)
 		b.Run(testFile, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				buf := bytes.NewBuffer(raw)
@@ -59,7 +59,7 @@ func BenchmarkEncodeFile(b *testing.B) {
 		"prog_8s.mp4",
 	}
 	for _, testFile := range testFiles {
-		raw, _ := ioutil.ReadFile("testdata/" + testFile)
+		raw, _ := os.ReadFile("testdata/" + testFile)
 		inBuf := bytes.NewBuffer(raw)
 		decFile, _ := DecodeFile(inBuf)
 		rawOut := make([]byte, 0, len(raw))
