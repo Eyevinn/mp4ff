@@ -237,6 +237,7 @@ func TestFixedSliceReader(t *testing.T) {
 }
 
 func verifyAccErrorInt(t *testing.T, sr *bits.FixedSliceReader, val int) {
+	t.Helper()
 	if sr.AccError() == nil {
 		t.Errorf("should have had an accumulated error")
 	}
@@ -246,6 +247,7 @@ func verifyAccErrorInt(t *testing.T, sr *bits.FixedSliceReader, val int) {
 }
 
 func verifyAccErrorString(t *testing.T, sr *bits.FixedSliceReader, val string) {
+	t.Helper()
 	if sr.AccError() == nil {
 		t.Errorf("should have had an accumulated error")
 	}
