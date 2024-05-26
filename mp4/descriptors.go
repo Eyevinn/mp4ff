@@ -213,6 +213,7 @@ func (e *ESDescriptor) Type() string {
 	return TagType(e.Tag())
 }
 
+// Size is size of payload after tag and size field
 func (e *ESDescriptor) Size() uint64 {
 	var size uint64 = 2 + 1
 	streamDependenceFlag := e.FlagsAndPriority >> 7
@@ -238,6 +239,7 @@ func (e *ESDescriptor) Size() uint64 {
 	return size
 }
 
+// SizeSize is size of size field.
 func (e *ESDescriptor) SizeSize() uint64 {
 	return 1 + uint64(e.sizeFieldSizeMinus1) + 1 + e.Size()
 }
@@ -324,6 +326,19 @@ func (e *ESDescriptor) Info(w io.Writer, specificLevels, indent, indentStep stri
 	return bd.err
 }
 
+// DecoderConfigDescriptor is defined in ISO/IEC 14496-1 Section 7.2.6.6.1
+//
+//	class DecoderConfigDescriptor extends BaseDescriptor : bit(8) tag=DecoderConfigDescrTag {
+//	  bit(8) objectTypeIndication;
+//	  bit(6) streamType;
+//	  bit(1) upStream;
+//	  const bit(1) reserved=1;
+//	  bit(24) bufferSizeDB;
+//	  bit(32) maxBitrate;
+//	  bit(32) avgBitrate;
+//	  DecoderSpecificInfo decSpecificInfo[0 .. 1];
+//	  profileLevelIndicationIndexDescriptor profileLevelIndicationIndexDescr [0..255];
+//	}
 type DecoderConfigDescriptor struct {
 	ObjectType          byte
 	StreamType          byte
@@ -333,7 +348,7 @@ type DecoderConfigDescriptor struct {
 	AvgBitrate          uint32
 	DecSpecificInfo     *DecSpecificInfoDescriptor
 	OtherDescriptors    []Descriptor
-	UnknownData         []byte
+	UnknownData         []byte // Data, probably erronous, that we don't understand
 }
 
 func exceedsMaxNrBytes(sizeFieldSizeMinus1 byte, size uint64, maxNrBytes int) bool {
@@ -463,6 +478,10 @@ func (d *DecoderConfigDescriptor) Info(w io.Writer, specificLevels, indent, inde
 	}
 	return bd.err
 }
+
+// DecSpecificInfoDescriptor is a generic DecoderSpecificInfoDescriptor.
+//
+// The meaning of the MPEG-4 audio descriptor is defined in  ISO/IEC 14496-3 Section 1.6.2.1.
 
 type DecSpecificInfoDescriptor struct {
 	sizeFieldSizeMinus1 byte

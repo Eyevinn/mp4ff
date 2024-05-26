@@ -29,8 +29,7 @@
         [vmhd] size=20 version=0 flags=000000
         [dinf] size=36
           [dref] size=28 version=0 flags=000000
-            [url ] size=12
-             - location: ""
+            [url ] size=12 version=0 flags=000001
         [stbl] size=319
           [stsd] size=243 version=0 flags=000000
             [encv] size=227

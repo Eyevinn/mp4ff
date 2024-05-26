@@ -11,22 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - minimum Go version 1.16.
 - ioutil imports replaced by io and os imports
+- Info (mp4ff-info) output for esds boxes
+- API of descriptors
+- Parsing and info output for url boxes
 
 ### Fixed
 
 - support for parsing of hierarchical sidx boxes
 - handling of partially bad descriptors
-
-### Changed
-
-- Info (mp4ff-info) output for esds boxes
-- API of descriptors
+- handle url boxes missing mandatory zero-ending byte
 
 ### Added
 
 - support for ssix box
 - support for leva box
-- details for descriptors as Info outout
+- details of descriptors as Info outout (mp4ff-info)
 
 ## [0.44.0] - 2024-04-19
 
