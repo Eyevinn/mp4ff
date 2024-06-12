@@ -89,11 +89,11 @@ func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
 	for {
 		dur = b.SampleTimeDelta[i]
 		if samplesRemaining >= b.SampleCount[i] {
-			decTime += uint64(b.SampleCount[i] * dur)
+			decTime += uint64(b.SampleCount[i]) * uint64(dur)
 			samplesRemaining -= b.SampleCount[i]
 		} else {
 			if samplesRemaining > 0 {
-				decTime += uint64(samplesRemaining * dur)
+				decTime += uint64(samplesRemaining) * uint64(dur)
 			}
 			break
 		}
