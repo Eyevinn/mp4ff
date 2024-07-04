@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Box decoder error messages include start position
+
 ### Fixed
 
-- Overflow in calculatiing sample decode time
+- Overflow in calculating sample decode time
 
 ## [0.45.0] - 2024-06-06
 

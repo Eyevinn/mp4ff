@@ -308,7 +308,7 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 		b, err = d(h, startPos, r)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("decode %s: %w", h.Name, err)
+		return nil, fmt.Errorf("decode %s pos %d: %w", h.Name, startPos, err)
 	}
 
 	return b, nil
