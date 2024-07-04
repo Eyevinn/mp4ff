@@ -168,7 +168,7 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 		b, err = d(h, startPos, sr)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("decode box %s: %w", h.Name, err)
+		return nil, fmt.Errorf("decode %s pos %d: %w", h.Name, startPos, err)
 	}
 
 	return b, nil
