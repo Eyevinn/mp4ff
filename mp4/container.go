@@ -111,7 +111,11 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 		if pos == endPos {
 			return children, nil
 		} else if pos > endPos {
-			return nil, fmt.Errorf("non-matching children box sizes")
+			msg := ""
+			for _, c := range children {
+				msg += fmt.Sprintf("%s:%d ", c.Type(), c.Size())
+			}
+			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, msg)
 		}
 	}
 }
@@ -123,7 +127,11 @@ func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.S
 	initPos := sr.GetPos()
 	for {
 		if pos > endPos {
-			return nil, fmt.Errorf("non matching children box sizes")
+			msg := ""
+			for _, c := range children {
+				msg += fmt.Sprintf("%s:%d ", c.Type(), c.Size())
+			}
+			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, msg)
 		}
 		if pos == endPos {
 			break
