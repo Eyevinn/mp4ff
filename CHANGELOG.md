@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Overflow in calculating sample decode time
+- elng box errononously did not include full box headers
 
 ## [0.45.0] - 2024-06-06
 
