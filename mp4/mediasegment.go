@@ -9,7 +9,7 @@ import (
 
 // MediaSegment is an MP4 Media Segment with one or more Fragments.
 type MediaSegment struct {
-	Styp        *StypBox
+	Styp        *FStypBox
 	Sidx        *SidxBox   // The fist sidx box in a segment
 	Sidxs       []*SidxBox // All sidx boxes in a segment
 	Fragments   []*Fragment
@@ -27,7 +27,7 @@ func NewMediaSegment() *MediaSegment {
 }
 
 // NewMediaSegmentWithStyp - create empty MediaSegment with styp box
-func NewMediaSegmentWithStyp(styp *StypBox) *MediaSegment {
+func NewMediaSegmentWithStyp(styp *FStypBox) *MediaSegment {
 	return &MediaSegment{
 		Styp:        styp,
 		Fragments:   nil,

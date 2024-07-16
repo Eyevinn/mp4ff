@@ -14,7 +14,7 @@ import (
 // InitSegment - MP4/CMAF init segment
 type InitSegment struct {
 	MediaType string
-	Ftyp      *FtypBox
+	Ftyp      *FStypBox
 	Moov      *MoovBox
 	Children  []Box // All top-level boxes in order
 }
@@ -30,7 +30,7 @@ func NewMP4Init() *InitSegment {
 func (s *InitSegment) AddChild(b Box) {
 	switch b.Type() {
 	case "ftyp":
-		s.Ftyp = b.(*FtypBox)
+		s.Ftyp = b.(*FStypBox)
 	case "moov":
 		s.Moov = b.(*MoovBox)
 	}

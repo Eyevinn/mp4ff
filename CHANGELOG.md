@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- ftyp and styp now share a common box type FStypBox
+
 ### Fixed
 
 - mvhd, tkhd, and mdhd timestamps were off by one day
@@ -17,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event Message boxes evte, emib, emeb
 - GetBtrt method to StsdBox
 - Btrt pointer attribute in AudioSampleEnntry
+- mvhd and tkhd methods to set and get creation and modification times
+- Constants for some common brands used in ftyp and styp boxes
 
 ## [0.45.1] - 2024-07-12
 

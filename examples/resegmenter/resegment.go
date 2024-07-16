@@ -97,7 +97,7 @@ func addSamplesToFrag(frag *mp4.Fragment, samples []mp4.FullSample, nextSampleNr
 	return nil
 }
 
-func addNewSegment(oFile *mp4.File, styp *mp4.StypBox, seqNr, trackID uint32) (*mp4.Fragment, error) {
+func addNewSegment(oFile *mp4.File, styp *mp4.FStypBox, seqNr, trackID uint32) (*mp4.Fragment, error) {
 	oFile.AddChild(styp, 0)
 	frag, err := mp4.CreateFragment(seqNr, trackID)
 	if err != nil {

@@ -25,7 +25,7 @@ import (
 // To Encode the same data as Decoded, this flag must therefore be set.
 // In all cases, Children contain all top-level boxes
 type File struct {
-	Ftyp         *FtypBox
+	Ftyp         *FStypBox
 	Moov         *MoovBox
 	Mdat         *MdatBox        // Only used for non-fragmented files
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
@@ -240,8 +240,17 @@ func (f *File) Size() uint64 {
 // AddChild - add child with start position
 func (f *File) AddChild(child Box, boxStartPos uint64) {
 	switch box := child.(type) {
-	case *FtypBox:
-		f.Ftyp = box
+	case *FStypBox:
+		switch box.Type() {
+		case "ftyp":
+			f.Ftyp = box
+		case "styp":
+			// Starts a new segment
+			f.isFragmented = true
+			f.AddMediaSegment(&MediaSegment{Styp: box, StartPos: boxStartPos})
+		default:
+			// Erronous box type, just add to children
+		}
 	case *MoovBox:
 		f.Moov = box
 		if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
@@ -267,10 +276,6 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 			currSeg := f.Segments[len(f.Segments)-1]
 			currSeg.AddSidx(box)
 		}
-	case *StypBox:
-		// Starts a new segment
-		f.isFragmented = true
-		f.AddMediaSegment(&MediaSegment{Styp: box, StartPos: boxStartPos})
 	case *EmsgBox:
 		// emsg box is only added at the start of a fragment (inside a segment).
 		// The case that a segment starts without an emsg is also handled.
