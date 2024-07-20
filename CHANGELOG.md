@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+### Fixed
+
+- mvhd and tkhd timestamp was off by one day
+
+### Added
+
+- mvhd and tkhd methods to set and get creation and modification times
 
 ## [0.45.1] - 2024-07-12
 

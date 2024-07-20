@@ -7,8 +7,8 @@
   [mvhd] size=108 version=0 flags=000000
    - timeScale: 600
    - duration: 11520
-   - creation time: 2020-03-11T08:59:14Z
-   - modification time: 2020-03-11T08:59:14Z
+   - creation time: 2020-03-10T08:59:14Z
+   - modification time: 2020-03-10T08:59:14Z
   [iods] size=21
    - not implemented or unknown box
    - 000000001007004fffffff7fff
@@ -16,8 +16,8 @@
     [tkhd] size=92 version=0 flags=000001
      - trackID: 1
      - duration: 11520
-     - creation time: 2020-03-11T08:59:14Z
-     - modification time: 2020-03-11T08:59:14Z
+     - creation time: 2020-03-10T08:59:14Z
+     - modification time: 2020-03-10T08:59:14Z
      - Width: 960.0, Height: 540.0
     [edts] size=36
       [elst] size=28 version=0 flags=000000
@@ -25,8 +25,8 @@
     [mdia] size=4816
       [mdhd] size=32 version=0 flags=000000
        - timeScale: 100
-       - creation time: 2020-03-11T08:59:14Z
-       - modification time: 2020-03-11T08:59:14Z
+       - creation time: 2020-03-10T08:59:14Z
+       - modification time: 2020-03-10T08:59:14Z
        - language: und
       [hdlr] size=57 version=0 flags=000000
        - handlerType: vide
