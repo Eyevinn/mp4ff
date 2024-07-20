@@ -151,3 +151,23 @@ func (b *TkhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	return bd.err
 }
+
+// CraetionTimeS returns the creation time in seconds since Jan 1, 1970
+func (b *TkhdBox) CreationTimeS() int64 {
+	return int64(b.CreationTime) - EpochDiffS
+}
+
+// ModificationTimeS returns the modification time in seconds since Jan 1, 1970
+func (b *TkhdBox) ModificationTimeS() int64 {
+	return int64(b.ModificationTime) - EpochDiffS
+}
+
+// SetCreationTimeS sets the creation time from seconds since Jan 1, 1970
+func (b *TkhdBox) SetCreationTimeS(unixTimeS int64) {
+	b.CreationTime = uint64(unixTimeS + EpochDiffS)
+}
+
+// SetModificationTimeS sets the modification time from seconds since Jan 1, 1970
+func (b *TkhdBox) SetModificationTimeS(unixTimeS int64) {
+	b.ModificationTime = uint64(unixTimeS + EpochDiffS)
+}
