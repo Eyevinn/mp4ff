@@ -35,7 +35,9 @@ type StsdBox struct {
 	// Wvtt is a pointer to a WvttBox
 	Wvtt *WvttBox
 	// Stpp is a pointer to a StppBox
-	Stpp     *StppBox
+	Stpp *StppBox
+	// Evte is a pointer to an EvteBox
+	Evte     *EvteBox
 	Children []Box
 }
 
@@ -67,6 +69,8 @@ func (s *StsdBox) AddChild(box Box) {
 		s.Wvtt = box.(*WvttBox)
 	case "stpp":
 		s.Stpp = box.(*StppBox)
+	case "evte":
+		s.Evte = box.(*EvteBox)
 	}
 	s.Children = append(s.Children, box)
 	s.SampleCount++
