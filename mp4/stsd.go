@@ -235,3 +235,22 @@ func (s *StsdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	return err
 }
+
+// GetBtrt returns the first BtrtBox found in StsdBox children.
+func (s *StsdBox) GetBtrt() *BtrtBox {
+	for _, c := range s.Children {
+		switch child := c.(type) {
+		case *VisualSampleEntryBox:
+			return child.Btrt
+		case *AudioSampleEntryBox:
+			return child.Btrt
+		case *WvttBox:
+			return child.Btrt
+		case *StppBox:
+			return child.Btrt
+		case *EvteBox:
+			return child.Btrt
+		}
+	}
+	return nil
+}
