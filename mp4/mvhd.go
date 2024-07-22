@@ -17,8 +17,8 @@ import (
 type MvhdBox struct {
 	Version          byte
 	Flags            uint32
-	CreationTime     uint64
-	ModificationTime uint64
+	CreationTime     uint64 // Seconds since 1904-01-01
+	ModificationTime uint64 // Seconds since 1904-01-01
 	Timescale        uint32
 	Duration         uint64
 	NextTrackID      uint32
@@ -143,7 +143,7 @@ func (b *MvhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// CraetionTimeS returns the creation time in seconds since Jan 1, 1970
+// CreationTimeS returns the creation time in seconds since Jan 1, 1970
 func (b *MvhdBox) CreationTimeS() int64 {
 	return int64(b.CreationTime) - EpochDiffS
 }
