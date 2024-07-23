@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - mvhd and tkhd methods to set and get creation and modification times
 - Event Message boxes evte, emib, emeb
+- GetBtrt method to StsdBox
+- Btrt pointer attribute in AudioSampleEnntry
 
 ## [0.45.1] - 2024-07-12
 
