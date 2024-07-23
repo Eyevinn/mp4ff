@@ -18,8 +18,8 @@ const charOffset = 0x60 // According to Section 8.4.2.3 of 14496-12
 type MdhdBox struct {
 	Version          byte // Only version 0
 	Flags            uint32
-	CreationTime     uint64 // Typically not set
-	ModificationTime uint64 // Typically not set
+	CreationTime     uint64 // Seconds since 1904-01-01
+	ModificationTime uint64 // Seconds since 1904-01-01
 	Timescale        uint32 // Media timescale for this track
 	Duration         uint64 // Trak duration, 0 for fragmented files
 	Language         uint16 // Three-letter ISO-639-2/T language code
@@ -134,4 +134,24 @@ func (m *MdhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - modification time: %s", timeStr(m.ModificationTime))
 	bd.write(" - language: %s", m.GetLanguage())
 	return bd.err
+}
+
+// CreationTimeS returns the creation time in seconds since Jan 1, 1970
+func (b *MdhdBox) CreationTimeS() int64 {
+	return int64(b.CreationTime) - EpochDiffS
+}
+
+// ModificationTimeS returns the modification time in seconds since Jan 1, 1970
+func (b *MdhdBox) ModificationTimeS() int64 {
+	return int64(b.ModificationTime) - EpochDiffS
+}
+
+// SetCreationTimeS sets the creation time from seconds since Jan 1, 1970
+func (b *MdhdBox) SetCreationTimeS(unixTimeS int64) {
+	b.CreationTime = uint64(unixTimeS + EpochDiffS)
+}
+
+// SetModificationTimeS sets the modification time from seconds since Jan 1, 1970
+func (b *MdhdBox) SetModificationTimeS(unixTimeS int64) {
+	b.ModificationTime = uint64(unixTimeS + EpochDiffS)
 }

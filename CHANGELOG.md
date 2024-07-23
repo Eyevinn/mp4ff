@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- mvhd and tkhd timestamp was off by one day
+- mvhd, tkhd, and mdhd timestamps were off by one day
 
 ### Added
 
-- mvhd and tkhd methods to set and get creation and modification times
+- mvhd, tkhd, and mdhd methods to set and get creation and modification times
 - Event Message boxes evte, emib, emeb
 - GetBtrt method to StsdBox
 - Btrt pointer attribute in AudioSampleEnntry
