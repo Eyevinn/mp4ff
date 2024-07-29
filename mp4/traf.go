@@ -95,11 +95,8 @@ func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 		}
 	}
 	perSampleIVSize := defaultIVSize
-	if t.Sbgp != nil && t.Sgpd != nil {
-		sbgp, sgpd := t.Sbgp, t.Sgpd
-		if sbgp.GroupingType != "seig" {
-			return fmt.Errorf("sbgp grouping type %s not supported", sbgp.GroupingType)
-		}
+	sbgp, sgpd := t.Sbgp, t.Sgpd
+	if sbgp != nil && sbgp.GroupingType == "seig" && sgpd != nil && sgpd.GroupingType == "seig" {
 		nrSbgpEntries := len(sbgp.SampleCounts)
 		if nrSbgpEntries != 1 {
 			return fmt.Errorf("sbgp entries = %d, only 1 supported for now", nrSbgpEntries)
@@ -108,14 +105,7 @@ func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 		if sgpdEntryNr != sbgpInsideOffset+1 {
 			return fmt.Errorf("sgpd entry number must be first inside = 65536 + 1")
 		}
-		if sgpd.GroupingType != "seig" {
-			return fmt.Errorf("sgpd grouping type %s not supported", sgpd.GroupingType)
-		}
-
 		sgpdEntry := sgpd.SampleGroupEntries[sgpdEntryNr-sbgpInsideOffset-1]
-		if sgpdEntry.Type() != "seig" {
-			return fmt.Errorf("expected sgpd entry type seig but found %q", sgpdEntry.Type())
-		}
 		seigEntry := sgpdEntry.(*SeigSampleGroupEntry)
 		perSampleIVSize = seigEntry.PerSampleIVSize
 	}
