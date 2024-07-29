@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - mvhd, tkhd, and mdhd timestamps were off by one day
+- allow other sbgp and sgpd types than seig with senc
 
 ### Added
 
