@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.46.0] - 2024-08-08
+
 ### Fixed
 
 - mvhd, tkhd, and mdhd timestamps were off by one day
@@ -631,7 +635,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.45.1...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/Eyevinn/mp4ff/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/Eyevinn/mp4ff/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/Eyevinn/mp4ff/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/Eyevinn/mp4ff/compare/v0.43.0...v0.44.0
