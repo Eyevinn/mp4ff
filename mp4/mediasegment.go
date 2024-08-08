@@ -10,7 +10,7 @@ import (
 // MediaSegment is an MP4 Media Segment with one or more Fragments.
 type MediaSegment struct {
 	Styp        *StypBox
-	Sidx        *SidxBox   // The fist sidx box in a segment
+	Sidx        *SidxBox   // The first sidx box in a segment
 	Sidxs       []*SidxBox // All sidx boxes in a segment
 	Fragments   []*Fragment
 	EncOptimize EncOptimize
