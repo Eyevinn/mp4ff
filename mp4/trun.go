@@ -115,7 +115,8 @@ func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return t, sr.AccError()
 }
 
-// CreateTrun - create a TrunBox for filling up with samples
+// CreateTrun - create a TrunBox for filling up with samples.
+// writeOrderNr is only used for multi-trun offsets.
 func CreateTrun(writeOrderNr uint32) *TrunBox {
 	trun := &TrunBox{
 		Version:          1,     // Signed composition_time_offset

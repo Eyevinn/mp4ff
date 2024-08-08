@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event Message boxes evte, emib, emeb
 - GetBtrt method to StsdBox
 - Btrt pointer attribute in AudioSampleEnntry
+- stpp can be used as value to CreateEmptyTrak
 
 ## [0.45.1] - 2024-07-12
 

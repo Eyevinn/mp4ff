@@ -156,7 +156,7 @@ func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *Tra
 		minf.AddChild(CreateVmhd())
 	case "audio":
 		minf.AddChild(CreateSmhd())
-	case "subtitle", "subtitles":
+	case "subtitle", "subtitles", "stpp":
 		minf.AddChild(&SthdBox{})
 	case "text", "wvtt":
 		minf.AddChild(&NmhdBox{})
