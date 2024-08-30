@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Allow missing optional DecoderSpecificInfo
+- Avoid mp4.File.Mdat pointing to an empty mdat box
 
 - Nothing yet
 

@@ -27,7 +27,7 @@ import (
 type File struct {
 	Ftyp         *FtypBox
 	Moov         *MoovBox
-	Mdat         *MdatBox        // Only used for non-fragmented files
+	Mdat         *MdatBox        // mdat box for non-fragmented files. Extra empty boxes allowed.
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Sidx         *SidxBox        // The first sidx box for a DASH OnDemand file
 	Sidxs        []*SidxBox      // All sidx boxes for a DASH OnDemand file
@@ -196,6 +196,16 @@ LoopBoxes:
 				if lastBoxType != "moof" {
 					return nil, fmt.Errorf("does not support %v between moof and mdat", lastBoxType)
 				}
+			} else {
+				if f.Mdat != nil {
+					oldPayloadSize := f.Mdat.Size() - f.Mdat.HeaderSize()
+					newMdat := box.(*MdatBox)
+					newPayloadSize := newMdat.Size() - newMdat.HeaderSize()
+					if oldPayloadSize > 0 && newPayloadSize > 0 {
+						return nil, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)",
+							oldPayloadSize, newPayloadSize)
+					}
+				}
 			}
 		case "moof":
 			moof := box.(*MoofBox)
@@ -294,8 +304,10 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		frag := currSeg.LastFragment()
 		frag.AddChild(moof)
 	case *MdatBox:
-		if !f.isFragmented {
-			f.Mdat = box
+		if !f.isFragmented { // Only add if previous mdat is nil or empty
+			if f.Mdat == nil || f.Mdat.Size()-f.Mdat.HeaderSize() == 0 {
+				f.Mdat = box
+			}
 		} else {
 			currentFragment := f.LastSegment().LastFragment()
 			currentFragment.AddChild(box)
