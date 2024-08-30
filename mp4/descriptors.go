@@ -228,7 +228,9 @@ func (e *ESDescriptor) Size() uint64 {
 	if ocrStreamFlag == 1 {
 		size += 2
 	}
-	size += e.DecConfigDescriptor.SizeSize()
+	if e.DecConfigDescriptor != nil {
+		size += e.DecConfigDescriptor.SizeSize()
+	}
 	if e.SLConfigDescriptor != nil {
 		size += e.SLConfigDescriptor.SizeSize()
 	}
@@ -379,14 +381,17 @@ func DecodeDecoderConfigDescriptor(tag byte, sr bits.SliceReader, maxNrBytes int
 
 	currPos := sr.GetPos()
 	nrBytesLeft := int(size) - (currPos - dataStart)
+	if nrBytesLeft == 0 {
+		return &dd, nil
+	}
 	desc, err := DecodeDescriptor(sr, nrBytesLeft)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode DecSpecificInfoDescriptor: %w", err)
+		return nil, fmt.Errorf("failed to decode descriptor: %w", err)
 	}
 	var ok bool
 	dd.DecSpecificInfo, ok = desc.(*DecSpecificInfoDescriptor)
-	if !ok {
-		return nil, fmt.Errorf("expected DecSpecificInfoDescriptor")
+	if !ok { // The optional decoderSpeicificInfo is not present
+		dd.OtherDescriptors = append(dd.OtherDescriptors, desc)
 	}
 	for {
 		currPos := sr.GetPos()
@@ -417,7 +422,10 @@ func (d *DecoderConfigDescriptor) Type() string {
 }
 
 func (d *DecoderConfigDescriptor) Size() uint64 {
-	size := 13 + d.DecSpecificInfo.SizeSize()
+	size := uint64(13)
+	if d.DecSpecificInfo != nil {
+		size += d.DecSpecificInfo.SizeSize()
+	}
 	for _, od := range d.OtherDescriptors {
 		size += od.SizeSize()
 	}
@@ -437,12 +445,14 @@ func (d *DecoderConfigDescriptor) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteUint32(streamTypeAndBufferSizeDB)
 	sw.WriteUint32(d.MaxBitrate)
 	sw.WriteUint32(d.AvgBitrate)
-	err := d.DecSpecificInfo.EncodeSW(sw)
-	if err != nil {
-		return err
+	if d.DecSpecificInfo != nil {
+		err := d.DecSpecificInfo.EncodeSW(sw)
+		if err != nil {
+			return err
+		}
 	}
 	for _, desc := range d.OtherDescriptors {
-		err = desc.EncodeSW(sw)
+		err := desc.EncodeSW(sw)
 		if err != nil {
 			return err
 		}
@@ -463,12 +473,14 @@ func (d *DecoderConfigDescriptor) Info(w io.Writer, specificLevels, indent, inde
 	bd.write(" - BufferSizeDB: %d", d.BufferSizeDB)
 	bd.write(" - MaxBitrate: %d", d.MaxBitrate)
 	bd.write(" - AvgBitrate: %d", d.AvgBitrate)
-	err := d.DecSpecificInfo.Info(w, specificLevels, indent+indentStep, indentStep)
-	if err != nil {
-		return err
+	if d.DecSpecificInfo != nil {
+		err := d.DecSpecificInfo.Info(w, specificLevels, indent+indentStep, indentStep)
+		if err != nil {
+			return err
+		}
 	}
 	for _, od := range d.OtherDescriptors {
-		err = od.Info(w, specificLevels, indent+indentStep, indentStep)
+		err := od.Info(w, specificLevels, indent+indentStep, indentStep)
 		if err != nil {
 			return err
 		}
