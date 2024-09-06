@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
@@ -322,5 +323,59 @@ func TestUpdateSidx(t *testing.T) {
 	}
 	if parsedFile.Sidx == nil {
 		t.Error("sidx should be present")
+	}
+}
+
+func TestEmptyMdat(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		mdatSizes     []uint64
+		expectedError string
+	}{
+		{desc: "2 non-empty", mdatSizes: []uint64{24, 16},
+			expectedError: "only one non-empty mdat box supported (payload sizes 16 and 8)"},
+		{desc: "empty + normal", mdatSizes: []uint64{8, 16}, expectedError: ""},
+		{desc: "normal+empty", mdatSizes: []uint64{16, 8}, expectedError: ""},
+		{desc: "empty+normal+empty", mdatSizes: []uint64{8, 16, 8}, expectedError: ""},
+	}
+	for _, tc := range testCases {
+		for _, readSlice := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s_readSlice_%t", tc.desc, readSlice), func(t *testing.T) {
+				buf := bytes.Buffer{}
+				for _, mdatSize := range tc.mdatSizes {
+					mdat := &MdatBox{}
+					if mdatSize > 8 {
+						mdat.Data = make([]byte, mdatSize-8)
+					}
+					err := mdat.Encode(&buf)
+					if err != nil {
+						t.Error(err)
+					}
+				}
+				var decFile *File
+				var err error
+				if readSlice {
+					sr := bits.NewFixedSliceReader(buf.Bytes())
+					decFile, err = DecodeFileSR(sr)
+				} else {
+					decFile, err = DecodeFile(&buf)
+				}
+				if tc.expectedError != "" {
+					if err == nil {
+						t.Error("expected error")
+					} else if err.Error() != tc.expectedError {
+						t.Errorf("expected error %s, got %s", tc.expectedError, err.Error())
+					}
+					return
+				}
+				if err != nil {
+					t.Error(err)
+				}
+				mdat := decFile.Mdat
+				if mdat.Size() == 8 {
+					t.Error("f.Mdat points to empty file although there is a non-empty mdat")
+				}
+			})
+		}
 	}
 }
