@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow missing optional DecoderSpecificInfo
 
-- Nothing yet
+### Removed
+
+- Too specific functions DumpWithSampleData and Fragment.DumpSampleData
 
 ## [0.46.0] - 2024-08-08
 
