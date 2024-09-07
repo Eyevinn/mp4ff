@@ -257,28 +257,6 @@ func (f *Fragment) AddSampleToTrack(s Sample, trackID uint32, baseMediaDecodeTim
 	return nil
 }
 
-// DumpSampleData - Get Sample data and print out
-func (f *Fragment) DumpSampleData(w io.Writer, trex *TrexBox) error {
-	samples, err := f.GetFullSamples(trex)
-	if err != nil {
-		return err
-	}
-	for i, s := range samples {
-		if i < 9 {
-			fmt.Printf("%4d %8d %8d %6x %d %d\n", i, s.DecodeTime, s.PresentationTime(),
-				s.Flags, s.Size, len(s.Data))
-		}
-		toAnnexB(s.Data)
-		if w != nil {
-			_, err := w.Write(s.Data)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // Encode - write fragment via writer
 func (f *Fragment) Encode(w io.Writer) error {
 	if f.Moof == nil {

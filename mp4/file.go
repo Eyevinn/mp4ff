@@ -367,7 +367,7 @@ func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
 func (f *File) findAndReadMfra(r io.Reader) error {
 	rs, ok := r.(io.ReadSeeker)
 	if !ok {
-		return fmt.Errorf("expecting readseeker when decoding file ISM file")
+		return fmt.Errorf("expecting readseeker when decoding ISM file")
 	}
 	mfroSize := int64(16) // This is the fixed size of the mfro box
 	pos, err := rs.Seek(-mfroSize, io.SeekEnd)
@@ -417,45 +417,6 @@ func (f *File) AddSidx(sidx *SidxBox) {
 		f.Sidx = sidx
 	}
 	f.Sidxs = append(f.Sidxs, sidx)
-}
-
-// DumpWithSampleData - print information about file and its children boxes
-func (f *File) DumpWithSampleData(w io.Writer, specificBoxLevels string) error {
-	if f.isFragmented {
-		fmt.Printf("Init segment\n")
-		err := f.Init.Info(w, specificBoxLevels, "", "  ")
-		if err != nil {
-			return err
-		}
-		for i, seg := range f.Segments {
-			fmt.Printf("  mediaSegment %d\n", i)
-			for j, frag := range seg.Fragments {
-				fmt.Printf("  fragment %d\n ", j)
-				w, err := os.OpenFile("tmp.264", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				if err != nil {
-					return err
-				}
-				err = frag.DumpSampleData(w, f.Init.Moov.Mvex.Trex)
-				if err != nil {
-					w.Close()
-					return err
-				}
-				w.Close()
-			}
-		}
-
-	} else {
-		err := f.Ftyp.Info(w, specificBoxLevels, "", "  ")
-		if err != nil {
-			return err
-		}
-		err = f.Moov.Info(w, specificBoxLevels, "", "  ")
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Encode - encode a file to a Writer
