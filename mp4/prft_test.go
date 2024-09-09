@@ -9,8 +9,8 @@ import (
 
 func TestPrft(t *testing.T) {
 	prfts := []*PrftBox{
-		CreatePrftBox(0, 1, 8998, 98),
-		CreatePrftBox(1, 2, 8998, 98),
+		CreatePrftBox(0, PrftTimeCaptured, 1, 8998, 98),
+		CreatePrftBox(1, PrftTimeEncoderOutput, 2, 8998, 98),
 	}
 	for _, prft := range prfts {
 		boxDiffAfterEncodeAndDecode(t, prft)

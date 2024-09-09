@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- CreatePrftBox now takes flags parameter
+- PrftBox Info output
+
+### Added
+
+- NTP64 struct with methods to convert to time.Time
+- Constants for PrftBox flags
+
 ### Fixed
 
 - Allow missing optional DecoderSpecificInfo

@@ -6,6 +6,24 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
+const (
+	PrftTimeEncoderInput       = 0
+	PrftTimeEncoderOutput      = 1
+	PrftTimeMoofFinalized      = 2
+	PrftTimeMoofWritten        = 4
+	PrftTimeArbitraryConsitent = 8
+	PrftTimeCaptured           = 24
+)
+
+var PrftFlagsInterpretation = map[uint32]string{
+	PrftTimeEncoderInput:       "time_encoder_input",
+	PrftTimeEncoderOutput:      "time_encoder_output",
+	PrftTimeMoofFinalized:      "time_moof_finalized",
+	PrftTimeMoofWritten:        "time_moof_written",
+	PrftTimeArbitraryConsitent: "time_arbitrary_consistent",
+	PrftTimeCaptured:           "time_captured",
+}
+
 // PrftBox - Producer Reference Box (prft)
 //
 // Contained in File before moof box
@@ -18,10 +36,10 @@ type PrftBox struct {
 }
 
 // CreatePrftBox creates a new PrftBox.
-func CreatePrftBox(version byte, refTrackID uint32, ntp NTP64, mediatime uint64) *PrftBox {
+func CreatePrftBox(version byte, flags, refTrackID uint32, ntp NTP64, mediatime uint64) *PrftBox {
 	return &PrftBox{
 		Version:          version,
-		Flags:            0,
+		Flags:            flags,
 		ReferenceTrackID: refTrackID,
 		NTPTimestamp:     ntp,
 		MediaTime:        mediatime,
@@ -105,7 +123,16 @@ func (b *PrftBox) EncodeSW(sw bits.SliceWriter) error {
 func (b *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - referenceTrackID: %d", b.ReferenceTrackID)
+	bd.write(" - type: %s", b.InterpretFlags())
 	bd.write(" - ntpTimestamp: %s (%d)", b.NTPTimestamp, b.NTPTimestamp)
 	bd.write(" - mediaTime: %d", b.MediaTime)
 	return bd.err
+}
+
+// InterpretFlags - return string representation of flags.
+func (b *PrftBox) InterpretFlags() string {
+	if interpretation, ok := PrftFlagsInterpretation[b.Flags]; ok {
+		return interpretation
+	}
+	return "unknown"
 }
