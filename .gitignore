@@ -15,3 +15,6 @@
 vendor/
 
 /mp4/test_data/out_init.cmfv
+
+# VS Code settings
+.vscode/
