@@ -26,7 +26,7 @@ func TestPsshFromBase64(t *testing.T) {
 	d := deep.Equal(buf.String(), expected)
 	if len(d) > 0 {
 		for _, l := range d {
-			t.Errorf(l)
+			t.Error(l)
 		}
 	}
 }

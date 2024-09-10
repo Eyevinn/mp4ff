@@ -54,7 +54,7 @@ func TestDecodeFileWithNoLazyMdatOption(t *testing.T) {
 			if frag.Mdat.lazyDataSize != 0 {
 				t.Error("decLazyDataSize is expected to be 0")
 			}
-			if frag.Mdat.Data == nil || len(frag.Mdat.Data) == 0 {
+			if len(frag.Mdat.Data) == 0 {
 				t.Error("Mdat Data is expected to be non-nil")
 			}
 		}

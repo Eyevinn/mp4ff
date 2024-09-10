@@ -392,7 +392,7 @@ func printPS(name string, nr int, ps []byte, psInfo interface{}, verbose bool) {
 	if verbose && psInfo != nil {
 		jsonPS, err := json.MarshalIndent(psInfo, "", "  ")
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalln(err.Error())
 		}
 		fmt.Printf("%s\n", string(jsonPS))
 	}
