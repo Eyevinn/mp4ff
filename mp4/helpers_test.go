@@ -124,7 +124,7 @@ func assertNoError(t *testing.T, err error) {
 func assertError(t *testing.T, err error, msg string) {
 	t.Helper()
 	if err == nil {
-		t.Errorf(msg)
+		t.Error(msg)
 	}
 }
 
