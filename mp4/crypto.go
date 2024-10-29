@@ -311,10 +311,8 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 	}
 	schi := SchiBox{}
 	switch scheme {
-	case "cenc":
-		sinf.AddChild(&SchmBox{SchemeType: "cenc", SchemeVersion: 65536})
-	case "cbcs":
-		sinf.AddChild(&SchmBox{SchemeType: "cbcs", SchemeVersion: 65536})
+	case "cenc", "cbcs":
+		sinf.AddChild(&SchmBox{SchemeType: scheme, SchemeVersion: 65536})
 	default:
 		return nil, fmt.Errorf("unknown protection scheme %s", scheme)
 	}
@@ -359,7 +357,6 @@ func getAVCProtFunc(avcC *AvcCBox) (ProtectionRangeFunc, error) {
 }
 
 func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
-
 	if len(iv) == 8 {
 		// Convert to 16 bytes
 		iv8 := iv
@@ -377,10 +374,14 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 		return fmt.Errorf("only one trun supported")
 	}
 	nrSamples := int(f.Moof.Traf.Trun.SampleCount())
-	saiz := NewSaizBox(nrSamples)
-	_ = traf.AddChild(saiz)
-	saio := NewSaioBox()
-	_ = traf.AddChild(saio)
+	var saiz *SaizBox
+	var saio *SaioBox
+	if shouldAddSaiz(ipd) {
+		saiz = NewSaizBox(nrSamples)
+		_ = traf.AddChild(saiz)
+		saio = NewSaioBox()
+		_ = traf.AddChild(saio)
+	}
 	var senc *SencBox
 	switch ipd.Scheme {
 	case "cenc":
@@ -417,9 +418,11 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 			if err != nil {
 				return fmt.Errorf("crypt sample cbcs: %w", err)
 			}
-			// iv is constant and not sent t senc
+			// iv is constant and not sent in senc
 			_ = senc.AddSample(SencSample{IV: nil, SubSamples: subsamplePatterns})
-			saiz.AddSampleInfo(nil, subsamplePatterns)
+			if saiz != nil {
+				saiz.AddSampleInfo(nil, subsamplePatterns)
+			}
 		default:
 			return fmt.Errorf("unknown scheme %s", ipd.Scheme)
 		}
@@ -442,8 +445,23 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 		}
 		break
 	}
-	saio.Offset[0] = int64(sencDataOffset)
+	if saio != nil {
+		saio.Offset[0] = int64(sencDataOffset)
+	}
 	return nil
+}
+
+// shouldAddSaiz returns true if saiz box should be added to the traf box.
+// For cbcs for audio, saiz and saio boxes are not needed.
+func shouldAddSaiz(ipd *InitProtectData) bool {
+	switch ipd.Scheme {
+	case "cenc":
+		return true
+	case "cbcs":
+		return ipd.Tenc.DefaultCryptByteBlock != 0 && ipd.Tenc.DefaultSkipByteBlock != 0
+	default:
+		return true
+	}
 }
 
 type DecryptInfo struct {

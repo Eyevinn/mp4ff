@@ -45,6 +45,7 @@ func parseOptions() {
 		fmt.Fprintf(os.Stderr, "\n%s [options] infile outfile\n\noptions:\n", name)
 		flag.PrintDefaults()
 	}
+	flag.Parse()
 }
 
 func main() {
@@ -56,6 +57,7 @@ func main() {
 	}
 
 	if len(flag.Args()) != 2 {
+		fmt.Fprintf(os.Stderr, "Error: must specify infile and outfile and no other arguments\n")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -63,7 +65,7 @@ func main() {
 	var outFilePath = flag.Arg(1)
 
 	if opts.hexKey == "" || opts.ivHex == "" {
-		fmt.Fprintf(os.Stderr, "need both key and iv\n")
+		fmt.Fprintf(os.Stderr, "Error: need both key and iv\n")
 		flag.Usage()
 		os.Exit(1)
 	}
