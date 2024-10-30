@@ -6,6 +6,24 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
+const (
+	PrftTimeEncoderInput       = 0
+	PrftTimeEncoderOutput      = 1
+	PrftTimeMoofFinalized      = 2
+	PrftTimeMoofWritten        = 4
+	PrftTimeArbitraryConsitent = 8
+	PrftTimeCaptured           = 24
+)
+
+var PrftFlagsInterpretation = map[uint32]string{
+	PrftTimeEncoderInput:       "time_encoder_input",
+	PrftTimeEncoderOutput:      "time_encoder_output",
+	PrftTimeMoofFinalized:      "time_moof_finalized",
+	PrftTimeMoofWritten:        "time_moof_written",
+	PrftTimeArbitraryConsitent: "time_arbitrary_consistent",
+	PrftTimeCaptured:           "time_captured",
+}
+
 // PrftBox - Producer Reference Box (prft)
 //
 // Contained in File before moof box
@@ -13,15 +31,15 @@ type PrftBox struct {
 	Version          byte
 	Flags            uint32
 	ReferenceTrackID uint32
-	NTPTimestamp     uint64
+	NTPTimestamp     NTP64
 	MediaTime        uint64
 }
 
 // CreatePrftBox creates a new PrftBox.
-func CreatePrftBox(version byte, refTrackID uint32, ntp, mediatime uint64) *PrftBox {
+func CreatePrftBox(version byte, flags, refTrackID uint32, ntp NTP64, mediatime uint64) *PrftBox {
 	return &PrftBox{
 		Version:          version,
-		Flags:            0,
+		Flags:            flags,
 		ReferenceTrackID: refTrackID,
 		NTPTimestamp:     ntp,
 		MediaTime:        mediatime,
@@ -44,7 +62,7 @@ func DecodePrftSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
 	refTrackID := sr.ReadUint32()
-	ntp := sr.ReadUint64()
+	ntp := NTP64(sr.ReadUint64())
 	var mediatime uint64
 	if version == 0 {
 		mediatime = uint64(sr.ReadUint32())
@@ -92,7 +110,7 @@ func (b *PrftBox) EncodeSW(sw bits.SliceWriter) error {
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(b.ReferenceTrackID)
-	sw.WriteUint64(b.NTPTimestamp)
+	sw.WriteUint64(uint64(b.NTPTimestamp))
 	if b.Version == 0 {
 		sw.WriteUint32(uint32(b.MediaTime))
 	} else {
@@ -105,7 +123,16 @@ func (b *PrftBox) EncodeSW(sw bits.SliceWriter) error {
 func (b *PrftBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - referenceTrackID: %d", b.ReferenceTrackID)
-	bd.write(" - ntpTimestamp: %d", b.NTPTimestamp)
+	bd.write(" - type: %s", b.InterpretFlags())
+	bd.write(" - ntpTimestamp: %s (%d)", b.NTPTimestamp, b.NTPTimestamp)
 	bd.write(" - mediaTime: %d", b.MediaTime)
 	return bd.err
+}
+
+// InterpretFlags - return string representation of flags.
+func (b *PrftBox) InterpretFlags() string {
+	if interpretation, ok := PrftFlagsInterpretation[b.Flags]; ok {
+		return interpretation
+	}
+	return "unknown"
 }
