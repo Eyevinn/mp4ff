@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/sei"
@@ -486,4 +487,36 @@ func TestParseAVCPicTimingWithHRD(t *testing.T) {
 				tc.naluPayloadHex, hex.EncodeToString(output))
 		}
 	}
+}
+
+func TestAvailableSEITypes(t *testing.T) {
+	availableSeiTypes := make([]int, 0, 256)
+	for i := 0; i <= 54; i++ {
+		availableSeiTypes = append(availableSeiTypes, i)
+	}
+	availableSeiTypes = append(availableSeiTypes, 56)
+	for i := 128; i <= 152; i++ {
+		availableSeiTypes = append(availableSeiTypes, i)
+	}
+	for i := 154; i <= 168; i++ {
+		availableSeiTypes = append(availableSeiTypes, i)
+	}
+	for i := 176; i <= 181; i++ {
+		availableSeiTypes = append(availableSeiTypes, i)
+	}
+	for i := 200; i <= 202; i++ {
+		availableSeiTypes = append(availableSeiTypes, i)
+	}
+
+	knownSeiTypes := make([]int, 0, 256)
+	for s := sei.SEIType(0); s < sei.SEIType(256); s++ {
+		str := s.String()
+		if !strings.HasPrefix(str, "Reserved SEI type") {
+			knownSeiTypes = append(knownSeiTypes, int(s))
+		}
+	}
+	if diff := deep.Equal(availableSeiTypes, knownSeiTypes); diff != nil {
+		t.Error(diff)
+	}
+
 }
