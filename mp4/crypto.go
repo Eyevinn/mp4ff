@@ -359,7 +359,9 @@ func getAVCProtFunc(avcC *AvcCBox) (ProtectionRangeFunc, error) {
 }
 
 func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
-
+	if ipd == nil {
+		return fmt.Errorf("no protection data")
+	}
 	if len(iv) == 8 {
 		// Convert to 16 bytes
 		iv8 := iv
