@@ -4,11 +4,11 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"io"
 	"os"
-	"strings"
 
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/hevc"
@@ -16,113 +16,148 @@ import (
 	"github.com/Eyevinn/mp4ff/sei"
 )
 
-var usg = `Usage of mp4ff-nallister:
+const (
+	appName = "mp4ff-nallister"
+)
 
-mp4ff-nallister lists NAL units and slice types of AVC or HEVC tracks of an mp4 (ISOBMFF) file
+var usg = `Usage of %s:
+
+%s lists NAL units and slice types of AVC or HEVC tracks of an mp4 (ISOBMFF) file
 or a file containing a byte stream in Annex B format.
 
 Takes first video track in a progressive file and the first track in a fragmented file.
 It can also output information about SEI NAL units.
 
-The parameter sets can be further analyzed using mp4ff-pslister.
+The parameter-sets can be further analyzed using mp4ff-pslister.
 `
 
-var usage = func() {
-	parts := strings.Split(os.Args[0], "/")
-	name := parts[len(parts)-1]
-	fmt.Fprintln(os.Stderr, usg)
-	fmt.Fprintf(os.Stderr, "%s [-m <max>] [-c codec] <mp4File>\n", name)
-	flag.PrintDefaults()
+type options struct {
+	maxNrSamples int
+	codec        string
+	seiLevel     int
+	printRaw     int
+	annexB       bool
+	printPsHex   bool
+	version      bool
+}
+
+func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, "\n%s [options] infile\n\noptions:\n", appName)
+		fs.PrintDefaults()
+	}
+
+	opts := options{}
+
+	fs.IntVar(&opts.maxNrSamples, "m", -1, "Max nr of samples to parse")
+	fs.StringVar(&opts.codec, "c", "avc", "Codec to parse (avc or hevc)")
+	fs.IntVar(&opts.seiLevel, "sei", 0, "Level of SEI information (1 is interpret, 2 is dump hex)")
+	fs.IntVar(&opts.printRaw, "raw", 0, "nr raw NAL unit bytes to print")
+	fs.BoolVar(&opts.annexB, "annexb", false, "Input is Annex B stream file")
+	fs.BoolVar(&opts.printPsHex, "ps", false, "Print parameter sets in hex")
+	fs.BoolVar(&opts.version, "version", false, "Get mp4ff version")
+
+	err := fs.Parse(args[1:])
+	return &opts, err
 }
 
 func main() {
-	maxNrSamples := flag.Int("m", -1, "Max nr of samples to parse")
-	codec := flag.String("c", "avc", "Codec to parse (avc or hevc)")
-	parameterSets := flag.Bool("ps", false, "Print parameter sets in hex")
-	annexB := flag.Bool("annexb", false, "Input is Annex B stream file")
-	version := flag.Bool("version", false, "Get mp4ff version")
-	seiLevel := flag.Int("sei", 0, "Level of SEI information (1 is interpret, 2 is dump hex)")
-	printRaw := flag.Int("raw", 0, "nr raw NAL unit bytes to print")
-
-	flag.Parse()
-
-	if *version {
-		fmt.Printf("mp4ff-nallister %s\n", mp4.GetVersion())
-		os.Exit(0)
-	}
-
-	var inFilePath = flag.Arg(0)
-	if inFilePath == "" {
-		usage()
+	if err := run(os.Args, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func run(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
+	o, err := parseOptions(fs, args)
+
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			fs.Usage()
+			return nil
+		}
+		return err
+	}
+
+	if o.version {
+		fmt.Fprintf(stdout, "%s %s\n", appName, mp4.GetVersion())
+		return nil
+	}
+
+	if len(fs.Args()) != 1 {
+		fs.Usage()
+		return fmt.Errorf("need input file")
+	}
+	inFilePath := fs.Arg(0)
+
 	// First try to handle Annex B file
-	if *annexB {
+	if o.annexB {
 		data, err := os.ReadFile(inFilePath)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("error reading file: %w", err)
 		}
 		sampleData := avc.ConvertByteStreamToNaluSample(data)
 		nalus, err := avc.GetNalusFromSample(sampleData)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("error getting NAL units: %w", err)
 		}
-		frames, err := findAnnexBFrames(nalus, *codec)
+		frames, err := findAnnexBFrames(nalus, o.codec)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("error finding frames: %w", err)
 		}
 		var avcSPS *avc.SPS
 		for i, frame := range frames {
-			if *codec == "avc" {
+			if o.codec == "avc" {
 				if avcSPS == nil {
 					for _, nalu := range frame {
 						if avc.GetNaluType(nalu[0]) == avc.NALU_SPS {
 							avcSPS, err = avc.ParseSPSNALUnit(nalu, true)
 							if err != nil {
-								log.Fatal(err)
+								return fmt.Errorf("error parsing SPS: %w", err)
 							}
 						}
 					}
 				}
-				err = printAVCNalus(avcSPS, frame, i+1, 0, *seiLevel, *parameterSets, *printRaw)
+				err = printAVCNalus(stdout, avcSPS, frame, i+1, 0, o.seiLevel, o.printPsHex, o.printRaw)
 			} else {
-				err = printHEVCNalus(frame, i+1, 0, *seiLevel, *parameterSets, *printRaw)
+				err = printHEVCNalus(stdout, frame, i+1, 0, o.seiLevel, o.printPsHex, o.printRaw)
 			}
 			if err != nil {
-				log.Fatal(err)
+				return fmt.Errorf("printing error: %w", err)
 			}
 		}
-		os.Exit(0)
+		return nil
 	}
 
 	ifd, err := os.Open(inFilePath)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("could not open input file: %w", err)
 	}
 	defer ifd.Close()
 	parsedMp4, err := mp4.DecodeFile(ifd)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("error parsing file: %w", err)
 	}
 
 	// Need to handle progressive files as well as fragmented files
 
 	if !parsedMp4.IsFragmented() {
-		err = parseProgressiveMp4(parsedMp4, *maxNrSamples, *codec, *seiLevel, *parameterSets, *printRaw)
+		err = parseProgressiveMp4(stdout, parsedMp4, o.maxNrSamples, o.codec, o.seiLevel, o.printPsHex, o.printRaw)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error parsing progressive file: %w", err)
 		}
-		return
+		return nil
 	}
-	err = parseFragmentedMp4(parsedMp4, *maxNrSamples, *codec, *seiLevel, *parameterSets, *printRaw)
+	err = parseFragmentedMp4(stdout, parsedMp4, o.maxNrSamples, o.codec, o.seiLevel, o.printPsHex, o.printRaw)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error parsing fragmented file: %w", err)
 	}
+	return nil
 }
 
-func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
+func parseProgressiveMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
 	videoTrak, ok := findFirstVideoTrak(f.Moov)
 	if !ok {
 		return fmt.Errorf("no video track found")
@@ -151,7 +186,10 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel i
 		if err != nil {
 			return err
 		}
-		offset := getChunkOffset(stbl, chunkNr)
+		offset, err := getChunkOffset(stbl, chunkNr)
+		if err != nil {
+			return err
+		}
 		for sNr := sampleNrAtChunkStart; sNr < sampleNr; sNr++ {
 			offset += int64(stbl.Stsz.GetSampleSize(sNr))
 		}
@@ -180,9 +218,9 @@ func parseProgressiveMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel i
 					}
 				}
 			}
-			err = printAVCNalus(avcSPS, nalus, sampleNr, decTime+uint64(cto), seiLevel, parameterSets, nrRaw)
+			err = printAVCNalus(w, avcSPS, nalus, sampleNr, decTime+uint64(cto), seiLevel, parameterSets, nrRaw)
 		case "hevc", "h.265", "h265":
-			err = printHEVCNalus(nalus, sampleNr, decTime+uint64(cto), seiLevel, parameterSets, nrRaw)
+			err = printHEVCNalus(w, nalus, sampleNr, decTime+uint64(cto), seiLevel, parameterSets, nrRaw)
 		default:
 			return fmt.Errorf("unknown codec: %s", codec)
 		}
@@ -207,17 +245,17 @@ func findFirstVideoTrak(moov *mp4.MoovBox) (*mp4.TrakBox, bool) {
 	return nil, false
 }
 
-func getChunkOffset(stbl *mp4.StblBox, chunkNr int) int64 {
+func getChunkOffset(stbl *mp4.StblBox, chunkNr int) (int64, error) {
 	if stbl.Stco != nil {
-		return int64(stbl.Stco.ChunkOffset[chunkNr-1])
+		return int64(stbl.Stco.ChunkOffset[chunkNr-1]), nil
 	}
 	if stbl.Co64 != nil {
-		return int64(stbl.Co64.ChunkOffset[chunkNr-1])
+		return int64(stbl.Co64.ChunkOffset[chunkNr-1]), nil
 	}
-	panic("Neither stco nor co64 is set")
+	return 0, fmt.Errorf("neither stco nor co64 is present")
 }
 
-func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
+func parseFragmentedMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
 	var trex *mp4.TrexBox
 	var avcSPS *avc.SPS
 	var err error
@@ -258,9 +296,9 @@ func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel in
 		}
 		switch codec {
 		case "avc", "h.264", "h264":
-			err = printAVCNalus(avcSPS, nalus, i+1, s.PresentationTime(), seiLevel, parameterSets, nrRaw)
+			err = printAVCNalus(w, avcSPS, nalus, i+1, s.PresentationTime(), seiLevel, parameterSets, nrRaw)
 		case "hevc", "h.265", "h265":
-			err = printHEVCNalus(nalus, i+1, s.PresentationTime(), seiLevel, parameterSets, nrRaw)
+			err = printHEVCNalus(w, nalus, i+1, s.PresentationTime(), seiLevel, parameterSets, nrRaw)
 		default:
 			return fmt.Errorf("unknown codec: %s", codec)
 		}
@@ -275,7 +313,7 @@ func parseFragmentedMp4(f *mp4.File, maxNrSamples int, codec string, seiLevel in
 	return nil
 }
 
-func printAVCNalus(avcSPS *avc.SPS, nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSets bool, nrRaw int) error {
+func printAVCNalus(w io.Writer, avcSPS *avc.SPS, nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSets bool, nrRaw int) error {
 	msg := ""
 	var seiNALUs [][]byte
 	totLen := 0
@@ -310,23 +348,23 @@ func printAVCNalus(avcSPS *avc.SPS, nalus [][]byte, nr int, pts uint64, seiLevel
 			msg += fmt.Sprintf(" %s %s(%dB)", naluType, imgType, len(nalu))
 		}
 	}
-	fmt.Printf("Sample %d, pts=%d (%dB):%s\n", nr, pts, totLen, msg)
-	printSEINALus(seiNALUs, "avc", seiLevel, avcSPS)
+	fmt.Fprintf(w, "Sample %d, pts=%d (%dB):%s\n", nr, pts, totLen, msg)
+	printSEINALus(w, seiNALUs, "avc", seiLevel, avcSPS)
 	if parameterSets {
 		for _, nalu := range nalus {
 			naluType := avc.GetNaluType(nalu[0])
 			switch naluType {
 			case avc.NALU_SPS:
-				fmt.Printf("  SPS: %s\n", hex.EncodeToString(nalu))
+				fmt.Fprintf(w, "  SPS: %s\n", hex.EncodeToString(nalu))
 			case avc.NALU_PPS:
-				fmt.Printf("  PPS: %s\n", hex.EncodeToString(nalu))
+				fmt.Fprintf(w, "  PPS: %s\n", hex.EncodeToString(nalu))
 			}
 		}
 	}
 	return nil
 }
 
-func printHEVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSets bool, nrRaw int) error {
+func printHEVCNalus(w io.Writer, nalus [][]byte, nr int, pts uint64, seiLevel int, parameterSets bool, nrRaw int) error {
 	msg := ""
 	var seiNALUs [][]byte
 	totLen := 0
@@ -346,18 +384,18 @@ func printHEVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterS
 			seiNALUs = append(seiNALUs, nalu)
 		}
 	}
-	fmt.Printf("Sample %d, pts=%d (%dB):%s\n", nr, pts, totLen, msg)
-	printSEINALus(seiNALUs, "hevc", seiLevel, nil)
+	fmt.Fprintf(w, "Sample %d, pts=%d (%dB):%s\n", nr, pts, totLen, msg)
+	printSEINALus(w, seiNALUs, "hevc", seiLevel, nil)
 	if parameterSets {
 		for _, nalu := range nalus {
 			naluType := hevc.GetNaluType(nalu[0])
 			switch naluType {
 			case hevc.NALU_VPS:
-				fmt.Printf("  VPS: %s\n", hex.EncodeToString(nalu))
+				fmt.Fprintf(w, "  VPS: %s\n", hex.EncodeToString(nalu))
 			case hevc.NALU_SPS:
-				fmt.Printf("  SPS: %s\n", hex.EncodeToString(nalu))
+				fmt.Fprintf(w, "  SPS: %s\n", hex.EncodeToString(nalu))
 			case hevc.NALU_PPS:
-				fmt.Printf("  PPS: %s\n", hex.EncodeToString(nalu))
+				fmt.Fprintf(w, "  PPS: %s\n", hex.EncodeToString(nalu))
 			}
 		}
 	}
@@ -365,7 +403,7 @@ func printHEVCNalus(nalus [][]byte, nr int, pts uint64, seiLevel int, parameterS
 }
 
 // printSEINALus - print interpreted information if seiLevel is >= 1. Add hex dump if seiLevel >= 2
-func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int, avcSPS *avc.SPS) {
+func printSEINALus(w io.Writer, seiNALUs [][]byte, codec string, seiLevel int, avcSPS *avc.SPS) {
 	if seiLevel < 1 {
 		return
 	}
@@ -382,13 +420,13 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int, avcSPS *avc.SP
 	if len(seiNALUs) > 0 {
 		for _, seiNALU := range seiNALUs {
 			if seiLevel >= 2 {
-				fmt.Printf("  SEI raw: %s\n", hex.EncodeToString(seiNALU))
+				fmt.Fprintf(w, "  SEI raw: %s\n", hex.EncodeToString(seiNALU))
 			}
 			seiBytes := seiNALU[hdrLen:]
 			buf := bytes.NewReader(seiBytes)
 			seiDatas, err := sei.ExtractSEIData(buf)
 			if err != nil {
-				fmt.Printf("  SEI: Got error %q\n", err)
+				fmt.Fprintf(w, "  SEI: Got error %q\n", err)
 				if err != sei.ErrRbspTrailingBitsMissing {
 					continue
 				}
@@ -416,10 +454,10 @@ func printSEINALus(seiNALUs [][]byte, codec string, seiLevel int, avcSPS *avc.SP
 				}
 
 				if err != nil {
-					fmt.Printf("  SEI: Got error %q\n", err)
+					fmt.Fprintf(w, "  SEI: Got error %q\n", err)
 					continue
 				}
-				fmt.Printf("  * %s\n", seiMsg.String())
+				fmt.Fprintf(w, "  * %s\n", seiMsg.String())
 			}
 		}
 	}

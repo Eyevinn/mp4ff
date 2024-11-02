@@ -145,9 +145,6 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 						sizeOfScalingList = 64 // 8x8 for i >= 6
 					}
 					pps.PicScalingLists[i] = readScalingList(reader, sizeOfScalingList)
-					if err != nil {
-						return nil, err
-					}
 				}
 			}
 		}
