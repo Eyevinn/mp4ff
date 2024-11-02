@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Avoid mp4.File.Mdat pointing to an empty mdat box
 - `cmd/mp4ff-encrypt` did not parse command line
 - `SeigSampleGroupEntry` calculated skipBytes incorrectly
+- `cmd/mp4ff-pslister` did not parse annex B HEVC correctly
 
 ### Removed
 
