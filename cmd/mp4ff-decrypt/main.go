@@ -3,14 +3,17 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"strings"
 
 	"github.com/Eyevinn/mp4ff/mp4"
+)
+
+const (
+	appName = "mp4ff-decrypt"
 )
 
 var usg = `Usage of %s:
@@ -20,70 +23,86 @@ For a media segment, it needs an init segment with encryption information.
 
 `
 
-var opts struct {
+type options struct {
 	initFilePath string
 	hexKey       string
 	version      bool
 }
 
-func parseOptions() {
-	flag.StringVar(&opts.initFilePath, "init", "", "Path to init file with encryption info (scheme, kid, pssh)")
-	flag.StringVar(&opts.hexKey, "k", "", "Required: key (hex)")
-	flag.BoolVar(&opts.version, "version", false, "Get mp4ff version")
-	flag.Parse()
-
-	flag.Usage = func() {
-		parts := strings.Split(os.Args[0], "/")
-		name := parts[len(parts)-1]
-		fmt.Fprintf(os.Stderr, usg, name, name)
-		fmt.Fprintf(os.Stderr, "%s [options] infile outfile\n\noptions:\n", name)
-		flag.PrintDefaults()
+func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, "%s [options] infile outfile\n\noptions:\n", appName)
+		fs.PrintDefaults()
 	}
+
+	opts := options{}
+	fs.StringVar(&opts.initFilePath, "init", "", "Path to init file with encryption info (scheme, kid, pssh)")
+	fs.StringVar(&opts.hexKey, "k", "", "Required: key (hex)")
+	fs.BoolVar(&opts.version, "version", false, "Get mp4ff version")
+	err := fs.Parse(args[1:])
+	return &opts, err
 }
 
 func main() {
-	parseOptions()
+	if err := run(os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run(args []string) error {
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
+	opts, err := parseOptions(fs, args)
+
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			fs.Usage()
+			return nil
+		}
+		return err
+	}
 
 	if opts.version {
-		fmt.Printf("mp4ff-decrypt %s\n", mp4.GetVersion())
-		os.Exit(0)
+		fmt.Printf("%s %s\n", appName, mp4.GetVersion())
+		return nil
 	}
 
-	if len(flag.Args()) != 2 {
-		flag.Usage()
-		os.Exit(1)
+	if len(fs.Args()) != 2 {
+		fs.Usage()
+		return fmt.Errorf("need input and output file")
 	}
-	var inFilePath = flag.Arg(0)
-	var outFilePath = flag.Arg(1)
+
+	var inFilePath = fs.Arg(0)
+	var outFilePath = fs.Arg(1)
 
 	if opts.hexKey == "" {
-		fmt.Fprintf(os.Stderr, "error: no hex key specified\n")
-		flag.Usage()
-		os.Exit(1)
+		return fmt.Errorf("no hex key specified")
 	}
 
 	ifh, err := os.Open(inFilePath)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("could not open input file: %w", err)
 	}
 	defer ifh.Close()
 	ofh, err := os.Create(outFilePath)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("could not create output file: %w", err)
 	}
 	defer ofh.Close()
 	var inith *os.File
 	if opts.initFilePath != "" {
 		inith, err = os.Open(opts.initFilePath)
 		if err != nil {
-			log.Fatalf("could not open init file: %s", err)
+			return fmt.Errorf("could not open init file: %w", err)
 		}
 		defer inith.Close()
 	}
 	err = decryptFile(ifh, inith, ofh, opts.hexKey)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("decryptFile: %w", err)
 	}
+	return nil
 }
 
 func decryptFile(r, initR io.Reader, w io.Writer, hexKey string) error {
