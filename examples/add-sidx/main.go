@@ -5,19 +5,22 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"strings"
 
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
-var usg = `Usage of add-sidx:
+const (
+	appName = "add-sidx"
+)
 
-add-sidx adds a top-level sidx box to a fragmented file provided it does not exist.
+var usg = `Usage of %s:
+
+%s adds a top-level sidx box to a fragmented file provided it does not exist.
 If styp boxes are present, they signal new segments. It is possible to interpret
 every moof box as the start of a new segment, by specifying the "-startSegOnMoof" option.
 One can further remove unused encryption boxes with the "-removeEnc" option.
@@ -25,89 +28,95 @@ One can further remove unused encryption boxes with the "-removeEnc" option.
 
 `
 
-var usage = func() {
-	parts := strings.Split(os.Args[0], "/")
-	name := parts[len(parts)-1]
-	fmt.Fprintln(os.Stderr, usg)
-	fmt.Fprintf(os.Stderr, "%s [options] <inFile> <outFile>\n", name)
-	flag.PrintDefaults()
+type options struct {
+	removeEncBoxes bool
+	nonZeroEPT     bool
+	segOnMoof      bool
+	version        bool
+}
+
+func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, "\n%s [options] infile outfile\n\noptions:\n", appName)
+		fs.PrintDefaults()
+	}
+
+	opts := options{}
+
+	fs.BoolVar(&opts.removeEncBoxes, "removeEnc", false, "Remove unused encryption boxes")
+	fs.BoolVar(&opts.nonZeroEPT, "nzEPT", false, "Use non-zero earliestPresentationTime")
+	fs.BoolVar(&opts.segOnMoof, "startSegOnMoof", false, "Start a new segment on every moof")
+	fs.BoolVar(&opts.version, "version", false, "Get mp4ff version")
+
+	err := fs.Parse(args[1:])
+	return &opts, err
 }
 
 func main() {
-	removeEncBoxes := flag.Bool("removeEnc", false, "Remove unused encryption boxes")
-	usePTO := flag.Bool("nzEPT", false, "Use non-zero earliestPresentationTime")
-	segOnMoof := flag.Bool("startSegOnMoof", false, "Start a new segment on every moof")
-	version := flag.Bool("version", false, "Get mp4ff version")
-
-	flag.Parse()
-
-	if *version {
-		fmt.Printf("add-sidx %s\n", mp4.GetVersion())
-		os.Exit(0)
-	}
-	flag.Parse()
-
-	if *version {
-		fmt.Printf("add-sidx %s\n", mp4.GetVersion())
-		os.Exit(0)
-	}
-
-	args := flag.Args()
-	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "must specify infile and outfile\n")
-		usage()
+	if err := run(os.Args, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
 
-	inFilePath := flag.Arg(0)
-	outFilePath := flag.Arg(1)
+func run(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
+	o, err := parseOptions(fs, args)
+
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			fs.Usage()
+			return nil
+		}
+		return err
+	}
+
+	if o.version {
+		fmt.Fprintf(stdout, "%s %s\n", appName, mp4.GetVersion())
+		return nil
+	}
+
+	if len(fs.Args()) != 2 {
+		fs.Usage()
+		return fmt.Errorf("missing input or output file")
+	}
+
+	inFilePath := fs.Arg(0)
+	outFilePath := fs.Arg(1)
 
 	ifd, err := os.Open(inFilePath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		usage()
-		os.Exit(1)
+		return fmt.Errorf("error opening file: %w", err)
 	}
 	defer ifd.Close()
 	ofd, err := os.Create(outFilePath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		usage()
-		os.Exit(1)
+		return fmt.Errorf("error creating file: %w", err)
 	}
 	defer ofd.Close()
-	err = run(ifd, ofd, *usePTO, *removeEncBoxes, *segOnMoof)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
-func run(in io.Reader, out io.Writer, nonZeroEPT, removeEncBoxes, segOnMoof bool) error {
 	var flags mp4.DecFileFlags
-	if segOnMoof {
+	if o.segOnMoof {
 		flags |= mp4.DecStartOnMoof
 	}
-	mp4Root, err := mp4.DecodeFile(in, mp4.WithDecodeFlags(flags))
+	mp4Root, err := mp4.DecodeFile(ifd, mp4.WithDecodeFlags(flags))
 	if err != nil {
 		return err
 	}
-	fmt.Printf("creating sidx with %d segment(s)\n", len(mp4Root.Segments))
+	fmt.Fprintf(stdout, "creating sidx with %d segment(s)\n", len(mp4Root.Segments))
 
-	if removeEncBoxes {
+	if o.removeEncBoxes {
 		removeEncryptionBoxes(mp4Root)
 	}
 
 	addIfNotExists := true
-	err = mp4Root.UpdateSidx(addIfNotExists, nonZeroEPT)
+	err = mp4Root.UpdateSidx(addIfNotExists, o.nonZeroEPT)
 	if err != nil {
 		return fmt.Errorf("addSidx failed: %w", err)
 	}
 
-	err = mp4Root.Encode(out)
-	if err != nil {
-		return fmt.Errorf("failed to encode output file: %w", err)
-	}
-	return nil
+	return mp4Root.Encode(ofd)
 }
 
 func removeEncryptionBoxes(inFile *mp4.File) {
