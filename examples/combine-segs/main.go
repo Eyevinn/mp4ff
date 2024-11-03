@@ -1,39 +1,42 @@
+// combine-segs is a simple example that demonstrates how to combine init and media segments
+// from two different files into a single multitrack init or media segment.
 package main
 
 import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func main() {
+	if err := run("."); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run(outDir string) error {
 	trackIDs := []uint32{1, 2}
 	initSegFiles := []string{"testdata/V300/init.mp4", "testdata/A48/init.mp4"}
 	combinedInitSeg, err := combineInitSegments(initSegFiles, trackIDs)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
-	err = writeSeg(combinedInitSeg, "combined-init.mp4")
+	err = writeSeg(combinedInitSeg, path.Join(outDir, "combined-init.mp4"))
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	mediaSegFiles := []string{"testdata/V300/1.m4s", "testdata/A48/1.m4s"}
 	combinedMediaSeg, err := combineMediaSegments(mediaSegFiles, trackIDs)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
-	err = writeSeg(combinedMediaSeg, "combined-1.m4s")
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	return writeSeg(combinedMediaSeg, path.Join(outDir, "combined-1.m4s"))
 }
 
 func combineInitSegments(files []string, newTrackIDs []uint32) (*mp4.InitSegment, error) {
