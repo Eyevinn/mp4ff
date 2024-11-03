@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"io"
 
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 // Resegment file into multiple segments
-func Resegment(in *mp4.File, chunkDur uint64, verbose bool) (*mp4.File, error) {
+func Resegment(w io.Writer, in *mp4.File, chunkDur uint64, verbose bool) (*mp4.File, error) {
 	if !in.IsFragmented() {
-		log.Fatalf("Non-segmented input file not supported")
+		return nil, fmt.Errorf("input file is not fragmented")
 	}
 
 	nrSamples := 0
@@ -22,7 +22,10 @@ func Resegment(in *mp4.File, chunkDur uint64, verbose bool) (*mp4.File, error) {
 	}
 	inSamples := make([]mp4.FullSample, 0, nrSamples)
 
-	trex := in.Init.Moov.Mvex.Trex
+	var trex *mp4.TrexBox
+	if in.Init != nil {
+		trex = in.Init.Moov.Mvex.Trex
+	}
 	for _, iSeg := range in.Segments {
 		for _, iFrag := range iSeg.Fragments {
 			fSamples, err := iFrag.GetFullSamples(trex)
@@ -40,8 +43,10 @@ func Resegment(in *mp4.File, chunkDur uint64, verbose bool) (*mp4.File, error) {
 
 	oFile := mp4.NewFile()
 	oFile.Children = make([]mp4.Box, 0, 2+nrChunksOut*3) //  ftyp + moov + (styp+moof+mdat for each segment)
-	oFile.AddChild(in.Ftyp, 0)
-	oFile.AddChild(in.Moov, 0)
+	if in.Init != nil {
+		oFile.AddChild(in.Ftyp, 0)
+		oFile.AddChild(in.Moov, 0)
+	}
 
 	currOutSeqNr := uint32(1)
 	frag, err := addNewSegment(oFile, inStyp, currOutSeqNr, trackID)
@@ -49,13 +54,13 @@ func Resegment(in *mp4.File, chunkDur uint64, verbose bool) (*mp4.File, error) {
 		return nil, err
 	}
 	if verbose {
-		fmt.Printf("Started segment %d at dts=%d pts=%d\n", 1, inSamples[0].DecodeTime, inSamples[0].PresentationTime())
+		fmt.Fprintf(w, "Started segment %d at dts=%d pts=%d\n", 1, inSamples[0].DecodeTime, inSamples[0].PresentationTime())
 	}
 	nextSampleNrToWrite := 1
 
 	for nr, s := range inSamples {
 		if verbose && s.IsSync() {
-			fmt.Printf("%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
+			fmt.Fprintf(w, "%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
 		}
 		if s.PresentationTime() >= chunkDur*uint64(currOutSeqNr) && s.IsSync() {
 			err = addSamplesToFrag(frag, inSamples, nextSampleNrToWrite, nr+1, trackID)
@@ -69,7 +74,7 @@ func Resegment(in *mp4.File, chunkDur uint64, verbose bool) (*mp4.File, error) {
 				return nil, err
 			}
 			if verbose {
-				fmt.Printf("Started segment %d at dts=%d pts=%d\n", currOutSeqNr, s.DecodeTime, s.PresentationTime())
+				fmt.Fprintf(w, "Started segment %d at dts=%d pts=%d\n", currOutSeqNr, s.DecodeTime, s.PresentationTime())
 			}
 		}
 	}
