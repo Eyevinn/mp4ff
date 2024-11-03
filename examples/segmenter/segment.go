@@ -181,9 +181,6 @@ func makeMultiTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.Rea
 		if err != nil {
 			return err
 		}
-		if err != nil {
-			return err
-		}
 		fmt.Printf("Generated %s\n", outPath)
 		segNr++
 		if segNr > segmenter.nrSegs {
@@ -306,7 +303,7 @@ func copyMediaData(trak *mp4.TrakBox, startSampleNr, endSampleNr uint32, rs io.R
 			return err
 		}
 		if n != size {
-			return fmt.Errorf("Copied %d bytes instead of %d", n, size)
+			return fmt.Errorf("copied %d bytes instead of %d", n, size)
 		}
 	}
 
