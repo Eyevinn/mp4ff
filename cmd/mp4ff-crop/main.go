@@ -6,15 +6,18 @@ moving mdat to the end of the file, if not already there.
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/Eyevinn/mp4ff/mp4"
+)
+
+const (
+	appName = "mp4ff-crop"
 )
 
 var usg = `Usage of %s:
@@ -24,73 +27,85 @@ The goal is to leave the file structure intact except for cropping of samples an
 moving mdat to the end of the file, if not already there.
 `
 
-var opts struct {
-	durationMS int
+type options struct {
+	durationMS uint
 	version    bool
 }
 
-func parseOptions() {
-	flag.IntVar(&opts.durationMS, "d", 0, "Duration in milliseconds")
-	flag.BoolVar(&opts.version, "version", false, "Get mp4ff version")
-	flag.Parse()
-
-	flag.Usage = func() {
-		parts := strings.Split(os.Args[0], "/")
-		name := parts[len(parts)-1]
-		fmt.Fprintf(os.Stderr, usg, name, name)
-		fmt.Fprintf(os.Stderr, "%s [-d duration] <inFile> <outFile>\n", name)
-		flag.PrintDefaults()
+func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, "\n%s [options] <inFile> <outFile>\n\noptions:\n", appName)
+		fs.PrintDefaults()
 	}
+
+	opts := options{}
+
+	fs.UintVar(&opts.durationMS, "d", 1000, "Duration in milliseconds")
+	fs.BoolVar(&opts.version, "version", false, "Get mp4ff version")
+
+	err := fs.Parse(args[1:])
+	return &opts, err
 }
 
 func main() {
-	parseOptions()
-
-	if opts.version {
-		fmt.Printf("mp4ff-crop %s\n", mp4.GetVersion())
-		os.Exit(0)
-	}
-
-	if opts.durationMS <= 0 {
-		fmt.Printf("error: duration must be larger than 0\n\n")
-		flag.Usage()
+	if err := run(os.Args, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
 
-	var inFilePath = flag.Arg(0)
-	if inFilePath == "" {
-		fmt.Printf("error: no infile path specified\n\n")
-		flag.Usage()
-		os.Exit(1)
+func run(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
+	o, err := parseOptions(fs, args)
+
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			fs.Usage()
+			return nil
+		}
+		return err
 	}
 
-	var outFilePath = flag.Arg(1)
-	if outFilePath == "" {
-		flag.Usage()
-		os.Exit(1)
+	if o.version {
+		fmt.Fprintf(stdout, "%s %s\n", appName, mp4.GetVersion())
+		return nil
 	}
+
+	if len(fs.Args()) != 2 {
+		fs.Usage()
+		return fmt.Errorf("must specify inFile and outFile")
+	}
+
+	if o.durationMS == 0 {
+		fs.Usage()
+		return fmt.Errorf("error: duration must be larger than 0: %dms", o.durationMS)
+	}
+
+	inFilePath := fs.Arg(0)
+	outFilePath := fs.Arg(1)
 
 	ifh, err := os.Open(inFilePath)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("error opening input file: %w", err)
 	}
 	defer ifh.Close()
 	parsedMp4, err := mp4.DecodeFile(ifh, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("error decoding mp4 file: %w", err)
 	}
 
 	ofh, err := os.Create(outFilePath)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("error creating output file: %w", err)
 	}
 	defer ofh.Close()
 
-	err = cropMP4(parsedMp4, opts.durationMS, ofh, ifh)
+	err = cropMP4(parsedMp4, int(o.durationMS), ofh, ifh)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("error cropping mp4 file: %w", err)
 	}
-
+	return nil
 }
 
 func cropMP4(inMP4 *mp4.File, durationMS int, w io.Writer, ifh io.ReadSeeker) error {
