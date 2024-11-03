@@ -4,8 +4,8 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
+	"path"
 
 	"github.com/Eyevinn/mp4ff/aac"
 	"github.com/Eyevinn/mp4ff/bits"
@@ -21,38 +21,45 @@ const (
 )
 
 func main() {
-
-	err := writeVideoAVCInitSegment()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = writeVideoHEVCInitSegment()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = writeAudioAACInitSegment()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = writeAudioAC3InitSegment()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = writeAudioEC3InitSegment()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = writeSubtitlesWvttInitSegment()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = writeSubtitlesStppInitSegment()
-	if err != nil {
-		log.Fatalln(err)
+	if err := run("."); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
 }
 
-func writeVideoAVCInitSegment() error {
+func run(outDir string) error {
+
+	err := writeVideoAVCInitSegment(path.Join(outDir, "video_avc_init.cmfv"))
+	if err != nil {
+		return err
+	}
+	err = writeVideoHEVCInitSegment(path.Join(outDir, "video_hevc_init.cmfv"))
+	if err != nil {
+		return err
+	}
+	err = writeAudioAACInitSegment(path.Join(outDir, "audio_aac_init.cmfa"))
+	if err != nil {
+		return err
+	}
+	err = writeAudioAC3InitSegment(path.Join(outDir, "audio_ac3_init.cmfa"))
+	if err != nil {
+		return err
+	}
+	err = writeAudioEC3InitSegment(path.Join(outDir, "audio_ec3_init.cmfa"))
+	if err != nil {
+		return err
+	}
+	err = writeSubtitlesWvttInitSegment(path.Join(outDir, "subtitles_wvtt_init.cmft"))
+	if err != nil {
+		return err
+	}
+	err = writeSubtitlesStppInitSegment(path.Join(outDir, "subtitles_stpp_init.cmft"))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeVideoAVCInitSegment(outPath string) error {
 	sps, _ := hex.DecodeString(avcSPSnalu)
 	spsNALUs := [][]byte{sps}
 	pps, _ := hex.DecodeString(avcPPSnalu)
@@ -70,13 +77,13 @@ func writeVideoAVCInitSegment() error {
 	width := trak.Mdia.Minf.Stbl.Stsd.AvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.AvcX.Height
 	if width != 1280 || height != 720 {
-		return fmt.Errorf("Did get %dx%d instead of 1280x720", width, height)
+		return fmt.Errorf("got %dx%d instead of 1280x720", width, height)
 	}
-	err = writeToFile(init, "video_avc_init.cmfv")
+	err = writeToFile(init, outPath)
 	return err
 }
 
-func writeVideoHEVCInitSegment() error {
+func writeVideoHEVCInitSegment(outPath string) error {
 	vps, _ := hex.DecodeString(hevcVPSnalu)
 	vpsNALUs := [][]byte{vps}
 	sps, _ := hex.DecodeString(hevcSPSnalu)
@@ -95,13 +102,13 @@ func writeVideoHEVCInitSegment() error {
 	width := trak.Mdia.Minf.Stbl.Stsd.HvcX.Width
 	height := trak.Mdia.Minf.Stbl.Stsd.HvcX.Height
 	if width != 960 || height != 540 {
-		return fmt.Errorf("Did get %dx%d instead of 960x540", width, height)
+		return fmt.Errorf("got %dx%d instead of 960x540", width, height)
 	}
-	err = writeToFile(init, "video_hevc_init.cmfv")
+	err = writeToFile(init, outPath)
 	return err
 }
 
-func writeAudioAACInitSegment() error {
+func writeAudioAACInitSegment(outPath string) error {
 	audioTimeScale := 48000
 	init := mp4.CreateEmptyInit()
 	init.AddEmptyTrack(uint32(audioTimeScale), "audio", "en")
@@ -110,11 +117,11 @@ func writeAudioAACInitSegment() error {
 	if err != nil {
 		return err
 	}
-	err = writeToFile(init, "audio_aac_init.cmfa")
+	err = writeToFile(init, outPath)
 	return err
 }
 
-func writeAudioAC3InitSegment() error {
+func writeAudioAC3InitSegment(outPath string) error {
 	dac3Hex := "0000000b646163330c3dc0"
 	dac3Bytes, err := hex.DecodeString(dac3Hex)
 	if err != nil {
@@ -134,11 +141,11 @@ func writeAudioAC3InitSegment() error {
 	if err != nil {
 		return err
 	}
-	err = writeToFile(init, "audio_ac3_init.cmfa")
+	err = writeToFile(init, outPath)
 	return err
 }
 
-func writeAudioEC3InitSegment() error {
+func writeAudioEC3InitSegment(outPath string) error {
 	dec3Hex := "0000000e646563330c00200f0202"
 	dec3Bytes, err := hex.DecodeString(dec3Hex)
 	if err != nil {
@@ -158,11 +165,11 @@ func writeAudioEC3InitSegment() error {
 	if err != nil {
 		return err
 	}
-	err = writeToFile(init, "audio_ec3_init.cmfa")
+	err = writeToFile(init, outPath)
 	return err
 }
 
-func writeSubtitlesWvttInitSegment() error {
+func writeSubtitlesWvttInitSegment(outPath string) error {
 	subtitleTimescale := 1000
 	init := mp4.CreateEmptyInit()
 	init.AddEmptyTrack(uint32(subtitleTimescale), "wvtt", "en")
@@ -171,11 +178,11 @@ func writeSubtitlesWvttInitSegment() error {
 	if err != nil {
 		return err
 	}
-	err = writeToFile(init, "subtitles_wvtt_init.cmft")
+	err = writeToFile(init, outPath)
 	return err
 }
 
-func writeSubtitlesStppInitSegment() error {
+func writeSubtitlesStppInitSegment(outPath string) error {
 	subtitleTimescale := 1000
 	init := mp4.CreateEmptyInit()
 	init.AddEmptyTrack(uint32(subtitleTimescale), "stpp", "en")
@@ -186,7 +193,7 @@ func writeSubtitlesStppInitSegment() error {
 	if err != nil {
 		return err
 	}
-	err = writeToFile(init, "subtitles_stpp_init.cmft")
+	err = writeToFile(init, outPath)
 	return err
 }
 
