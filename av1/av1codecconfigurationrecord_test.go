@@ -1,6 +1,7 @@
 package av1
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -35,6 +36,16 @@ func TestDecodeAV1DecConfRec(t *testing.T) {
 		t.Error("Error parsing Av1DecoderConfigRecord")
 	}
 	if diff := deep.Equal(got, wanted); diff != nil {
+		t.Error(diff)
+	}
+
+	encBuf := bytes.Buffer{}
+	err = got.Encode(&encBuf)
+	if err != nil {
+		t.Error("Error encoding Av1DecoderConfigRecord")
+	}
+	encBytes := encBuf.Bytes()
+	if diff := deep.Equal(encBytes, byteData); diff != nil {
 		t.Error(diff)
 	}
 }
