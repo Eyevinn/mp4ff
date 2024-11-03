@@ -3,69 +3,93 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"strings"
 
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
-var usg = `Usage of mp4ff-subslister:
+const (
+	appName = "mp4ff-subslister"
+)
 
-mp4ff-subslister lists and displays content of wvtt or stpp samples.
+var usg = `Usage of %s:
+
+%s lists and displays content of wvtt or stpp samples.
 These corresponds to WebVTT or TTML subtitles in ISOBMFF files.
 Uses track with given non-zero track ID or first subtitle track found in an asset.
 `
 
-var usage = func() {
-	parts := strings.Split(os.Args[0], "/")
-	name := parts[len(parts)-1]
-	fmt.Fprintln(os.Stderr, usg)
-	fmt.Fprintf(os.Stderr, "%s [-m <max>] [-t <trackID> <mp4File>\n", name)
-	flag.PrintDefaults()
+type options struct {
+	maxNrSamples int
+	trackID      int
+	version      bool
+}
+
+func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, "\n%s [options]\n\noptions:\n", appName)
+		fs.PrintDefaults()
+	}
+
+	opts := options{}
+
+	fs.IntVar(&opts.maxNrSamples, "m", -1, "Max nr of samples to parse")
+	fs.IntVar(&opts.trackID, "t", 0, "trackID to extract (0 is unspecified)")
+	fs.BoolVar(&opts.version, "version", false, "Get mp4ff version")
+
+	err := fs.Parse(args[1:])
+	return &opts, err
 }
 
 func main() {
-	maxNrSamples := flag.Int("m", -1, "Max nr of samples to parse")
-	trackID := flag.Int("t", 0, "trackID to extract (0 is unspecified)")
-	version := flag.Bool("version", false, "Get mp4ff version")
-
-	flag.Parse()
-
-	if *version {
-		fmt.Printf("mp4ff-subslister %s\n", mp4.GetVersion())
-		os.Exit(0)
-	}
-
-	var inFilePath = flag.Arg(0)
-	if inFilePath == "" {
-		usage()
+	if err := run(os.Args, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
-	}
-
-	ifd, err := os.Open(inFilePath)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer ifd.Close()
-
-	err = run(ifd, os.Stdout, *trackID, *maxNrSamples)
-	if err != nil {
-		log.Fatal(err)
 	}
 }
 
-func run(ifd io.ReadSeeker, w io.Writer, trackID, maxNrSamples int) error {
+func run(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
+	o, err := parseOptions(fs, args)
+
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			fs.Usage()
+			return nil
+		}
+		return err
+	}
+
+	if o.version {
+		fmt.Fprintf(stdout, "%s %s\n", appName, mp4.GetVersion())
+		return nil
+	}
+
+	if len(fs.Args()) != 1 {
+		fs.Usage()
+		return fmt.Errorf("missing input file")
+	}
+
+	inFilePath := fs.Arg(0)
+
+	ifd, err := os.Open(inFilePath)
+	if err != nil {
+		return fmt.Errorf("error opening file: %w", err)
+	}
+	defer ifd.Close()
+
 	parsedMp4, err := mp4.DecodeFile(ifd, mp4.WithDecodeFlags(mp4.DecISMFlag))
 	if err != nil {
 		return err
 	}
 
 	if !parsedMp4.IsFragmented() { // Progressive file
-		err = parseProgressiveMp4(parsedMp4, w, uint32(trackID), maxNrSamples)
+		err = parseProgressiveMp4(parsedMp4, stdout, uint32(o.trackID), o.maxNrSamples)
 		if err != nil {
 			return err
 		}
@@ -73,7 +97,7 @@ func run(ifd io.ReadSeeker, w io.Writer, trackID, maxNrSamples int) error {
 	}
 
 	// Fragmented file
-	err = parseFragmentedMp4(parsedMp4, w, uint32(trackID), maxNrSamples)
+	err = parseFragmentedMp4(parsedMp4, stdout, uint32(o.trackID), o.maxNrSamples)
 	if err != nil {
 		return err
 	}

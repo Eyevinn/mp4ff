@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"os"
-	"strings"
 	"testing"
 )
 
@@ -65,13 +63,27 @@ var wantedMultiVttc = `Sample 1, pts=291054710760, dur=2560
    - cueText: "<c.white.bg_black>Ouais ! Belle gosse ! Voici 2 M !</c>"
 `
 
-var wantedStppCombined = `Track 1, timescale = 90000
+var wantedStppCombinedStart = `Track 1, timescale = 90000
   [stpp] size=43
    - dataReferenceIndex: 1
    - nameSpace: "http://www.w3.org/ns/ttml"
    - schemaLocation: ""
    - auxiliaryMimeTypes: ""
-Sample 1, pts=0, dur=540000
+`
+
+var wantedStppProgStart = `Track 1, timescale = 90000
+  [stpp] size=64
+   - dataReferenceIndex: 1
+   - nameSpace: "http://www.w3.org/ns/ttml"
+   - schemaLocation: ""
+   - auxiliaryMimeTypes: ""
+    [btrt] size=20
+     - bufferSizeDB: 1592
+     - maxBitrate: 2120
+     - AvgBitrate: 2120
+`
+
+var wantedStppSamples = `Sample 1, pts=0, dur=540000
 <?xml version="1.0" encoding="UTF-8"?>
 <tt xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling" xml:lang="eng" ` +
 	`xmlns:ttp="http://www.w3.org/ns/ttml#parameter" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" ` +
@@ -108,51 +120,73 @@ Sample 1, pts=0, dur=540000
 </tt>
 `
 
+var wantedStppCombined = wantedStppCombinedStart + wantedStppSamples
+var wantedStppProgressive = wantedStppProgStart + wantedStppSamples
+
 func TestSubsLister(t *testing.T) {
 
 	testCases := []struct {
-		testFile string
-		wanted   string
+		desc        string
+		args        []string
+		expectedErr bool
+		wanted      string
 	}{
+		{desc: "help", args: []string{appName, "-h"}, expectedErr: false},
+		{desc: "version", args: []string{appName, "-version"}, expectedErr: false},
+		{desc: "no args", args: []string{appName}, expectedErr: true},
+		{desc: "non-existent file", args: []string{appName, "notExisting.mp4"}, expectedErr: true},
+		{desc: "bad file", args: []string{appName, "main.go"}, expectedErr: true},
+		{desc: "no text track", args: []string{appName, "../../mp4/testdata/1.m4s"}, expectedErr: true},
 		{
-			testFile: "testdata/sample_short.ismt",
-			wanted:   wantedWvttShort,
+			desc:        "short wvtt",
+			args:        []string{appName, "testdata/sample_short.ismt"},
+			expectedErr: false,
+			wanted:      wantedWvttShort,
 		},
 		{
-			testFile: "testdata/multi_vttc.mp4",
-			wanted:   wantedMultiVttc,
+			desc:        "multi vttc",
+			args:        []string{appName, "testdata/multi_vttc.mp4"},
+			expectedErr: false,
+			wanted:      wantedMultiVttc,
 		},
 		{
-			testFile: "testdata/stpp_combined.mp4",
-			wanted:   wantedStppCombined,
+			desc:        "stpp combined",
+			args:        []string{appName, "testdata/stpp_combined.mp4"},
+			expectedErr: false,
+			wanted:      wantedStppCombined,
+		},
+		{
+			desc:        "stpp progressive",
+			args:        []string{appName, "testdata/stpp_prog.mp4"},
+			expectedErr: false,
+			wanted:      wantedStppProgressive,
+		},
+		{
+			desc:        "max nr samples",
+			args:        []string{appName, "-m", "1", "testdata/stpp_prog.mp4"},
+			expectedErr: false,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.testFile, func(t *testing.T) {
-			ifh, err := os.Open(tc.testFile)
-			if err != nil {
-				t.Error(err)
-			}
-			defer ifh.Close()
-			var w bytes.Buffer
-			err = run(ifh, &w, 0, -1)
-			if err != nil {
-				t.Error(err)
-			}
-			got := w.String()
-			gotLines := strings.Split(got, "\n")
-			wantedLines := strings.Split(tc.wanted, "\n")
-			if len(gotLines) != len(wantedLines) {
-				t.Errorf("got %d lines, wanted %d", len(gotLines), len(wantedLines))
-			}
-			for i := range gotLines {
-				if gotLines[i] != wantedLines[i] {
-					t.Errorf("line %d: got: %q\n wanted %q", i, gotLines[i], wantedLines[i])
+	for _, c := range testCases {
+		t.Run(c.desc, func(t *testing.T) {
+			gotOut := bytes.Buffer{}
+			err := run(c.args, &gotOut)
+			if c.expectedErr {
+				if err == nil {
+					t.Error("expected error but got nil")
 				}
+				return
 			}
-			if got != tc.wanted {
-				t.Errorf("got: %q\n wanted %q", got, tc.wanted)
+			if err != nil {
+				t.Errorf("unexpected error: %s", err)
+				return
+			}
+			if c.wanted != "" {
+				gotString := gotOut.String()
+				if c.wanted != gotString {
+					t.Errorf("expected %s, got %s", c.wanted, gotString)
+				}
 			}
 		})
 	}
