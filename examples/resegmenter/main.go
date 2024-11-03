@@ -1,51 +1,100 @@
-// resegmenter - resegment mp4 files into concatenated segments with new duration.
-// Works even without timescale from init segment, since chunkDur is in ticks.
+// resegmenter - example on how to resegment mp4 files into concatenated segments with new duration.
+// If no init segment in the input, the trex defaults will not be known which may cause issue if
+// needed.
+// The  input must be a fragmented file.
 package main
 
 import (
+	"errors"
 	"flag"
-	"log"
+	"fmt"
+	"io"
 	"os"
 
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
-func main() {
+const (
+	appName = "resegmenter"
+)
 
-	inFilePath := flag.String("i", "", "Required: Path to input file")
-	outFilePath := flag.String("o", "", "Required: Output file")
-	chunkDur := flag.Int("b", 0, "Required: chunk duration (ticks)")
+var usg = `Usage of %s:
 
-	flag.Parse()
+%s resegments a file input fragemtns to a new duration, as closely as possible.
+The duration is given in ticks (in the track timescale).
 
-	if *inFilePath == "" || *outFilePath == "" || *chunkDur == 0 {
-		flag.Usage()
-		return
+`
+
+type options struct {
+	chunkDur uint64
+	verbose  bool
+}
+
+func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, "\n%s [options] infile outfile\n\noptions:\n", appName)
+		fs.PrintDefaults()
 	}
 
-	ifd, err := os.Open(*inFilePath)
+	opts := options{}
+
+	fs.Uint64Var(&opts.chunkDur, "d", 0, "Required: chunk duration (ticks)")
+	fs.BoolVar(&opts.verbose, "v", false, "Verbose output")
+
+	err := fs.Parse(args[1:])
+	return &opts, err
+}
+
+func main() {
+	if err := run(os.Args, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run(args []string, w io.Writer) error {
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
+	o, err := parseOptions(fs, args)
+
 	if err != nil {
-		log.Fatalln(err)
+		if errors.Is(err, flag.ErrHelp) {
+			fs.Usage()
+			return nil
+		}
+		return err
+	}
+
+	if o.chunkDur == 0 {
+		fs.Usage()
+		return fmt.Errorf("chunk duration must be set (and positive)")
+	}
+
+	if len(fs.Args()) != 2 {
+		fs.Usage()
+		return fmt.Errorf("missing input or output file")
+	}
+
+	inFilePath := fs.Arg(0)
+	outFilePath := fs.Arg(1)
+
+	ifd, err := os.Open(inFilePath)
+	if err != nil {
+		return fmt.Errorf("error opening file: %w", err)
 	}
 	defer ifd.Close()
 	parsedMp4, err := mp4.DecodeFile(ifd)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("error decoding file: %w", err)
 	}
-	if *chunkDur <= 0 {
-		log.Fatalln("Chunk duration must be positive.")
-	}
-	newMp4, err := Resegment(parsedMp4, uint64(*chunkDur), true)
+	newMp4, err := Resegment(w, parsedMp4, o.chunkDur, o.verbose)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("error resegmenting: %w", err)
 	}
-	ofd, err := os.Create(*outFilePath)
+	ofd, err := os.Create(outFilePath)
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("error creating file: %w", err)
 	}
 	defer ofd.Close()
-	err = newMp4.Encode(ofd)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	return newMp4.Encode(ofd)
 }
