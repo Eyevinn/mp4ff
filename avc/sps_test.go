@@ -220,3 +220,13 @@ func TestSPSParser3(t *testing.T) {
 		t.Error(diff)
 	}
 }
+
+func TestCodecString(t *testing.T) {
+	spsRaw, _ := hex.DecodeString(sps1nalu)
+	sps, _ := ParseSPSNALUnit(spsRaw, true)
+	codec := CodecString("avc3", sps)
+	expected := "avc3.640020"
+	if codec != expected {
+		t.Errorf("expected codec: %q, got %q", expected, codec)
+	}
+}

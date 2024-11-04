@@ -8,7 +8,7 @@ import (
 // UnregisteredSEI is SEI message of type 5.
 type UnregisteredSEI struct {
 	UUID    []byte
-	payload []byte
+	payload []byte // raw rbsp payload including UUID
 }
 
 // Type returns SEI payload type.
