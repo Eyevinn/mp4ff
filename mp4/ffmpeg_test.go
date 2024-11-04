@@ -14,8 +14,8 @@ func TestDecodeFFMpeg(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	sr := bits.NewFixedSliceReader(raw)
-	box, err := DecodeBoxSR(0, sr)
+	buf := bytes.NewBuffer(raw)
+	box, err := DecodeBox(0, buf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -29,5 +29,10 @@ func TestDecodeFFMpeg(t *testing.T) {
 	if !bytes.Equal(raw, encBytes) {
 		t.Errorf("encoded ffmpeg boxes not same as input")
 	}
+}
 
+func TestEncodeData(t *testing.T) {
+	data := []byte("dummy")
+	db := &DataBox{Data: data}
+	boxDiffAfterEncodeAndDecode(t, db)
 }

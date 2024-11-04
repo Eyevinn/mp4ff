@@ -38,6 +38,8 @@ func TestEsdsEncodeAndDecode(t *testing.T) {
 		t.Errorf("Decode cfg out %s differs from decode cfg in %s",
 			hex.EncodeToString(decCfgOut), hex.EncodeToString(decCfg))
 	}
+
+	boxDiffAfterEncodeAndDecode(t, esdsIn)
 }
 func TestDecodeEncodeEsds(t *testing.T) {
 	inputs := []string{esdsProgIn, esdsMp4Box, esdsEncAudio, esdsLongEnd}
