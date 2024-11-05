@@ -61,11 +61,11 @@ func GetNaluType(naluHeader byte) NaluType {
 
 // FindNaluTypes - find list of NAL unit types in sample
 func FindNaluTypes(sample []byte) []NaluType {
-	naluList := make([]NaluType, 0)
 	length := len(sample)
 	if length < 4 {
-		return naluList
+		return nil
 	}
+	naluList := make([]NaluType, 0, 2)
 	var pos uint32 = 0
 	for pos < uint32(length-4) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
@@ -79,11 +79,11 @@ func FindNaluTypes(sample []byte) []NaluType {
 
 // FindNaluTypesUpToFirstVideoNALU - find list of NAL unit types in sample
 func FindNaluTypesUpToFirstVideoNALU(sample []byte) []NaluType {
-	naluList := make([]NaluType, 0)
 	length := len(sample)
 	if length < 4 {
-		return naluList
+		return nil
 	}
+	naluList := make([]NaluType, 0)
 	var pos uint32 = 0
 	for pos < uint32(length-4) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])

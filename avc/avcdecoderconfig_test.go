@@ -1,7 +1,9 @@
 package avc
 
 import (
+	"bytes"
 	"encoding/hex"
+	"os"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -34,5 +36,30 @@ func TestAvcDecoderConfigRecord(t *testing.T) {
 	}
 	if diff := deep.Equal(got, wanted); diff != nil {
 		t.Error(diff)
+	}
+
+	enc := bytes.Buffer{}
+	err = got.Encode(&enc)
+	if err != nil {
+		t.Error("Error encoding AVCDecoderConfigurationRecord")
+	}
+	if !bytes.Equal(enc.Bytes(), byteData) {
+		t.Error("Error encoding AVCDecoderConfigurationRecord")
+	}
+}
+
+func TestCreateAVCDecConfRec(t *testing.T) {
+	data, err := os.ReadFile("testdata/blackframe.264")
+	if err != nil {
+		t.Error("Error reading file")
+	}
+	spss := ExtractNalusOfTypeFromByteStream(NALU_SPS, data, true)
+	ppss := ExtractNalusOfTypeFromByteStream(NALU_PPS, data, true)
+	if len(spss) != 1 || len(ppss) != 1 {
+		t.Error("Error extracting SPS/PPS")
+	}
+	_, err = CreateAVCDecConfRec(spss, ppss, true)
+	if err != nil {
+		t.Error("Error creating AVCDecoderConfigurationRecord")
 	}
 }
