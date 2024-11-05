@@ -1,6 +1,7 @@
 package avc
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -29,6 +30,27 @@ func TestGetNaluTypes(t *testing.T) {
 		if diff := deep.Equal(got, tc.wanted); diff != nil {
 			t.Errorf("%s: %v", tc.name, diff)
 		}
+		for _, w := range tc.wanted {
+			if !ContainsNaluType(tc.input, w) {
+				t.Errorf("%s: wanted %v in %v", tc.name, w, tc.input)
+			}
+			if w == NALU_IDR && !IsIDRSample(tc.input) {
+				t.Errorf("%s: wanted IDR in %v", tc.name, tc.input)
+			}
+		}
+	}
+}
+
+func TestNaluTypeStrings(t *testing.T) {
+	named := make([]int, 0, 9)
+	for i := 0; i < 14; i++ {
+		nt := NaluType(i)
+		if !strings.HasPrefix(nt.String(), "Other") {
+			named = append(named, i)
+		}
+	}
+	if len(named) != 9 {
+		t.Errorf("Expected 9 named NaluTypes, got %d", len(named))
 	}
 }
 
