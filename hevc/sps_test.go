@@ -400,3 +400,61 @@ func TestParseSPSWithNonZeroNumDeltaPocs(t *testing.T) {
 	}
 	t.Log(sps)
 }
+
+// Use SPS and PPS from https://www.itu.int/wftp3/av-arch/jctvc-site/bitstream_exchange/under_test/
+// to get bigger variety of input. Don't consider the actual output, just check that parsing works
+func TestSPSandPPS(t *testing.T) {
+	cases := []struct {
+		desc string
+		vps  string
+		sps  string
+		pps  string
+	}{
+		{
+			desc: "Zero_and_One_Palette_Size_A_Canon_2",
+			vps:  "40010c01ffff090040000003000c000003000078ac09",
+			sps:  "420101090040000003000c00000300007890007810021cff2d7248db3db643cd81000843",
+			pps:  "4401c194964c08b21bdd",
+		},
+		{
+			desc: "SPSSLIST_A_Sony_1",
+			vps: "40010c11ffff0701000003000f8800000300007bb5057000003e90000ea6077b1000043024e0f00000030001f10000030" +
+				"0000f75880f000882807b050002d0a00e36bdff90a020202c1",
+			sps: "4201010160000003000003000003000003007ba0078200887de5b59246f8f2c997932c8501e003fe03fa80203c07f2804" +
+				"06010163c040018407001840c203040c206103080c10308184070018404042607f03000e1030018006001800c00600180" +
+				"06003000e1030008194d10730a3cc3849cc2028709c2464e1309528240a42a09620114201182304828928b1c9362398c7" +
+				"1d14c21ff5ebe4fc47f5f9be2bc21c35822828358f840787878f0583c78f0743c78f1e0481e3c78f1e0561e3c78f1e3c0" +
+				"c83c78f1e3c78f0320f1e3c78f1e0561e3c78f1e0481e3c78f0743c78f0583c78787842340fc101e1e1e3c160f1e3c1d0" +
+				"f1e3c7812078f1e3c7815878f1e3c78f0320f1e3c78f1e3c0c83c78f1e3c7815878f1e3c7812078f1e3c1d0f1e3c160f1" +
+				"e1e1e1063c041840787878f0583c78f0743c78f1e0481e3c78f1e0561e3c78f1e3c0c83c78f1e3c78f0320f1e3c78f1e0" +
+				"561e3c78f1e0481e3c78f0743c78f0583c7878784203b80202111c1f1c38168e1c381d8e1c387012470e1c387015c70e1" +
+				"c3870e0328e1c3870e1c380ca3870e1c387015c70e1c387012470e1c381d8e1c38168e1c1f1c11807b8040844707c70e0" +
+				"5a3870e0763870e1c0491c3870e1c0571c3870e1c380ca3870e1c3870e0328e1c3870e1c0571c3870e1c0491c3870e076" +
+				"3870e05a38707c70463c07e044707c70e05a3870e0763870e1c0491c3870e1c0571c3870e1c380ca3870e1c3870e0328e" +
+				"1c3870e1c0571c3870e1c0491c3870e0763870e05a38707c7045c45525ed9",
+			pps: "4401c1f5811d02a0",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			//vpsBytes, _ := hex.DecodeString(c.vps)
+			spsBytes, _ := hex.DecodeString(c.sps)
+			ppsBytes, _ := hex.DecodeString(c.pps)
+
+			sps, err := ParseSPSNALUnit(spsBytes)
+			if err != nil {
+				t.Error("Error parsing SPS Nal unit")
+			}
+			spsMap := make(map[uint32]*SPS)
+			spsMap[uint32(sps.SpsID)] = sps
+			pps, err := ParsePPSNALUnit(ppsBytes, spsMap)
+			if err != nil {
+				t.Error("Error parsing PPS Nal unit")
+			}
+			if byte(pps.SeqParameterSetID) != sps.SpsID {
+				t.Error("PPS SpsID does not match SPS SpsID")
+			}
+		})
+	}
+
+}
