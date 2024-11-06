@@ -366,8 +366,11 @@ func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32
 	if baseDecodeTime > sampleTime {
 		return 0, fmt.Errorf("sampleTime %d less that baseMediaDecodeTime %d", sampleTime, baseDecodeTime)
 	}
+	defaultSampleDuration := uint32(0)
 	deltaTime := sampleTime - baseDecodeTime
-	defaultSampleDuration := trex.DefaultSampleDuration
+	if trex != nil {
+		defaultSampleDuration = trex.DefaultSampleDuration
+	}
 	if traf.Tfhd.HasDefaultSampleDuration() {
 		defaultSampleDuration = traf.Tfhd.DefaultSampleDuration
 	}
