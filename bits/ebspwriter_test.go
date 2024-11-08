@@ -66,6 +66,73 @@ func TestEBSPWriter(t *testing.T) {
 			if gotBits != tc.bits {
 				t.Errorf("wanted %s but got %s for %d", tc.bits, gotBits, tc.n)
 			}
+			nrBitsInBuffer := w.NrBitsInBuffer()
+			if int(nrBitsInBuffer) != len(tc.bits)%8 {
+				t.Errorf("wanted %d bits in buffer but got %d", len(tc.bits)%8, nrBitsInBuffer)
+			}
+			if w.AccError() != nil {
+				t.Errorf("unexpected error: %v", w.AccError())
+			}
+		}
+	})
+
+	t.Run("write to limited writer", func(t *testing.T) {
+		lw := newLimitedWriter(3)
+		w := bits.NewEBSPWriter(lw)
+		w.Write(0, 16)
+		if lw.nrWritten != 2 {
+			t.Errorf("wanted 2 bytes written but got %d", lw.nrWritten)
+		}
+		if w.AccError() != nil {
+			t.Errorf("unexpected error: %v", w.AccError())
+		}
+		w.Write(1, 8)
+		// Now we should have written 4 due to start code emulation prevention byte
+		if lw.nrWritten != 4 {
+			t.Errorf("wanted 4 bytes written but got %d", lw.nrWritten)
+		}
+		if w.AccError() == nil {
+			t.Errorf("wanted error but got nil")
+		}
+		w.Write(1, 8)
+		if w.AccError() == nil {
+			t.Errorf("error should stay")
+		}
+		if lw.nrWritten != 4 {
+			t.Errorf("wanted 4 bytes written but got %d", lw.nrWritten)
+		}
+	})
+
+	t.Run("start code emulation prevention error", func(t *testing.T) {
+		lw := newLimitedWriter(2)
+		w := bits.NewEBSPWriter(lw)
+		w.Write(0, 16)
+		if lw.nrWritten != 2 {
+			t.Errorf("wanted 2 bytes written but got %d", lw.nrWritten)
+		}
+		if w.AccError() != nil {
+			t.Errorf("unexpected error: %v", w.AccError())
+		}
+		w.Write(1, 8)
+		// Now we should have written 3 since start-code emulation triggered error
+		if lw.nrWritten != 3 {
+			t.Errorf("wanted 3 bytes written but got %d", lw.nrWritten)
+		}
+		if w.AccError() == nil {
+			t.Errorf("wanted error but got nil")
+		}
+	})
+
+	t.Run("write SEI and RBSP", func(t *testing.T) {
+		b := bytes.Buffer{}
+		w := bits.NewEBSPWriter(&b)
+		w.WriteSEIValue(300)
+		w.WriteRbspTrailingBits()
+		gotBits := getBitsWritten(w, &b)
+		expectedBits := "111111110010110110000000"
+		if gotBits != expectedBits {
+			t.Errorf("wanted %s but got %s", expectedBits, gotBits)
+
 		}
 	})
 }
@@ -81,4 +148,27 @@ func getBitsWritten(w *bits.EBSPWriter, b *bytes.Buffer) string {
 		bits += fullByte[8-nrBitsInWriter:]
 	}
 	return bits
+
+}
+
+type limitedWriter struct {
+	nrWritten  uint
+	maxNrBytes uint
+}
+
+func newLimitedWriter(maxNrBytes uint) *limitedWriter {
+	return &limitedWriter{nrWritten: 0, maxNrBytes: maxNrBytes}
+}
+
+func (w *limitedWriter) Write(p []byte) (n int, err error) {
+	prevNrWritten := w.nrWritten
+	w.nrWritten += uint(len(p))
+	if w.nrWritten > w.maxNrBytes {
+		n = int(w.maxNrBytes - prevNrWritten)
+		if n < 0 {
+			n = 0
+		}
+		return n, fmt.Errorf("write limit reached")
+	}
+	return len(p), nil
 }
