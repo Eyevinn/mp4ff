@@ -596,6 +596,9 @@ func DecryptFragment(frag *Fragment, di DecryptInfo, key []byte) error {
 			trun.DataOffset -= int32(nrBytesRemoved)
 		}
 	}
+	if frag.Mdat.StartPos > frag.Moof.StartPos {
+		frag.Mdat.StartPos -= nrBytesRemoved
+	}
 
 	return nil
 }

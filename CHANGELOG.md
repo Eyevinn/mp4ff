@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cmd/mp4ff-encrypt` did not parse command line
 - `SeigSampleGroupEntry` calculated skipBytes incorrectly
 - `cmd/mp4ff-pslister` did not parse annex B HEVC correctly
+- error when decrypting and re-encrypting a segement (issue #378)
 
 ### Removed
 
