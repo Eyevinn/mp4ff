@@ -1,6 +1,7 @@
 ![Logo](images/logo.png)
 
 ![Test](https://github.com/Eyevinn/mp4ff/workflows/Go/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/Eyevinn/mp4ff/badge.svg?branch=master)](https://coveralls.io/github/Eyevinn/mp4ff?branch=master)
 ![golangci-lint](https://github.com/Eyevinn/mp4ff/workflows/golangci-lint/badge.svg?branch=master)
 [![GoDoc](https://godoc.org/github.com/Eyevinn/mp4ff?status.svg)](http://godoc.org/github.com/Eyevinn/mp4ff)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Eyevinn/mp4ff)](https://goreportcard.com/report/github.com/Eyevinn/mp4ff)
