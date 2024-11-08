@@ -658,19 +658,19 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 	for _, c := range stsd.Children {
 		switch box := c.(type) {
 		case *VisualSampleEntryBox:
-			switch box.Type() {
-			case "avc1":
+			sinf = box.Sinf
+			frma := sinf.Frma
+			if frma.DataFormat == "avc1" {
 				ipd.ProtFunc, err = getAVCProtFunc(box.AvcC)
 				if err != nil {
 					return nil, fmt.Errorf("get AVC protect func: %w", err)
 				}
-			default:
-				return nil, fmt.Errorf("unsupported video codec descriptor %s", box.Type())
+			} else {
+				return nil, fmt.Errorf("unsupported video codec descriptor %s", frma.DataFormat)
 			}
-			sinf = box.Sinf
 		case *AudioSampleEntryBox:
-			ipd.ProtFunc = getAudioProtectRanges
 			sinf = box.Sinf
+			ipd.ProtFunc = getAudioProtectRanges
 		default:
 			continue
 		}
