@@ -234,6 +234,23 @@ func TestFixedSliceReader(t *testing.T) {
 			t.Errorf("got error msg %q instead of %q", sr.AccError().Error(), wantedErrMsg)
 		}
 	})
+
+	t.Run("read possibly zero terminated string", func(t *testing.T) {
+		data := []byte("hej\x00")
+		sr := bits.NewFixedSliceReader(data)
+		_, ok := sr.ReadPossiblyZeroTerminatedString(-1)
+		if ok {
+			t.Errorf("got ok but impossible")
+		}
+		val, ok := sr.ReadPossiblyZeroTerminatedString(0)
+		if !ok || val != "" {
+			t.Errorf("got %q instead of empty string", val)
+		}
+		val, ok = sr.ReadPossiblyZeroTerminatedString(4)
+		if !ok || val != "hej" {
+			t.Errorf("got %q instead of 'hej'", val)
+		}
+	})
 }
 
 func verifyAccErrorInt(t *testing.T, sr *bits.FixedSliceReader, val int) {

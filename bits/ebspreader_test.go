@@ -3,6 +3,7 @@ package bits_test
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"io"
 	"testing"
 
@@ -327,7 +328,7 @@ func TestEBSPReader(t *testing.T) {
 		r := bits.NewEBSPReader(brd)
 		r.SetError(io.ErrUnexpectedEOF)
 		// Read shold never result in panic
-		// Error should be preseverd
+		// Error should be preservedd
 		_ = r.Read(100)
 		if r.AccError() != io.ErrUnexpectedEOF {
 			t.Errorf("Expected error not found")
@@ -349,4 +350,52 @@ func TestEBSPReader(t *testing.T) {
 			t.Errorf("Expected error not found")
 		}
 	})
+
+	t.Run("try seek in non-seekable reader", func(t *testing.T) {
+		emptyBuf := bytes.Buffer{}
+		r := bits.NewEBSPReader(&emptyBuf)
+		_, err := r.MoreRbspData()
+		if !errors.Is(err, bits.ErrNotReadSeeker) {
+			t.Error("Expected error checking for more data in empty buffer")
+		}
+	})
+
+	t.Run("no rbsp bits left", func(t *testing.T) {
+		input := []byte{0b1}
+		brd := bytes.NewReader(input)
+		r := bits.NewEBSPReader(brd)
+		for i := 0; i < 8; i++ {
+			_ = r.ReadFlag()
+		}
+		more, err := r.MoreRbspData()
+		if more {
+			t.Error("Expected no more rbsp data")
+		}
+		if err != nil {
+			t.Error("Expected error to be nil when no more data")
+		}
+	})
+
+	t.Run("not last rbsp bit bit", func(t *testing.T) {
+		input := []byte{0b01000001}
+		brd := bytes.NewReader(input)
+		r := bits.NewEBSPReader(brd)
+		more, err := r.MoreRbspData()
+		if !more {
+			t.Error("Expected more rbsp data")
+		}
+		if err != nil {
+			t.Error("Expected error to be nil when no more data")
+		}
+		err = r.ReadRbspTrailingBits()
+		if err == nil {
+			t.Error("Expected error when reading trailing bits")
+		}
+		err = r.ReadRbspTrailingBits()
+		if err == nil {
+			t.Error("Expected error when reading trailing bits")
+		}
+
+	})
+
 }

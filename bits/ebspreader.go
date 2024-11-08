@@ -216,12 +216,7 @@ func (r *EBSPReader) MoreRbspData() (bool, error) {
 
 // reset resets EBSPReader based on copy of previous state.
 func (r *EBSPReader) reset(prevState EBSPReader) error {
-	rdSeek, ok := r.rd.(io.ReadSeeker)
-
-	if !ok {
-		return ErrNotReadSeeker
-	}
-
+	rdSeek, _ := r.rd.(io.ReadSeeker)
 	_, err := rdSeek.Seek(int64(prevState.pos+1), 0)
 	if err != nil {
 		return err
