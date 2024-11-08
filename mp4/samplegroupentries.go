@@ -60,7 +60,7 @@ func DecodeSeigSampleGroupEntry(name string, length uint32, sr bits.SliceReader)
 	_ = sr.ReadUint8() // Reserved
 	byteTwo := sr.ReadUint8()
 	s.CryptByteBlock = byteTwo >> 4
-	s.SkipByteBlock = byteTwo % 0xf
+	s.SkipByteBlock = byteTwo & 0xf
 	s.IsProtected = sr.ReadUint8()
 	s.PerSampleIVSize = sr.ReadUint8()
 	s.KID = UUID(sr.ReadBytes(16))
