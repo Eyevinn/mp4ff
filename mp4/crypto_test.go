@@ -213,6 +213,22 @@ func TestEncryptDecrypt(t *testing.T) {
 			if !bytes.Equal(rawSeg, decSegBuf.Bytes()) {
 				t.Errorf("segment not equal after encryption+decryption")
 			}
+
+			// Make a new encryption to check that the decrypted segment is OK
+			// for re-encryption (Issue #378).
+
+			pd2, err := InitProtect(encInit.Init, key, iv, c.scheme, kidUUID, nil)
+			if err != nil {
+				t.Error(err)
+			}
+			for _, s := range decode.Segments {
+				for _, f := range s.Fragments {
+					err := EncryptFragment(f, key, iv, pd2)
+					if err != nil {
+						t.Errorf("Error re-encrypting fragment: %v\n", err)
+					}
+				}
+			}
 		})
 	}
 }
@@ -237,4 +253,8 @@ func TestDecryptInit(t *testing.T) {
 			t.Errorf("Expected cenc, got %s", schemeType)
 		}
 	}
+}
+
+func TestDecryptEncrypt(t *testing.T) {
+
 }
