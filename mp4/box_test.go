@@ -50,3 +50,14 @@ func TestBadBoxAndRemoveBoxDecoder(t *testing.T) {
 		t.Errorf("written unknown differs")
 	}
 }
+
+func TestFixed16and32(t *testing.T) {
+	f16 := Fixed16(256)
+	if f16.String() != "1.0" {
+		t.Errorf("Fixed16(256) should be 1.0, not %s", f16.String())
+	}
+	f32 := Fixed32(65536)
+	if f16.String() != "1.0" {
+		t.Errorf("Fixed32(65536) should be 1.0, not %s", f32.String())
+	}
+}
