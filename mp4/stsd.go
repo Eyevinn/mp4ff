@@ -76,30 +76,6 @@ func (s *StsdBox) AddChild(box Box) {
 	s.SampleCount++
 }
 
-// ReplaceChild - Replace a child box with one of the same type
-func (s *StsdBox) ReplaceChild(box Box) {
-	switch box.(type) {
-	case *VisualSampleEntryBox:
-		for i, b := range s.Children {
-			switch b.(type) {
-			case *VisualSampleEntryBox:
-				s.Children[i] = box.(*VisualSampleEntryBox)
-				s.AvcX = box.(*VisualSampleEntryBox)
-			}
-		}
-	case *AudioSampleEntryBox:
-		for i, b := range s.Children {
-			switch b.(type) {
-			case *AudioSampleEntryBox:
-				s.Children[i] = box.(*AudioSampleEntryBox)
-				s.Mp4a = box.(*AudioSampleEntryBox)
-			}
-		}
-	default:
-		panic("Cannot handle box type")
-	}
-}
-
 // GetSampleDescription - get one of multiple descriptions
 func (s *StsdBox) GetSampleDescription(index int) (Box, error) {
 	if index >= len(s.Children) {

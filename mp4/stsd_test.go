@@ -50,3 +50,25 @@ func TestStsd(t *testing.T) {
 		}
 	}
 }
+
+func TestStsdEncodeDecode(t *testing.T) {
+	stsd := &StsdBox{}
+	evte := &EvteBox{}
+	stsd.AddChild(evte)
+	boxDiffAfterEncodeAndDecode(t, stsd)
+	b, err := stsd.GetSampleDescription(0)
+	if err != nil {
+		t.Error(err)
+	}
+	if b != evte {
+		t.Errorf("Expected %v, got %v", evte, b)
+	}
+	b, err = stsd.GetSampleDescription(1)
+	if err == nil {
+		t.Errorf("Expected error, got %v", b)
+	}
+	btrt := stsd.GetBtrt()
+	if btrt != nil {
+		t.Errorf("Expected nil, got %v", btrt)
+	}
+}
