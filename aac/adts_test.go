@@ -18,22 +18,23 @@ func TestADTS(t *testing.T) {
 	adtsBytes := adtsHdrStart.Encode()
 
 	testCases := []struct {
-		adtsBytes    []byte
-		wantedHdr    *ADTSHeader
-		wantedOffset int
-		wantedError  error
+		adtsBytes       []byte
+		wantedHdr       *ADTSHeader
+		wantedOffset    int
+		wantedFrequency uint16
+		wantedError     error
 	}{
 		{
-			adtsBytes:    adtsBytes,
-			wantedHdr:    adtsHdrStart,
-			wantedOffset: 0,
-			wantedError:  nil,
+			adtsBytes:       adtsBytes,
+			wantedHdr:       adtsHdrStart,
+			wantedOffset:    0,
+			wantedFrequency: 48000,
 		},
 		{
-			adtsBytes:    append([]byte{0xfe}, adtsBytes...),
-			wantedHdr:    adtsHdrStart,
-			wantedOffset: 1,
-			wantedError:  nil,
+			adtsBytes:       append([]byte{0xfe}, adtsBytes...),
+			wantedHdr:       adtsHdrStart,
+			wantedOffset:    1,
+			wantedFrequency: 48000,
 		},
 	}
 
@@ -44,6 +45,9 @@ func TestADTS(t *testing.T) {
 		}
 		if gotOffset != tc.wantedOffset {
 			t.Errorf("Got offset %d instead of %d", gotOffset, tc.wantedOffset)
+		}
+		if tc.wantedFrequency != gotHdr.Frequency() {
+			t.Errorf("Got frequency %d instead of %d", gotHdr.Frequency(), tc.wantedFrequency)
 		}
 		if diff := deep.Equal(gotHdr, tc.wantedHdr); diff != nil {
 			t.Error(diff)

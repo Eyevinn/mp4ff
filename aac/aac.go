@@ -1,7 +1,6 @@
 package aac
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -90,28 +89,25 @@ func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
 		asc.SBRPresentFlag = true
 		asc.PSPresentFlag = true
 	default:
-		return asc, errors.New("Only LC, HE-AACv1, and HE-AACv2 supported")
+		return asc, fmt.Errorf("unsupported object type: %d", audioObjectType)
 	}
 	frequency, ok := getFrequency(br)
 	if !ok {
-		return asc, fmt.Errorf("Strange frequency index")
+		return asc, fmt.Errorf("strange frequency index")
 	}
 	asc.SamplingFrequency = frequency
 	asc.ChannelConfiguration = byte(br.Read(4))
 	switch audioObjectType {
 	case HEAACv1, HEAACv2:
-		frequency, ok := getFrequency(br)
+		extFrequency, ok := getFrequency(br)
 		if !ok {
-			return asc, errors.New("Strange frequency index")
+			return asc, fmt.Errorf("strange frequency index")
 		}
-		asc.ExtensionFrequency = frequency
+		asc.ExtensionFrequency = extFrequency
 		audioObjectType = byte(br.Read(5)) // Shall be set to AAC-LC here again
-		if audioObjectType == 22 {
-			return asc, errors.New("ExtensionChannelConfiguration not supported")
-		}
 	}
 	if audioObjectType != AAClc {
-		return nil, fmt.Errorf("Base audioObjectType is %d instead of AAC-LC (2)", audioObjectType)
+		return nil, fmt.Errorf("base audioObjectType is %d instead of AAC-LC (2)", audioObjectType)
 	}
 	//GASpecificConfig()
 	_ = br.Read(3) //GASpecificConfig
