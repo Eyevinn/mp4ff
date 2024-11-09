@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/go-test/deep"
 )
 
 const badSizeDescriptor = `031900010004134015000000000000000001f40005021190060102`
@@ -140,5 +141,44 @@ func TestDescriptorInfo(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRawDescriptor(t *testing.T) {
+	sizeSizeMinus1 := 0
+	data := []byte{0x02, 0x03}
+	rd, err := CreateRawDescriptor(15, byte(sizeSizeMinus1), data)
+	if err != nil {
+		t.Error(err)
+	}
+	if rd.Tag() != 15 {
+		t.Error("tag is not 1")
+	}
+	if int(rd.Size()) != len(data) {
+		t.Errorf("size is %d instead of %d", rd.Size(), len(data))
+	}
+	expectedType := "tag=15 Unknown"
+	if rd.Type() != expectedType {
+		t.Errorf(`type is not %q but %q`, expectedType, rd.Type())
+	}
+	sw := bits.NewFixedSliceWriter(int(rd.SizeSize()))
+	err = rd.EncodeSW(sw)
+	if err != nil {
+		t.Error(err)
+	}
+	info := bytes.Buffer{}
+	err = rd.Info(&info, "all:1", "", "  ")
+	if err != nil {
+		t.Error(err)
+	}
+	totNrBytes := rd.SizeSize()
+	rw := bits.NewFixedSliceReader(sw.Bytes())
+	rdDec, err := DecodeDescriptor(rw, int(totNrBytes))
+	if err != nil {
+		t.Error(err)
+	}
+	rawDec := rdDec.(*RawDescriptor)
+	if diff := deep.Equal(rawDec, &rd); diff != nil {
+		t.Error(diff)
 	}
 }
