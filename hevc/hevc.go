@@ -133,6 +133,9 @@ func FindNaluTypesUpToFirstVideoNalu(sample []byte) []NaluType {
 func ContainsNaluType(sample []byte, specificNaluType NaluType) bool {
 	var pos uint32 = 0
 	length := len(sample)
+	if length < 4 {
+		return false
+	}
 	for pos < uint32(length-4) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
