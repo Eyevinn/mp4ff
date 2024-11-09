@@ -41,3 +41,13 @@ func TestVtta(t *testing.T) {
 	vtta := &VttaBox{CueAdditionalText: "This is a comment"}
 	boxDiffAfterEncodeAndDecode(t, vtta)
 }
+
+func TestVlab(t *testing.T) {
+	vlab := &VlabBox{SourceLabel: "Swedish news"}
+	boxDiffAfterEncodeAndDecode(t, vlab)
+}
+
+func TestVttC(t *testing.T) {
+	vttC := &VttCBox{Config: "..."}
+	boxDiffAfterEncodeAndDecode(t, vttC)
+}
