@@ -1,6 +1,7 @@
 package hevc
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -8,14 +9,22 @@ import (
 
 func TestGetNaluTypes(t *testing.T) {
 	testCases := []struct {
-		name   string
-		input  []byte
-		wanted []NaluType
+		name                string
+		input               []byte
+		wanted              []NaluType
+		nalusUpToFirstVideo []NaluType
+		containsVPS         bool
+		isRapSample         bool
+		isIDRSample         bool
 	}{
 		{
 			"AUD",
 			[]byte{0, 0, 0, 2, 70, 0},
 			[]NaluType{NALU_AUD},
+			[]NaluType{NALU_AUD},
+			false,
+			false,
+			false,
 		},
 		{
 			"AUD, VPS, SPS, PPS, and IDR ",
@@ -26,14 +35,45 @@ func TestGetNaluTypes(t *testing.T) {
 				0, 0, 0, 3, 68, 3, 3,
 				0, 0, 0, 3, 40, 4, 4},
 			[]NaluType{NALU_AUD, NALU_VPS, NALU_SPS, NALU_PPS, NALU_IDR_N_LP},
+			[]NaluType{NALU_AUD, NALU_VPS, NALU_SPS, NALU_PPS, NALU_IDR_N_LP},
+			true,
+			true,
+			true,
+		},
+		{
+			"too short",
+			[]byte{0, 0, 0},
+			[]NaluType{},
+			[]NaluType{},
+			false,
+			false,
+			false,
 		},
 	}
 
 	for _, tc := range testCases {
-		got := FindNaluTypes(tc.input)
-		if diff := deep.Equal(got, tc.wanted); diff != nil {
-			t.Errorf("%s: %v", tc.name, diff)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := FindNaluTypes(tc.input)
+			if diff := deep.Equal(got, tc.wanted); diff != nil {
+				t.Errorf("nalulist diff: %v", diff)
+			}
+			got = FindNaluTypesUpToFirstVideoNalu(tc.input)
+			if diff := deep.Equal(got, tc.nalusUpToFirstVideo); diff != nil {
+				t.Errorf("nalus before first video diff: %v", diff)
+			}
+			hasVPS := ContainsNaluType(tc.input, NALU_VPS)
+			if hasVPS != tc.containsVPS {
+				t.Errorf("got %t instead of %t", hasVPS, tc.containsVPS)
+			}
+			isRAP := IsRAPSample(tc.input)
+			if isRAP != tc.isRapSample {
+				t.Errorf("got %t instead of %t", isRAP, tc.isRapSample)
+			}
+			isIDR := IsIDRSample(tc.input)
+			if isIDR != tc.isIDRSample {
+				t.Errorf("got %t instead of %t", isIDR, tc.isIDRSample)
+			}
+		})
 	}
 }
 
@@ -61,10 +101,12 @@ func TestHasParameterSets(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got := HasParameterSets(tc.input)
-		if got != tc.wanted {
-			t.Errorf("%s: got %t instead of %t", tc.name, got, tc.wanted)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := HasParameterSets(tc.input)
+			if got != tc.wanted {
+				t.Errorf("got %t instead of %t", got, tc.wanted)
+			}
+		})
 	}
 }
 
@@ -96,15 +138,30 @@ func TestGetParameterSets(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		gotVPS, gotSPS, gotPPS := GetParameterSets(tc.input)
-		if diff := deep.Equal(gotVPS, tc.wantedVPS); diff != nil {
-			t.Errorf("%s VPS: %v", tc.name, diff)
+		t.Run(tc.name, func(t *testing.T) {
+			gotVPS, gotSPS, gotPPS := GetParameterSets(tc.input)
+			if diff := deep.Equal(gotVPS, tc.wantedVPS); diff != nil {
+				t.Errorf("VPS diff: %v", diff)
+			}
+			if diff := deep.Equal(gotSPS, tc.wantedSPS); diff != nil {
+				t.Errorf("SPS diff: %v", diff)
+			}
+			if diff := deep.Equal(gotPPS, tc.wantedPPS); diff != nil {
+				t.Errorf("PPS diff: %v", diff)
+			}
+		})
+	}
+}
+
+func TestNaluTypeStrings(t *testing.T) {
+	named := 0
+	for n := NaluType(0); n < NaluType(64); n++ {
+		desc := n.String()
+		if !strings.HasPrefix(desc, "Other") {
+			named++
 		}
-		if diff := deep.Equal(gotSPS, tc.wantedSPS); diff != nil {
-			t.Errorf("%s SPS: %v", tc.name, diff)
-		}
-		if diff := deep.Equal(gotPPS, tc.wantedPPS); diff != nil {
-			t.Errorf("%s PPS: %v", tc.name, diff)
-		}
+	}
+	if named != 22 {
+		t.Errorf("got %d named instead of 22", named)
 	}
 }

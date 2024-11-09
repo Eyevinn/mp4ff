@@ -1,6 +1,7 @@
 package hevc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"strings"
 	"testing"
@@ -96,7 +97,6 @@ func TestDecodeConfRec(t *testing.T) {
 		t.Error(err)
 	}
 	for _, na := range hdcr.NaluArrays {
-
 		switch na.NaluType() {
 		case NALU_VPS, NALU_PPS:
 		case NALU_SPS:
@@ -126,5 +126,11 @@ func TestDecodeConfRec(t *testing.T) {
 		default:
 			t.Errorf("strange nalu type %s", na.NaluType())
 		}
+	}
+
+	out := bytes.Buffer{}
+	err = hdcr.Encode(&out)
+	if err != nil {
+		t.Error(err)
 	}
 }
