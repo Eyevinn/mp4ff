@@ -44,7 +44,7 @@ func CreateAudioSampleEntryBox(name string, nrChannels, sampleSize, sampleRate u
 		ChannelCount:       nrChannels,
 		SampleSize:         sampleSize,
 		SampleRate:         sampleRate,
-		Children:           []Box{},
+		Children:           nil,
 	}
 	if child != nil {
 		a.AddChild(child)
