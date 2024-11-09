@@ -106,18 +106,29 @@ func TestEncryptDecrypt(t *testing.T) {
 	kidHex := "11112222333344445555666677778888"
 	key, _ := hex.DecodeString(keyHex)
 	kidUUID, _ := NewUUIDFromHex(kidHex)
+	psshFile := "testdata/pssh.bin"
+	psh, err := os.Open(psshFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	box, err := DecodeBox(0, psh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pssh := box.(*PsshBox)
 
 	testCases := []struct {
-		desc   string
-		init   string
-		seg    string
-		scheme string
-		iv     string
+		desc    string
+		init    string
+		seg     string
+		scheme  string
+		iv      string
+		hasPssh bool
 	}{
 		{desc: "video, cenc, iv8", init: videoInit, seg: videoSeg, scheme: "cenc", iv: ivHex8},
 		{desc: "video, cbcs, iv8", init: videoInit, seg: videoSeg, scheme: "cbcs", iv: ivHex8},
 		{desc: "video, cbcs, iv16", init: videoInit, seg: videoSeg, scheme: "cbcs", iv: ivHex16},
-		{desc: "audio, cbcs, iv16", init: audioInit, seg: audioSeg, scheme: "cbcs", iv: ivHex16},
+		{desc: "audio, cbcs, iv16", init: audioInit, seg: audioSeg, scheme: "cbcs", iv: ivHex16, hasPssh: true},
 	}
 	for _, c := range testCases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -134,7 +145,13 @@ func TestEncryptDecrypt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ipf, err := InitProtect(init.Init, key, iv, c.scheme, kidUUID, nil)
+
+			var psshs []*PsshBox
+			if c.hasPssh {
+				psshs = []*PsshBox{pssh}
+			}
+
+			ipf, err := InitProtect(init.Init, key, iv, c.scheme, kidUUID, psshs)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -253,8 +270,4 @@ func TestDecryptInit(t *testing.T) {
 			t.Errorf("Expected cenc, got %s", schemeType)
 		}
 	}
-}
-
-func TestDecryptEncrypt(t *testing.T) {
-
 }
