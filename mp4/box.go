@@ -356,14 +356,14 @@ func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 type Fixed16 uint16
 
 func (f Fixed16) String() string {
-	return fmt.Sprintf("%d.%d", uint16(f)>>8, uint16(f)&7)
+	return fmt.Sprintf("%d.%d", uint16(f)>>8, uint16(f)&0xff)
 }
 
 // Fixed32 -  A 16.16 fixed point number
 type Fixed32 uint32
 
 func (f Fixed32) String() string {
-	return fmt.Sprintf("%d.%d", uint32(f)>>16, uint32(f)&15)
+	return fmt.Sprintf("%d.%d", uint32(f)>>16, uint32(f)&0xffff)
 }
 
 func strtobuf(out []byte, in string, l int) {
