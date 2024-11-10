@@ -22,6 +22,27 @@ func TestSliceTypeParser(t *testing.T) {
 	}
 }
 
+func TestSliceTypeStrings(t *testing.T) {
+	cases := []struct {
+		sliceType SliceType
+		want      string
+	}{
+		{SLICE_P, "P"},
+		{SLICE_B, "B"},
+		{SLICE_I, "I"},
+		{SLICE_SP, "SP"},
+		{SLICE_SI, "SI"},
+		{SliceType(12), ""},
+	}
+	for _, c := range cases {
+		got := c.sliceType.String()
+		if got != c.want {
+			t.Errorf("got %s want %s", got, c.want)
+		}
+	}
+
+}
+
 func TestParseSliceHeader_BlackFrame(t *testing.T) {
 	wantedHdr := SliceHeader{
 		SliceType:              7,
