@@ -42,7 +42,7 @@ func TestEvteInclSilb(t *testing.T) {
 			},
 		},
 	}
-	boxAfterEncodeAndDecode(t, &silb)
+	boxDiffAfterEncodeAndDecode(t, &silb)
 	evte := EvteBox{
 		DataReferenceIndex: 1,
 	}
