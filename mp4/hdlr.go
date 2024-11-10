@@ -12,9 +12,8 @@ import (
 // Contained in: Media Box (mdia) or Meta Box (meta)
 //
 // This box describes the type of data contained in the trak.
-// HandlerType can be : "vide" (video track), "soun" (audio track), "subt" (subtitle track)
-// Other types are: "hint" (hint track), "meta" (timed Metadata track), "auxv" (auxiliary video track).
-// clcp (Closed Captions (QuickTime))
+// Most common hnadler types are: "vide" (video track), "soun" (audio track), "subt" (subtitle track),
+// "text" (text track). "meta" (timed Metadata track), clcp (Closed Captions (QuickTime))
 type HdlrBox struct {
 	Version              byte
 	Flags                uint32
@@ -40,16 +39,18 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 	case "text", "wvtt":
 		hdlr.HandlerType = "text"
 		hdlr.Name = "mp4ff text handler"
+	case "meta":
+		hdlr.HandlerType = "meta"
+		hdlr.Name = "mp4ff timed metadata handler"
 	case "clcp":
 		hdlr.HandlerType = "subt"
 		hdlr.Name = "mp4ff closed captions handler"
 	default:
 		if len(mediaOrHdlrType) != 4 {
-			return nil, fmt.Errorf("unknown media or hdlr type %s", mediaOrHdlrType)
+			return nil, fmt.Errorf("handler type is not four characters: %s", mediaOrHdlrType)
 		}
 		hdlr.HandlerType = mediaOrHdlrType
 		hdlr.Name = fmt.Sprintf("mp4ff %s handler", mediaOrHdlrType)
-
 	}
 	return hdlr, nil
 }
