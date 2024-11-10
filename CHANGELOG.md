@@ -12,12 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CreatePrftBox now takes flags parameter
 - PrftBox Info output
 - Removed ReplaceChild method of StsdBox
+- CreateHdlr name for timed metadata
 
 ### Added
 
 - NTP64 struct with methods to convert to time.Time
 - Constants for PrftBox flags
 - Unittest to all commands and examples
+
 
 ### Fixed
 
