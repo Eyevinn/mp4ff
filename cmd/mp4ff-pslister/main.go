@@ -12,6 +12,7 @@ import (
 
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/hevc"
+	"github.com/Eyevinn/mp4ff/internal"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
@@ -75,7 +76,7 @@ func run(args []string, stdout io.Writer) error {
 	}
 
 	if o.version {
-		fmt.Fprintf(stdout, "%s %s\n", appName, mp4.GetVersion())
+		fmt.Fprintf(stdout, "%s %s\n", appName, internal.GetVersion())
 		return nil
 	}
 

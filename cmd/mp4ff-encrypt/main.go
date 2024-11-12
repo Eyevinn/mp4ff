@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/Eyevinn/mp4ff/internal"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
@@ -72,7 +73,7 @@ func run(args []string) error {
 	}
 
 	if opts.version {
-		fmt.Printf("%s %s\n", appName, mp4.GetVersion())
+		fmt.Printf("%s %s\n", appName, internal.GetVersion())
 		return nil
 	}
 
