@@ -132,6 +132,7 @@ func TestSubsLister(t *testing.T) {
 		wanted      string
 	}{
 		{desc: "help", args: []string{appName, "-h"}, expectedErr: false},
+		{desc: "unknown flag", args: []string{appName, "-x"}, expectedErr: true},
 		{desc: "version", args: []string{appName, "-version"}, expectedErr: false},
 		{desc: "no args", args: []string{appName}, expectedErr: true},
 		{desc: "non-existent file", args: []string{appName, "notExisting.mp4"}, expectedErr: true},

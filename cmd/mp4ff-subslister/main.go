@@ -1,4 +1,3 @@
-// mp4ff-subslister - list wvtt or stpp (WebVTT or TTML in ISOBMFF) samples
 package main
 
 import (
@@ -16,11 +15,11 @@ const (
 	appName = "mp4ff-subslister"
 )
 
-var usg = `Usage of %s:
-
-%s lists and displays content of wvtt or stpp samples.
+var usg = `%s lists and displays content of wvtt or stpp samples.
 These corresponds to WebVTT or TTML subtitles in ISOBMFF files.
 Uses track with given non-zero track ID or first subtitle track found in an asset.
+
+Usage of %s:
 `
 
 type options struct {
@@ -59,7 +58,6 @@ func run(args []string, stdout io.Writer) error {
 
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fs.Usage()
 			return nil
 		}
 		return err

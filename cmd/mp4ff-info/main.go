@@ -1,10 +1,10 @@
-// mp4ff-info prints the box tree of input mp4 (ISOBMFF) file.
 package main
 
 import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -14,9 +14,9 @@ const (
 	appName = "mp4ff-info"
 )
 
-var usg = `Usage of %s:
+var usg = `%s prints the box tree of input mp4 (ISOBMFF) file.
 
-%s prints the box tree of input mp4 (ISOBMFF) file.
+Usage of %s:
 `
 
 type options struct {
@@ -41,19 +41,18 @@ func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
 }
 
 func main() {
-	if err := run(os.Args); err != nil {
+	if err := run(os.Args, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string) error {
+func run(args []string, w io.Writer) error {
 	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
 	opts, err := parseOptions(fs, args)
 
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fs.Usage()
 			return nil
 		}
 		return err
@@ -79,7 +78,7 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not parse input file: %w", err)
 	}
-	err = parsedMp4.Info(os.Stdout, opts.levels, "", "  ")
+	err = parsedMp4.Info(w, opts.levels, "", "  ")
 	if err != nil {
 		return fmt.Errorf("could not print info: %w", err)
 	}

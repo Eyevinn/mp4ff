@@ -1,7 +1,3 @@
-// add-sidx adds a top-level sidx box describing the segments of a fragmented files.
-//
-// Segments are identified by styp boxes if they exist, otherwise by
-// the start of moof or emsg boxes.
 package main
 
 import (
@@ -18,14 +14,13 @@ const (
 	appName = "add-sidx"
 )
 
-var usg = `Usage of %s:
-
-%s adds a top-level sidx box to a fragmented file provided it does not exist.
-If styp boxes are present, they signal new segments. It is possible to interpret
+var usg = `%s shows how to add a top-level sidx box to a fragmented file provided it does not exist.
+Segments are identified by styp boxes if they exist, otherwise by
+the start of moof or emsg boxes. It is possible to interpret
 every moof box as the start of a new segment, by specifying the "-startSegOnMoof" option.
 One can further remove unused encryption boxes with the "-removeEnc" option.
 
-
+Usage of %s:
 `
 
 type options struct {
@@ -66,7 +61,6 @@ func run(args []string, stdout io.Writer) error {
 
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fs.Usage()
 			return nil
 		}
 		return err

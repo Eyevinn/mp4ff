@@ -1,7 +1,3 @@
-// resegmenter - example on how to resegment mp4 files into concatenated segments with new duration.
-// If no init segment in the input, the trex defaults will not be known which may cause issue if
-// needed.
-// The  input must be a fragmented file.
 package main
 
 import (
@@ -18,11 +14,13 @@ const (
 	appName = "resegmenter"
 )
 
-var usg = `Usage of %s:
-
-%s resegments a file input fragemtns to a new duration, as closely as possible.
+var usg = `%s is an example on how to resegment a fragmented file to a new target segment duration.
 The duration is given in ticks (in the track timescale).
 
+If no init segment in the input, the trex defaults will not be known which may cause an issue.
+The  input must be a fragmented file.
+
+Usage of %s:
 `
 
 type options struct {
@@ -59,7 +57,6 @@ func run(args []string, w io.Writer) error {
 
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fs.Usage()
 			return nil
 		}
 		return err

@@ -7,75 +7,89 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Eyevinn/mp4ff)](https://goreportcard.com/report/github.com/Eyevinn/mp4ff)
 [![license](https://img.shields.io/github/license/Eyevinn/mp4ff.svg)](https://github.com/Eyevinn/mp4ff/blob/master/LICENSE)
 
-Package mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC and AC-3 audio,  and stpp and wvtt subtitles.
-It is focused on fragmented files as used for streaming in DASH, MSS and HLS fMP4, but can also decode and encode all boxes needed for
-progressive MP4 files. In particular, the tool `mp4ff-crop` can be
-used to crop a progressive file.
+Module mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC and AC-3 audio, stpp and wvtt subtitles, and
+timed metadata tracks.
+It is focused on fragmented files as used for streaming in MPEG-DASH, MSS and HLS fMP4, but can also decode and encode all
+boxes needed for progressive MP4 files.
 
 ## Command Line Tools
 
-Some useful command line tools are available in `cmd`.
+Some useful command line tools are available in [cmd](cmd) directory.
 
-1. `mp4ff-info` prints a tree of the box hierarchy of a mp4 file with information
-    about the boxes. The level of detail can be increased with the option `-l`, like `-l all:1` for all boxes
-    or `-l trun:1,stss:1` for specific boxes.
-2. `mp4ff-pslister` extracts and displays SPS and PPS for AVC or HEVC in a mp4 or a bytestream (Annex B) file.
+1. [mp4ff-info](cmd/mp4ff-info) prints a tree of the box hierarchy of a mp4 file with information
+    about the boxes.
+2. [mp4ff-pslister](cmd/mp4ff-pslister) extracts and displays SPS and PPS for AVC or HEVC in a mp4 or a bytestream (Annex B) file.
     Partial information is printed for HEVC.
-3. `mp4ff-nallister` lists NALUs and picture types for video in progressive or fragmented file
-4. `mp4ff-subslister` lists details of wvtt or stpp (WebVTT or TTML in ISOBMFF) subtitle samples
-5. `mp4ff-crop` shortens a progressive mp4 file to a specified duration
-6. `mp4ff-encrypt` encrypts a fragmented file using cenc or cbcs Common Encryption scheme
-7. `mp4ff-decrypt` decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
+3. [mp4ff-nallister](cmd/mp4ff-nallister) lists NALUs and picture types for video in progressive or fragmented file
+4. [mp4ff-subslister](cmd/mp4ff-subslister) lists details of wvtt or stpp (WebVTT or TTML in ISOBMFF) subtitle samples
+5. [mp4ff-crop](cmd/mp4ff-crop) crops a **progressive** mp4 file to a specified duration
+6. [mp4ff-encrypt](cmd/mp4ff-encrypt) encrypts a fragmented file using cenc or cbcs Common Encryption scheme
+7. [mp4ff-decrypt](cmd/mp4ff-decrypt) decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
 
 You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
 
     go install github.com/Eyevinn/mp4ff/cmd/mp4ff-info@latest
+    go install github.com/Eyevinn/mp4ff/cmd/mp4ff-encrypt@latest
+    ...
+
+for each individual tool.
 
 ## Example code
 
-Example code is available in the `examples` directory.
+Example code for some common use cases is available in the [examples](examples) directory.
 The examples and their functions are:
 
-1. `initcreator` creates typical init segments (ftyp + moov) for video and audio
-2. `resegmenter` reads a segmented file (CMAF track) and resegments it with other
-    segment durations using `fullSample`
-3. `segmenter` takes a progressive mp4 file and creates init and media segments from it.
+1. [initcreator](examples/initcreator) creates typical init segments (ftyp + moov) for different video and
+    audio codecs
+2. [resegmenter](examples/resegmenter) reads a segmented file (CMAF track) and resegments it with other
+    segment durations using `FullSample`
+3. [segmenter](examples/segmenter) takes a progressive mp4 file and creates init and media segments from it.
     This tool has been extended to support generation of segments with multiple tracks as well
     as reading and writing `mdat` in lazy mode
-4. `multitrack` parses a fragmented file with multiple tracks
-5. `combine-segs` combines single-track init and media segments into multi-track segments
+4. [multitrack](examples/multitrack) parses a fragmented file with multiple tracks
+5. [combine-segs](examples/combine-segs) combines single-track init and media segments into multi-track segments
+6. [add-sidx](examples/add-sidx) adds a top-level sidx box describing the segments of a fragmented files.
 
-## Library
+## Packages
 
-The library has functions for parsing (called Decode) and writing (Encode) in the package `mp4ff/mp4`.
-It also contains codec specific parsing of AVC/H.264 including complete parsing of
-SPS and PPS in the package `mp4ff.avc`. HEVC/H.265 parsing is less complete, and available as `mp4ff.hevc`.
-Supplementary Enhancement Information can be parsed and written using the package `mp4ff.sei`.
+The top-level packages in the mp4ff module are
 
-Traditional multiplexed non-fragmented mp4 files can be parsed and decoded, but the focus is on fragmented mp4 files
-as used in DASH, HLS, and CMAF.
+1. [mp4](mp4) provides support for for parsing (called Decode) and writing (Encode) a plethor of mp4 boxes.
+   It also contains helper functions for extracting, encrypting, dectrypting samples and a lot more.
+2. [avc](avc) deals with AVC (aka H.264) video in the `mp4ff/avc` package including parsing of SPS and PPS,
+    and finding start-codes in Annex B byte streams.
+3. [hevc](hevc) provides structures and functions for dealing with HEVC video and its packaging
+4. [sei](sei) provides support for handling  Supplementary Enhancement Information (SEI) such as timestamps
+   for AVC and HEVC video.
+5. [av1](av1) provides basic support for AV1 video packaging
+6. [aac](aac) provides support for AAC audio. This includes handling ADTS headers which is common
+   for AAC inside MPEG-2 TS streams.
+7. [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
 
-Beyond single-track fragmented files, support has been added to parse and generate multi-track
-fragmented files as can be seen in `examples/segment` and `examples/multitrack`.
+## Structure and usage
+
+### mp4.File and its composition
 
 The top level structure for both non-fragmented and fragmented mp4 files is `mp4.File`.
 
-In a progressive (non-fragmented) `mp4.File`, the top level attributes Ftyp, Moov, and Mdat points to the corresponding boxes.
+In a progressive (non-fragmented) `mp4.File`, the top-level attributes Ftyp, Moov, and Mdat point to the corresponding boxes.
 
 A fragmented `mp4.File` can be more or less complete, like a single init segment,
-one or more media segments, or a combination of both like a CMAF track which renders
+one or more media segments, or a combination of both, like a CMAF track which renders
 into a playable one-track asset. It can also have multiple tracks.
 For fragmented files, the following high-level attributes are used:
 
 * `Init` contains a `ftyp` and a `moov` box and provides the general metadata for a fragmented file.
    It corresponds to a CMAF header. It can also contain one or more `sidx` boxes.
-* `Segments` is a slice of `MediaSegment` which start with an optional `styp` box, possibly one or more `sidx boxes
-and then one or more`Fragment`s.
+* `Segments` is a slice of `MediaSegment` which start with an optional `styp` box, possibly one or more `sidx`
+   boxes and then one or more`Fragment`s.
 * `Fragment` is a mp4 fragment with exactly one `moof` box followed by a `mdat` box where the latter
    contains the media data. It can have one or more `trun` boxes containing the metadata
-   for the samples.
+   for the samples. The fragment can start with one or more `emsg` boxes.
 
-All child boxes of container box such as `MoovBox` are listed in the `Children` attribute, but the
+It should be noted that it is sometimes hard to decide what should belong to a Segment or Fragment.
+
+All child boxes of container boxes such as `MoovBox` are listed in the `Children` attribute, but the
 most prominent child boxes have direct links with names which makes it possible to write a path such
 as
 
@@ -92,9 +106,10 @@ fragment.Moof.Trafs[1].Trun[1]
 to get the second `trun` of the second `traf` box (provided that they exist). Care must be
 taken to assert that none of the intermediate pointers are nil to avoid `panic`.
 
-## Creating new fragmented files
+### Creating new fragmented files
 
-A typical use case is to a fragment consisting of an init segment followed by a series of media segments.
+A typical use case is to generate a fragmented file consisting of an init segment
+followed by a series of media segments.
 
 The first step is to create the init segment. This is done in three steps as can be seen in
 `examples/initcreator`:
@@ -110,11 +125,13 @@ Multiple tracks are also available via the slice attribute `Traks` instead of `T
 
 The second step is to start producing media segments. They should use the timescale that
 was set when creating the init segment. Generally, that timescale should be chosen so that the
-sample durations have exact values without rounding errors.
+sample durations have exact values without rounding errors, e.g. 48000 for 48kHz audio.
 
 A media segment contains one or more fragments, where each fragment has a `moof` and a `mdat` box.
 If all samples are available before the segment is created, one can use a single
 fragment in each segment. Example code for this can be found in `examples/segmenter`.
+For low-latency MPEG-DASH generation, short-duration fragments are added to the segment as the
+corresponding media samples become available.
 
 A simple, but not optimal, way of creating a media segment is to first create a slice of `FullSample` with the data needed.
 The definition of `mp4.FullSample` is
@@ -154,15 +171,21 @@ This segment can finally be output to a `w io.Writer` as
 err := seg.Encode(w)
 ```
 
+or to a `sw bits.SliceWriter` as
+
+```go
+err := seg.EncodeSW(sw)
+```
+
 For multi-track segments, the code is a bit more involved. Please have a look at `examples/segmenter`
 to see how it is done. A more optimal way of handling media sample is
-to handle them lazily, as explained next.
+to handle them lazily, or using intervals, as explained next.
 
 ### Lazy decoding and writing of mdat data
 
 For video and audio, the dominating part of a mp4 file is the media data which is stored
 in one or more `mdat` boxes. In some cases, for example when segmenting large progressive
-files, it is much more memory efficient to just read the movie or fragment data
+files, it is much more memory efficient to just read the movie or fragment metadata
 from the `moov` or `moof` box and defer the reading of the media data from the `mdat` box
 to later.
 
@@ -172,7 +195,7 @@ For decoding, this is supported by running `mp4.DecodeFile()` in lazy mode as
 parsedMp4, err = mp4.DecodeFile(ifd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
 ```
 
-In this case, the media data of the `mdat` box will not be read, but only its size is being set.
+In this case, the media data of the `mdat` box will not be read, but only its size is being saved.
 To read or copy the actual data corresponding to a sample, one must calculate the
 corresponding byte range and either call
 
@@ -189,7 +212,7 @@ func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nr
 Example code for this, including lazy writing of `mdat`, can be found in `examples/segmenter`
 with the `lazy` mode set.
 
-## More efficient I/O using SliceReader and SliceWriter
+### More efficient I/O using SliceReader and SliceWriter
 
 The use of the interfaces `io.Reader` and `io.Writer` for reading and writing boxes gives a lot of
 flexibility, but is not optimal when it comes to memory allocation. In particular, the
@@ -198,8 +221,8 @@ lot of allocations and copying of data.
 In order to achieve better performance, it is advantageous to read the full top level boxes into
 one, or a few, slices and decode these.
 
-To enable that mode, version 0.27 of the code introduced `DecodeX(sr bits.SliceReader)`
-methods to every box X where `mp4ff.bits.SliceReader` is an interface.
+To enable that mode, version 0.27 of the code introduced `Decode<X>SR(sr bits.SliceReader)`
+methods to every box `<X>` where `mp4ff.bits.SliceReader` is an interface.
 For example, the `TrunBox` gets the method `DecodeTrunSR(sr bits.SliceReader)` in addition to its old
 `DecodeTrun(r io.Reader)` method. The `bits.SliceReader` interface provides methods to read all kinds
 of data structures from an underlying slice of bytes. It has an implementation `bits.FixedSliceReader`
@@ -209,10 +232,10 @@ which would get its data from some external source.
 The memory allocation and speed improvements achieved by this may vary, but should be substantial,
 especially compared to versions before 0.27 which used an extra `io.LimitReader` layer.
 
-Fur further reduction of memory allocation when reading the ´mdat` data of a progressive file, some
-sort of buffered reader should be used.
+Fur further reduction of memory allocation, use a buffered top-level reader, especially when
+when reading the `mdat` box of a progressive file.
 
-### Benchmarks
+#### Benchmarks
 
 To investigate the efficiency of the new SliceReader and SliceWriter methods, benchmarks have been done.
 The benchmarks are defined in
@@ -255,19 +278,28 @@ EncodeFile/prog_8s.mp4-16 | 6.84kB | 8.30kB |    0.05kB |
 |EncodeFile/1.m4s-16       |  15.0 |  15.0 |       3.0 |
 |EncodeFile/prog_8s.mp4-16 |   101 |    86 |         1 |
 
-## Box structure and interface
+## More about mp4 boxes
+
+The `mp4ff.mp4` contains a lot of box implementations.
+
+### Box structure and interface
 
 Most boxes have their own file named after the box, but in some cases, there may be multiple boxes
 that have the same content, and the code file then has a generic name like
 `mp4/visualsampleentry.go`.
 
-The Box interface is specified in `mp4/box.go`. It does not contain decode (parsing) methods which have
-distinct names for each box type and are dispatched,
+There is an interface for boxes: `Box` specificied in `mp4.box.go`,
 
-The mapping for decoding dispatch is given in the table `mp4.decoders` for the
-`io.Reader` methods and in `mp4.decodersSR` for the `mp4ff.bits.SliceReader` methods.
+The interfaces define common Box methods including encode (writing),
+but not the decode (parsing) methods which have distinct names for each box type and are
+dispatched from the parsed box name.
 
-## How to implement a new box
+That dispatch based on box name is defined by the tables `mp4.decodersSR` and `mp4.decoders`
+for the functions `mp4.DecodeBoxSR()` and `mp4.DecodeBox()`, respectively.
+The `SR` variant should normally be used for better performance.
+If a box name is unkonwn, it will result in an `UnknownBox` being created.
+
+### How to implement a new box
 
 To implement a new box `fooo`, the following is needed.
 
@@ -279,16 +311,16 @@ Create a file `fooo.go` and create a struct type `FoooBox`.
 Type()
 Size()
 Encode(w io.Writer)
-EncodeSW(sw bits.SliceWriter)  // new in v0.27.0
+EncodeSW(sw bits.SliceWriter)
 Info()
 ```
 
-It also needs its own decode method `DecodeFooo`, which must be added in the `decoders` map in `box.go`,
-and the new in v0.27.0 `DecodeFoooSR` method in `decodersSR`.
+It also needs its own decode methods `DecodeFoooSR` and  `DecodeFooo`,
+which must be added in the `decodersSR` map and `decoders` map, respectively
 For a simple example, look at the `PrftBox` in `prft.go`.
 
-A test file `fooo_test.go` should also have a test using the method `boxDiffAfterEncodeAndDecode` to check that
-the box information is equal after encoding and decoding.
+A test file `fooo_test.go` should also have a test using the method `boxDiffAfterEncodeAndDecode`
+to check that the box information is equal after encoding and decoding.
 
 ## Direct changes of attributes
 
@@ -300,7 +332,7 @@ create inconsistent states in the boxes.
 As an example, container boxes such as `TrafBox` have a method `AddChild` which
 adds a box to `Children`, its slice of children boxes, but also sets a specific
 member reference such as `Tfdt` to point to that box. If `Children` is manipulated
-directly, that link may not be valid.
+directly, that link may no longer be valid.
 
 ## Encoding modes and optimizations
 
@@ -317,8 +349,7 @@ Note that this may change the size of all ancestor boxes of `trun`.
 
 Following the ISOBMFF standard, sample numbers and other numbers start at 1 (one-based).
 This applies to arguments of functions and methods.
-The actual storage in slices is zero-based, so
-sample nr 1 has index 0 in the corresponding slice.
+The actual storage in slices is zero-based, so sample nr 1 has index 0 in the corresponding slice.
 
 ## Stability
 
@@ -327,7 +358,7 @@ The APIs should be fairly stable, but minor non-backwards-compatible changes may
 ## Specifications
 
 The main specification for the MP4 file format is the ISO Base Media File Format (ISOBMFF) standard
-ISO/IEC 14496-12 6th edition 2020. Some boxes are specified in other standards, as should be commented
+ISO/IEC 14496-12 7th edition 2021. Some boxes are specified in other standards, as should be commented
 in the code.
 
 ## LICENSE

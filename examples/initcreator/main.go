@@ -1,4 +1,3 @@
-// initcreator - create example init segments for video, audio, and subtitles
 package main
 
 import (

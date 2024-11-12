@@ -1,19 +1,3 @@
-// segmenter  - segments a progressive mp4 file into init and media segments
-//
-// The output is either single-track segments, or muxed multi-track segments.
-// With the -lazy mode, mdat is read and written lazily. The lazy write
-// is only for single-track segments, so that it can be compared with multi-track
-// implementation.
-// There should be at most one audio and one video track in the input.
-// The output files will be named as
-// init segments: <output>_a.mp4 and <output>_v.mp4
-// media segments: <output>_a_<n>.m4s and <output>_v_<n>.m4s where n >= 1
-//
-// or
-//
-// init.mp4 and media_<n>.m4s
-//
-// Codecs supported are AVC and HEVC for video and AAC and AC-3 for audio
 package main
 
 import (
@@ -30,13 +14,11 @@ const (
 	appName = "segmenter"
 )
 
-var usg = `Usage of %s:
-
-%s segments a progressive mp4 file into init and media segments.
+var usg = `%s segments a progressive mp4 file into init and media segments.
 
 The output is either single-track segments, or muxed multi-track segments.
 With the -lazy mode, mdat is read and written lazily. The lazy write
-is only for single-track segments, so that it can be compared with multi-track
+is only for single-track segments, to provide a comparison with the multi-track
 implementation.
 There should be at most one audio and one video track in the input.
 The output files will be named as
@@ -46,6 +28,7 @@ or init.mp4 and media_<n>.m4s
 
 Codecs supported are AVC and HEVC for video and AAC and AC-3 for audio.
 
+Usage of %s:
 `
 
 type options struct {
@@ -86,7 +69,6 @@ func run(args []string, outDir string) error {
 
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fs.Usage()
 			return nil
 		}
 		return err

@@ -1,4 +1,4 @@
 /*
-Package av1 -  parsing of av1 AV1CodecConfigurationRecord.
+Package av1 decodes (parses) and encodes (writes) AV1 CodecConfigurationRecord.
 */
 package av1

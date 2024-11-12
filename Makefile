@@ -12,9 +12,9 @@ mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-pslister
 	go build -ldflags "-X github.com/Eyevinn/mp4ff/mp4.commitVersion=$$(git describe --tags HEAD) -X github.com/Eyevinn/mp4ff/mp4.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@/main.go
 
 .PHONY: examples
-examples: initcreator multitrack resegmenter segmenter
+examples: add-sidx combine-segs initcreator multitrack resegmenter segmenter
 
-initcreator multitrack resegmenter segmenter:
+add-sidx combine-segs initcreator multitrack resegmenter segmenter:
 	go build -o examples-out/$@  ./examples/$@
 
 .PHONY: test
@@ -24,6 +24,12 @@ test: prepare
 .PHONY: testsum
 testsum: prepare
 	gotestsum
+
+.PHONY: open-docs
+open-docs:
+	echo "If needed: go install golang.org/x/pkgsite/cmd/pkgsite@latest"
+	pkgsite -http localhost:9999
+	# open http://localhost:9999/pkg/github.com/Eyevinn/mp4ff/
 
 .PHONY: coverage
 coverage:
