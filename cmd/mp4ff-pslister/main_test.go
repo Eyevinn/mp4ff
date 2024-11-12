@@ -21,6 +21,8 @@ func TestCommandLines(t *testing.T) {
 		expectedErr bool
 		goldenOut   string
 	}{
+		{desc: "h264 segment without PS", args: []string{appName, "-v", "-i", "../../mp4/testdata/1.m4s"},
+			expectedErr: true},
 		{desc: "help", args: []string{appName, "-h"}, expectedErr: false},
 		{desc: "version", args: []string{appName, "-version"}, expectedErr: false},
 		{desc: "no args", args: []string{appName}, expectedErr: true},

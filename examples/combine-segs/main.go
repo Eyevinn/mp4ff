@@ -1,5 +1,3 @@
-// combine-segs is a simple example that demonstrates how to combine init and media segments
-// from two different files into a single multitrack init or media segment.
 package main
 
 import (

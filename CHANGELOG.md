@@ -13,13 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PrftBox Info output
 - Removed ReplaceChild method of StsdBox
 - CreateHdlr name for timed metadata
+- extension .m4s is interpreted as MP4 file in mp4ff-pslister
 
 ### Added
 
 - NTP64 struct with methods to convert to time.Time
 - Constants for PrftBox flags
-- Unittest to all commands and examples
-
+- Unittest to all programs in [cmd](cmd) and [examples](examples).
+- Documentation in doc.go files for all packages
 
 ### Fixed
 

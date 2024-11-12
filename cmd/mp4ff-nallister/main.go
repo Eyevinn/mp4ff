@@ -1,4 +1,3 @@
-// mp4ff-nallister - list NAL units and slice types of first AVC or HEVC track of an mp4 (ISOBMFF) or bytestream (Annex B) file.
 package main
 
 import (
@@ -20,15 +19,15 @@ const (
 	appName = "mp4ff-nallister"
 )
 
-var usg = `Usage of %s:
-
-%s lists NAL units and slice types of AVC or HEVC tracks of an mp4 (ISOBMFF) file
+var usg = `%s lists NAL units and slice types of AVC or HEVC tracks of an mp4 (ISOBMFF) file
 or a file containing a byte stream in Annex B format.
 
 Takes first video track in a progressive file and the first track in a fragmented file.
 It can also output information about SEI NAL units.
 
 The parameter-sets can be further analyzed using mp4ff-pslister.
+
+Usage of %s:
 `
 
 type options struct {
@@ -75,7 +74,6 @@ func run(args []string, stdout io.Writer) error {
 
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fs.Usage()
 			return nil
 		}
 		return err

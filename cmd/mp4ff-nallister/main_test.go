@@ -30,6 +30,8 @@ func TestOptions(t *testing.T) {
 			goldenOut: "testdata/golden_h264_mp4.txt", expectedErr: false},
 		{desc: "annexBHEVC", args: []string{appName, "-annexb", "-c", "hevc", "testdata/hevc.265"},
 			goldenOut: "testdata/golden_hevc_265.txt", expectedErr: false},
+		{desc: "annexBHEVC with SEI", args: []string{appName, "-annexb", "-c", "hevc", "-sei", "2", "testdata/hevc.265"},
+			goldenOut: "", expectedErr: false},
 		{desc: "mp4HEVC", args: []string{appName, "testdata/hevc.mp4"},
 			goldenOut: "testdata/golden_hevc_mp4.txt", expectedErr: false},
 		{desc: "h264 frag mp4 raw", args: []string{appName, "-m", "6", "-raw", "4", "../../mp4/testdata/prog_8s_dec_dashinit.mp4"},

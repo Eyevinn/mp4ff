@@ -1,6 +1,3 @@
-// mp4ff-pslister - list parameter sets for AVC(H.264) and HEVC(H.265) video in mp4 files.
-//
-// Print them as hex and with verbose mode provided details in JSON format.
 package main
 
 import (
@@ -22,11 +19,10 @@ const (
 	appName = "mp4ff-pslister"
 )
 
-var usg = `Usage of %s:
-
-%s lists parameter sets for AVC/H.264 or HEVC/H.265 from mp4 sample description, bytestream, or hex input.
+var usg = `%s lists parameter sets for AVC/H.264 or HEVC/H.265 from mp4 sample description, bytestream, or hex input.
 
 It prints them as hex and in verbose mode it also prints details in JSON format.
+Usage of %s:
 `
 
 type options struct {
@@ -48,7 +44,7 @@ func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
 
 	opts := options{}
 
-	fs.StringVar(&opts.inFile, "i", "", "Input file (mp4 or byte stream) (alternative to sps")
+	fs.StringVar(&opts.inFile, "i", "", "Input file (mp4 or byte stream) (alternative to sps and pps in hex format)")
 	fs.StringVar(&opts.codec, "c", "avc", "Codec to parse (avc or hevc)")
 	fs.StringVar(&opts.vpsHex, "vps", "", "VPS in hex format (HEVC only)")
 	fs.StringVar(&opts.spsHex, "sps", "", "SPS in hex format, alternative to infile")
@@ -73,7 +69,6 @@ func run(args []string, stdout io.Writer) error {
 
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fs.Usage()
 			return nil
 		}
 		return err
@@ -108,7 +103,7 @@ func run(args []string, stdout io.Writer) error {
 			return fmt.Errorf("could not open file %s: %w", o.inFile, err)
 		}
 		defer ifd.Close()
-		mp4Extensions := []string{".mp4", ".m4v", ".cmfv"}
+		mp4Extensions := []string{".mp4", ".m4v", ".cmfv", ".m4s"}
 		for _, ext := range mp4Extensions {
 			if strings.HasSuffix(o.inFile, ext) {
 				return parseMp4File(stdout, ifd, o.codec, o.verbose)

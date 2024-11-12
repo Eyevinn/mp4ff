@@ -21,6 +21,7 @@ func TestCommandLines(t *testing.T) {
 		{desc: "unknown args", args: []string{appName, "-x"}, expectedErr: true},
 		{desc: "duration = 0", args: []string{appName, "-d", "0", "dummy.mp4", "dummy.mp4"}, expectedErr: true},
 		{desc: "non-existing infile", args: []string{appName, "-d", "1000", "notExists.mp4", "dummy.mp4"}, expectedErr: true},
+		{desc: "bad infile", args: []string{appName, "-d", "1000", "main.go", "dummy.mp4"}, expectedErr: true},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
