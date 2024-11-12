@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.47.0] - 2024-11-12
+
 ### Changed
 
 - CreatePrftBox now takes flags parameter
@@ -14,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed ReplaceChild method of StsdBox
 - CreateHdlr name for timed metadata
 - extension .m4s is interpreted as MP4 file in mp4ff-pslister
+- moved mp4.GetVersion() to internal.GetVersion()
 
 ### Added
 
@@ -661,7 +666,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/Eyevinn/mp4ff/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/Eyevinn/mp4ff/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/Eyevinn/mp4ff/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/Eyevinn/mp4ff/compare/v0.44.0...v0.45.0
