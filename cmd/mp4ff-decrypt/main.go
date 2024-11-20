@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -24,7 +23,7 @@ Usage of %s:
 
 type options struct {
 	initFilePath string
-	hexKey       string
+	keyStr       string
 	version      bool
 }
 
@@ -37,7 +36,7 @@ func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
 
 	opts := options{}
 	fs.StringVar(&opts.initFilePath, "init", "", "Path to init file with encryption info (scheme, kid, pssh)")
-	fs.StringVar(&opts.hexKey, "k", "", "Required: key (hex)")
+	fs.StringVar(&opts.keyStr, "key", "", "Required: key (32 hex or 24 base64 chars)")
 	fs.BoolVar(&opts.version, "version", false, "Get mp4ff version")
 	err := fs.Parse(args[1:])
 	return &opts, err
@@ -74,8 +73,13 @@ func run(args []string) error {
 	var inFilePath = fs.Arg(0)
 	var outFilePath = fs.Arg(1)
 
-	if opts.hexKey == "" {
-		return fmt.Errorf("no hex key specified")
+	if opts.keyStr == "" {
+		return fmt.Errorf("no key specified")
+	}
+
+	key, err := mp4.UnpackKey(opts.keyStr)
+	if err != nil {
+		return fmt.Errorf("unpacking key: %w", err)
 	}
 
 	ifh, err := os.Open(inFilePath)
@@ -96,22 +100,15 @@ func run(args []string) error {
 		}
 		defer inith.Close()
 	}
-	err = decryptFile(ifh, inith, ofh, opts.hexKey)
+
+	err = decryptFile(ifh, inith, ofh, key)
 	if err != nil {
 		return fmt.Errorf("decryptFile: %w", err)
 	}
 	return nil
 }
 
-func decryptFile(r, initR io.Reader, w io.Writer, hexKey string) error {
-
-	if len(hexKey) != 32 {
-		return fmt.Errorf("hex key must have length 32 chars")
-	}
-	key, err := hex.DecodeString(hexKey)
-	if err != nil {
-		return err
-	}
+func decryptFile(r, initR io.Reader, w io.Writer, key []byte) error {
 	inMp4, err := mp4.DecodeFile(r)
 	if err != nil {
 		return err

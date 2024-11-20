@@ -25,8 +25,8 @@ Usage of %s:
 
 type options struct {
 	initFile string
-	kidHex   string
-	keyHex   string
+	kidStr   string
+	keyStr   string
 	ivHex    string
 	scheme   string
 	psshFile string
@@ -43,8 +43,8 @@ func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
 	opts := options{}
 
 	fs.StringVar(&opts.initFile, "init", "", "Path to init file with encryption info (scheme, kid, pssh)")
-	fs.StringVar(&opts.kidHex, "kid", "", "key id (32 hex chars). Required if initFilePath empty")
-	fs.StringVar(&opts.keyHex, "key", "", "Required: key (32 hex chars)")
+	fs.StringVar(&opts.kidStr, "kid", "", "key id (32 hex or 24 base64 chars). Required if initFilePath empty")
+	fs.StringVar(&opts.keyStr, "key", "", "Required: key (32 hex or 24 base64 chars)")
 	fs.StringVar(&opts.ivHex, "iv", "", "Required: iv (16 or 32 hex chars)")
 	fs.StringVar(&opts.scheme, "scheme", "cenc", "cenc or cbcs. Required if initFilePath empty")
 	fs.StringVar(&opts.psshFile, "pssh", "", "file with one or more pssh box(es) in binary format. Will be added at end of moov box")
@@ -85,7 +85,7 @@ func run(args []string) error {
 	var inFilePath = fs.Arg(0)
 	var outFilePath = fs.Arg(1)
 
-	if opts.keyHex == "" || opts.ivHex == "" {
+	if opts.keyStr == "" || opts.ivHex == "" {
 		fs.Usage()
 		return fmt.Errorf("need both key and iv")
 	}
@@ -127,7 +127,7 @@ func run(args []string) error {
 		}
 	}
 
-	err = encryptFile(ifh, ofh, initSeg, opts.scheme, opts.kidHex, opts.keyHex, opts.ivHex, psshData)
+	err = encryptFile(ifh, ofh, initSeg, opts.scheme, opts.kidStr, opts.keyStr, opts.ivHex, psshData)
 	if err != nil {
 		return fmt.Errorf("encryptFile: %w", err)
 	}
@@ -135,7 +135,7 @@ func run(args []string) error {
 }
 
 func encryptFile(ifh io.Reader, ofh io.Writer, initSeg *mp4.InitSegment,
-	scheme, kidHex, keyHex, ivHex string, psshData []byte) error {
+	scheme, kidStr, keyStr, ivHex string, psshData []byte) error {
 
 	if len(ivHex) != 32 && len(ivHex) != 16 {
 		return fmt.Errorf("hex iv must have length 16 or 32 chars; %d", len(ivHex))
@@ -145,23 +145,22 @@ func encryptFile(ifh io.Reader, ofh io.Writer, initSeg *mp4.InitSegment,
 		return fmt.Errorf("invalid iv %s", ivHex)
 	}
 
-	if len(keyHex) != 32 {
-		return fmt.Errorf("hex key must have length 32 chars: %d", len(keyHex))
+	if len(keyStr) != 32 {
+		return fmt.Errorf("hex key must have length 32 chars: %d", len(keyStr))
 	}
-	key, err := hex.DecodeString(keyHex)
+	key, err := mp4.UnpackKey(keyStr)
 	if err != nil {
-		return fmt.Errorf("invalid key %s", keyHex)
+		return fmt.Errorf("invalid key %s, %w", keyStr, err)
 	}
 
 	var kidUUID mp4.UUID
 	if initSeg == nil {
-		if len(kidHex) != 32 {
-			return fmt.Errorf("hex key id must have length 32 chars: %d", len(kidHex))
-		}
-		kidUUID, err = mp4.NewUUIDFromHex(kidHex)
+		kid, err := mp4.UnpackKey(kidStr)
 		if err != nil {
-			return fmt.Errorf("invalid kid %s", kidHex)
+			return fmt.Errorf("invalid key ID %s: %w", kidStr, err)
 		}
+		kidHex := hex.EncodeToString(kid)
+		kidUUID, _ = mp4.NewUUIDFromString(kidHex)
 		if scheme != "cenc" && scheme != "cbcs" {
 			return fmt.Errorf("scheme must be cenc or cbcs: %s", scheme)
 		}

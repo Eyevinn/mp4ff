@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+### Changed
+
+- mp4.NewUUIDFromHex() changed to more general mp4.NewUUIDFromString()
+- cmd/mp4ff-decrypt -key option instead of -k. Takes hex or base64 value
+- cmd/mp4ff-encrypt -key and -kid options now take hex or bae64 values
+
+### Added
+
+- mp4.SetUUID() can take base64 string as well as hex-encoded.
 
 ## [0.47.0] - 2024-11-12
 

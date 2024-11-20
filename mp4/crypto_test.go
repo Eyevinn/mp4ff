@@ -105,7 +105,7 @@ func TestEncryptDecrypt(t *testing.T) {
 	ivHex16 := "ffeeddccbbaa99887766554433221100"
 	kidHex := "11112222333344445555666677778888"
 	key, _ := hex.DecodeString(keyHex)
-	kidUUID, _ := NewUUIDFromHex(kidHex)
+	kidUUID, _ := NewUUIDFromString(kidHex)
 	psshFile := "testdata/pssh.bin"
 	psh, err := os.Open(psshFile)
 	if err != nil {

@@ -60,7 +60,7 @@ func TestUUIDVariants(t *testing.T) {
 func TestSetUUID(t *testing.T) {
 	testCases := []struct {
 		uuidStr    string
-		expected   uuid
+		expected   UUID
 		shouldFail bool
 	}{
 		{
@@ -108,4 +108,76 @@ func TestUUIDEncodeDecoder(t *testing.T) {
 		},
 	}
 	boxDiffAfterEncodeAndDecode(t, tfxd)
+}
+
+func TestUnpackKey(t *testing.T) {
+	cases := []struct {
+		desc        string
+		keyStr      string
+		expected    []byte
+		expectedErr string
+	}{
+		{
+			desc:   "valid hex key",
+			keyStr: "00112233445566778899aabbccddeeff",
+			expected: []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+				0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff},
+			expectedErr: "",
+		},
+		{
+			desc:        "invalid hex key",
+			keyStr:      "0011223x445566778899aabbccddeeff",
+			expectedErr: "bad hex 001122...ddeeff: encoding/hex: invalid byte: U+0078 'x'",
+		},
+		{
+			desc:        "wrong length key",
+			keyStr:      "00112233445566778899aab",
+			expectedErr: "cannot decode key 00112233445566778899aab",
+		},
+		{
+			desc:   "good uuid",
+			keyStr: "00112233-4455-6677-8899-aabbccddeeff",
+			expected: []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+				0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff},
+			expectedErr: "",
+		},
+		{
+			desc:        "bad uuid, misplaced dashes",
+			keyStr:      "00----112233445566778899aabbccddeeff",
+			expectedErr: "bad uuid format: 00----...ddeeff",
+		},
+		{
+			desc:        "bad uuid too many dashes",
+			keyStr:      "00112233-4-55-6677-8899-aabbccddeeff",
+			expectedErr: "bad uuid format: 001122...ddeeff",
+		},
+		{
+			desc:        "bad hex in uuid",
+			keyStr:      "0011223x-4455-6677-8899-aabbccddeeff",
+			expectedErr: "bad uuid 001122...ddeeff: encoding/hex: invalid byte: U+0078 'x'",
+		},
+		{
+			desc:        "valid base64 key",
+			keyStr:      "ABEiM0RVZneImaq7zN3u/w=-",
+			expectedErr: "bad base64 ABEiM0...3u/w=-: illegal base64 data at input byte 22",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			key, err := UnpackKey(c.keyStr)
+			if c.expectedErr != "" {
+				if err == nil {
+					t.Error("expected error but got nil")
+				}
+				if err.Error() != c.expectedErr {
+					t.Errorf("error %q not matching expected error %q", err, c.expectedErr)
+				}
+				return
+			}
+			if !bytes.Equal(key, c.expected) {
+				t.Errorf("got %x instead of %x", key, c.expected)
+			}
+		})
+	}
+
 }
