@@ -33,12 +33,12 @@ func TestPsshFromBase64(t *testing.T) {
 
 func TestEncodeDecodePSSH(t *testing.T) {
 	hPR := strings.ReplaceAll(UUIDPlayReady, "-", "")
-	pr, err := NewUUIDFromHex(hPR)
+	pr, err := NewUUIDFromString(hPR)
 	if err != nil {
 		t.Fatal(err)
 	}
 	kid := "00112233445566778899aabbccddeeff"
-	ku, err := NewUUIDFromHex(kid)
+	ku, err := NewUUIDFromString(kid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestPsshUUIDs(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		u, err := NewUUIDFromHex(c.hexUUIDs)
+		u, err := NewUUIDFromString(c.hexUUIDs)
 		if err != nil {
 			t.Fatal(err)
 		}

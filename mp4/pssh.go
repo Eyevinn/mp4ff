@@ -19,32 +19,6 @@ const (
 	UUID_W3C_COMMON = "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
 )
 
-// UUID - 16-byte KeyID or SystemID
-type UUID []byte
-
-func (u UUID) String() string {
-	h := hex.EncodeToString(u)
-	if len(u) != 16 {
-		return h
-	}
-	return fmt.Sprintf("%s-%s-%s-%s-%s", h[0:8], h[8:12], h[12:16], h[16:20], h[20:32])
-}
-
-// NewUUIDFromHex creates a UUID from a hexadecimal string with 32 chars or 36 chars (with dashes)
-func NewUUIDFromHex(h string) (UUID, error) {
-	if len(h) == 36 {
-		h = strings.ReplaceAll(h, "-", "")
-	}
-	if len(h) != 32 {
-		return nil, fmt.Errorf("hex has %d chars, not 32", len(h))
-	}
-	s, err := hex.DecodeString(h)
-	if err != nil {
-		return nil, err
-	}
-	return UUID(s), nil
-}
-
 // ProtectionSystemName returns name of protection system if known.
 func ProtectionSystemName(systemID UUID) string {
 	uStr := systemID.String()

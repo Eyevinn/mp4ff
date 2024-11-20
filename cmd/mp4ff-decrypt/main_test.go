@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestNonRunningOptionCases(t *testing.T) {
@@ -24,12 +26,12 @@ func TestNonRunningOptionCases(t *testing.T) {
 		{desc: "unknown args", args: []string{"mp4ff-decrypt", "-x"}, err: true},
 		{desc: "no outfile", args: []string{"mp4ff-decrypt", "infile.mp4"}, err: true},
 		{desc: "no key", args: []string{"mp4ff-decrypt", "infile.mp4", outFile}, err: true},
-		{desc: "non-existing infile", args: []string{"mp4ff-decrypt", "-k", key, "infile.mp4", outFile}, err: true},
-		{desc: "non-existing initfile", args: []string{"mp4ff-decrypt", "-init", "init.mp4", "-k", key, infile, outFile}, err: true},
-		{desc: "bad infile", args: []string{"mp4ff-decrypt", "-k", key, "main.go", outFile}, err: true},
-		{desc: "short key", args: []string{"mp4ff-decrypt", "-k", "ab", infile, outFile}, err: true},
-		{desc: "bad key", args: []string{"mp4ff-decrypt", "-k", badKey, infile, outFile}, err: true},
-		{desc: "non-encrypted file", args: []string{"mp4ff-decrypt", "-k", key, nonEncryptedFile, outFile}, err: false},
+		{desc: "non-existing infile", args: []string{"mp4ff-decrypt", "-key", key, "infile.mp4", outFile}, err: true},
+		{desc: "non-existing initfile", args: []string{"mp4ff-decrypt", "-init", "init.mp4", "-key", key, infile, outFile}, err: true},
+		{desc: "bad infile", args: []string{"mp4ff-decrypt", "-key", key, "main.go", outFile}, err: true},
+		{desc: "short key", args: []string{"mp4ff-decrypt", "-key", "ab", infile, outFile}, err: true},
+		{desc: "bad key", args: []string{"mp4ff-decrypt", "-key", badKey, infile, outFile}, err: true},
+		{desc: "non-encrypted file", args: []string{"mp4ff-decrypt", "-key", key, nonEncryptedFile, outFile}, err: false},
 		{desc: "version", args: []string{"mp4ff-decrypt", "-version"}, err: false},
 		{desc: "help", args: []string{"mp4ff-decrypt", "-h"}, err: false},
 	}
@@ -52,38 +54,44 @@ func TestDecodeFiles(t *testing.T) {
 		initFile        string
 		inFile          string
 		expectedOutFile string
-		hexKey          string
+		keyHexOrBase64  string
 	}{
 		{
 			desc:            "cenc",
 			inFile:          "../../mp4/testdata/prog_8s_enc_dashinit.mp4",
 			expectedOutFile: "../../mp4/testdata/prog_8s_dec_dashinit.mp4",
-			hexKey:          "63cb5f7184dd4b689a5c5ff11ee6a328",
+			keyHexOrBase64:  "63cb5f7184dd4b689a5c5ff11ee6a328",
+		},
+		{
+			desc:            "cenc with base64 key",
+			inFile:          "../../mp4/testdata/prog_8s_enc_dashinit.mp4",
+			expectedOutFile: "../../mp4/testdata/prog_8s_dec_dashinit.mp4",
+			keyHexOrBase64:  "Y8tfcYTdS2iaXF/xHuajKA==",
 		},
 		{
 			desc:            "cbcs",
 			inFile:          "../../mp4/testdata/cbcs.mp4",
 			expectedOutFile: "../../mp4/testdata/cbcsdec.mp4",
-			hexKey:          "22bdb0063805260307ee5045c0f3835a",
+			keyHexOrBase64:  "22bdb0063805260307ee5045c0f3835a",
 		},
 		{
 			desc:            "cbcs audio",
 			inFile:          "../../mp4/testdata/cbcs_audio.mp4",
 			expectedOutFile: "../../mp4/testdata/cbcs_audiodec.mp4",
-			hexKey:          "5ffd93861fa776e96cccd934898fc1c8",
+			keyHexOrBase64:  "5ffd93861fa776e96cccd934898fc1c8",
 		},
 		{
 			desc:            "PIFF audio",
 			initFile:        "testdata/PIFF/audio/init.mp4",
 			inFile:          "testdata/PIFF/audio/segment-1.0001.m4s",
 			expectedOutFile: "testdata/PIFF/audio/segment-1.0001_dec.m4s",
-			hexKey:          "602a9289bfb9b1995b75ac63f123fc86",
+			keyHexOrBase64:  "602a9289bfb9b1995b75ac63f123fc86",
 		},
 		{
 			desc:            "PIFF video",
 			inFile:          "testdata/PIFF/video/complseg-1.0001.mp4",
 			expectedOutFile: "testdata/PIFF/video/complseg-1.0001_dec.mp4",
-			hexKey:          "602a9289bfb9b1995b75ac63f123fc86",
+			keyHexOrBase64:  "602a9289bfb9b1995b75ac63f123fc86",
 		},
 	}
 	tmpDir := t.TempDir()
@@ -94,7 +102,7 @@ func TestDecodeFiles(t *testing.T) {
 			if c.initFile != "" {
 				args = append(args, "-init", c.initFile)
 			}
-			args = append(args, "-k", c.hexKey, c.inFile, outFile)
+			args = append(args, "-key", c.keyHexOrBase64, c.inFile, outFile)
 			err := run(args)
 			if err != nil {
 				t.Error(err)
@@ -127,7 +135,11 @@ func BenchmarkDecodeCenc(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		inBuf := bytes.NewBuffer(raw)
 		outBuf.Reset()
-		err = decryptFile(inBuf, nil, outBuf, hexKey)
+		key, err := mp4.UnpackKey(hexKey)
+		if err != nil {
+			b.Error(err)
+		}
+		err = decryptFile(inBuf, nil, outBuf, key)
 		if err != nil {
 			b.Error(err)
 		}

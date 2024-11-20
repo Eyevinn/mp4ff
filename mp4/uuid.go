@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -9,6 +10,27 @@ import (
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
+
+// UUID - 16-byte KeyID or SystemID
+type UUID []byte
+
+func (u UUID) String() string {
+	if len(u) != 16 {
+		return fmt.Sprintf("bad uuid %q", hex.EncodeToString(u))
+	}
+	h := hex.EncodeToString(u[:])
+	return fmt.Sprintf("%s-%s-%s-%s-%s", h[0:8], h[8:12], h[12:16], h[16:20], h[20:32])
+}
+
+// Equal compares with other UUID
+func (u UUID) Equal(a UUID) bool {
+	return bytes.Equal(u[:], a[:])
+}
+
+// NewUUIDFromString creates a UUID from a hexadecimal, uuid-string or base64 string
+func NewUUIDFromString(h string) (UUID, error) {
+	return createUUID(h)
+}
 
 const (
 	// The following UUIDs belong to Microsoft Smooth Streaming Protocol (MSS)
@@ -29,34 +51,17 @@ const (
 	UUIDPiffSenc = "a2394f52-5a9b-4f14-a244-6c427c648df4"
 )
 
-// uuid - compact representation of UUID
-type uuid [16]byte
-
-// String - UUID-formatted string
-func (u uuid) String() string {
-	hexStr := hex.EncodeToString(u[:])
-	return fmt.Sprintf("%s-%s-%s-%s-%s", hexStr[:8], hexStr[8:12], hexStr[12:16], hexStr[16:20], hexStr[20:])
-}
-
-// Equal - compare with other uuid
-func (u uuid) Equal(a uuid) bool {
-	return bytes.Equal(u[:], a[:])
-}
-
-// createUUID - create uuid from string
-func createUUID(u string) (uuid, error) {
-	var a uuid
-	stripped := strings.ReplaceAll(u, "-", "")
-	b, err := hex.DecodeString(stripped)
-	if err != nil || len(b) != 16 {
-		return a, fmt.Errorf("bad uuid string: %s", u)
+// createUUID - create uuid from hex, uuid-formatted hex, or base64 string
+func createUUID(u string) (UUID, error) {
+	b, err := UnpackKey(u)
+	if err != nil {
+		return nil, err
 	}
-	_ = copy(a[:], b)
-	return a, nil
+	return UUID(b), nil
 }
 
 // mustCreateUUID - create uuid from string. Panic for bad string
-func mustCreateUUID(u string) uuid {
+func mustCreateUUID(u string) UUID {
 	b, err := createUUID(u)
 	if err != nil {
 		panic(err.Error())
@@ -65,15 +70,15 @@ func mustCreateUUID(u string) uuid {
 }
 
 var (
-	uuidTfxd     uuid = mustCreateUUID(UUIDTfxd)
-	uuidTfrf     uuid = mustCreateUUID(UUIDTfrf)
-	uuidPiffSenc uuid = mustCreateUUID(UUIDPiffSenc)
+	uuidTfxd     UUID = mustCreateUUID(UUIDTfxd)
+	uuidTfrf     UUID = mustCreateUUID(UUIDTfrf)
+	uuidPiffSenc UUID = mustCreateUUID(UUIDPiffSenc)
 )
 
 // UUIDBox - Used as container for MSS boxes tfxd and tfrf
 // For unknown UUID, the data after the UUID is stored as UnknownPayload
 type UUIDBox struct {
-	uuid           uuid
+	uuid           UUID
 	Tfxd           *TfxdData
 	Tfrf           *TfrfData
 	Senc           *SencBox
@@ -86,7 +91,8 @@ func (u *UUIDBox) UUID() string {
 	return u.uuid.String()
 }
 
-// UUID - Set UUID from string
+// UUID - Set UUID from string corresponding to 16 bytes.
+// The input should be a UUID-formatted hex string, plain hex or baset64 encoded.
 func (u *UUIDBox) SetUUID(uuid string) (err error) {
 	u.uuid, err = createUUID(uuid)
 	return err
@@ -123,8 +129,10 @@ func DecodeUUIDBox(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeUUIDBoxSR - decode a UUID box including tfxd or tfrf
 func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	b := &UUIDBox{StartPos: startPos}
-	copy(b.uuid[:], sr.ReadBytes(16))
+	b := &UUIDBox{
+		StartPos: startPos,
+		uuid:     sr.ReadBytes(16),
+	}
 	switch b.UUID() {
 	case UUIDTfxd:
 		tfxd, err := decodeTfxd(sr)
@@ -329,4 +337,39 @@ func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		}
 	}
 	return bd.err
+}
+
+// UnpackKey unpacks a hex or base64 encoded 16-byte key.
+// The key can be in uuid formats with hyphens at positions 8, 13, 18, 23.
+func UnpackKey(inKey string) (key []byte, err error) {
+	shorten := func(s string) string {
+		return fmt.Sprintf("%s...%s", s[:6], s[len(s)-6:])
+	}
+	switch len(inKey) {
+	case 36:
+		if inKey[8] != '-' || inKey[13] != '-' || inKey[18] != '-' || inKey[23] != '-' {
+			return nil, fmt.Errorf("bad uuid format: %s", shorten(inKey))
+		}
+		inKey = strings.ReplaceAll(inKey, "-", "")
+		if len(inKey) != 32 {
+			return nil, fmt.Errorf("bad uuid format: %s", shorten(inKey))
+		}
+		key, err = hex.DecodeString(inKey)
+		if err != nil {
+			return nil, fmt.Errorf("bad uuid %s: %w", shorten(inKey), err)
+		}
+	case 32:
+		key, err = hex.DecodeString(inKey)
+		if err != nil {
+			return nil, fmt.Errorf("bad hex %s: %w", shorten(inKey), err)
+		}
+	case 24:
+		key, err = base64.StdEncoding.DecodeString(inKey)
+		if err != nil {
+			return nil, fmt.Errorf("bad base64 %s: %w", shorten(inKey), err)
+		}
+	default:
+		return nil, fmt.Errorf("cannot decode key %s", inKey)
+	}
+	return key, nil
 }
