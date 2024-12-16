@@ -13,6 +13,7 @@ const (
 	esdsMp4Box   = `0000002a6573647300000000031c0000000414401500000000010d88000003f80505128856e500060102`
 	esdsEncAudio = `0000003365736473000000000380808022000000048080801440150018000003eb100002710005808080021190068080800102`
 	esdsLongEnd  = `0000002f65736473000000000321000000041140150002440001ea940001ea94050212100680808080808080800102`
+	esdsShort    = `0000002365736473000000000315000000040d6b150001e00002850000027100060102`
 )
 
 func TestEsdsEncodeAndDecode(t *testing.T) {
@@ -42,7 +43,7 @@ func TestEsdsEncodeAndDecode(t *testing.T) {
 	boxDiffAfterEncodeAndDecode(t, esdsIn)
 }
 func TestDecodeEncodeEsds(t *testing.T) {
-	inputs := []string{esdsProgIn, esdsMp4Box, esdsEncAudio, esdsLongEnd}
+	inputs := []string{esdsShort, esdsProgIn, esdsMp4Box, esdsEncAudio, esdsLongEnd}
 	for i, inp := range inputs {
 		data, err := hex.DecodeString(inp)
 		if err != nil {

@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - mp4.SetUUID() can take base64 string as well as hex-encoded.
 
+### Fixed
+
+- support short ESDS without SLConfig descriptor (issue #393)
+
 ## [0.47.0] - 2024-11-12
 
 ### Changed

@@ -42,9 +42,6 @@ func DecodeEsdsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	if hdr.Size < 12+minimalEsDescrSize {
-		return nil, fmt.Errorf("too few bytes in esds box")
-	}
 	descSize := uint32(hdr.Size - 12)
 	var err error
 	e.ESDescriptor, err = DecodeESDescriptor(sr, descSize)
