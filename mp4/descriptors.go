@@ -20,8 +20,6 @@ const (
 	DecoderConfigDescrTag = 4
 	DecSpecificInfoTag    = 5
 	SLConfigDescrTag      = 6
-
-	minimalEsDescrSize = 25
 )
 
 func TagType(tag byte) string {
