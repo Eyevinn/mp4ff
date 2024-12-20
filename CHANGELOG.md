@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - mp4.SetUUID() can take base64 string as well as hex-encoded.
+- Support for weird dac3 box with initial 4 zero bytes (Issue #395)
 
 ### Fixed
 

@@ -8,8 +8,14 @@ import (
 )
 
 func TestEncodeDedodeAC3(t *testing.T) {
-	dac3 := &Dac3Box{FSCod: 1, BSID: 2, ACMod: 3, LFEOn: 1, BitRateCode: 7}
-	boxDiffAfterEncodeAndDecode(t, dac3)
+	t.Run("normal-dac3", func(t *testing.T) {
+		dac3 := &Dac3Box{FSCod: 1, BSID: 2, ACMod: 3, LFEOn: 1, BitRateCode: 7}
+		boxDiffAfterEncodeAndDecode(t, dac3)
+	})
+	t.Run("weird-dac3", func(t *testing.T) {
+		dac3 := &Dac3Box{FSCod: 1, BSID: 2, ACMod: 3, LFEOn: 1, BitRateCode: 7, InitialZeroes: 4}
+		boxDiffAfterEncodeAndDecode(t, dac3)
+	})
 }
 
 func TestGetChannelInfo(t *testing.T) {
