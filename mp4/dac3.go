@@ -50,13 +50,16 @@ var AC3BitrateCodesKbps = []uint16{
 }
 
 // Dac3Box - AC3SpecificBox from ETSI TS 102 366 V1.4.1 F.4 (2017)
+// Extra b
 type Dac3Box struct {
-	FSCod       byte
-	BSID        byte
-	BSMod       byte
-	ACMod       byte
-	LFEOn       byte
-	BitRateCode byte
+	FSCod         byte
+	BSID          byte
+	BSMod         byte
+	ACMod         byte
+	LFEOn         byte
+	BitRateCode   byte
+	Reserved      byte
+	InitialZeroes byte // Should be zero
 }
 
 // DecodeDac3 - box-specific decode
@@ -78,12 +81,17 @@ func DecodeDac3SR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 }
 
 func decodeDac3FromData(data []byte) (Box, error) {
-	if len(data) != 3 {
-		return nil, fmt.Errorf("not 3 bytes payload in dac3 box")
+	b := Dac3Box{}
+	if len(data) > 3 {
+		b.InitialZeroes = byte(len(data) - 3)
 	}
 	buf := bytes.NewBuffer(data)
 	br := bits.NewReader(buf)
-	b := Dac3Box{}
+	for i := 0; i < int(b.InitialZeroes); i++ {
+		if zero := br.Read(8); zero != 0 {
+			return nil, fmt.Errorf("dac3 box, extra initial bytes are not zero")
+		}
+	}
 	b.FSCod = byte(br.Read(2))
 	b.BSID = byte(br.Read(5))
 	b.BSMod = byte(br.Read(3))
@@ -91,7 +99,7 @@ func decodeDac3FromData(data []byte) (Box, error) {
 	b.LFEOn = byte(br.Read(1))
 	b.BitRateCode = byte(br.Read(5))
 	// 5 bits reserved follows
-	_ = br.Read(5)
+	b.Reserved = byte(br.Read(5))
 	return &b, nil
 }
 
@@ -102,7 +110,7 @@ func (b *Dac3Box) Type() string {
 
 // Size - calculated size of box
 func (b *Dac3Box) Size() uint64 {
-	return uint64(boxHeaderSize + 3)
+	return uint64(boxHeaderSize + 3 + uint(b.InitialZeroes))
 }
 
 // Encode - write box to w
@@ -122,13 +130,16 @@ func (b *Dac3Box) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
+	for i := 0; i < int(b.InitialZeroes); i++ {
+		sw.WriteBits(0, 8)
+	}
 	sw.WriteBits(uint(b.FSCod), 2)
 	sw.WriteBits(uint(b.BSID), 5)
 	sw.WriteBits(uint(b.BSMod), 3)
 	sw.WriteBits(uint(b.ACMod), 3)
 	sw.WriteBits(uint(b.LFEOn), 1)
 	sw.WriteBits(uint(b.BitRateCode), 5)
-	sw.WriteBits(0, 5) // 5-bits padding
+	sw.WriteBits(uint(b.Reserved), 5) // 5-bits reserved
 	return sw.AccError()
 }
 
@@ -154,6 +165,12 @@ func (b *Dac3Box) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - bitRateCode=%d => bitrate=%dkbps", b.BitRateCode, AC3BitrateCodesKbps[b.BitRateCode])
 	nrChannels, chanmap := b.ChannelInfo()
 	bd.write(" - nrChannels=%d, chanmap=%04x", nrChannels, chanmap)
+	if b.Reserved != 0 {
+		bd.write(" - reserved=%d", b.Reserved)
+	}
+	if b.InitialZeroes > 0 {
+		bd.write(" - weird initial zero bytes=%d", b.InitialZeroes)
+	}
 	return bd.err
 }
 
