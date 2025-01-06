@@ -33,12 +33,17 @@ func DecodeStco(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 func DecodeStcoSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	entryCount := sr.ReadUint32()
+
 	b := &StcoBox{
-		Version:     byte(versionAndFlags >> 24),
-		Flags:       versionAndFlags & flagsMask,
-		ChunkOffset: make([]uint32, entryCount),
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
 	}
 
+	if hdr.Size != b.expectedSize(entryCount) {
+		return nil, fmt.Errorf("stco: expected size %d, got %d", b.expectedSize(entryCount), hdr.Size)
+	}
+
+	b.ChunkOffset = make([]uint32, entryCount)
 	for i := 0; i < int(entryCount); i++ {
 		b.ChunkOffset[i] = sr.ReadUint32()
 	}
@@ -52,7 +57,12 @@ func (b *StcoBox) Type() string {
 
 // Size - box-specific size
 func (b *StcoBox) Size() uint64 {
-	return uint64(boxHeaderSize + 8 + len(b.ChunkOffset)*4)
+	return b.expectedSize(uint32(len(b.ChunkOffset)))
+}
+
+// expectedSize - calculate size for a given entry count
+func (b *StcoBox) expectedSize(entryCount uint32) uint64 {
+	return uint64(boxHeaderSize + 8 + uint64(entryCount)*4) // 8 = version + flags(4) + entryCount(4), 4 bytes per offset
 }
 
 // Encode - write box to w

@@ -24,7 +24,7 @@ func DecodeUnknown(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return DecodeUnknownSR(hdr, startPos, sr)
 }
 
-// DecodeUnknown - decode an unknown box
+// DecodeUnknownSR - decode an unknown box
 func DecodeUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &UnknownBox{hdr.Name, hdr.Size, sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }

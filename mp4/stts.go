@@ -35,10 +35,16 @@ func DecodeStts(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 func DecodeSttsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	entryCount := sr.ReadUint32()
+
 	b := SttsBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
+
+	if hdr.Size != b.expectedSize(entryCount) {
+		return nil, fmt.Errorf("stts: expected size %d, got %d", b.expectedSize(entryCount), hdr.Size)
+	}
+
 	b.SampleCount = make([]uint32, entryCount)
 	b.SampleTimeDelta = make([]uint32, entryCount)
 	for i := 0; i < int(entryCount); i++ {
@@ -55,7 +61,14 @@ func (b *SttsBox) Type() string {
 
 // Size - return calculated size
 func (b *SttsBox) Size() uint64 {
-	return uint64(boxHeaderSize + 8 + len(b.SampleCount)*8)
+	return b.expectedSize(uint32(len(b.SampleCount)))
+}
+
+// expectedSize - calculate size for a given entry count
+func (b *SttsBox) expectedSize(entryCount uint32) uint64 {
+	// 8 = version + flags(4) + entryCount(4)
+	// 8 = sampleCount(4) + sampleTimeDelta(4)
+	return uint64(boxHeaderSize + 8 + uint64(entryCount)*8)
 }
 
 // GetTimeCode - return the timecode (duration since the beginning of the media)

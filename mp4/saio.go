@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -50,13 +51,24 @@ func DecodeSaioSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.AuxInfoTypeParameter = sr.ReadUint32()
 	}
 	entryCount := sr.ReadUint32()
+
+	if hdr.Size != b.expectedSize(entryCount) {
+		return nil, fmt.Errorf("saio: expected size %d, got %d", b.expectedSize(entryCount), hdr.Size)
+	}
+
 	if version == 0 {
 		for i := uint32(0); i < entryCount; i++ {
 			b.Offset = append(b.Offset, int64(sr.ReadInt32()))
+			if sr.AccError() != nil {
+				return nil, sr.AccError()
+			}
 		}
 	} else {
 		for i := uint32(0); i < entryCount; i++ {
 			b.Offset = append(b.Offset, sr.ReadInt64())
+			if sr.AccError() != nil {
+				return nil, sr.AccError()
+			}
 		}
 	}
 	return &b, sr.AccError()
@@ -69,14 +81,19 @@ func (b *SaioBox) Type() string {
 
 // Size - return calculated size
 func (b *SaioBox) Size() uint64 {
-	size := uint64(boxHeaderSize) + 8
+	return b.expectedSize(uint32(len(b.Offset)))
+}
+
+// expectedSize - calculate size for a given entry count
+func (b *SaioBox) expectedSize(entryCount uint32) uint64 {
+	size := uint64(boxHeaderSize + 8) // 8 = version + flags + entryCount
 	if b.Flags&0x01 != 0 {
-		size += 8
+		size += 8 // 4 for AuxInfoType + 4 for AuxInfoTypeParameter
 	}
 	if b.Version == 0 {
-		size += 4 * uint64(len(b.Offset))
+		size += 4 * uint64(entryCount) // 4 bytes per offset for version 0
 	} else {
-		size += 8 * uint64(len(b.Offset))
+		size += 8 * uint64(entryCount) // 8 bytes per offset for version 1
 	}
 	return size
 }

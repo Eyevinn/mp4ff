@@ -22,10 +22,12 @@ type MoofBox struct {
 
 // DecodeMoof - box-specific decode
 func DecodeMoof(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data := make([]byte, hdr.payloadLen())
-	_, err := io.ReadFull(r, data)
+	data, err := io.ReadAll(io.LimitReader(r, int64(hdr.payloadLen())))
 	if err != nil {
 		return nil, err
+	}
+	if len(data) != int(hdr.payloadLen()) {
+		return nil, fmt.Errorf("moof: expected %d bytes, got %d", hdr.payloadLen(), len(data))
 	}
 	sr := bits.NewFixedSliceReader(data)
 	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)

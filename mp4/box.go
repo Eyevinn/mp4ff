@@ -198,6 +198,9 @@ func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	} else if size == 0 {
 		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
+	if uint64(headerLen) > size {
+		return BoxHeader{}, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)
+	}
 	return BoxHeader{string(buf[4:8]), size, headerLen}, nil
 }
 
@@ -380,14 +383,17 @@ func makebuf(b Box) []byte {
 
 // readBoxBody reads complete box body. Returns error if not possible
 func readBoxBody(r io.Reader, h BoxHeader) ([]byte, error) {
-	bodyLen := h.Size - uint64(h.Hdrlen)
-	if bodyLen == 0 {
+	hdrLen := uint64(h.Hdrlen)
+	if hdrLen == h.Size {
 		return nil, nil
 	}
-	body := make([]byte, bodyLen)
-	_, err := io.ReadFull(r, body)
+	bodyLen := h.Size - hdrLen
+	body, err := io.ReadAll(io.LimitReader(r, int64(bodyLen)))
 	if err != nil {
 		return nil, err
+	}
+	if len(body) != int(bodyLen) {
+		return nil, fmt.Errorf("read box body length %d does not match expected length %d", len(body), bodyLen)
 	}
 	return body, nil
 }

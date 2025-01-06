@@ -147,6 +147,9 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 		}
 		b.Tfrf = tfrf
 	case UUIDPiffSenc:
+		if hdr.Size < 16 {
+			return nil, fmt.Errorf("uuid box size too small: %d < 16", hdr.Size)
+		}
 		// This is like a SencBox except that there is no size and type. Offset and sizes must be slightly adjusted.
 		subHdr := BoxHeader{"senc", hdr.Size - 16, 8}
 		box, err := DecodeSencSR(subHdr, b.StartPos+16, sr)
@@ -155,6 +158,9 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 		}
 		b.Senc = box.(*SencBox)
 	default:
+		if hdr.Size < 8+16 {
+			return nil, fmt.Errorf("uuid box size too small: %d < 24", hdr.Size)
+		}
 		b.UnknownPayload = sr.ReadBytes(int(hdr.Size) - 8 - 16)
 	}
 

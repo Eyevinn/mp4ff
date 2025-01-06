@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -61,10 +62,12 @@ func (m *MoovBox) AddChild(child Box) {
 
 // DecodeMoov - box-specific decode
 func DecodeMoov(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data := make([]byte, hdr.payloadLen())
-	_, err := io.ReadFull(r, data)
+	data, err := io.ReadAll(io.LimitReader(r, int64(hdr.payloadLen())))
 	if err != nil {
 		return nil, err
+	}
+	if len(data) != int(hdr.payloadLen()) {
+		return nil, fmt.Errorf("moov: expected %d bytes, got %d", hdr.payloadLen(), len(data))
 	}
 	sr := bits.NewFixedSliceReader(data)
 	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)

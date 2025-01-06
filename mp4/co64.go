@@ -32,14 +32,23 @@ func DecodeCo64(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 func DecodeCo64SR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	nrEntries := sr.ReadUint32()
+
 	b := &Co64Box{
-		Version:     byte(versionAndFlags >> 24),
-		Flags:       versionAndFlags & flagsMask,
-		ChunkOffset: make([]uint64, nrEntries),
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
 	}
+
+	if hdr.Size != b.expectedSize(nrEntries) {
+		return nil, fmt.Errorf("co64: expected size %d, got %d", b.expectedSize(nrEntries), hdr.Size)
+	}
+
+	b.ChunkOffset = make([]uint64, nrEntries)
 
 	for i := uint32(0); i < nrEntries; i++ {
 		b.ChunkOffset[i] = sr.ReadUint64()
+		if sr.AccError() != nil {
+			return nil, sr.AccError()
+		}
 	}
 	return b, sr.AccError()
 }
@@ -49,9 +58,13 @@ func (b *Co64Box) Type() string {
 	return "co64"
 }
 
+func (b *Co64Box) expectedSize(nrEntries uint32) uint64 {
+	return uint64(boxHeaderSize + 8 + nrEntries*8)
+}
+
 // Size - box-specific size
 func (b *Co64Box) Size() uint64 {
-	return uint64(boxHeaderSize + 8 + len(b.ChunkOffset)*8)
+	return b.expectedSize(uint32(len(b.ChunkOffset)))
 }
 
 // Encode - write box to w

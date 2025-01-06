@@ -94,6 +94,10 @@ func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
 	sampleCount := binary.BigEndian.Uint32(data[4:8])
 
+	if len(data) < 8 {
+		return nil, fmt.Errorf("senc: box size %d less than 16", hdr.Size)
+	}
+
 	senc := SencBox{
 		Version:          byte(versionAndFlags >> 24),
 		rawData:          data[8:], // After the first 8 bytes of box content
@@ -253,15 +257,16 @@ func (s *SencBox) Size() uint64 {
 	if s.readButNotParsed {
 		return boxHeaderSize + 8 + uint64(len(s.rawData)) // read 8 bytes after header
 	}
-	totalSize := boxHeaderSize + 8
-	perSampleIVSize := s.GetPerSampleIVSize()
-	for i := 0; i < int(s.SampleCount); i++ {
+	totalSize := uint64(boxHeaderSize + 8)
+
+	perSampleIVSize := uint64(s.GetPerSampleIVSize())
+	for i := uint32(0); i < s.SampleCount; i++ {
 		totalSize += perSampleIVSize
 		if s.Flags&UseSubSampleEncryption != 0 {
-			totalSize += 2 + 6*len(s.SubSamples[i])
+			totalSize += 2 + 6*uint64(len(s.SubSamples[i]))
 		}
 	}
-	return uint64(totalSize)
+	return totalSize
 }
 
 // Encode - write box to w

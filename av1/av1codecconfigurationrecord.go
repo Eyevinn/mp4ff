@@ -2,6 +2,7 @@ package av1
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -34,6 +35,11 @@ type CodecConfRec struct {
 
 // DecodeAVCDecConfRec - decode an AV1CodecConfRec
 func DecodeAV1CodecConfRec(data []byte) (CodecConfRec, error) {
+	// Minimum size is 4 bytes for the fixed header fields
+	if len(data) < 4 {
+		return CodecConfRec{}, fmt.Errorf("av1C: data size %d is too small (minimum 4 bytes)", len(data))
+	}
+
 	av1drc := CodecConfRec{}
 
 	Marker := data[0] >> 7

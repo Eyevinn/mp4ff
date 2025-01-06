@@ -45,9 +45,17 @@ func DecodeSbgpSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.GroupingTypeParameter = sr.ReadUint32()
 	}
 	entryCount := int(sr.ReadUint32())
+
+	if hdr.Size != b.expectedSize(uint32(entryCount)) {
+		return nil, fmt.Errorf("sbgp: expected size %d, got %d", b.expectedSize(uint32(entryCount)), hdr.Size)
+	}
+
 	for i := 0; i < entryCount; i++ {
 		b.SampleCounts = append(b.SampleCounts, sr.ReadUint32())
 		b.GroupDescriptionIndices = append(b.GroupDescriptionIndices, sr.ReadUint32())
+		if sr.AccError() != nil {
+			return nil, sr.AccError()
+		}
 	}
 	return &b, sr.AccError()
 }
@@ -59,12 +67,17 @@ func (b *SbgpBox) Type() string {
 
 // Size - return calculated size
 func (b *SbgpBox) Size() uint64 {
-	// Version + Flags:4
-	// GroupingType: 4
-	// (v1) GroupingTypeParameter: 4
-	// EntryCount: 4
-	// SampleCount + GroupDescriptionIndex : 8
-	return uint64(boxHeaderSize + 12 + 4*int(b.Version) + 8*len(b.GroupDescriptionIndices))
+	return b.expectedSize(uint32(len(b.GroupDescriptionIndices)))
+}
+
+// expectedSize - calculate size for a given entry count
+func (b *SbgpBox) expectedSize(entryCount uint32) uint64 {
+	size := uint64(boxHeaderSize + 12) // 12 = version + flags(4) + groupingType(4) + entryCount(4)
+	if b.Version == 1 {
+		size += 4 // GroupingTypeParameter
+	}
+	size += 8 * uint64(entryCount) // 8 = SampleCount(4) + GroupDescriptionIndex(4)
+	return size
 }
 
 // Encode - write box to w

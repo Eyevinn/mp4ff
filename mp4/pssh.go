@@ -73,7 +73,9 @@ func DecodePsshSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		kidCount := sr.ReadUint32()
 		for i := uint32(0); i < kidCount; i++ {
 			b.KIDs = append(b.KIDs, UUID(sr.ReadFixedLengthString(16)))
-
+			if sr.AccError() != nil {
+				return nil, sr.AccError()
+			}
 		}
 	}
 	dataLength := int(sr.ReadUint32())
