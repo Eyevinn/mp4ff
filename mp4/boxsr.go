@@ -189,7 +189,10 @@ func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
 	} else if size == 0 {
 		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
-	return BoxHeader{boxType, size, headerLen}, nil
+	if uint64(headerLen) > size {
+		return BoxHeader{}, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)
+	}
+	return BoxHeader{boxType, size, headerLen}, sr.AccError()
 }
 
 // DecodeFile - parse and decode a file from reader r with optional file options.

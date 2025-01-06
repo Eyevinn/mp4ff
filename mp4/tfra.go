@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -52,6 +53,12 @@ func DecodeTfraSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	b.LengthSizeOfTrunNum = byte((sizesBlock >> 2) & 0x3)
 	b.LengthSizeOfSampleNum = byte(sizesBlock & 0x3)
 	nrEntries := sr.ReadUint32()
+
+	if hdr.Size != b.expectedSize(nrEntries) {
+		return nil, fmt.Errorf("tfra: expected size %d, got %d", b.expectedSize(nrEntries), hdr.Size)
+	}
+
+	b.Entries = make([]TfraEntry, 0, nrEntries)
 	for i := uint32(0); i < nrEntries; i++ {
 		te := TfraEntry{}
 		if b.Version == 1 {
@@ -103,15 +110,26 @@ func (b *TfraBox) Type() string {
 
 // Size - return calculated size
 func (b *TfraBox) Size() uint64 {
-	// Add up all fields depending on version
-	nrEntries := len(b.Entries)
-	size := (boxHeaderSize + 4 + 12 + // Up to number_of_entry
-		8*(1+int(b.Version))*nrEntries +
-		int(1+b.LengthSizeOfTrafNum+
-			1+b.LengthSizeOfTrunNum+
-			1+b.LengthSizeOfSampleNum)*nrEntries)
-	return uint64(size)
+	return b.expectedSize(uint32(len(b.Entries)))
+}
 
+// expectedSize - calculate size for a given number of entries
+func (b *TfraBox) expectedSize(entryCount uint32) uint64 {
+	size := uint64(boxHeaderSize + 16) // 16 = version + flags(4) + trackID(4) + sizesBlock(4) + entryCount(4)
+
+	// Size per entry depends on version
+	entryBaseSize := 8 // Version 0: time(4) + moof_offset(4)
+	if b.Version == 1 {
+		entryBaseSize = 16 // Version 1: time(8) + moof_offset(8)
+	}
+
+	// Add size for traf/trun/sample numbers based on their length settings
+	numbersSizes := 0
+	numbersSizes += 1 + int(b.LengthSizeOfTrafNum)   // 1-4 bytes
+	numbersSizes += 1 + int(b.LengthSizeOfTrunNum)   // 1-4 bytes
+	numbersSizes += 1 + int(b.LengthSizeOfSampleNum) // 1-4 bytes
+
+	return size + uint64(entryCount)*(uint64(entryBaseSize)+uint64(numbersSizes))
 }
 
 // Encode - write box to w

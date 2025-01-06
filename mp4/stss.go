@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -32,10 +33,15 @@ func DecodeStssSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	versionAndFlags := sr.ReadUint32()
 	entryCount := sr.ReadUint32()
 	b := StssBox{
-		Version:      byte(versionAndFlags >> 24),
-		Flags:        versionAndFlags & flagsMask,
-		SampleNumber: make([]uint32, entryCount),
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
 	}
+
+	if hdr.Size != b.expectedSize(entryCount) {
+		return nil, fmt.Errorf("stss: expected size %d, got %d", b.expectedSize(entryCount), hdr.Size)
+	}
+
+	b.SampleNumber = make([]uint32, entryCount)
 	for i := 0; i < int(entryCount); i++ {
 		b.SampleNumber[i] = sr.ReadUint32()
 	}
@@ -54,7 +60,12 @@ func (b *StssBox) Type() string {
 
 // Size - box-specific size
 func (b *StssBox) Size() uint64 {
-	return uint64(boxHeaderSize + 8 + len(b.SampleNumber)*4)
+	return b.expectedSize(uint32(len(b.SampleNumber)))
+}
+
+// expectedSize - calculate size for a given entry count
+func (b *StssBox) expectedSize(entryCount uint32) uint64 {
+	return uint64(boxHeaderSize + 8 + uint64(entryCount)*4)
 }
 
 // IsSyncSample - check if sample (one-based) sampleNr is a sync sample

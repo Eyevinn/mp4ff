@@ -35,11 +35,21 @@ func DecodeTrun(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	s := bits.NewFixedSliceReader(data)
 	versionAndFlags := s.ReadUint32()
 	sampleCount := s.ReadUint32()
+
 	t := &TrunBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
-		Samples: make([]Sample, 0, sampleCount),
 	}
+
+	if hdr.Size != t.expectedSize(sampleCount) {
+		return nil, fmt.Errorf("trun: expected size %d, got %d", t.expectedSize(sampleCount), hdr.Size)
+	}
+
+	if sampleCount > 1024 && !t.HasSampleDuration() && !t.HasSampleSize() && !t.HasSampleFlags() && !t.HasSampleCompositionTimeOffset() {
+		return nil, fmt.Errorf("trun: sampleCount %d is big but no sample data present", sampleCount)
+	}
+
+	t.Samples = make([]Sample, 0, sampleCount)
 
 	if t.HasDataOffset() {
 		t.DataOffset = s.ReadInt32()
@@ -80,8 +90,17 @@ func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	t := &TrunBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
-		Samples: make([]Sample, 0, sampleCount),
 	}
+
+	if hdr.Size != t.expectedSize(sampleCount) {
+		return nil, fmt.Errorf("trun: expected size %d, got %d", t.expectedSize(sampleCount), hdr.Size)
+	}
+
+	if sampleCount > 1024 && !t.HasSampleDuration() && !t.HasSampleSize() && !t.HasSampleFlags() && !t.HasSampleCompositionTimeOffset() {
+		return nil, fmt.Errorf("trun: sampleCount %d is big but no sample data present", sampleCount)
+	}
+
+	t.Samples = make([]Sample, 0, sampleCount)
 
 	if t.HasDataOffset() {
 		t.DataOffset = sr.ReadInt32()
@@ -230,14 +249,19 @@ func (t *TrunBox) Type() string {
 
 // Size - return calculated size
 func (t *TrunBox) Size() uint64 {
-	sz := boxHeaderSize + 8 // flags + entrycCount
+	return t.expectedSize(t.SampleCount())
+}
+
+// expectedSize - calculate size for a given sample count
+func (t *TrunBox) expectedSize(sampleCount uint32) uint64 {
+	sz := uint64(boxHeaderSize + 8) // flags + entryCount
 	if t.HasDataOffset() {
 		sz += 4
 	}
 	if t.HasFirstSampleFlags() {
 		sz += 4
 	}
-	bytesPerSample := 0
+	var bytesPerSample uint64
 	if t.HasSampleDuration() {
 		bytesPerSample += 4
 	}
@@ -250,8 +274,8 @@ func (t *TrunBox) Size() uint64 {
 	if t.HasSampleCompositionTimeOffset() {
 		bytesPerSample += 4
 	}
-	sz += int(t.SampleCount()) * bytesPerSample
-	return uint64(sz)
+	sz += uint64(sampleCount) * bytesPerSample
+	return sz
 }
 
 // Encode - write box to w

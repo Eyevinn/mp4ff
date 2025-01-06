@@ -167,6 +167,9 @@ func (s *FixedSliceReader) ReadZeroTerminatedString(maxLen int) string {
 	}
 	startPos := s.pos
 	maxPos := startPos + maxLen
+	if maxPos > s.len {
+		maxPos = s.len
+	}
 	for {
 		if s.pos >= maxPos {
 			s.err = errors.New("did not find terminating zero")
@@ -208,6 +211,10 @@ func (s *FixedSliceReader) ReadPossiblyZeroTerminatedString(maxLen int) (str str
 // ReadBytes - read a slice of n bytes
 // Return empty slice if n bytes not available
 func (s *FixedSliceReader) ReadBytes(n int) []byte {
+	if n < 0 {
+		s.err = fmt.Errorf("attempt to read negative number of bytes: %d", n)
+		return []byte{}
+	}
 	if s.err != nil {
 		return []byte{}
 	}

@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -86,6 +87,10 @@ func DecodeSdtpSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
+
+	if hdr.payloadLen() < 4 {
+		return nil, fmt.Errorf("sdtp: payload too short: %d < 4", hdr.payloadLen())
+	}
 
 	// Supposed to get count from stsz. Use rest of payload
 	entries := make([]SdtpEntry, hdr.payloadLen()-4)

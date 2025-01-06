@@ -67,6 +67,9 @@ func DecodeStscSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.Entries[i].FirstSampleNr = accSampleNr
 
 		sdi := sr.ReadUint32()
+		if sdi == 0 {
+			return nil, fmt.Errorf("stsc sample description id is 0")
+		}
 		if i == 0 {
 			b.singleSampleDescriptionID = sdi
 		} else {

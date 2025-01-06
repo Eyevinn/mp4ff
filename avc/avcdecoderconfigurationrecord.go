@@ -61,6 +61,11 @@ func CreateAVCDecConfRec(spsNalus [][]byte, ppsNalus [][]byte, includePS bool) (
 
 // DecodeAVCDecConfRec - decode an AVCDecConfRec
 func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
+	// Check minimum length for fixed header (6 bytes)
+	if len(data) < 6 {
+		return DecConfRec{}, fmt.Errorf("data too short for AVC decoder configuration record: %d bytes", len(data))
+	}
+
 	configurationVersion := data[0] // Should be 1
 	if configurationVersion != 1 {
 		return DecConfRec{}, fmt.Errorf("AVC decoder configuration record version %d unknown",
@@ -75,22 +80,48 @@ func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 	}
 	numSPS := data[5] & 0x1f // 5 bits following 3 reserved bits
 	pos := 6
+
 	spsNALUs := make([][]byte, 0, 1)
 	for i := 0; i < int(numSPS); i++ {
+		// Check if we have enough bytes to read NALU length
+		if pos+2 > len(data) {
+			return DecConfRec{}, fmt.Errorf("not enough data to read SPS NALU length at position %d", pos)
+		}
 		naluLength := int(binary.BigEndian.Uint16(data[pos : pos+2]))
 		pos += 2
+
+		// Check if we have enough bytes to read NALU
+		if pos+naluLength > len(data) {
+			return DecConfRec{}, fmt.Errorf("not enough data to read SPS NALU of length %d at position %d", naluLength, pos)
+		}
 		spsNALUs = append(spsNALUs, data[pos:pos+naluLength])
 		pos += naluLength
 	}
-	ppsNALUs := make([][]byte, 0, 1)
+
+	// Check if we have enough bytes to read numPPS
+	if pos >= len(data) {
+		return DecConfRec{}, fmt.Errorf("not enough data to read number of PPS at position %d", pos)
+	}
 	numPPS := data[pos]
 	pos++
+
+	ppsNALUs := make([][]byte, 0, 1)
 	for i := 0; i < int(numPPS); i++ {
+		// Check if we have enough bytes to read NALU length
+		if pos+2 > len(data) {
+			return DecConfRec{}, fmt.Errorf("not enough data to read PPS NALU length at position %d", pos)
+		}
 		naluLength := int(binary.BigEndian.Uint16(data[pos : pos+2]))
 		pos += 2
+
+		// Check if we have enough bytes to read NALU
+		if pos+naluLength > len(data) {
+			return DecConfRec{}, fmt.Errorf("not enough data to read PPS NALU of length %d at position %d", naluLength, pos)
+		}
 		ppsNALUs = append(ppsNALUs, data[pos:pos+naluLength])
 		pos += naluLength
 	}
+
 	adcr := DecConfRec{
 		AVCProfileIndication: AVCProfileIndication,
 		ProfileCompatibility: ProfileCompatibility,
@@ -98,6 +129,7 @@ func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 		SPSnalus:             spsNALUs,
 		PPSnalus:             ppsNALUs,
 	}
+
 	// The rest of this structure may vary
 	// ISO/IEC 14496-15 2017 says that
 	// Compatible extensions to this record will extend it and
@@ -113,6 +145,10 @@ func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 		if pos == len(data) { // Not according to standard, but have been seen
 			adcr.NoTrailingInfo = true
 			return adcr, nil
+		}
+		// Check if we have enough bytes for the trailing info
+		if pos+4 > len(data) {
+			return DecConfRec{}, fmt.Errorf("not enough data for trailing info at position %d", pos)
 		}
 		adcr.ChromaFormat = data[pos] & 0x03
 		adcr.BitDepthLumaMinus1 = data[pos+1] & 0x07

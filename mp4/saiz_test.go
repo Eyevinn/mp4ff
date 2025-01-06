@@ -5,6 +5,6 @@ import (
 )
 
 func TestSaiz(t *testing.T) {
-	saiz := &SaizBox{}
+	saiz := &SaizBox{DefaultSampleInfoSize: 1}
 	boxDiffAfterEncodeAndDecode(t, saiz)
 }

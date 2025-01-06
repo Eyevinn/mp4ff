@@ -71,7 +71,7 @@ func DecodeSeigSampleGroupEntry(name string, length uint32, sr bits.SliceReader)
 	if length != uint32(s.Size()) {
 		return nil, fmt.Errorf("seig: given length %d different from calculated size %d", length, s.Size())
 	}
-	return s, nil
+	return s, sr.AccError()
 }
 
 // ConstantIVSize - non-zero if protected and perSampleIVSize == 0
@@ -139,7 +139,7 @@ func DecodeUnknownSampleGroupEntry(name string, length uint32, sr bits.SliceRead
 	return &UnknownSampleGroupEntry{
 		Name: name,
 		Data: sr.ReadBytes(int(length)),
-	}, nil
+	}, sr.AccError()
 }
 
 // Type - GroupingType SampleGroupEntry (uint32 according to spec)
@@ -181,7 +181,7 @@ type RollSampleGroupEntry struct {
 func DecodeRollSampleGroupEntry(name string, length uint32, sr bits.SliceReader) (SampleGroupEntry, error) {
 	entry := &RollSampleGroupEntry{}
 	entry.RollDistance = sr.ReadInt16()
-	return entry, nil
+	return entry, sr.AccError()
 }
 
 // Type - GroupingType SampleGroupEntry (uint32 according to spec)
@@ -220,7 +220,7 @@ func DecodeRapSampleGroupEntry(name string, length uint32, sr bits.SliceReader) 
 	byt := sr.ReadUint8()
 	entry.NumLeadingSamplesKnown = byt >> 7
 	entry.NumLeadingSamples = byt & 0x7F
-	return entry, nil
+	return entry, sr.AccError()
 }
 
 // Type - GroupingType SampleGroupEntry (uint32 according to spec)
@@ -287,7 +287,7 @@ func DecodeAlstSampleGroupEntry(name string, length uint32, sr bits.SliceReader)
 
 	remaining := int(length-uint32(entry.Size())) / 4
 	if remaining <= 0 {
-		return entry, nil
+		return entry, sr.AccError()
 	}
 
 	// Optional
@@ -298,7 +298,7 @@ func DecodeAlstSampleGroupEntry(name string, length uint32, sr bits.SliceReader)
 		entry.NumTotalSamples[i] = sr.ReadUint16()
 	}
 
-	return entry, nil
+	return entry, sr.AccError()
 }
 
 // Encode SampleGroupEntry to SliceWriter

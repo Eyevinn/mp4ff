@@ -43,6 +43,11 @@ func DecodeStszSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		SampleUniformSize: sr.ReadUint32(),
 		SampleNumber:      sr.ReadUint32(),
 	}
+
+	if hdr.Size != b.expectedSize() {
+		return nil, fmt.Errorf("stsz: expected size %d, got %d", b.expectedSize(), hdr.Size)
+	}
+
 	if b.SampleUniformSize == 0 {
 		b.SampleSize = make([]uint32, b.SampleNumber)
 		for i := 0; i < int(b.SampleNumber); i++ {
@@ -59,10 +64,15 @@ func (b *StszBox) Type() string {
 
 // Size - box-specific size
 func (b *StszBox) Size() uint64 {
+	return b.expectedSize()
+}
+
+// expectedSize - calculate size based on SampleUniformSize and SampleNumber
+func (b *StszBox) expectedSize() uint64 {
 	if b.SampleUniformSize > 0 {
-		return uint64(boxHeaderSize + 12)
+		return uint64(boxHeaderSize + 12) // 12 = version + flags(4) + uniformSize(4) + sampleNumber(4)
 	}
-	return uint64(boxHeaderSize + 12 + b.SampleNumber*4)
+	return uint64(boxHeaderSize + 12 + uint64(b.SampleNumber)*4) // 4 bytes per sample size
 }
 
 // Encode - write box to w

@@ -35,11 +35,16 @@ func DecodeCttsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	entryCount := sr.ReadUint32()
 
 	b := &CttsBox{
-		Version:      byte(versionAndFlags >> 24),
-		Flags:        versionAndFlags & flagsMask,
-		EndSampleNr:  make([]uint32, entryCount+1),
-		SampleOffset: make([]int32, entryCount),
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
 	}
+
+	if hdr.Size != b.expectedSize(entryCount) {
+		return nil, fmt.Errorf("ctts: expected size %d, got %d", b.expectedSize(entryCount), hdr.Size)
+	}
+
+	b.EndSampleNr = make([]uint32, entryCount+1)
+	b.SampleOffset = make([]int32, entryCount)
 
 	var endSampleNr uint32 = 0
 	b.EndSampleNr[0] = endSampleNr
@@ -58,7 +63,12 @@ func (b *CttsBox) Type() string {
 
 // Size - calculated size of box
 func (b *CttsBox) Size() uint64 {
-	return uint64(boxHeaderSize + 8 + len(b.SampleOffset)*8)
+	return b.expectedSize(uint32(len(b.SampleOffset)))
+}
+
+// expectedSize - calculate size for a given entry count
+func (b *CttsBox) expectedSize(entryCount uint32) uint64 {
+	return uint64(boxHeaderSize + 8 + uint64(entryCount)*8) // 8 = version + flags + entryCount, 8 = sampleCount(4) + sampleOffset(4)
 }
 
 // Encode - write box to w

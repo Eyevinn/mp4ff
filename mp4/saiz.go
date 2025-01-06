@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -41,7 +42,13 @@ func DecodeSaizSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	}
 	b.DefaultSampleInfoSize = sr.ReadUint8()
 	b.SampleCount = sr.ReadUint32()
+
+	if hdr.Size != b.expectedSize() {
+		return nil, fmt.Errorf("saiz: expected size %d, got %d", b.expectedSize(), hdr.Size)
+	}
+
 	if b.DefaultSampleInfoSize == 0 {
+		b.SampleInfo = make([]byte, 0, b.SampleCount)
 		for i := uint32(0); i < b.SampleCount; i++ {
 			b.SampleInfo = append(b.SampleInfo, sr.ReadUint8())
 		}
@@ -85,12 +92,17 @@ func (b *SaizBox) Type() string {
 
 // Size - return calculated size
 func (b *SaizBox) Size() uint64 {
-	size := uint64(boxHeaderSize) + 9
+	return b.expectedSize()
+}
+
+// expectedSize - calculate size based on flags and sample count
+func (b *SaizBox) expectedSize() uint64 {
+	size := uint64(boxHeaderSize + 9) // 9 = version + flags(4) + defaultSampleInfoSize(1) + sampleCount(4)
 	if b.Flags&0x01 != 0 {
-		size += 8
+		size += 8 // auxInfoType(4) + auxInfoTypeParameter(4)
 	}
 	if b.DefaultSampleInfoSize == 0 {
-		size += uint64(b.SampleCount)
+		size += uint64(b.SampleCount) // 1 byte per sample info when default size is 0
 	}
 	return size
 }

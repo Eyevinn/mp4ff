@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -45,12 +46,15 @@ func DecodeSgpdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if b.Version >= 2 {
 		b.DefaultGroupDescriptionIndex = sr.ReadUint32()
 	}
-	entryCount := int(sr.ReadUint32())
-	for i := 0; i < entryCount; i++ {
+	entryCount := sr.ReadUint32()
+	for i := uint32(0); i < entryCount; i++ {
 		var descriptionLength uint32 = b.DefaultLength
 		if b.Version >= 1 && b.DefaultLength == 0 {
 			descriptionLength = sr.ReadUint32()
 			b.DescriptionLengths = append(b.DescriptionLengths, descriptionLength)
+		}
+		if descriptionLength == 0 {
+			return nil, fmt.Errorf("sgpd: invalid descriptionLength of 0")
 		}
 		sgEntry, err := decodeSampleGroupEntry(b.GroupingType, descriptionLength, sr)
 		if err != nil {

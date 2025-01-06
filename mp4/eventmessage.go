@@ -166,15 +166,17 @@ func DecodeSilbSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	b.Version = uint8(versionAndFlags >> 24)
 	b.Flags = versionAndFlags & flagsMask
 	nrSchemes := sr.ReadUint32()
-	b.Schemes = make([]SilbEntry, nrSchemes)
 	for i := uint32(0); i < nrSchemes; i++ {
 		schemeIdURI := sr.ReadZeroTerminatedString(int(hdr.payloadLen()) - 8)
 		value := sr.ReadZeroTerminatedString(int(hdr.payloadLen()) - 8 - len(schemeIdURI) - 1)
 		atLeastOneFlag := sr.ReadUint8() == 1
-		b.Schemes[i] = SilbEntry{
+		b.Schemes = append(b.Schemes, SilbEntry{
 			SchemeIdURI:    schemeIdURI,
 			Value:          value,
 			AtLeastOneFlag: atLeastOneFlag,
+		})
+		if sr.AccError() != nil {
+			return nil, sr.AccError()
 		}
 	}
 	b.OtherSchemesFlag = sr.ReadUint8() == 1
