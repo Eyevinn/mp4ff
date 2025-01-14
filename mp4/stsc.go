@@ -70,7 +70,7 @@ func DecodeStscSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 				if b.singleSampleDescriptionID != 0 {
 					b.SampleDescriptionID = make([]uint32, entryCount)
 					for j := 0; j < i; j++ {
-						b.SampleDescriptionID[i] = sdi
+						b.SampleDescriptionID[j] = b.singleSampleDescriptionID
 					}
 					b.singleSampleDescriptionID = 0
 				}

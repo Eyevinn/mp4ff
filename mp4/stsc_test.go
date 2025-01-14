@@ -171,3 +171,11 @@ func TestGetChunk(t *testing.T) {
 		}
 	}
 }
+
+func TestStscSampleDescriptionID(t *testing.T) {
+	box := StscBox{}
+	_ = box.AddEntry(1, 256, 1)
+	_ = box.AddEntry(2, 192, 1)
+	_ = box.AddEntry(3, 128, 2)
+	boxDiffAfterEncodeAndDecode(t, &box)
+}
