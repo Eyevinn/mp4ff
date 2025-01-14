@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -178,4 +179,14 @@ func TestStscSampleDescriptionID(t *testing.T) {
 	_ = box.AddEntry(2, 192, 1)
 	_ = box.AddEntry(3, 128, 2)
 	boxDiffAfterEncodeAndDecode(t, &box)
+}
+
+func TestBadSizeStsc(t *testing.T) {
+	// raw stsc box with size 16, but with one entry, so its size should be 28ß
+	raw := []byte{0x00, 0x00, 0x00, 0x10, 's', 't', 's', 'c', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+	buf := bytes.NewBuffer(raw)
+	_, err := DecodeBox(0, buf)
+	if err == nil {
+		t.Error("expected invalid size error")
+	}
 }
