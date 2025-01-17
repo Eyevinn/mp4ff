@@ -4,48 +4,66 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/go-test/deep"
 )
 
 func TestSencDirectValues(t *testing.T) {
 	iv8 := InitializationVector("12345678")
 	iv16 := InitializationVector("0123456789abcdef")
-	sencBoxes := []*SencBox{
+	cases := []struct {
+		desc string
+		senc *SencBox
+	}{
 		{
-			Version:         0,
-			Flags:           0,
-			SampleCount:     431, // No perSampleIVs
-			perSampleIVSize: 0,
+			desc: "No perSampleIVs",
+			senc: &SencBox{
+				Version:         0,
+				Flags:           0,
+				SampleCount:     431, // No perSampleIVs
+				perSampleIVSize: 0,
+			},
 		},
 		{
-			Version:         0,
-			Flags:           0,
-			SampleCount:     1,
-			perSampleIVSize: 8,
-			IVs:             []InitializationVector{iv8},
-			SubSamples:      [][]SubSamplePattern{{{10, 1000}}},
+			desc: "perSampleIVSize 8",
+			senc: &SencBox{
+				Version:         0,
+				Flags:           0,
+				SampleCount:     1,
+				perSampleIVSize: 8,
+				IVs:             []InitializationVector{iv8},
+				SubSamples:      [][]SubSamplePattern{{{10, 1000}}},
+			},
 		},
 		{
-			Version:         0,
-			Flags:           0,
-			SampleCount:     1,
-			perSampleIVSize: 16,
-			IVs:             []InitializationVector{iv16},
-			SubSamples:      [][]SubSamplePattern{{{10, 1000}, {20, 2000}}},
+			desc: "perSampleIVSize 16",
+			senc: &SencBox{
+				Version:         0,
+				Flags:           0,
+				SampleCount:     1,
+				perSampleIVSize: 16,
+				IVs:             []InitializationVector{iv16},
+				SubSamples:      [][]SubSamplePattern{{{10, 1000}, {20, 2000}}},
+			},
 		},
 		{
-			Version:         0,
-			Flags:           0,
-			SampleCount:     2,
-			perSampleIVSize: 16,
-			IVs:             []InitializationVector{iv16, iv16},
-			SubSamples:      [][]SubSamplePattern{{{10, 1000}}, {{20, 2000}}},
+			desc: "perSampleIVSize 16, 2 subsamples",
+			senc: &SencBox{
+				Version:         0,
+				Flags:           0,
+				SampleCount:     2,
+				perSampleIVSize: 16,
+				IVs:             []InitializationVector{iv16, iv16},
+				SubSamples:      [][]SubSamplePattern{{{10, 1000}}, {{20, 2000}}},
+			},
 		},
 	}
 
-	for _, senc := range sencBoxes {
-		sencDiffAfterEncodeAndDecode(t, senc, 0)
-		sencDiffAfterEncodeAndDecode(t, senc, senc.perSampleIVSize)
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			sencDiffAfterEncodeAndDecode(t, c.senc, 0)
+			sencDiffAfterEncodeAndDecode(t, c.senc, c.senc.perSampleIVSize)
+		})
 	}
 }
 
@@ -145,5 +163,52 @@ func TestImplicitIVSize(t *testing.T) {
 		if int(senc.Size()) != tc.expectedSencSize {
 			t.Errorf("Expected senc size %d, got %d", tc.expectedSencSize, senc.Size())
 		}
+	}
+}
+
+func TestBadSencData(t *testing.T) {
+	// raw senc box with version > 2 */
+	cases := []struct {
+		desc string
+		raw  []byte
+		err  string
+	}{
+		{
+			desc: "too short",
+			raw:  []byte{0x00, 0x00, 0x00, 0x0f, 's', 'e', 'n', 'c', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			err:  "decode senc pos 0: box size 15 less than min size 16",
+		},
+		{
+			desc: "v1 not supported",
+			raw:  []byte{0x00, 0x00, 0x00, 0x10, 's', 'e', 'n', 'c', 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			err:  "decode senc pos 0: version 1 not supported",
+		},
+		{
+			desc: "too short for subsample encryption",
+			raw:  []byte{0x00, 0x00, 0x00, 0x10, 's', 'e', 'n', 'c', 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0xff},
+			err:  "decode senc pos 0: box size 16 too small for 255 samples and subSampleEncryption",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			buf := bytes.NewBuffer(c.raw)
+			_, err := DecodeBox(0, buf)
+			if err == nil {
+				t.Errorf("expected error %q, but got nil", c.err)
+			}
+			if err.Error() != c.err {
+				t.Errorf("expected error %q, got %q", c.err, err.Error())
+			}
+
+			sr := bits.NewFixedSliceReader(c.raw)
+			_, err = DecodeBoxSR(0, sr)
+			if err == nil {
+				t.Errorf("expected error %q, but got nil", c.err)
+			}
+			if err.Error() != c.err {
+				t.Errorf("expected error %q, got %q", c.err, err.Error())
+			}
+		})
 	}
 }
