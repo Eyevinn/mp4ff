@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -30,6 +31,9 @@ func DecodeMimeSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	b := MimeBox{
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
+	}
+	if hdr.payloadLen() < 5 {
+		return nil, fmt.Errorf("mime: box payload size %d less than 5", hdr.payloadLen())
 	}
 	rest := sr.ReadBytes(hdr.payloadLen() - 4)
 	if rest[len(rest)-1] == 0 { // zero-termination
