@@ -70,6 +70,9 @@ func DecodeSsixSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
+	if hdr.Size < 16 {
+		return nil, fmt.Errorf("ssix: box is too small")
+	}
 	subSegmentCount := sr.ReadUint32()
 	sizeLeft := hdr.Size - 16
 	if subSegmentCount > uint32(sizeLeft/8) {
