@@ -9,10 +9,12 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 func monitorMemory(ctx context.Context, t *testing.T, memoryLimit int) {
@@ -43,8 +45,18 @@ func FuzzDecodeBox(f *testing.F) {
 		f.Fatal(err)
 	}
 
+	validExts := map[string]bool{
+		".mp4":  true,
+		".m4s":  true,
+		".cmfv": true,
+	}
+
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".mp4") {
+		if entry.IsDir() {
+			continue
+		}
+
+		if validExts[filepath.Ext(entry.Name())] {
 			testData, err := os.ReadFile("testdata/" + entry.Name())
 			if err != nil {
 				f.Fatal(err)
@@ -63,10 +75,24 @@ func FuzzDecodeBox(f *testing.F) {
 		monitorMemory(ctx, t, 500*1024*1024) // 500MB
 
 		r := bytes.NewReader(b)
-
 		var pos uint64 = 0
 		for {
 			box, err := DecodeBox(pos, r)
+			if err != nil {
+				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+					break
+				}
+			}
+			if box == nil {
+				break
+			}
+			pos += box.Size()
+		}
+
+		pos = 0
+		sr := bits.NewFixedSliceReader(b)
+		for {
+			box, err := DecodeBoxSR(pos, sr)
 			if err != nil {
 				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 					break
