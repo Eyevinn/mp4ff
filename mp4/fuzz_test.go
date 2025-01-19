@@ -54,10 +54,6 @@ func FuzzDecodeBox(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if t.Name() == "FuzzDecodeBox/75565444c6c2f1dd" {
-			t.Skip("There is a bug in SencBox.Size() that needs to be fixed for " + t.Name())
-		}
-
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		monitorMemory(ctx, t, 500*1024*1024) // 500MB
