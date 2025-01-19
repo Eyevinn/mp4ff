@@ -91,6 +91,9 @@ func DecodeSubsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 			ss.CodecSpecificParameters = sr.ReadUint32()
 			e.SubSamples = append(e.SubSamples, ss)
 		}
+		if sr.AccError() != nil {
+			return nil, sr.AccError()
+		}
 		b.Entries = append(b.Entries, e)
 	}
 	return &b, sr.AccError()
