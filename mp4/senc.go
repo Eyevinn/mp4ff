@@ -36,6 +36,7 @@ type SencBox struct {
 	rawData          []byte                 // intermediate storage when reading
 	IVs              []InitializationVector // 8 or 16 bytes if present
 	SubSamples       [][]SubSamplePattern
+	readBoxSize      uint64 // As read from box header
 }
 
 // CreateSencBox - create an empty SencBox
@@ -113,6 +114,7 @@ func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 		StartPos:         startPos,
 		SampleCount:      sampleCount,
 		readButNotParsed: true,
+		readBoxSize:      hdr.Size,
 	}
 
 	if flags&UseSubSampleEncryption != 0 && (len(senc.rawData) < 2*int(sampleCount)) {
@@ -158,6 +160,7 @@ func DecodeSencSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		StartPos:         startPos,
 		SampleCount:      sampleCount,
 		readButNotParsed: true,
+		readBoxSize:      hdr.Size,
 	}
 
 	if senc.SampleCount == 0 || len(senc.rawData) == 0 {
@@ -287,11 +290,14 @@ func (s *SencBox) setSubSamplesUsedFlag() {
 
 // Size - box-specific type
 func (s *SencBox) Size() uint64 {
-	if s.readButNotParsed {
-		return boxHeaderSize + 8 + uint64(len(s.rawData)) // read 8 bytes after header
+	if s.readBoxSize > 0 {
+		return s.readBoxSize
 	}
-	totalSize := uint64(boxHeaderSize + 8)
+	return s.calcSize()
+}
 
+func (s *SencBox) calcSize() uint64 {
+	totalSize := uint64(boxHeaderSize + 8)
 	perSampleIVSize := uint64(s.GetPerSampleIVSize())
 	for i := uint32(0); i < s.SampleCount; i++ {
 		totalSize += perSampleIVSize
