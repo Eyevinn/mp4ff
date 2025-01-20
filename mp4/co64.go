@@ -59,7 +59,7 @@ func (b *Co64Box) Type() string {
 }
 
 func (b *Co64Box) expectedSize(nrEntries uint32) uint64 {
-	return uint64(boxHeaderSize + 8 + nrEntries*8)
+	return uint64(boxHeaderSize + 8 + uint64(nrEntries)*8)
 }
 
 // Size - box-specific size
