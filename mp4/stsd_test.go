@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/aac"
@@ -71,4 +72,21 @@ func TestStsdEncodeDecode(t *testing.T) {
 	if btrt != nil {
 		t.Errorf("Expected nil, got %v", btrt)
 	}
+}
+
+func TestStsdVP9(t *testing.T) {
+	hexData := "" +
+		"000000a87374736400000000000000010000009876703039000000000000" +
+		"000100000000000000000000000000000000050002d00048000000480000" +
+		"000000000001184c61766336312e31392e313030206c69627670782d7670" +
+		"39000000000000000018ffff000000147670634301000000001f80020202" +
+		"00000000000a6669656c0100000000107061737000000001000000010000" +
+		"001462747274000000000010152200101522"
+
+	binData, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cmpAfterDecodeEncodeBox(t, binData)
 }
