@@ -13,10 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - cmd/mp4ff-decrypt -key option instead of -k. Takes hex or base64 value
 - cmd/mp4ff-encrypt -key and -kid options now take hex or bae64 values
 
+
 ### Added
 
 - mp4.SetUUID() can take base64 string as well as hex-encoded.
 - Support for weird dac3 box with initial 4 zero bytes (Issue #395)
+- Lots of fuzzying tests and changes to avoid panic on bad input data.
 
 ### Fixed
 
