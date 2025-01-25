@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"bytes"
+	"encoding/binary"
 	"flag"
 	"os"
 	"testing"
@@ -125,6 +126,26 @@ func assertError(t *testing.T, err error, msg string) {
 	t.Helper()
 	if err == nil {
 		t.Error(msg)
+	}
+}
+
+func changeBoxSizeAndAssertError(t *testing.T, data []byte, pos uint64, newSize uint32, errMsg string) {
+	t.Helper()
+	raw := make([]byte, len(data))
+	copy(raw, data)
+	binary.BigEndian.PutUint32(raw[pos:pos+4], newSize)
+	assertBoxDecodeError(t, raw, pos, errMsg)
+}
+
+func assertBoxDecodeError(t *testing.T, data []byte, pos uint64, errMsg string) {
+	t.Helper()
+	_, err := DecodeBox(pos, bytes.NewBuffer(data))
+	if err == nil || err.Error() != errMsg {
+		t.Errorf("DecodeBox: Expected error msg: %q", errMsg)
+	}
+	_, err = DecodeBoxSR(pos, bits.NewFixedSliceReader(data))
+	if err == nil || err.Error() != errMsg {
+		t.Errorf("DecodeBoxSR: Expected error msg: %q", errMsg)
 	}
 }
 

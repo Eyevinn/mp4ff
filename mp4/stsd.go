@@ -24,6 +24,8 @@ type StsdBox struct {
 	Av01 *VisualSampleEntryBox
 	// Encv is a pointer to a box with name encv
 	Encv *VisualSampleEntryBox
+	// VpXX is a pointer to a box with name vp08 or vp09 (VP8 or VP9 video)
+	VpXX *VisualSampleEntryBox
 	// Mp4a is a pointer to a box with name mp4a
 	Mp4a *AudioSampleEntryBox
 	// AC3 is a pointer to a box with name ac-3
@@ -57,6 +59,8 @@ func (s *StsdBox) AddChild(box Box) {
 		s.Encv = box.(*VisualSampleEntryBox)
 	case "av01":
 		s.Av01 = box.(*VisualSampleEntryBox)
+	case "vp08", "vp09":
+		s.VpXX = box.(*VisualSampleEntryBox)
 	case "mp4a":
 		s.Mp4a = box.(*AudioSampleEntryBox)
 	case "ac-3":

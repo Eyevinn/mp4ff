@@ -21,6 +21,7 @@ type VisualSampleEntryBox struct {
 	AvcC               *AvcCBox
 	HvcC               *HvcCBox
 	Av1C               *Av1CBox
+	VppC               *VppCBox
 	Btrt               *BtrtBox
 	Clap               *ClapBox
 	Pasp               *PaspBox
@@ -63,6 +64,8 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.HvcC = box
 	case *Av1CBox:
 		b.Av1C = box
+	case *VppCBox:
+		b.VppC = box
 	case *BtrtBox:
 		b.Btrt = box
 	case *ClapBox:
@@ -72,7 +75,6 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 	case *SinfBox:
 		b.Sinf = box
 	}
-
 	b.Children = append(b.Children, child)
 }
 
@@ -112,7 +114,7 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	}
 	b.CompressorName = sr.ReadFixedLengthString(int(compressorNameLength))
 	sr.SkipBytes(int(31 - compressorNameLength))
-	sr.ReadUint16() // depth == 0x0018
+	sr.SkipBytes(2) // Skip depth
 	sr.ReadUint16() // pre_defined == -1
 
 	// Now there may be clap and pasp boxes
@@ -179,7 +181,7 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 	sw.WriteUint8(compressorNameLength)
 	sw.WriteString(b.CompressorName, false)
 	sw.WriteZeroBytes(int(31 - compressorNameLength))
-	sw.WriteUint16(0x0018) // depth == 0x0018
+	sw.WriteUint16(0x0018) // depth
 	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
 
 	_, err = w.Write(buf[:sw.Offset()]) // Only write  written bytes
@@ -218,7 +220,7 @@ func (b *VisualSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteUint8(compressorNameLength)
 	sw.WriteString(b.CompressorName, false)
 	sw.WriteZeroBytes(int(31 - compressorNameLength))
-	sw.WriteUint16(0x0018) // depth == 0x0018
+	sw.WriteUint16(0x0018) // depth
 	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
 
 	// Next output child boxes in order
