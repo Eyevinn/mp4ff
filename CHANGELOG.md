@@ -18,8 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - mp4.SetUUID() can take base64 string as well as hex-encoded.
 - Support for weird dac3 box with initial 4 zero bytes (Issue #395)
 - Lots of fuzzying tests and changes to avoid panic on bad input data
-- Support for VP8 and VP9 video codecs (vp08 and vp09 boxes)
-- Support for VP Codec Configuration Box (vpcC)
+- Support for SMPTE-2086 Mastering Display Metadata Box (SmDm)
 
 ### Fixed
 

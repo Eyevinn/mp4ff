@@ -26,6 +26,7 @@ type VisualSampleEntryBox struct {
 	Clap               *ClapBox
 	Pasp               *PaspBox
 	Sinf               *SinfBox
+	SmDm               *SmDmBox
 	Children           []Box
 }
 
@@ -74,6 +75,8 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.Pasp = box
 	case *SinfBox:
 		b.Sinf = box
+	case *SmDmBox:
+		b.SmDm = box
 	}
 	b.Children = append(b.Children, child)
 }

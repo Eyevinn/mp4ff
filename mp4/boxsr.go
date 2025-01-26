@@ -98,6 +98,7 @@ func init() {
 		"silb":    DecodeSilbSR,
 		"sinf":    DecodeSinfSR,
 		"skip":    DecodeFreeSR,
+		"SmDm":    DecodeSmDmSR,
 		"smhd":    DecodeSmhdSR,
 		"ssix":    DecodeSsixSR,
 		"stbl":    DecodeStblSR,
