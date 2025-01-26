@@ -107,6 +107,7 @@ func init() {
 		"silb":    DecodeSilb,
 		"sinf":    DecodeSinf,
 		"skip":    DecodeFree,
+		"SmDm":    DecodeSmDm,
 		"smhd":    DecodeSmhd,
 		"ssix":    DecodeSsix,
 		"stbl":    DecodeStbl,

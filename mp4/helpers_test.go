@@ -141,12 +141,29 @@ func assertBoxDecodeError(t *testing.T, data []byte, pos uint64, errMsg string) 
 	t.Helper()
 	_, err := DecodeBox(pos, bytes.NewBuffer(data))
 	if err == nil || err.Error() != errMsg {
-		t.Errorf("DecodeBox: Expected error msg: %q", errMsg)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		t.Errorf("DecodeBox: Expected error msg: %q, got: %q", errMsg, got)
 	}
 	_, err = DecodeBoxSR(pos, bits.NewFixedSliceReader(data))
 	if err == nil || err.Error() != errMsg {
-		t.Errorf("DecodeBoxSR: Expected error msg: %q", errMsg)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		t.Errorf("DecodeBox: Expected error msg: %q, got: %q", errMsg, got)
 	}
+}
+
+func encodeBox(t *testing.T, box Box) []byte {
+	buf := bytes.Buffer{}
+	err := box.Encode(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	return buf.Bytes()
 }
 
 // writeGolden - write golden file that to be used for later tests
