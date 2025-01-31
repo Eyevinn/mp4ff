@@ -35,6 +35,7 @@ func init() {
 		"cdsc":    DecodeTrefType,
 		"clap":    DecodeClap,
 		"co64":    DecodeCo64,
+		"CoLL":    DecodeCoLL,
 		"colr":    DecodeColr,
 		"cslg":    DecodeCslg,
 		"ctim":    DecodeCtim,

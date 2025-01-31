@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for weird dac3 box with initial 4 zero bytes (Issue #395)
 - Lots of fuzzying tests and changes to avoid panic on bad input data
 - Support for SMPTE-2086 Mastering Display Metadata Box (SmDm)
+- Support for Content Light Level Box (CoLL)
 
 ### Fixed
 
