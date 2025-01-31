@@ -27,6 +27,7 @@ type VisualSampleEntryBox struct {
 	Pasp               *PaspBox
 	Sinf               *SinfBox
 	SmDm               *SmDmBox
+	CoLL               *CoLLBox
 	Children           []Box
 }
 
@@ -77,6 +78,8 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.Sinf = box
 	case *SmDmBox:
 		b.SmDm = box
+	case *CoLLBox:
+		b.CoLL = box
 	}
 	b.Children = append(b.Children, child)
 }

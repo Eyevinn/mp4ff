@@ -70,8 +70,9 @@ func DecodeVppCSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if hdr.Size != b.expectedSize(codecInitSize) {
 		return nil, fmt.Errorf("incorrect box size")
 	}
-	b.CodecInitData = sr.ReadBytes(int(codecInitSize))
-
+	if codecInitSize != 0 {
+		b.CodecInitData = sr.ReadBytes(int(codecInitSize))
+	}
 	return &b, sr.AccError()
 }
 

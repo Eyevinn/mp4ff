@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lots of fuzzying tests and changes to avoid panic on bad input data
 - Support for SMPTE-2086 Mastering Display Metadata Box (SmDm)
 - Support for Content Light Level Box (CoLL)
+- Test for CoLL and SmDM inside vp09 box
 
 ### Fixed
 
