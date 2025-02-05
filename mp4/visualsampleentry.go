@@ -29,6 +29,7 @@ type VisualSampleEntryBox struct {
 	SmDm               *SmDmBox
 	CoLL               *CoLLBox
 	Children           []Box
+	OptionalTerminator bool // See https://developer.apple.com/documentation/quicktime-file-format/video_sample_description
 }
 
 // NewVisualSampleEntryBox creates new empty box with an appropriate name such as avc1
@@ -128,6 +129,13 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	pos := startPos + 86 // Size of all previous data
 	endPos := startPos + uint64(hdr.Hdrlen) + uint64(hdr.payloadLen())
 	for {
+		// Break out of the container loop if we have precisely 4 bytes left (that's our optional
+		// terminator
+		if pos + 4 == endPos {
+			b.OptionalTerminator = true
+			sr.SkipBytes(4)
+			break
+		}
 		if pos >= endPos {
 			break
 		}
@@ -160,6 +168,9 @@ func (b *VisualSampleEntryBox) Size() uint64 {
 	totalSize := uint64(boxHeaderSize + 78)
 	for _, child := range b.Children {
 		totalSize += child.Size()
+	}
+	if b.OptionalTerminator {
+		totalSize += 4
 	}
 	return totalSize
 }
