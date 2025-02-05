@@ -65,6 +65,7 @@ func init() {
 		"ipir":    DecodeTrefTypeSR,
 		"kind":    DecodeKindSR,
 		"leva":    DecodeLevaSR,
+		"lpcm":    DecodeAudioSampleEntrySR,
 		"ludt":    DecodeLudtSR,
 		"mdat":    DecodeMdatSR,
 		"mehd":    DecodeMehdSR,

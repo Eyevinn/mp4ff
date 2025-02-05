@@ -1,6 +1,7 @@
 package bits
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -144,6 +145,22 @@ func (s *FixedSliceReader) ReadInt64() int64 {
 	return int64(res)
 }
 
+// ReadFloat64 - read float64 from slice
+func (s *FixedSliceReader) ReadFloat64() float64 {
+	if s.err != nil {
+		return 0
+	}
+	if s.pos > s.len-8 {
+		s.err = ErrSliceRead
+		return 0
+	}
+	buf := bytes.NewReader(s.slice[s.pos : s.pos+8])
+	var val float64
+	_ = binary.Read(buf, binary.BigEndian, &val)
+	s.pos += 8
+	return val
+}
+
 // ReadFixedLengthString - read string of specified length n.
 // Sets err and returns empty string if full length not available
 func (s *FixedSliceReader) ReadFixedLengthString(n int) string {
@@ -251,7 +268,7 @@ func (s *FixedSliceReader) SkipBytes(n int) {
 		return
 	}
 	if s.pos+n > s.Length() {
-		s.err = fmt.Errorf("attempt to skip bytes to pos %d beyond slice len %d", s.pos+n, s.len)
+		s.err = fmt.Errorf("attempt to skip %d bytes to pos %d beyond slice len %d", n, s.pos+n, s.len)
 		return
 	}
 	s.pos += n

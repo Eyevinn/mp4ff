@@ -21,6 +21,7 @@ type AudioSampleEntryBox struct {
 	Btrt               *BtrtBox
 	Sinf               *SinfBox
 	Children           []Box
+	FixedSize          int // Size of fixed part (excluding sub-boxes)
 }
 
 // NewAudioSampleEntryBox - Create new empty mp4a box
@@ -127,13 +128,49 @@ func DecodeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReade
 
 	// 14496-12 12.2.3.2 Audio Sample entry (20 bytes)
 
-	sr.SkipBytes(8) //  reserved == 0
-	a.ChannelCount = sr.ReadUint16()
-	a.SampleSize = sr.ReadUint16()
-	sr.SkipBytes(4) // Predefined + reserved
-	a.SampleRate = makeUint16FromFixed32(sr.ReadUint32())
+	// 14496-12 says this is 8 reserved bytes. However, if this is actually a mov (qt) file
+	// in disguise, the first two bytes are a version, and we can condition parsing on this
+	// version
+	version := sr.ReadUint16()
 
-	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
+	bytesRead := 18 // Including the box header
+	if version == 0 || version == 1 {
+		sr.SkipBytes(6) //  reserved == 0
+		a.ChannelCount = sr.ReadUint16()
+		a.SampleSize = sr.ReadUint16()
+		sr.SkipBytes(4) // Predefined + reserved
+		a.SampleRate = makeUint16FromFixed32(sr.ReadUint32())
+
+		bytesRead += 18
+		if version == 1 {
+			sr.SkipBytes(16)
+			bytesRead += 16
+		}
+		a.FixedSize = bytesRead
+	} else if version == 2 {
+		sr.SkipBytes(18)
+		// Version 2 has an additional size field.
+		size := sr.ReadUint32()
+		// Apple's documentation is incorrect and is missing this 8 byte field
+		// TODO: 16 bits isn't enough here
+		a.SampleRate = uint16(sr.ReadFloat64())
+		a.ChannelCount = uint16(sr.ReadUint32())
+		sr.SkipBytes(4)
+		a.SampleSize = uint16(sr.ReadUint32())
+		sr.SkipBytes(12)
+
+		bytesRead += 54
+
+		if size > 72 {
+			sr.SkipBytes(int(size - 72))
+			bytesRead += int(size - 72)
+		}
+		a.FixedSize = bytesRead
+	} else {
+		return nil, fmt.Errorf("unknown version (%d) of audio sample entry box", version)
+	}
+
+	pos := startPos + uint64(bytesRead)
 	lastPos := startPos + hdr.Size
 	for {
 		if pos >= lastPos {
@@ -163,7 +200,7 @@ func (a *AudioSampleEntryBox) SetType(name string) {
 
 // Size - return calculated size
 func (a *AudioSampleEntryBox) Size() uint64 {
-	totalSize := uint64(nrAudioSampleBytesBeforeChildren)
+	totalSize := uint64(a.FixedSize)
 	for _, child := range a.Children {
 		totalSize += child.Size()
 	}

@@ -17,6 +17,7 @@ type SliceReader interface {
 	ReadInt32() int32
 	ReadUint64() uint64
 	ReadInt64() int64
+	ReadFloat64() float64
 	ReadFixedLengthString(n int) string
 	ReadZeroTerminatedString(maxLen int) string
 	ReadPossiblyZeroTerminatedString(maxLen int) (str string, ok bool)
