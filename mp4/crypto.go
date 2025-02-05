@@ -5,9 +5,9 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
-	"log"
 
 	"github.com/Eyevinn/mp4ff/avc"
+	"github.com/Eyevinn/mp4ff/hevc"
 )
 
 type cryptoDir int
@@ -19,7 +19,7 @@ const (
 	dirDec
 )
 
-// GetAVCProtectRanges for common encryption from a sample with 4-byt NALU lengths.
+// GetAVCProtectRanges for common encryption from a sample with 4-byte NALU lengths.
 // THe spsMap and ppsMap are only needed for CBCS mode.
 // For scheme cenc, protection ranges must be a multiple of 16 bytes leaving header and some more in the clear
 // For scheme cbcs, protection range must start after the slice header.
@@ -42,8 +42,7 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 		naluType := avc.GetNaluType(sample[pos])
 		var bytesToProtect uint32 = 0
 		clearEnd = pos + naluLength
-		if naluType < avc.NALU_SEI {
-			//VCL NALU
+		if avc.IsVideoNaluType(naluType) {
 			nalu := sample[pos : pos+naluLength]
 			switch scheme {
 			case "cenc":
@@ -56,6 +55,62 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 				}
 			case "cbcs":
 				sh, err := avc.ParseSliceHeader(nalu, spsMap, ppsMap)
+				if err != nil {
+					return nil, err
+				}
+				clearHeadSize := uint32(sh.Size)
+				clearEnd = pos + clearHeadSize
+				bytesToProtect = naluLength - clearHeadSize
+			default:
+				return nil, fmt.Errorf("unknown protect scheme %s", scheme)
+			}
+		}
+		if bytesToProtect > 0 {
+			ssps = appendProtectRange(ssps, clearEnd-clearStart, bytesToProtect)
+			clearStart = clearEnd + bytesToProtect
+			clearEnd = clearStart
+		}
+
+		pos += naluLength
+	}
+	if clearEnd > clearStart {
+		ssps = appendProtectRange(ssps, clearEnd-clearStart, 0)
+	}
+	return ssps, nil
+}
+
+func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.PPS,
+	sample []byte, scheme string) ([]SubSamplePattern, error) {
+	var ssps []SubSamplePattern
+	length := len(sample)
+	if length < 4 {
+		return nil, fmt.Errorf("less than 4 bytes, No NALUs")
+	}
+	var pos uint32 = 0
+	clearStart := uint32(0)
+	clearEnd := uint32(0)
+	for pos < uint32(length-4) {
+		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
+		pos += 4
+		if int(pos+naluLength) > len(sample) {
+			return nil, fmt.Errorf("NALU length fields are bad")
+		}
+		naluType := hevc.GetNaluType(sample[pos])
+		var bytesToProtect uint32 = 0
+		clearEnd = pos + naluLength
+		if hevc.IsVideoNaluType(naluType) {
+			nalu := sample[pos : pos+naluLength]
+			switch scheme {
+			case "cenc":
+				if naluLength+naluHdrLen >= minClearSize+16 {
+					// Calculate a multiple of 16 bytes to protect
+					bytesToProtect = (naluLength + naluHdrLen - minClearSize) & 0xfffffff0
+					if bytesToProtect > 0 {
+						clearEnd -= bytesToProtect
+					}
+				}
+			case "cbcs":
+				sh, err := hevc.ParseSliceHeader(nalu, spsMap, ppsMap)
 				if err != nil {
 					return nil, err
 				}
@@ -258,12 +313,13 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 		iv = make([]byte, 16)
 		copy(iv, iv8)
 	}
-
 	var err error
 	ipd.Trex = moov.Mvex.Trex
 	sinf := SinfBox{}
+	var mediaType string
 	switch se := stsd.Children[0].(type) {
 	case *VisualSampleEntryBox:
+		mediaType = "video"
 		veType := se.Type()
 		se.SetType("encv")
 		frma := FrmaBox{DataFormat: veType}
@@ -275,36 +331,21 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 			if err != nil {
 				return nil, fmt.Errorf("get avc protect func: %w", err)
 			}
-			switch scheme {
-			case "cenc":
-				ipd.Tenc = &TencBox{Version: 0, DefaultIsProtected: 1, DefaultPerSampleIVSize: 16, DefaultKID: kid}
-			case "cbcs":
-				ipd.Tenc = &TencBox{Version: 1, DefaultCryptByteBlock: 1, DefaultSkipByteBlock: 9,
-					DefaultIsProtected: 1, DefaultPerSampleIVSize: 0, DefaultKID: kid,
-					DefaultConstantIV: iv}
-			default:
-				return nil, fmt.Errorf("unknown protection mode %s", scheme)
+		case "hvc1", "hev1":
+			ipd.ProtFunc, err = getHEVCProtFunc(se.HvcC)
+			if err != nil {
+				return nil, fmt.Errorf("get hevc protect func: %w", err)
 			}
-
 		default:
 			return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
 		}
 	case *AudioSampleEntryBox:
+		mediaType = "audio"
 		aeType := se.Type()
 		se.SetType("enca")
 		frma := FrmaBox{DataFormat: aeType}
 		sinf.AddChild(&frma)
 		se.AddChild(&sinf)
-		switch scheme {
-		case "cenc":
-			ipd.Tenc = &TencBox{Version: 0, DefaultIsProtected: 1, DefaultPerSampleIVSize: 16, DefaultKID: kid}
-		case "cbcs":
-			ipd.Tenc = &TencBox{Version: 1, DefaultCryptByteBlock: 0, DefaultSkipByteBlock: 0,
-				DefaultIsProtected: 1, DefaultPerSampleIVSize: 0, DefaultKID: kid,
-				DefaultConstantIV: iv}
-		default:
-			return nil, fmt.Errorf("unknown protection scheme %s", scheme)
-		}
 		ipd.ProtFunc = getAudioProtectRanges
 	default:
 		return nil, fmt.Errorf("sample entry type %s should not be encrypted", se.Type())
@@ -312,8 +353,19 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 	schi := SchiBox{}
 	switch scheme {
 	case "cenc":
+		ipd.Tenc = &TencBox{Version: 0, DefaultIsProtected: 1, DefaultPerSampleIVSize: 16, DefaultKID: kid}
 		sinf.AddChild(&SchmBox{SchemeType: "cenc", SchemeVersion: 65536})
 	case "cbcs":
+		switch mediaType {
+		case "video":
+			ipd.Tenc = &TencBox{Version: 1, DefaultCryptByteBlock: 1, DefaultSkipByteBlock: 9,
+				DefaultIsProtected: 1, DefaultPerSampleIVSize: 0, DefaultKID: kid,
+				DefaultConstantIV: iv}
+		case "audio":
+			ipd.Tenc = &TencBox{Version: 1, DefaultCryptByteBlock: 0, DefaultSkipByteBlock: 0,
+				DefaultIsProtected: 1, DefaultPerSampleIVSize: 0, DefaultKID: kid,
+				DefaultConstantIV: iv}
+		}
 		sinf.AddChild(&SchmBox{SchemeType: "cbcs", SchemeVersion: 65536})
 	default:
 		return nil, fmt.Errorf("unknown protection scheme %s", scheme)
@@ -326,36 +378,79 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 	return &ipd, nil
 }
 
-func getSPSMap(spss [][]byte) map[uint32]*avc.SPS {
+func getAVCPSMaps(spss [][]byte, ppss [][]byte) (map[uint32]*avc.SPS, map[uint32]*avc.PPS, error) {
 	spsMap := make(map[uint32]*avc.SPS, 1)
 	for _, spsNalu := range spss {
 		sps, err := avc.ParseSPSNALUnit(spsNalu, false)
 		if err != nil {
-			log.Fatal(err)
+			return nil, nil, err
 		}
 		spsMap[sps.ParameterID] = sps
 	}
-	return spsMap
-}
-
-func getPPSMap(ppss [][]byte, spsMap map[uint32]*avc.SPS) map[uint32]*avc.PPS {
 	ppsMap := make(map[uint32]*avc.PPS, 1)
 	for _, ppsNalu := range ppss {
 		pps, err := avc.ParsePPSNALUnit(ppsNalu, spsMap)
 		if err != nil {
-			log.Fatal(err)
+			return nil, nil, err
 		}
 		ppsMap[pps.PicParameterSetID] = pps
 	}
-	return ppsMap
+	return spsMap, ppsMap, nil
 }
 
 func getAVCProtFunc(avcC *AvcCBox) (ProtectionRangeFunc, error) {
-	spsMap := getSPSMap(avcC.SPSnalus)
-	ppsMap := getPPSMap(avcC.PPSnalus, spsMap)
+	spsMap, ppsMap, err := getAVCPSMaps(avcC.SPSnalus, avcC.PPSnalus)
+	if err != nil {
+		return nil, fmt.Errorf("get avc ps maps: %w", err)
+	}
 	return func(sample []byte, scheme string) ([]SubSamplePattern, error) {
 		return GetAVCProtectRanges(spsMap, ppsMap, sample, scheme)
 	}, nil
+}
+
+func getHEVCPSMaps(arrays []hevc.NaluArray) (map[uint32]*hevc.SPS, map[uint32]*hevc.PPS, error) {
+	// First check SPS
+	spsMap := make(map[uint32]*hevc.SPS, 1)
+	for _, naluArray := range arrays {
+		naluType := naluArray.NaluType()
+		switch naluType {
+		case hevc.NALU_SPS:
+			for _, nalu := range naluArray.Nalus {
+				sps, err := hevc.ParseSPSNALUnit(nalu)
+				if err != nil {
+					return nil, nil, err
+				}
+				spsMap[uint32(sps.SpsID)] = sps
+			}
+		}
+	}
+	// Then check PPS
+	ppsMap := make(map[uint32]*hevc.PPS, 1)
+	for _, naluArray := range arrays {
+		naluType := naluArray.NaluType()
+		switch naluType {
+		case hevc.NALU_PPS:
+			for _, nalu := range naluArray.Nalus {
+				pps, err := hevc.ParsePPSNALUnit(nalu, spsMap)
+				if err != nil {
+					return nil, nil, err
+				}
+				ppsMap[pps.PicParameterSetID] = pps
+			}
+		}
+	}
+	return spsMap, ppsMap, nil
+}
+
+func getHEVCProtFunc(hvcC *HvcCBox) (ProtectionRangeFunc, error) {
+	return func(sample []byte, scheme string) ([]SubSamplePattern, error) {
+		spsMap, ppsMap, err := getHEVCPSMaps(hvcC.NaluArrays)
+		if err != nil {
+			return nil, fmt.Errorf("get hevc ps maps: %w", err)
+		}
+		return GetHEVCProtectRanges(spsMap, ppsMap, sample, scheme)
+	}, nil
+
 }
 
 func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
@@ -402,7 +497,7 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 		sample := fs.Data
 		subsamplePatterns, err := ipd.ProtFunc(sample, ipd.Scheme)
 		if err != nil {
-			return fmt.Errorf("get avc protect ranges: %w", err)
+			return fmt.Errorf("get protect ranges: %w", err)
 		}
 		switch ipd.Scheme {
 		case "cenc":
@@ -663,12 +758,18 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 		case *VisualSampleEntryBox:
 			sinf = box.Sinf
 			frma := sinf.Frma
-			if frma.DataFormat == "avc1" {
+			switch frma.DataFormat {
+			case "avc1":
 				ipd.ProtFunc, err = getAVCProtFunc(box.AvcC)
 				if err != nil {
 					return nil, fmt.Errorf("get AVC protect func: %w", err)
 				}
-			} else {
+			case "hvc1":
+				ipd.ProtFunc, err = getHEVCProtFunc(box.HvcC)
+				if err != nil {
+					return nil, fmt.Errorf("get HEVC protect func: %w", err)
+				}
+			default:
 				return nil, fmt.Errorf("unsupported video codec descriptor %s", frma.DataFormat)
 			}
 		case *AudioSampleEntryBox:

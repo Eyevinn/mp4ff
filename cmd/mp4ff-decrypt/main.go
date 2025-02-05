@@ -74,6 +74,7 @@ func run(args []string) error {
 	var outFilePath = fs.Arg(1)
 
 	if opts.keyStr == "" {
+		fs.Usage()
 		return fmt.Errorf("no key specified")
 	}
 

@@ -165,3 +165,51 @@ func TestNaluTypeStrings(t *testing.T) {
 		t.Errorf("got %d named instead of 22", named)
 	}
 }
+
+func TestIsVideoNaluType(t *testing.T) {
+	testCases := []struct {
+		name     string
+		naluType NaluType
+		want     bool
+	}{
+		{
+			name:     "video type - NALU_TRAIL_N (0)",
+			naluType: NALU_TRAIL_N,
+			want:     true,
+		},
+		{
+			name:     "video type - NALU_TRAIL_R (1)",
+			naluType: NALU_TRAIL_R,
+			want:     true,
+		},
+		{
+			name:     "video type - NALU_IDR_W_RADL (19)",
+			naluType: NALU_IDR_W_RADL,
+			want:     true,
+		},
+		{
+			name:     "video type - highest (31)",
+			naluType: 31,
+			want:     true,
+		},
+		{
+			name:     "non-video type - VPS (32)",
+			naluType: NALU_VPS,
+			want:     false,
+		},
+		{
+			name:     "non-video type - SPS (33)",
+			naluType: NALU_SPS,
+			want:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IsVideoNaluType(tc.naluType)
+			if got != tc.want {
+				t.Errorf("IsVideoNaluType(%d) = %v; want %v", tc.naluType, got, tc.want)
+			}
+		})
+	}
+}

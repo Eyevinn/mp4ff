@@ -118,3 +118,46 @@ func TestGetParameterSets(t *testing.T) {
 		}
 	}
 }
+
+func TestIsVideoNaluType(t *testing.T) {
+	testCases := []struct {
+		name     string
+		naluType NaluType
+		want     bool
+	}{
+		{
+			name:     "video type - NALU_NON_IDR (1)",
+			naluType: NALU_NON_IDR,
+			want:     true,
+		},
+		{
+			name:     "video type - NALU_IDR (5)",
+			naluType: NALU_IDR,
+			want:     true,
+		},
+		{
+			name:     "non-video type - NALU_SEI (6)",
+			naluType: NALU_SEI,
+			want:     false,
+		},
+		{
+			name:     "non-video type - NALU_SPS (7)",
+			naluType: NALU_SPS,
+			want:     false,
+		},
+		{
+			name:     "non-video type - NALU_AUD (9)",
+			naluType: NALU_AUD,
+			want:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IsVideoNaluType(tc.naluType)
+			if got != tc.want {
+				t.Errorf("IsVideoNaluType(%d) = %v; want %v", tc.naluType, got, tc.want)
+			}
+		})
+	}
+}

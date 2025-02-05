@@ -122,11 +122,16 @@ func FindNaluTypesUpToFirstVideoNalu(sample []byte) []NaluType {
 		naluType := GetNaluType(sample[pos])
 		naluList = append(naluList, naluType)
 		pos += naluLength
-		if naluType <= highestVideoNaluType {
+		if IsVideoNaluType(naluType) {
 			break // Video has started
 		}
 	}
 	return naluList
+}
+
+// IsVideoNaluType returns true if NaluType is a video type (<= 31)
+func IsVideoNaluType(naluType NaluType) bool {
+	return naluType <= highestVideoNaluType
 }
 
 // ContainsNaluType - is specific NaluType present in sample
