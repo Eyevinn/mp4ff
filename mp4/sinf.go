@@ -68,12 +68,12 @@ func (b *SinfBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - write minf container to w
+// Encode - write sinf container to w
 func (b *SinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write minf container to sw
+// Encode - write sinf container to sw
 func (b *SinfBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

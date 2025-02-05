@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for SMPTE-2086 Mastering Display Metadata Box (SmDm)
 - Support for Content Light Level Box (CoLL)
 - Better test coverage for VisualSampleEntryBox
+- IsVideoNaluType functions in both avc and hevc packages
 
 ### Fixed
 
