@@ -254,7 +254,15 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		f.Ftyp = box
 	case *MoovBox:
 		f.Moov = box
-		if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+		// If moov is otherwise-well-formed but contains no samples, build an init box
+		// based on it
+		if f.Moov.Trak != nil &&
+			f.Moov.Trak.Mdia != nil &&
+			f.Moov.Trak.Mdia.Minf != nil &&
+			f.Moov.Trak.Mdia.Minf.Stbl != nil &&
+			f.Moov.Trak.Mdia.Minf.Stbl.Stts != nil &&
+			len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+
 			f.isFragmented = true
 			f.Init = NewMP4Init()
 			f.Init.AddChild(f.Ftyp)
