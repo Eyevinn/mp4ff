@@ -109,7 +109,9 @@ type WeightingFactors struct {
 }
 
 func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) (*SliceHeader, error) {
-	sh := &SliceHeader{}
+	sh := &SliceHeader{
+		CollocatedFromL0Flag: true, // Default according to Section 7.4.7.1
+	}
 
 	buf := bytes.NewBuffer(nalu)
 	r := bits.NewEBSPReader(buf)

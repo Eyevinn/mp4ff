@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - support short ESDS without SLConfig descriptor (issue #393)
+- HEVC Slice Header CollocatedFromL0Flag should be true by default
 
 ## [0.47.0] - 2024-11-12
 
