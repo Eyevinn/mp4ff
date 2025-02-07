@@ -66,6 +66,7 @@ func DecodeElstSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	} else {
 		return nil, fmt.Errorf("unknown version for elst")
 	}
+
 	return b, sr.AccError()
 }
 

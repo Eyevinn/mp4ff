@@ -235,17 +235,7 @@ LoopBoxes:
 				if lastBoxType != "moof" {
 					return nil, fmt.Errorf("does not support %v between moof and mdat", lastBoxType)
 				}
-			} else {
-				if f.Mdat != nil {
-					oldPayloadSize := f.Mdat.Size() - f.Mdat.HeaderSize()
-					newMdat := box.(*MdatBox)
-					newPayloadSize := newMdat.Size() - newMdat.HeaderSize()
-					if oldPayloadSize > 0 && newPayloadSize > 0 {
-						return nil, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)",
-							oldPayloadSize, newPayloadSize)
-					}
-				}
-			}
+			} 
 		case "moof":
 			moof := box.(*MoofBox)
 			for _, traf := range moof.Trafs {

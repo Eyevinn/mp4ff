@@ -27,7 +27,7 @@ import (
 type File struct {
 	Ftyp         *FtypBox
 	Moov         *MoovBox
-	Mdat         *MdatBox        // mdat box for non-fragmented files. Extra empty boxes allowed.
+	Mdats        []*MdatBox      // mdat boxes for non-fragmented files.
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Sidx         *SidxBox        // The first sidx box for a DASH OnDemand file
 	Sidxs        []*SidxBox      // All sidx boxes for a DASH OnDemand file
@@ -196,16 +196,6 @@ LoopBoxes:
 				if lastBoxType != "moof" {
 					return nil, fmt.Errorf("does not support %v between moof and mdat", lastBoxType)
 				}
-			} else {
-				if f.Mdat != nil {
-					oldPayloadSize := f.Mdat.Size() - f.Mdat.HeaderSize()
-					newMdat := box.(*MdatBox)
-					newPayloadSize := newMdat.Size() - newMdat.HeaderSize()
-					if oldPayloadSize > 0 && newPayloadSize > 0 {
-						return nil, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)",
-							oldPayloadSize, newPayloadSize)
-					}
-				}
 			}
 		case "moof":
 			moof := box.(*MoofBox)
@@ -312,9 +302,9 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		frag := currSeg.LastFragment()
 		frag.AddChild(moof)
 	case *MdatBox:
-		if !f.isFragmented { // Only add if previous mdat is nil or empty
-			if f.Mdat == nil || f.Mdat.Size()-f.Mdat.HeaderSize() == 0 {
-				f.Mdat = box
+		if !f.isFragmented { // Only add if non-empty
+			if box.Size()-box.HeaderSize() != 0 {
+				f.Mdats = append(f.Mdats, box)
 			}
 		} else {
 			currentFragment := f.LastSegment().LastFragment()
@@ -592,110 +582,111 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 	if f.isFragmented {
 		return fmt.Errorf("only available for progressive files")
 	}
-	mdat := f.Mdat
+	for _, mdat := range f.Mdats {
 
-	if mdat.IsLazy() && rs == nil {
-		return fmt.Errorf("no ReadSeeker for lazy mdat")
-	}
-	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
+		if mdat.IsLazy() && rs == nil {
+			return fmt.Errorf("no ReadSeeker for lazy mdat")
+		}
+		mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 
-	stbl := trak.Mdia.Minf.Stbl
-	chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
-	if err != nil {
-		return err
-	}
-	var getChunkOffset func(chunkNr int) (uint64, error)
-	switch {
-	case stbl.Stco != nil:
-		getChunkOffset = stbl.Stco.GetOffset
-	case stbl.Co64 != nil:
-		getChunkOffset = stbl.Co64.GetOffset
-	default:
-		return fmt.Errorf("neither stco nor co64 available")
-	}
-	var startNr, endNr uint32
-	var offset uint64
-	workPos := 0
-	workLen := len(workSpace)
-	for i, chunk := range chunks {
-		startNr = chunk.StartSampleNr
-		endNr = startNr + chunk.NrSamples - 1
-		offset, err = getChunkOffset(int(chunk.ChunkNr))
+		stbl := trak.Mdia.Minf.Stbl
+		chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
 		if err != nil {
-			return fmt.Errorf("getChunkOffset: %w", err)
+			return err
 		}
-		if i == 0 {
-			for sNr := chunk.StartSampleNr; sNr < startSampleNr; sNr++ {
-				offset += uint64(stbl.Stsz.GetSampleSize(int(sNr)))
-			}
-			startNr = startSampleNr
+		var getChunkOffset func(chunkNr int) (uint64, error)
+		switch {
+		case stbl.Stco != nil:
+			getChunkOffset = stbl.Stco.GetOffset
+		case stbl.Co64 != nil:
+			getChunkOffset = stbl.Co64.GetOffset
+		default:
+			return fmt.Errorf("neither stco nor co64 available")
 		}
-
-		if i == len(chunks)-1 {
-			endNr = endSampleNr
-		}
-		var size int64
-		for sNr := startNr; sNr <= endNr; sNr++ {
-			size += int64(stbl.Stsz.GetSampleSize(int(sNr)))
-		}
-		if mdat.IsLazy() {
-			_, err := rs.Seek(int64(offset), io.SeekStart)
+		var startNr, endNr uint32
+		var offset uint64
+		workPos := 0
+		workLen := len(workSpace)
+		for i, chunk := range chunks {
+			startNr = chunk.StartSampleNr
+			endNr = startNr + chunk.NrSamples - 1
+			offset, err = getChunkOffset(int(chunk.ChunkNr))
 			if err != nil {
-				return err
+				return fmt.Errorf("getChunkOffset: %w", err)
 			}
-			if workLen == 0 {
-				n, err := io.CopyN(w, rs, size)
-				if err != nil {
-					return fmt.Errorf("copyN: %w", err)
+			if i == 0 {
+				for sNr := chunk.StartSampleNr; sNr < startSampleNr; sNr++ {
+					offset += uint64(stbl.Stsz.GetSampleSize(int(sNr)))
 				}
-				if n != size {
-					return fmt.Errorf("wrote %d instead of %d bytes", n, size)
+				startNr = startSampleNr
+			}
+
+			if i == len(chunks)-1 {
+				endNr = endSampleNr
+			}
+			var size int64
+			for sNr := startNr; sNr <= endNr; sNr++ {
+				size += int64(stbl.Stsz.GetSampleSize(int(sNr)))
+			}
+			if mdat.IsLazy() {
+				_, err := rs.Seek(int64(offset), io.SeekStart)
+				if err != nil {
+					return err
+				}
+				if workLen == 0 {
+					n, err := io.CopyN(w, rs, size)
+					if err != nil {
+						return fmt.Errorf("copyN: %w", err)
+					}
+					if n != size {
+						return fmt.Errorf("wrote %d instead of %d bytes", n, size)
+					}
+				} else {
+					nrLeft := int(size)
+					nrRead := 0
+					for {
+						end := min(workLen, workPos+nrLeft)
+						n, err := rs.Read(workSpace[workPos:end])
+						if err != nil {
+							return err
+						}
+						nrLeft -= n
+						workPos += n
+						nrRead += n
+						if nrLeft == 0 {
+							break
+						}
+						if workPos == workLen {
+							n, err := w.Write(workSpace)
+							if n != workPos {
+								return fmt.Errorf("finished match %d written instead of instead of %d", n, workPos)
+							}
+							if err != nil {
+								return fmt.Errorf("write error: %w", err)
+							}
+							workPos = 0
+						}
+					}
 				}
 			} else {
-				nrLeft := int(size)
-				nrRead := 0
-				for {
-					end := min(workLen, workPos+nrLeft)
-					n, err := rs.Read(workSpace[workPos:end])
-					if err != nil {
-						return err
-					}
-					nrLeft -= n
-					workPos += n
-					nrRead += n
-					if nrLeft == 0 {
-						break
-					}
-					if workPos == workLen {
-						n, err := w.Write(workSpace)
-						if n != workPos {
-							return fmt.Errorf("finished match %d written instead of instead of %d", n, workPos)
-						}
-						if err != nil {
-							return fmt.Errorf("write error: %w", err)
-						}
-						workPos = 0
-					}
+				offsetInMdatData := offset - mdatPayloadStart
+				n, err := w.Write(mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)])
+				if err != nil {
+					return err
+				}
+				if int64(n) != size {
+					return fmt.Errorf("copied %d bytes instead of %d", n, size)
 				}
 			}
-		} else {
-			offsetInMdatData := offset - mdatPayloadStart
-			n, err := w.Write(mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)])
+		}
+		if workPos > 0 {
+			n, err := w.Write(workSpace[:workPos])
+			if n != workPos {
+				return fmt.Errorf("finished match %d written instead of instead of %d", n, workPos)
+			}
 			if err != nil {
-				return err
+				return fmt.Errorf("write error: %w", err)
 			}
-			if int64(n) != size {
-				return fmt.Errorf("copied %d bytes instead of %d", n, size)
-			}
-		}
-	}
-	if workPos > 0 {
-		n, err := w.Write(workSpace[:workPos])
-		if n != workPos {
-			return fmt.Errorf("finished match %d written instead of instead of %d", n, workPos)
-		}
-		if err != nil {
-			return fmt.Errorf("write error: %w", err)
 		}
 	}
 	return nil
