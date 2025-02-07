@@ -20,6 +20,7 @@ func TestParseSliceHeader(t *testing.T) {
 			LoopFilterAcrossSlicesEnabledFlag: true,
 			NumEntryPointOffsets:              1,
 			OffsetLenMinus1:                   3,
+			CollocatedFromL0Flag:              true,
 			EntryPointOffsetMinus1:            []uint32{12},
 			Size:                              6},
 		NALU_TRAIL_N: {
@@ -46,6 +47,7 @@ func TestParseSliceHeader(t *testing.T) {
 			LoopFilterAcrossSlicesEnabledFlag: true,
 			NumEntryPointOffsets:              1,
 			OffsetLenMinus1:                   1,
+			CollocatedFromL0Flag:              false,
 			EntryPointOffsetMinus1:            []uint32{1},
 			Size:                              10,
 		},
@@ -74,6 +76,7 @@ func TestParseSliceHeader(t *testing.T) {
 					},
 				},
 			},
+			CollocatedFromL0Flag:     true,
 			FiveMinusMaxNumMergeCand: 2,
 			QpDelta:                  7,
 			NumEntryPointOffsets:     1,
@@ -113,6 +116,6 @@ func TestParseSliceHeader(t *testing.T) {
 		}
 	}
 	if diff := deep.Equal(wantedHdr, gotHdr); diff != nil {
-		t.Errorf("Got Slice Header: %+v\n Diff is %v", gotHdr, diff)
+		t.Errorf("Got Slice Headers: %+v\n Diff is %v", gotHdr, diff)
 	}
 }
