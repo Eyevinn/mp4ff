@@ -53,7 +53,8 @@ func DecodeSgpdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 			descriptionLength = sr.ReadUint32()
 			b.DescriptionLengths = append(b.DescriptionLengths, descriptionLength)
 		}
-		if descriptionLength == 0 {
+		if descriptionLength == 0  && i > 0 {
+			// We allow a single zero-length entry as seen in some files with a GroupingType of 'tsas'
 			return nil, fmt.Errorf("sgpd: invalid descriptionLength of 0")
 		}
 		sgEntry, err := decodeSampleGroupEntry(b.GroupingType, descriptionLength, sr)
