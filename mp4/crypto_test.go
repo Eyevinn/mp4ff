@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -9,12 +9,13 @@ import (
 
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
 func TestFindAVCSubsampleRanges(t *testing.T) {
 	infile := "testdata/1.m4s"
-	fmp4, err := ReadMP4File(infile)
+	fmp4, err := mp4.ReadMP4File(infile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -44,11 +45,11 @@ func TestFindAVCSubsampleRanges(t *testing.T) {
 	}
 	testCases := []struct {
 		scheme         string
-		expectedRanges [][]SubSamplePattern
+		expectedRanges [][]mp4.SubSamplePattern
 	}{
 		{
 			scheme: "cenc",
-			expectedRanges: [][]SubSamplePattern{
+			expectedRanges: [][]mp4.SubSamplePattern{
 				{{BytesOfClearData: 906, BytesOfProtectedData: 2224}},
 				{{BytesOfClearData: 103, BytesOfProtectedData: 80}},
 				{{BytesOfClearData: 104, BytesOfProtectedData: 64}},
@@ -61,7 +62,7 @@ func TestFindAVCSubsampleRanges(t *testing.T) {
 		},
 		{
 			scheme: "cbcs",
-			expectedRanges: [][]SubSamplePattern{
+			expectedRanges: [][]mp4.SubSamplePattern{
 				{{BytesOfClearData: 805, BytesOfProtectedData: 2325}},
 				{{BytesOfClearData: 10, BytesOfProtectedData: 173}},
 				{{BytesOfClearData: 13, BytesOfProtectedData: 155}},
@@ -83,7 +84,7 @@ func TestFindAVCSubsampleRanges(t *testing.T) {
 			for _, nalu := range nalus {
 				t.Logf("Sample %d: NALU %d %dB\n", i+1, avc.GetNaluType(nalu[0]), len(nalu))
 			}
-			protectRanges, err := GetAVCProtectRanges(spsMap, ppsMap, data, tc.scheme)
+			protectRanges, err := mp4.GetAVCProtectRanges(spsMap, ppsMap, data, tc.scheme)
 			if err != nil {
 				t.Error(err)
 			}
@@ -107,17 +108,17 @@ func TestEncryptDecrypt(t *testing.T) {
 	ivHex16 := "ffeeddccbbaa99887766554433221100"
 	kidHex := "11112222333344445555666677778888"
 	key, _ := hex.DecodeString(keyHex)
-	kidUUID, _ := NewUUIDFromString(kidHex)
+	kidUUID, _ := mp4.NewUUIDFromString(kidHex)
 	psshFile := "testdata/pssh.bin"
 	psh, err := os.Open(psshFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	box, err := DecodeBox(0, psh)
+	box, err := mp4.DecodeBox(0, psh)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pssh := box.(*PsshBox)
+	pssh := box.(*mp4.PsshBox)
 
 	testCases := []struct {
 		desc    string
@@ -141,7 +142,7 @@ func TestEncryptDecrypt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			init, err := DecodeFile(ifh)
+			init, err := mp4.DecodeFile(ifh)
 			ifh.Close()
 			if err != nil {
 				t.Fatal(err)
@@ -151,12 +152,12 @@ func TestEncryptDecrypt(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			var psshs []*PsshBox
+			var psshs []*mp4.PsshBox
 			if c.hasPssh {
-				psshs = []*PsshBox{pssh}
+				psshs = []*mp4.PsshBox{pssh}
 			}
 
-			ipf, err := InitProtect(init.Init, key, iv, c.scheme, kidUUID, psshs)
+			ipf, err := mp4.InitProtect(init.Init, key, iv, c.scheme, kidUUID, psshs)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -168,7 +169,7 @@ func TestEncryptDecrypt(t *testing.T) {
 			}
 
 			// Check that one can extract the protection the InitProtectData from the init segment
-			ipd, err := ExtractInitProtectData(init.Init)
+			ipd, err := mp4.ExtractInitProtectData(init.Init)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -183,13 +184,13 @@ func TestEncryptDecrypt(t *testing.T) {
 				t.Fatal(err)
 			}
 			rs := bytes.NewBuffer(rawSeg)
-			seg, err := DecodeFile(rs)
+			seg, err := mp4.DecodeFile(rs)
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, s := range seg.Segments {
 				for _, f := range s.Fragments {
-					err := EncryptFragment(f, key, iv, ipf)
+					err := mp4.EncryptFragment(f, key, iv, ipf)
 					if err != nil {
 						t.Error(err)
 					}
@@ -203,24 +204,24 @@ func TestEncryptDecrypt(t *testing.T) {
 			// Get decrypt info from init segment
 			encInitRaw := encInitBuf.Bytes()
 			sr := bits.NewFixedSliceReader(encInitRaw)
-			encInit, err := DecodeFileSR(sr)
+			encInit, err := mp4.DecodeFileSR(sr)
 			if err != nil {
 				t.Error(err)
 			}
-			decInfo, err := DecryptInit(encInit.Init)
+			decInfo, err := mp4.DecryptInit(encInit.Init)
 			if err != nil {
 				t.Error(err)
 			}
 
 			// Decode and decrypt the written segment
 			sr = bits.NewFixedSliceReader(outBuf.Bytes())
-			decode, err := DecodeFileSR(sr)
+			decode, err := mp4.DecodeFileSR(sr)
 			if err != nil {
 				t.Error(err)
 			}
 			// Decrypt the segment
 			for _, s := range decode.Segments {
-				err := DecryptSegment(s, decInfo, key)
+				err := mp4.DecryptSegment(s, decInfo, key)
 				if err != nil {
 					t.Error(err)
 				}
@@ -239,13 +240,13 @@ func TestEncryptDecrypt(t *testing.T) {
 			// Make a new encryption to check that the decrypted segment is OK
 			// for re-encryption (Issue #378).
 
-			pd2, err := InitProtect(encInit.Init, key, iv, c.scheme, kidUUID, nil)
+			pd2, err := mp4.InitProtect(encInit.Init, key, iv, c.scheme, kidUUID, nil)
 			if err != nil {
 				t.Error(err)
 			}
 			for _, s := range decode.Segments {
 				for _, f := range s.Fragments {
-					err := EncryptFragment(f, key, iv, pd2)
+					err := mp4.EncryptFragment(f, key, iv, pd2)
 					if err != nil {
 						t.Errorf("Error re-encrypting fragment: %v\n", err)
 					}
@@ -257,12 +258,12 @@ func TestEncryptDecrypt(t *testing.T) {
 
 func TestDecryptInit(t *testing.T) {
 	encFile := "testdata/prog_8s_enc_dashinit.mp4"
-	mp4f, err := ReadMP4File(encFile)
+	mp4f, err := mp4.ReadMP4File(encFile)
 	if err != nil {
 		t.Error(err)
 	}
 	init := mp4f.Init
-	decInfo, err := DecryptInit(init)
+	decInfo, err := mp4.DecryptInit(init)
 	if err != nil {
 		t.Error(err)
 	}

@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -7,14 +7,15 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestMeta(t *testing.T) {
-	hdlr, err := CreateHdlr("zzzz")
+	hdlr, err := mp4.CreateHdlr("zzzz")
 	if err != nil {
 		t.Error(err)
 	}
-	meta := CreateMetaBox(0, hdlr)
+	meta := mp4.CreateMetaBox(0, hdlr)
 	boxDiffAfterEncodeAndDecode(t, meta)
 }
 
@@ -26,11 +27,11 @@ func TestQuickTimeMeta(t *testing.T) {
 		t.Error(err)
 	}
 	sr := bits.NewFixedSliceReader(data)
-	box, err := DecodeBoxSR(0, sr)
+	box, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
 		t.Error(err)
 	}
-	meta, ok := box.(*MetaBox)
+	meta, ok := box.(*mp4.MetaBox)
 	if !ok {
 		t.Error("box is not meta")
 	}

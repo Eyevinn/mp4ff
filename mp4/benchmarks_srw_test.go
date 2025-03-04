@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestDecodEncodeFileSRW(t *testing.T) {
@@ -21,12 +22,12 @@ func TestDecodEncodeFileSRW(t *testing.T) {
 		rawOut := make([]byte, len(raw))
 		t.Run(testFile, func(t *testing.T) {
 			sr := bits.NewFixedSliceReader(raw)
-			f, err := DecodeFileSR(sr)
+			f, err := mp4.DecodeFileSR(sr)
 			if err != nil {
 				t.Error(err)
 			}
 			sw := bits.NewFixedSliceWriterFromSlice(rawOut)
-			f.FragEncMode = EncModeBoxTree
+			f.FragEncMode = mp4.EncModeBoxTree
 			err = f.EncodeSW(sw)
 			if err != nil {
 				t.Error(err)
@@ -48,7 +49,7 @@ func BenchmarkDecodeFileSR(b *testing.B) {
 		b.Run(testFile, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				sr := bits.NewFixedSliceReader(raw)
-				_, _ = DecodeFileSR(sr)
+				_, _ = mp4.DecodeFileSR(sr)
 			}
 		})
 	}
@@ -62,7 +63,7 @@ func BenchmarkEncodeFileSW(b *testing.B) {
 	for _, testFile := range testFiles {
 		raw, _ := os.ReadFile("testdata/" + testFile)
 		inBuf := bytes.NewBuffer(raw)
-		decFile, _ := DecodeFile(inBuf)
+		decFile, _ := mp4.DecodeFile(inBuf)
 		rawOut := make([]byte, len(raw))
 		b.Run(testFile, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

@@ -1,7 +1,7 @@
 //go:build go1.18
 // +build go1.18
 
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func monitorMemory(ctx context.Context, t *testing.T, memoryLimit int) {
@@ -73,7 +74,7 @@ func FuzzDecodeBox(f *testing.F) {
 		r := bytes.NewReader(b)
 		var pos uint64 = 0
 		for {
-			box, err := DecodeBox(pos, r)
+			box, err := mp4.DecodeBox(pos, r)
 			if err != nil {
 				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 					break
@@ -88,7 +89,7 @@ func FuzzDecodeBox(f *testing.F) {
 		pos = 0
 		sr := bits.NewFixedSliceReader(b)
 		for {
-			box, err := DecodeBoxSR(pos, sr)
+			box, err := mp4.DecodeBoxSR(pos, sr)
 			if err != nil {
 				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 					break

@@ -10,8 +10,8 @@ import (
 //
 // Contained in : Udta Box (udta)
 type LudtBox struct {
-	Loudness      []*TlouBox
-	AlbumLoudness []*AlouBox
+	Loudness      []*LoudnessBaseBox
+	AlbumLoudness []*LoudnessBaseBox
 	Children      []Box
 }
 
@@ -43,11 +43,11 @@ func DecodeLudtSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 
 // AddChild - add child box
 func (b *LudtBox) AddChild(child Box) {
-	switch box := child.(type) {
-	case *TlouBox:
-		b.Loudness = append(b.Loudness, box)
-	case *AlouBox:
-		b.AlbumLoudness = append(b.AlbumLoudness, box)
+	switch boxType := child.Type(); boxType {
+	case "tlou":
+		b.Loudness = append(b.Loudness, child.(*LoudnessBaseBox))
+	case "alou":
+		b.AlbumLoudness = append(b.AlbumLoudness, child.(*LoudnessBaseBox))
 	}
 	b.Children = append(b.Children, child)
 }

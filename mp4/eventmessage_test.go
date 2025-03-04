@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestEvteDecode(t *testing.T) {
@@ -16,11 +17,11 @@ func TestEvteDecode(t *testing.T) {
 		t.Error(err)
 	}
 	sr := bits.NewFixedSliceReader(data)
-	box, err := DecodeBoxSR(0, sr)
+	box, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
 		t.Error(err)
 	}
-	evte := box.(*EvteBox)
+	evte := box.(*mp4.EvteBox)
 	if evte.DataReferenceIndex != 1 {
 		t.Errorf("Wrong DataReferenceIndex %d", evte.DataReferenceIndex)
 	}
@@ -31,10 +32,10 @@ func TestEvteDecode(t *testing.T) {
 }
 
 func TestEvteInclSilb(t *testing.T) {
-	silb := SilbBox{
+	silb := mp4.SilbBox{
 		Version: 0,
 		Flags:   0,
-		Schemes: []SilbEntry{
+		Schemes: []mp4.SilbEntry{
 			{
 				SchemeIdURI:    "urn:mpeg:dash:event:2012",
 				Value:          "event1",
@@ -43,7 +44,7 @@ func TestEvteInclSilb(t *testing.T) {
 		},
 	}
 	boxDiffAfterEncodeAndDecode(t, &silb)
-	evte := EvteBox{
+	evte := mp4.EvteBox{
 		DataReferenceIndex: 1,
 	}
 	evte.AddChild(&silb)
@@ -58,11 +59,11 @@ func TestEmib(t *testing.T) {
 			t.Error(err)
 		}
 		buf := bytes.NewBuffer(data)
-		box, err := DecodeBox(0, buf)
+		box, err := mp4.DecodeBox(0, buf)
 		if err != nil {
 			t.Error(err)
 		}
-		emib := box.(*EmibBox)
+		emib := box.(*mp4.EmibBox)
 		if emib.SchemeIdURI != scteSchemeIdURI {
 			t.Errorf("Wrong SchemeIdURI %s", emib.SchemeIdURI)
 		}
@@ -76,7 +77,7 @@ func TestEmib(t *testing.T) {
 		}
 	})
 	t.Run("EncodeDecodeEmib", func(t *testing.T) {
-		emib := EmibBox{
+		emib := mp4.EmibBox{
 			Version:               0,
 			Flags:                 0,
 			PresentationTimeDelta: -1000,
@@ -91,6 +92,6 @@ func TestEmib(t *testing.T) {
 }
 
 func TestEmeb(t *testing.T) {
-	emeb := EmebBox{}
+	emeb := mp4.EmebBox{}
 	boxDiffAfterEncodeAndDecode(t, &emeb)
 }

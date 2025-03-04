@@ -1,13 +1,15 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestStss(t *testing.T) {
 
 	// The following stss box has two sync samples
-	stss := &StssBox{
+	stss := &mp4.StssBox{
 		SampleNumber: []uint32{1, 26},
 	}
 
@@ -42,7 +44,7 @@ func TestStss(t *testing.T) {
 }
 
 func TestStssEncodeDecode(t *testing.T) {
-	stss := &StssBox{
+	stss := &mp4.StssBox{
 		SampleNumber: []uint32{1, 26},
 	}
 
@@ -51,7 +53,7 @@ func TestStssEncodeDecode(t *testing.T) {
 
 func TestStssNoSamples(t *testing.T) {
 	// The following pathological stss box has no samples
-	stss := &StssBox{
+	stss := &mp4.StssBox{
 		SampleNumber: nil,
 	}
 

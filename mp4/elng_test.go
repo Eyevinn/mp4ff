@@ -1,13 +1,15 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestDecodeElng(t *testing.T) {
 
-	elng := &ElngBox{Language: "en-US"}
+	elng := &mp4.ElngBox{Language: "en-US"}
 	boxDiffAfterEncodeAndDecode(t, elng)
 }
 
@@ -15,11 +17,11 @@ func TestDecodeElng(t *testing.T) {
 func TestElngWithoutFullBox(t *testing.T) {
 	data := []byte("\x00\x00\x00\x0belngdk\x00")
 	bufIn := bytes.NewBuffer(data)
-	box, err := DecodeBox(0, bufIn)
+	box, err := mp4.DecodeBox(0, bufIn)
 	if err != nil {
 		t.Errorf("could not decode elng")
 	}
-	elng := box.(*ElngBox)
+	elng := box.(*mp4.ElngBox)
 	if !elng.MissingFullBoxBytes() {
 		t.Errorf("missing full box not set")
 	}
@@ -37,11 +39,11 @@ func TestFixElngMissingFullBoxBytes(t *testing.T) {
 	dataIn := []byte("\x00\x00\x00\x0belngdk\x00")
 	dataOut := []byte("\x00\x00\x00\x0felng\x00\x00\x00\x00dk\x00")
 	bufIn := bytes.NewBuffer(dataIn)
-	box, err := DecodeBox(0, bufIn)
+	box, err := mp4.DecodeBox(0, bufIn)
 	if err != nil {
 		t.Errorf("could not decode elng")
 	}
-	elng := box.(*ElngBox)
+	elng := box.(*mp4.ElngBox)
 	if !elng.MissingFullBoxBytes() {
 		t.Errorf("missing full box not set")
 	}

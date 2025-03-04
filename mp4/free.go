@@ -12,6 +12,21 @@ type FreeBox struct {
 	notDecoded []byte
 }
 
+// NewFreeBox creates a new FreeBox with arbitrary data payload.
+func NewFreeBox(data []byte) *FreeBox {
+	return &FreeBox{Name: "free", notDecoded: data}
+}
+
+// NewSkipBox creates a new SkipBox with arbitrary data payload.
+func NewSkipBox(data []byte) *FreeBox {
+	return &FreeBox{Name: "skip", notDecoded: data}
+}
+
+// Payload returns the payload of the box (everything after the box header)
+func (b *FreeBox) Payload() []byte {
+	return b.notDecoded
+}
+
 // DecodeFree - box-specific decode
 func DecodeFree(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)

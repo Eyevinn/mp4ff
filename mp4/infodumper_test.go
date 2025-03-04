@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
 // compareOrUpdateInfo - compare box with golden dump or update it with -update flag set
-func compareOrUpdateInfo(t *testing.T, b Informer, path string) error {
+func compareOrUpdateInfo(t *testing.T, b mp4.Informer, path string) error {
 	t.Helper()
 
 	var dumpBuf bytes.Buffer

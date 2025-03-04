@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### New
+
+* UUID
+* Mdat
+
 ### Changed
 
 - mp4.NewUUIDFromHex() changed to more general mp4.NewUUIDFromString()
 - cmd/mp4ff-decrypt -key option instead of -k. Takes hex or base64 value
 - cmd/mp4ff-encrypt -key and -kid options now take hex or bae64 values
+- Replaced mp4.AlouBox and mp4.TlouBox with a common mp4.LoudnessBaseBox
+- mp4.Measurement changed to clearer mp4.LoudnessMeasurement
 
 ### Added
 
@@ -22,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for Content Light Level Box (CoLL)
 - Better test coverage for VisualSampleEntryBox
 - IsVideoNaluType functions in both avc and hevc packages
+- Exported constants for ColrBox's ColorType
+- mp4.NewFreeBox, mp4.NewSkipBox functions
+- mp4.FreeBox.Payload method
+- New mp4.SencBox methods: SetPerSampleIVSize, PerSampleIVSize, and ReadButNotParsed
+- New function mp4.CreateUnknownBox
+- New functions mp4.NewTfrfBox and mp4.NewTfxdBox
 
 ### Fixed
 

@@ -1,16 +1,17 @@
-package mp4
+package mp4_test
 
 import (
 	"encoding/hex"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestEncDecDec3(t *testing.T) {
-	b := &Dec3Box{DataRate: 448,
+	b := &mp4.Dec3Box{DataRate: 448,
 		NumIndSub: 0,
-		EC3Subs: []EC3Sub{
+		EC3Subs: []mp4.EC3Sub{
 			{FSCod: 2}},
 		Reserved: []byte{}}
 	boxDiffAfterEncodeAndDecode(t, b)
@@ -48,11 +49,11 @@ func TestGetChannelInfoDec3(t *testing.T) {
 			t.Error(err)
 		}
 		sr := bits.NewFixedSliceReader(dec3Bytes)
-		box, err := DecodeBoxSR(0, sr)
+		box, err := mp4.DecodeBoxSR(0, sr)
 		if err != nil {
 			t.Error(err)
 		}
-		dec3 := box.(*Dec3Box)
+		dec3 := box.(*mp4.Dec3Box)
 		gotNrChannels, gotChanmap := dec3.ChannelInfo()
 		if gotNrChannels != tc.wantedNrChannels {
 			t.Errorf("got %d channels instead of %d", gotNrChannels, tc.wantedNrChannels)

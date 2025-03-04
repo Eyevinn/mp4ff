@@ -1,13 +1,15 @@
-package mp4
+package mp4_test
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestCoLL(t *testing.T) {
 	// Create a sample CoLL box with test values
-	coll := CreateCoLLBox(
+	coll := mp4.CreateCoLLBox(
 		1000, // maxCLL
 		500,  // maxFALL
 	)

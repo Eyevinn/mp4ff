@@ -1,13 +1,15 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestCreateMultiTrackFragment(t *testing.T) {
 
 	trackIDs := []uint32{1, 2, 3}
-	mFrag, err := CreateMultiTrackFragment(1, trackIDs)
+	mFrag, err := mp4.CreateMultiTrackFragment(1, trackIDs)
 	if err != nil {
 		t.Error("Error creating MultiTrackFragment")
 	}
@@ -17,13 +19,13 @@ func TestCreateMultiTrackFragment(t *testing.T) {
 }
 
 func TestFragmentSampleIntervals(t *testing.T) {
-	frag, err := CreateFragment(12, 1)
+	frag, err := mp4.CreateFragment(12, 1)
 	if err != nil {
 		t.Error("Error creating Fragment")
 	}
-	s := NewSample(0, 100, 1, 0)
+	s := mp4.NewSample(0, 100, 1, 0)
 	frag.AddSample(s, 1230)
-	samples := []Sample{NewSample(0, 100, 2, 0), NewSample(0, 100, 3, 0), NewSample(0, 100, 4, 0)}
+	samples := []mp4.Sample{mp4.NewSample(0, 100, 2, 0), mp4.NewSample(0, 100, 3, 0), mp4.NewSample(0, 100, 4, 0)}
 	frag.AddSamples(samples, 1330)
 
 	sampleNr, err := frag.GetSampleNrFromTime(nil, 1430)
@@ -48,9 +50,9 @@ func TestFragmentSampleIntervals(t *testing.T) {
 		t.Error("Should have gotten error from CommonSampleDuration")
 	}
 
-	sampleItvl := SampleInterval{
+	sampleItvl := mp4.SampleInterval{
 		FirstDecodeTime: 1630,
-		Samples:         []Sample{{0, 100, 2, 0}},
+		Samples:         []mp4.Sample{{0, 100, 2, 0}},
 		OffsetInMdat:    0,
 		Data:            []byte{},
 	}

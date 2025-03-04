@@ -1,8 +1,12 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestFrma(t *testing.T) {
-	frma := &FrmaBox{DataFormat: "avc1"}
+	frma := &mp4.FrmaBox{DataFormat: "avc1"}
 	boxDiffAfterEncodeAndDecode(t, frma)
 }

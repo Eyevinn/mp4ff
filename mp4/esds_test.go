@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 func TestEsdsEncodeAndDecode(t *testing.T) {
 	decCfg := []byte{0x11, 0x90}
 
-	esdsIn := CreateEsdsBox(decCfg)
+	esdsIn := mp4.CreateEsdsBox(decCfg)
 
 	// Write to a buffer so that we can read and check
 	var buf bytes.Buffer
@@ -29,11 +30,11 @@ func TestEsdsEncodeAndDecode(t *testing.T) {
 	}
 
 	// Read back from buffer
-	decodedBox, err := DecodeBox(0, &buf)
+	decodedBox, err := mp4.DecodeBox(0, &buf)
 	if err != nil {
 		t.Error("Did not get a box back")
 	}
-	esdsOut := decodedBox.(*EsdsBox)
+	esdsOut := decodedBox.(*mp4.EsdsBox)
 	decCfgOut := esdsOut.DecConfigDescriptor.DecSpecificInfo.DecConfig
 	if !bytes.Equal(decCfgOut, decCfg) {
 		t.Errorf("Decode cfg out %s differs from decode cfg in %s",
@@ -50,7 +51,7 @@ func TestDecodeEncodeEsds(t *testing.T) {
 			t.Error(err)
 		}
 		sr := bits.NewFixedSliceReader(data)
-		esds, err := DecodeBoxSR(0, sr)
+		esds, err := mp4.DecodeBoxSR(0, sr)
 		if err != nil {
 			t.Error(err)
 		}

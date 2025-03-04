@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 // Test decode + encode file with slice reader and writer
@@ -22,11 +23,11 @@ func TestDecodeEncodeSRW(t *testing.T) {
 			t.Error(err)
 		}
 		sr := bits.NewFixedSliceReader(inData)
-		decFile, err := DecodeFileSR(sr)
+		decFile, err := mp4.DecodeFileSR(sr)
 		if err != nil {
 			t.Error(err)
 		}
-		decFile.FragEncMode = EncModeBoxTree
+		decFile.FragEncMode = mp4.EncModeBoxTree
 		sw := bits.NewFixedSliceWriter(len(inData))
 		err = decFile.EncodeSW(sw)
 		if err != nil {

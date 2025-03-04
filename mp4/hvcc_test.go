@@ -1,8 +1,10 @@
-package mp4
+package mp4_test
 
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 const (
@@ -25,7 +27,7 @@ func TestHvcC(t *testing.T) {
 		t.Error(err)
 	}
 	includePS := true
-	hvcC, err := CreateHvcC([][]byte{vpsNalu}, [][]byte{spsNalu}, [][]byte{ppsNalu}, true, true, true, includePS)
+	hvcC, err := mp4.CreateHvcC([][]byte{vpsNalu}, [][]byte{spsNalu}, [][]byte{ppsNalu}, true, true, true, includePS)
 	if err != nil {
 		t.Error(err)
 	}

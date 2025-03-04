@@ -1,12 +1,14 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestMdhd(t *testing.T) {
 
-	boxes := []*MdhdBox{
+	boxes := []*mp4.MdhdBox{
 		{
 			Version:          0,
 			Flags:            0,
@@ -32,7 +34,7 @@ func TestMdhd(t *testing.T) {
 		mdhd.SetLanguage(language)
 		boxDiffAfterEncodeAndDecode(t, mdhd)
 		outBox := boxAfterEncodeAndDecode(t, mdhd)
-		mdhdOut := outBox.(*MdhdBox)
+		mdhdOut := outBox.(*mp4.MdhdBox)
 		gotLanguage := mdhdOut.GetLanguage()
 		if gotLanguage != language {
 			t.Errorf("Got %q, want %q", gotLanguage, language)

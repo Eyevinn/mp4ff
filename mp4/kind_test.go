@@ -1,14 +1,16 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"encoding/hex"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestKind(t *testing.T) {
 	t.Run("encode and decode", func(t *testing.T) {
-		kind := &KindBox{SchemeURI: "urn:mpeg:dash:role:2011", Value: "forced-subtitle"}
+		kind := &mp4.KindBox{SchemeURI: "urn:mpeg:dash:role:2011", Value: "forced-subtitle"}
 		boxDiffAfterEncodeAndDecode(t, kind)
 	})
 	t.Run("decode with full box header", func(t *testing.T) {
@@ -20,11 +22,11 @@ func TestKind(t *testing.T) {
 			t.Error(err)
 		}
 		buffer := bytes.NewReader(rawBytes)
-		box, err := DecodeBox(0, buffer)
+		box, err := mp4.DecodeBox(0, buffer)
 		if err != nil {
 			t.Errorf("Error decoding kind box: %v", err)
 		}
-		kind := box.(*KindBox)
+		kind := box.(*mp4.KindBox)
 		if kind.SchemeURI != "urn:mpeg:dash:role:2011" {
 			t.Errorf("Expected scheme URI 'urn:mpeg:dash:role:2011', got '%s'", kind.SchemeURI)
 		}

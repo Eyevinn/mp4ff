@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
@@ -32,11 +33,11 @@ func TestDecodeDescriptor(t *testing.T) {
 				t.Error(err)
 			}
 			sr := bits.NewFixedSliceReader(data)
-			desc, err := DecodeESDescriptor(sr, uint32(len(data)))
+			desc, err := mp4.DecodeESDescriptor(sr, uint32(len(data)))
 			if err != nil {
 				t.Error(err)
 			}
-			if desc.Tag() != ES_DescrTag {
+			if desc.Tag() != mp4.ES_DescrTag {
 				t.Error("tag is not 3")
 			}
 			out := make([]byte, len(data))
@@ -119,7 +120,7 @@ func TestDescriptorInfo(t *testing.T) {
 				t.Error(err)
 			}
 			sr := bits.NewFixedSliceReader(data)
-			desc, err := DecodeESDescriptor(sr, uint32(len(data)))
+			desc, err := mp4.DecodeESDescriptor(sr, uint32(len(data)))
 			if err != nil {
 				t.Error(err)
 			}
@@ -147,7 +148,7 @@ func TestDescriptorInfo(t *testing.T) {
 func TestRawDescriptor(t *testing.T) {
 	sizeSizeMinus1 := 0
 	data := []byte{0x02, 0x03}
-	rd, err := CreateRawDescriptor(15, byte(sizeSizeMinus1), data)
+	rd, err := mp4.CreateRawDescriptor(15, byte(sizeSizeMinus1), data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -173,11 +174,11 @@ func TestRawDescriptor(t *testing.T) {
 	}
 	totNrBytes := rd.SizeSize()
 	rw := bits.NewFixedSliceReader(sw.Bytes())
-	rdDec, err := DecodeDescriptor(rw, int(totNrBytes))
+	rdDec, err := mp4.DecodeDescriptor(rw, int(totNrBytes))
 	if err != nil {
 		t.Error(err)
 	}
-	rawDec := rdDec.(*RawDescriptor)
+	rawDec := rdDec.(*mp4.RawDescriptor)
 	if diff := deep.Equal(rawDec, &rd); diff != nil {
 		t.Error(diff)
 	}

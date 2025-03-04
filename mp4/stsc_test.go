@@ -1,9 +1,10 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
@@ -14,7 +15,7 @@ func TestStsc(t *testing.T) {
 		// 2 chunks with 256 samples followed
 		// by an unknown number of chunks with 1000 elements.
 		// The chunks should therefore start on sample 1, 257, 513, 1513, 2513 etc
-		stsc := &StscBox{}
+		stsc := &mp4.StscBox{}
 		err := stsc.AddEntry(1, 256, 1)
 		if err != nil {
 			t.Error(err)
@@ -76,7 +77,7 @@ func TestStsc(t *testing.T) {
 	})
 
 	t.Run("encode and decode", func(t *testing.T) {
-		stsc := &StscBox{}
+		stsc := &mp4.StscBox{}
 		err := stsc.AddEntry(1, 256, 1)
 		if err != nil {
 			t.Error(err)
@@ -91,7 +92,7 @@ func TestStsc(t *testing.T) {
 }
 
 func TestStscContainingChunks(t *testing.T) {
-	stsc := &StscBox{}
+	stsc := &mp4.StscBox{}
 	err := stsc.AddEntry(1, 256, 1)
 	if err != nil {
 		t.Error(err)
@@ -104,25 +105,25 @@ func TestStscContainingChunks(t *testing.T) {
 	testCases := []struct {
 		startSampleNr uint32
 		endSampleNr   uint32
-		wantedChunks  []Chunk
+		wantedChunks  []mp4.Chunk
 	}{
 		{
-			2, 2, []Chunk{{1, 1, 256}},
+			2, 2, []mp4.Chunk{{1, 1, 256}},
 		},
 		{
-			3, 22, []Chunk{{1, 1, 256}},
+			3, 22, []mp4.Chunk{{1, 1, 256}},
 		},
 		{
-			237, 256, []Chunk{{1, 1, 256}},
+			237, 256, []mp4.Chunk{{1, 1, 256}},
 		},
 		{
-			237, 257, []Chunk{{1, 1, 256}, {2, 257, 256}},
+			237, 257, []mp4.Chunk{{1, 1, 256}, {2, 257, 256}},
 		},
 		{
-			257, 276, []Chunk{{2, 257, 256}},
+			257, 276, []mp4.Chunk{{2, 257, 256}},
 		},
 		{
-			260, 1759, []Chunk{{2, 257, 256}, {3, 513, 1000}, {4, 1513, 1000}},
+			260, 1759, []mp4.Chunk{{2, 257, 256}, {3, 513, 1000}, {4, 1513, 1000}},
 		},
 	}
 	for i, tc := range testCases {
@@ -137,7 +138,7 @@ func TestStscContainingChunks(t *testing.T) {
 	}
 }
 func TestGetChunk(t *testing.T) {
-	stsc := &StscBox{}
+	stsc := &mp4.StscBox{}
 	err := stsc.AddEntry(1, 256, 1)
 	if err != nil {
 		t.Error(err)
@@ -149,19 +150,19 @@ func TestGetChunk(t *testing.T) {
 
 	testCases := []struct {
 		chunkNr     uint32
-		wantedChunk Chunk
+		wantedChunk mp4.Chunk
 	}{
 		{
-			1, Chunk{1, 1, 256},
+			1, mp4.Chunk{1, 1, 256},
 		},
 		{
-			2, Chunk{2, 257, 256},
+			2, mp4.Chunk{2, 257, 256},
 		},
 		{
-			3, Chunk{3, 513, 1000},
+			3, mp4.Chunk{3, 513, 1000},
 		},
 		{
-			4, Chunk{4, 1513, 1000},
+			4, mp4.Chunk{4, 1513, 1000},
 		},
 	}
 
@@ -174,7 +175,7 @@ func TestGetChunk(t *testing.T) {
 }
 
 func TestStscSampleDescriptionID(t *testing.T) {
-	box := StscBox{}
+	box := mp4.StscBox{}
 	_ = box.AddEntry(1, 256, 1)
 	_ = box.AddEntry(2, 192, 1)
 	_ = box.AddEntry(3, 128, 2)
@@ -185,7 +186,7 @@ func TestBadSizeStsc(t *testing.T) {
 	// raw stsc box with size 16, but with one entry, so its size should be 28ß
 	raw := []byte{0x00, 0x00, 0x00, 0x10, 's', 't', 's', 'c', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 	buf := bytes.NewBuffer(raw)
-	_, err := DecodeBox(0, buf)
+	_, err := mp4.DecodeBox(0, buf)
 	if err == nil {
 		t.Error("expected invalid size error")
 	}

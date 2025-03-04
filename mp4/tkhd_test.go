@@ -1,15 +1,17 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"reflect"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestTkhd(t *testing.T) {
 	var buf bytes.Buffer
 
-	tkhdCreated := CreateTkhd()
+	tkhdCreated := mp4.CreateTkhd()
 	err := tkhdCreated.Encode(&buf)
 	if err != nil {
 		t.Error(err)
@@ -20,11 +22,11 @@ func TestTkhd(t *testing.T) {
 	}
 
 	reader := &buf
-	hdr, err := DecodeHeader(reader)
+	hdr, err := mp4.DecodeHeader(reader)
 	if err != nil {
 		t.Error(err)
 	}
-	tkhdRead, err := DecodeTkhd(hdr, 0, reader)
+	tkhdRead, err := mp4.DecodeTkhd(hdr, 0, reader)
 	if err != nil {
 		t.Error(err)
 	}

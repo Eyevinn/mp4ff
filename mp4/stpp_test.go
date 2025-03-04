@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestStpp(t *testing.T) {
@@ -44,9 +45,9 @@ func TestStpp(t *testing.T) {
 		}
 		for _, tc := range testCases {
 			t.Logf("Test case: %+v", tc)
-			stpp := NewStppBox(tc.namespace, tc.schemaLocation, tc.mimeTypes)
+			stpp := mp4.NewStppBox(tc.namespace, tc.schemaLocation, tc.mimeTypes)
 			if tc.hasBtrt {
-				btrt := &BtrtBox{}
+				btrt := &mp4.BtrtBox{}
 				stpp.AddChild(btrt)
 				if stpp.Btrt != btrt {
 					t.Error("Btrt link is broken")
@@ -65,11 +66,11 @@ func TestStpp(t *testing.T) {
 			t.Error(err)
 		}
 		sr := bits.NewFixedSliceReader(data)
-		box, err := DecodeBoxSR(0, sr)
+		box, err := mp4.DecodeBoxSR(0, sr)
 		if err != nil {
 			t.Error(err)
 		}
-		stpp, ok := box.(*StppBox)
+		stpp, ok := box.(*mp4.StppBox)
 		if !ok {
 			t.Error("not an stpp box")
 		}
@@ -96,11 +97,11 @@ func TestStpp(t *testing.T) {
 			t.Error(err)
 		}
 		sr := bits.NewFixedSliceReader(data)
-		box, err := DecodeBoxSR(0, sr)
+		box, err := mp4.DecodeBoxSR(0, sr)
 		if err != nil {
 			t.Error(err)
 		}
-		stpp, ok := box.(*StppBox)
+		stpp, ok := box.(*mp4.StppBox)
 		if !ok {
 			t.Error("not an stpp box")
 		}

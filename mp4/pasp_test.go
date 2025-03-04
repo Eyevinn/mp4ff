@@ -1,11 +1,13 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestEncDecPasp(t *testing.T) {
 
-	b := &PaspBox{HSpacing: 3, VSpacing: 2}
+	b := &mp4.PaspBox{HSpacing: 3, VSpacing: 2}
 	boxDiffAfterEncodeAndDecode(t, b)
 }

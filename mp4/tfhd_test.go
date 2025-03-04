@@ -1,10 +1,11 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"encoding/hex"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
@@ -14,11 +15,11 @@ func TestTfhd(t *testing.T) {
 
 	inRawBox, _ := hex.DecodeString(tfhdRawBox)
 	inbuf := bytes.NewBuffer(inRawBox)
-	hdr, err := DecodeHeader(inbuf)
+	hdr, err := mp4.DecodeHeader(inbuf)
 	if err != nil {
 		t.Error(err)
 	}
-	tfhdRead, err := DecodeTfhd(hdr, 0, inbuf)
+	tfhdRead, err := mp4.DecodeTfhd(hdr, 0, inbuf)
 	if err != nil {
 		t.Error(err)
 	}

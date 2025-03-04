@@ -1,8 +1,10 @@
-package mp4
+package mp4_test
 
 import (
 	"os"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestTrakSampleFunctions(t *testing.T) {
@@ -12,7 +14,7 @@ func TestTrakSampleFunctions(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	mf, err := DecodeFile(f)
+	mf, err := mp4.DecodeFile(f)
 	if err != nil {
 		t.Fatal(err)
 	}

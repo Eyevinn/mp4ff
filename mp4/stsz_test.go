@@ -1,16 +1,20 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestStszEncDec(t *testing.T) {
-	stsz := StszBox{
+	stsz := mp4.StszBox{
 		SampleUniformSize: 0,
 		SampleNumber:      3,
 		SampleSize:        []uint32{112, 234, 120},
 	}
 	boxDiffAfterEncodeAndDecode(t, &stsz)
 
-	stsz = StszBox{
+	stsz = mp4.StszBox{
 		SampleUniformSize: 512,
 		SampleNumber:      1, // One sample with uniform size
 		SampleSize:        nil,
@@ -21,14 +25,14 @@ func TestStszEncDec(t *testing.T) {
 func TestStszGetTotalSize(t *testing.T) {
 	testCases := []struct {
 		name       string
-		stsz       StszBox
+		stsz       mp4.StszBox
 		startNr    uint32
 		endNr      uint32
 		wantedSize uint64
 	}{
 		{
 			name: "uniform size",
-			stsz: StszBox{
+			stsz: mp4.StszBox{
 				SampleUniformSize: 512,
 				SampleNumber:      4,
 			},
@@ -38,7 +42,7 @@ func TestStszGetTotalSize(t *testing.T) {
 		},
 		{
 			name: "sample sizes",
-			stsz: StszBox{
+			stsz: mp4.StszBox{
 				SampleUniformSize: 0,
 				SampleNumber:      4,
 				SampleSize:        []uint32{1, 2, 3, 4},

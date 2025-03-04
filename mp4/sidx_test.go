@@ -1,12 +1,14 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestSidx(t *testing.T) {
 
-	sidx := &SidxBox{}
+	sidx := &mp4.SidxBox{}
 
 	sidx.ReferenceID = 1
 	sidx.Timescale = 48000
@@ -14,7 +16,7 @@ func TestSidx(t *testing.T) {
 	sidx.FirstOffset = 1024
 	sidx.AnchorPoint = 1068
 
-	ref := SidxRef{
+	ref := mp4.SidxRef{
 		ReferenceType:      0, // Media
 		ReferencedSize:     2048,
 		SubSegmentDuration: 1024 * 15,

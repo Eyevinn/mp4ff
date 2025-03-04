@@ -1,12 +1,14 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestSample(t *testing.T) {
-	s := NewSample(SyncSampleFlags, 1000, 100, -1001)
-	fs := FullSample{
+	s := mp4.NewSample(mp4.SyncSampleFlags, 1000, 100, -1001)
+	fs := mp4.FullSample{
 		Sample:     s,
 		DecodeTime: 1000,
 		Data:       []byte{0x01, 0x02, 0x03, 0x04},

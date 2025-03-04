@@ -1,13 +1,14 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
 func TestSampleFlags(t *testing.T) {
-	sf := SampleFlags{
+	sf := mp4.SampleFlags{
 		IsLeading:                 1,
 		SampleDependsOn:           2,
 		SampleIsDependedOn:        1,
@@ -18,7 +19,7 @@ func TestSampleFlags(t *testing.T) {
 	}
 
 	sfBin := sf.Encode()
-	sfDec := DecodeSampleFlags(sfBin)
+	sfDec := mp4.DecodeSampleFlags(sfBin)
 	diff := deep.Equal(sfDec, sf)
 	if diff != nil {
 		t.Error(diff)

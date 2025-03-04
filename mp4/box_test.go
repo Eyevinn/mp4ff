@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 // TestBadBoxAndRemoveBoxDecoder checks that we can avoid decoder error by removing a BoxDecode.
@@ -19,22 +20,22 @@ func TestBadBoxAndRemoveBoxDecoder(t *testing.T) {
 		t.Error(err)
 	}
 	sr := bits.NewFixedSliceReader(data)
-	_, err = DecodeBoxSR(0, sr)
+	_, err = mp4.DecodeBoxSR(0, sr)
 	if err == nil {
 		t.Errorf("reading bad meta box should have failed")
 	}
 	sr = bits.NewFixedSliceReader(data)
-	RemoveBoxDecoder("meta")
-	defer SetBoxDecoder("meta", DecodeMeta, DecodeMetaSR)
-	box, err := DecodeBoxSR(0, sr)
+	mp4.RemoveBoxDecoder("meta")
+	defer mp4.SetBoxDecoder("meta", mp4.DecodeMeta, mp4.DecodeMetaSR)
+	box, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
 		t.Error(err)
 	}
-	_, ok := box.(*MetaBox)
+	_, ok := box.(*mp4.MetaBox)
 	if ok {
 		t.Errorf("box should not be MetaBox")
 	}
-	unknown, ok := box.(*UnknownBox)
+	unknown, ok := box.(*mp4.UnknownBox)
 	if !ok {
 		t.Errorf("box should be unknown")
 	}
@@ -52,11 +53,11 @@ func TestBadBoxAndRemoveBoxDecoder(t *testing.T) {
 }
 
 func TestFixed16and32(t *testing.T) {
-	f16 := Fixed16(256)
+	f16 := mp4.Fixed16(256)
 	if f16.String() != "1.0" {
 		t.Errorf("Fixed16(256) should be 1.0, not %s", f16.String())
 	}
-	f32 := Fixed32(65536)
+	f32 := mp4.Fixed32(65536)
 	if f16.String() != "1.0" {
 		t.Errorf("Fixed32(65536) should be 1.0, not %s", f32.String())
 	}

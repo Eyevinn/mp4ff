@@ -1,15 +1,16 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
 func TestSthd(t *testing.T) {
 
-	encBox := &SthdBox{}
+	encBox := &mp4.SthdBox{}
 
 	buf := bytes.Buffer{}
 	err := encBox.Encode(&buf)
@@ -17,7 +18,7 @@ func TestSthd(t *testing.T) {
 		t.Error(err)
 	}
 
-	decBox, err := DecodeBox(0, &buf)
+	decBox, err := mp4.DecodeBox(0, &buf)
 	if err != nil {
 		t.Error(err)
 	}

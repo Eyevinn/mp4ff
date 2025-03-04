@@ -1,9 +1,13 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestMimeBox(t *testing.T) {
-	mimeZeroTerminated := MimeBox{
+	mimeZeroTerminated := mp4.MimeBox{
 		Version:              0,
 		Flags:                0,
 		ContentType:          "image/png",
@@ -11,7 +15,7 @@ func TestMimeBox(t *testing.T) {
 	}
 	boxDiffAfterEncodeAndDecode(t, &mimeZeroTerminated)
 
-	mimeWithoutZeroTermination := MimeBox{
+	mimeWithoutZeroTermination := mp4.MimeBox{
 		Version:              0,
 		Flags:                0,
 		ContentType:          "image/png",

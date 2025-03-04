@@ -24,6 +24,12 @@ func DecodeUnknown(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return DecodeUnknownSR(hdr, startPos, sr)
 }
 
+// CreateUnknownBox creates an unknown box. Set the size to match
+// the payload size + header size to get a well-formed box.
+func CreateUnknownBox(name string, size uint64, payload []byte) *UnknownBox {
+	return &UnknownBox{name, size, payload}
+}
+
 // DecodeUnknownSR - decode an unknown box
 func DecodeUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	return &UnknownBox{hdr.Name, hdr.Size, sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
@@ -37,6 +43,11 @@ func (b *UnknownBox) Type() string {
 // Size - return calculated size
 func (b *UnknownBox) Size() uint64 {
 	return b.size
+}
+
+// Payload returns the (non-decoded) payload.
+func (b *UnknownBox) Payload() []byte {
+	return b.notDecoded
 }
 
 // Encode - write box to w

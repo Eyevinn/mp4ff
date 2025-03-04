@@ -1,12 +1,14 @@
-package mp4
+package mp4_test
 
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestVisualSampleEntryBoxVP9(t *testing.T) {
-	vppC := &VppCBox{
+	vppC := &mp4.VppCBox{
 		Version:                 1,
 		Flags:                   0,
 		Profile:                 1,
@@ -19,17 +21,17 @@ func TestVisualSampleEntryBoxVP9(t *testing.T) {
 		MatrixCoefficients:      0,
 		CodecInitData:           nil,
 	}
-	vp9 := CreateVisualSampleEntryBox("vp09", 1280, 720, vppC)
-	smdm := CreateSmDmBox(0, 1, 2, 3, 4, 5, 6, 7, 255, 255)
+	vp9 := mp4.CreateVisualSampleEntryBox("vp09", 1280, 720, vppC)
+	smdm := mp4.CreateSmDmBox(0, 1, 2, 3, 4, 5, 6, 7, 255, 255)
 	vp9.AddChild(smdm)
-	coll := CreateCoLLBox(1000, 500)
+	coll := mp4.CreateCoLLBox(1000, 500)
 	vp9.AddChild(coll)
 	boxDiffAfterEncodeAndDecode(t, vp9)
 
-	minFilled := NewVisualSampleEntryBox("avc3")
+	minFilled := mp4.NewVisualSampleEntryBox("avc3")
 	boxDiffAfterEncodeAndDecode(t, minFilled)
 
-	minAvc1 := NewVisualSampleEntryBox("avc1")
+	minAvc1 := mp4.NewVisualSampleEntryBox("avc1")
 	err := minAvc1.ConvertAvc3ToAvc1(nil, nil)
 	if err == nil {
 		t.Error("ConvertAvc3ToAvc1 should return error")
@@ -45,12 +47,12 @@ func TestVisualSampleEntryBoxVP9(t *testing.T) {
 	}
 	spss := [][]byte{sps1}
 	ppss := [][]byte{pps1}
-	avcC, err := CreateAvcC(spss, ppss, false /* includePS */)
+	avcC, err := mp4.CreateAvcC(spss, ppss, false /* includePS */)
 	if err != nil {
 		t.Errorf("error creating avcC: %s", err.Error())
 		t.Fail()
 	}
-	avcx := CreateVisualSampleEntryBox("avc3", 1280, 720, avcC)
+	avcx := mp4.CreateVisualSampleEntryBox("avc3", 1280, 720, avcC)
 	err = avcx.ConvertAvc3ToAvc1(spss, ppss)
 	if err != nil {
 		t.Errorf("")
