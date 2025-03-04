@@ -1,13 +1,15 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestMvhd(t *testing.T) {
-	mvhd := CreateMvhd()
+	mvhd := mp4.CreateMvhd()
 	boxDiffAfterEncodeAndDecode(t, mvhd)
 
 	recentTime := int64(1721459921)
@@ -27,11 +29,11 @@ func TestMvhdTimeDecodeS(t *testing.T) {
 		t.Error(err)
 	}
 	reader := bytes.NewReader(data)
-	box, err := DecodeBox(0, reader)
+	box, err := mp4.DecodeBox(0, reader)
 	if err != nil {
 		t.Error(err)
 	}
-	mvhd, ok := box.(*MvhdBox)
+	mvhd, ok := box.(*mp4.MvhdBox)
 	if !ok {
 		t.Errorf("Not a MvhdBox %+v", box)
 	}

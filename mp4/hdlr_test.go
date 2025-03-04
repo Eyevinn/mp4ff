@@ -1,9 +1,11 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"encoding/hex"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestHdlr(t *testing.T) {
@@ -29,7 +31,7 @@ func TestHdlr(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.mediaType, func(t *testing.T) {
-			hdlr, err := CreateHdlr(c.mediaType)
+			hdlr, err := mp4.CreateHdlr(c.mediaType)
 			if c.expectedError != "" {
 				if err == nil {
 					t.Errorf("Expected error %s, but got nil", c.expectedError)
@@ -55,11 +57,11 @@ func TestHdlrDecodeMissingNullTermination(t *testing.T) {
 	hdlrExample := "0000002068646C72000000000000000049443332000000000000000000000000"
 	byteData, _ := hex.DecodeString(hdlrExample)
 	buf := bytes.NewBuffer(byteData)
-	box, err := DecodeBox(0, buf)
+	box, err := mp4.DecodeBox(0, buf)
 	if err != nil {
 		t.Error(err)
 	}
-	hdlr := box.(*HdlrBox)
+	hdlr := box.(*mp4.HdlrBox)
 	if hdlr.Size() != uint64(len(byteData)) {
 		t.Errorf("Got size %d instead of %d", hdlr.Size(), len(byteData))
 	}

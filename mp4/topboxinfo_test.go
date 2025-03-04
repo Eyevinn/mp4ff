@@ -1,10 +1,11 @@
-package mp4
+package mp4_test
 
 import (
 	"os"
 	"reflect"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
@@ -14,13 +15,13 @@ func TestTopBoxInfo(t *testing.T) {
 	testCases := []struct {
 		name        string
 		stopBoxType string
-		wantedTBI   []TopBoxInfo
+		wantedTBI   []mp4.TopBoxInfo
 	}{
 		{
-			"before moov", "moov", []TopBoxInfo{{"ftyp", 24, 0}},
+			"before moov", "moov", []mp4.TopBoxInfo{{"ftyp", 24, 0}},
 		},
 		{
-			"all", "", []TopBoxInfo{{"ftyp", 24, 0}, {"moov", 5089, 24}},
+			"all", "", []mp4.TopBoxInfo{{"ftyp", 24, 0}, {"moov", 5089, 24}},
 		},
 	}
 
@@ -29,7 +30,7 @@ func TestTopBoxInfo(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		gotTBI, err := GetTopBoxInfoList(fh, tc.stopBoxType)
+		gotTBI, err := mp4.GetTopBoxInfoList(fh, tc.stopBoxType)
 		if err != nil {
 			t.Error(err)
 		}

@@ -1,13 +1,15 @@
-package mp4
+package mp4_test
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestSmDm(t *testing.T) {
 	// Create a sample SmDm box with test values
-	smdm := CreateSmDmBox(
+	smdm := mp4.CreateSmDmBox(
 		1000, 2000, // Primary R
 		3000, 4000, // Primary G
 		5000, 6000, // Primary B

@@ -1,23 +1,25 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"reflect"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
-func createTestTrafBox() *TrafBox {
-	traf := &TrafBox{}
-	tfhd := &TfhdBox{}
+func createTestTrafBox() *mp4.TrafBox {
+	traf := &mp4.TrafBox{}
+	tfhd := &mp4.TfhdBox{}
 	_ = traf.AddChild(tfhd)
-	trun := CreateTrun(0)
+	trun := mp4.CreateTrun(0)
 	_ = traf.AddChild(trun)
 	return traf
 }
 
 type testSamples struct {
 	name    string
-	samples []Sample
+	samples []mp4.Sample
 }
 
 func TestTrafTrunWithoutOptimization(t *testing.T) {
@@ -25,39 +27,39 @@ func TestTrafTrunWithoutOptimization(t *testing.T) {
 	tests := []testSamples{
 		{
 			"audioSamples",
-			[]Sample{
-				{SyncSampleFlags, 1024, 234, 0},
-				{SyncSampleFlags, 1024, 235, 0},
-				{SyncSampleFlags, 1024, 235, 0},
+			[]mp4.Sample{
+				{mp4.SyncSampleFlags, 1024, 234, 0},
+				{mp4.SyncSampleFlags, 1024, 235, 0},
+				{mp4.SyncSampleFlags, 1024, 235, 0},
 			},
 		},
 		{
 			"videoWithInitialSyncSample",
-			[]Sample{
-				{SyncSampleFlags, 1024, 234, 0},
-				{NonSyncSampleFlags, 1024, 235, 0},
-				{NonSyncSampleFlags, 1024, 235, 0},
+			[]mp4.Sample{
+				{mp4.SyncSampleFlags, 1024, 234, 0},
+				{mp4.NonSyncSampleFlags, 1024, 235, 0},
+				{mp4.NonSyncSampleFlags, 1024, 235, 0},
 			},
 		},
 		{
 			"videoWithMultipleSyncSamplesAndCto",
-			[]Sample{
-				{SyncSampleFlags, 1024, 234, 0},
-				{NonSyncSampleFlags, 1024, 235, 2048},
-				{SyncSampleFlags, 1024, 235, -1024},
+			[]mp4.Sample{
+				{mp4.SyncSampleFlags, 1024, 234, 0},
+				{mp4.NonSyncSampleFlags, 1024, 235, 2048},
+				{mp4.SyncSampleFlags, 1024, 235, -1024},
 			},
 		},
 		{
 			"singleSample",
-			[]Sample{
-				{SyncSampleFlags, 1024, 234, 0},
+			[]mp4.Sample{
+				{mp4.SyncSampleFlags, 1024, 234, 0},
 			},
 		},
 		{
 			"sameSize",
-			[]Sample{
-				{SyncSampleFlags, 1024, 234, 0},
-				{SyncSampleFlags, 1024, 234, 0},
+			[]mp4.Sample{
+				{mp4.SyncSampleFlags, 1024, 234, 0},
+				{mp4.SyncSampleFlags, 1024, 234, 0},
 			},
 		},
 	}
@@ -91,13 +93,13 @@ func runEncodeDecode(t *testing.T, test testSamples, withOptimization bool) {
 	if err != nil {
 		t.Error(err)
 	}
-	box, err := DecodeBox(0, &buf)
+	box, err := mp4.DecodeBox(0, &buf)
 	if err != nil {
 		t.Error(err)
 	}
-	outTraf := box.(*TrafBox)
+	outTraf := box.(*mp4.TrafBox)
 	outTrun := outTraf.Trun
-	trex := &TrexBox{}
+	trex := &mp4.TrexBox{}
 	outTrun.AddSampleDefaultValues(outTraf.Tfhd, trex)
 	outSamples := outTrun.Samples
 	if !reflect.DeepEqual(outSamples, test.samples) {

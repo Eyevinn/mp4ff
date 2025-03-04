@@ -1,36 +1,38 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestColrEncodeDecode(t *testing.T) {
-	cases := []ColrBox{
+	cases := []mp4.ColrBox{
 		{
-			ColorType:               onScreenColors,
+			ColorType:               mp4.ColorTypeOnScreenColors,
 			ColorPrimaries:          9,
 			TransferCharacteristics: 16,
 			MatrixCoefficients:      9,
 			FullRangeFlag:           true,
 		},
 		{
-			ColorType:               onScreenColors,
+			ColorType:               mp4.ColorTypeOnScreenColors,
 			ColorPrimaries:          9,
 			TransferCharacteristics: 16,
 			MatrixCoefficients:      9,
 			FullRangeFlag:           false,
 		},
 		{
-			ColorType:  restrictedICCType,
+			ColorType:  mp4.ColorTypeRestrictedICCProfile,
 			ICCProfile: []byte{1, 2, 2, 43, 4},
 		},
 		{
-			ColorType:  unrestrictedICCType,
+			ColorType:  mp4.ColorTypeUnrestrictedICCTProfile,
 			ICCProfile: []byte{1, 2, 2, 43, 4, 5},
 		},
 		{
-			ColorType:               quickTimeColorParameters,
+			ColorType:               mp4.QuickTimeColorParameters,
 			ColorPrimaries:          1,
 			TransferCharacteristics: 1,
 			MatrixCoefficients:      1,
@@ -47,12 +49,12 @@ func TestColrEncodeDecode(t *testing.T) {
 
 func TestColrInfo(t *testing.T) {
 	cases := []struct {
-		cb     ColrBox
+		cb     mp4.ColrBox
 		wanted string
 	}{
 		{
-			cb: ColrBox{
-				ColorType:               onScreenColors,
+			cb: mp4.ColrBox{
+				ColorType:               mp4.ColorTypeOnScreenColors,
 				ColorPrimaries:          9,
 				TransferCharacteristics: 9,
 				MatrixCoefficients:      16,
@@ -62,8 +64,8 @@ func TestColrInfo(t *testing.T) {
 				"TransferCharacteristics: 9, MatrixCoefficients: 16, FullRange: true\n"),
 		},
 		{
-			cb: ColrBox{
-				ColorType:  restrictedICCType,
+			cb: mp4.ColrBox{
+				ColorType:  mp4.ColorTypeRestrictedICCProfile,
 				ICCProfile: []byte{0x02, 0x04},
 			},
 			wanted: "[colr] size=14\n - colorType: rICC\n - ICCProfile: 0204\n",

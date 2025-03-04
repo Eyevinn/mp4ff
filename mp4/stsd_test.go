@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/aac"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestStsd(t *testing.T) {
-	stsd := StsdBox{}
+	stsd := mp4.StsdBox{}
 	samplingFrequency := 48000
 	asc := &aac.AudioSpecificConfig{
 		ObjectType:           2,
@@ -25,11 +26,11 @@ func TestStsd(t *testing.T) {
 		t.Error(err)
 	}
 	ascBytes := buf.Bytes()
-	esds := CreateEsdsBox(ascBytes)
-	mp4a := CreateAudioSampleEntryBox("mp4a",
+	esds := mp4.CreateEsdsBox(ascBytes)
+	mp4a := mp4.CreateAudioSampleEntryBox("mp4a",
 		uint16(asc.ChannelConfiguration),
 		16, uint16(samplingFrequency), esds)
-	btrt := BtrtBox{
+	btrt := mp4.BtrtBox{
 		BufferSizeDB: 1536,
 		MaxBitrate:   96000,
 		AvgBitrate:   96000,
@@ -53,8 +54,8 @@ func TestStsd(t *testing.T) {
 }
 
 func TestStsdEncodeDecode(t *testing.T) {
-	stsd := &StsdBox{}
-	evte := &EvteBox{}
+	stsd := &mp4.StsdBox{}
+	evte := &mp4.EvteBox{}
 	stsd.AddChild(evte)
 	boxDiffAfterEncodeAndDecode(t, stsd)
 	b, err := stsd.GetSampleDescription(0)

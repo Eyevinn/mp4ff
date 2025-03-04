@@ -1,10 +1,14 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestVmhd(t *testing.T) {
 
-	vmhd := CreateVmhd()
+	vmhd := mp4.CreateVmhd()
 
 	boxDiffAfterEncodeAndDecode(t, vmhd)
 }

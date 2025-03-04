@@ -51,6 +51,33 @@ const (
 	UUIDPiffSenc = "a2394f52-5a9b-4f14-a244-6c427c648df4"
 )
 
+// NewTrfrfBox creates a new TfrfBox with values.
+// fragmentCount is the number of fragments, andb both
+// fragmentAbsoluteTimes and fragmentAbsoluteDurations must be slices of that length.
+func NewTfrfBox(fragmentCount byte, fragmentAbsoluteTimes, fragmentAbsoluteDurations []uint64) *UUIDBox {
+	return &UUIDBox{
+		uuid: mustCreateUUID(UUIDTfrf),
+		Tfrf: &TfrfData{
+			Version:                   0,
+			Flags:                     0,
+			FragmentCount:             fragmentCount,
+			FragmentAbsoluteTimes:     fragmentAbsoluteTimes,
+			FragmentAbsoluteDurations: fragmentAbsoluteDurations,
+		},
+	}
+}
+
+// NewTfxdBox creates a new TfxdBox with values.
+func NewTfxdBox(fragmentAbsoluteTime, fragmentAbsoluteDuration uint64) *UUIDBox {
+	return &UUIDBox{
+		uuid: mustCreateUUID(UUIDTfxd),
+		Tfxd: &TfxdData{
+			FragmentAbsoluteTime:     fragmentAbsoluteTime,
+			FragmentAbsoluteDuration: fragmentAbsoluteDuration,
+		},
+	}
+}
+
 // createUUID - create uuid from hex, uuid-formatted hex, or base64 string
 func createUUID(u string) (UUID, error) {
 	b, err := UnpackKey(u)

@@ -1,16 +1,20 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestMfra(t *testing.T) {
-	mfra := &MfraBox{}
-	tfra := &TfraBox{
+	mfra := &mp4.MfraBox{}
+	tfra := &mp4.TfraBox{
 		TrackID:               1,
 		LengthSizeOfTrafNum:   0,
 		LengthSizeOfTrunNum:   1,
 		LengthSizeOfSampleNum: 2,
 	}
-	te := TfraEntry{
+	te := mp4.TfraEntry{
 		Time:         3145,
 		MoofOffset:   1892,
 		TrafNumber:   1,
@@ -22,7 +26,7 @@ func TestMfra(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mfro := &MfroBox{
+	mfro := &mp4.MfroBox{
 		ParentSize: 12345,
 	}
 	err = mfra.AddChild(mfro)

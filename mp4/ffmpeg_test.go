@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestDecodeFFMpeg(t *testing.T) {
@@ -15,11 +16,11 @@ func TestDecodeFFMpeg(t *testing.T) {
 		t.Error(err)
 	}
 	buf := bytes.NewBuffer(raw)
-	box, err := DecodeBox(0, buf)
+	box, err := mp4.DecodeBox(0, buf)
 	if err != nil {
 		t.Error(err)
 	}
-	ilst := box.(*IlstBox)
+	ilst := box.(*mp4.IlstBox)
 	sw := bits.NewFixedSliceWriter(int(ilst.Size()))
 	err = ilst.EncodeSW(sw)
 	if err != nil {
@@ -33,6 +34,6 @@ func TestDecodeFFMpeg(t *testing.T) {
 
 func TestEncodeData(t *testing.T) {
 	data := []byte("dummy")
-	db := &DataBox{Data: data}
+	db := &mp4.DataBox{Data: data}
 	boxDiffAfterEncodeAndDecode(t, db)
 }

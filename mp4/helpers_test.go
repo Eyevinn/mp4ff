@@ -1,13 +1,16 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"encoding/binary"
 	"flag"
+	"fmt"
+	"io"
 	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
@@ -24,7 +27,7 @@ func cmpAfterDecodeEncodeBox(t *testing.T, data []byte) {
 
 	// First SliceReader + SliceWriter
 	sr := bits.NewFixedSliceReader(data)
-	box, err := DecodeBoxSR(0, sr)
+	box, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -38,7 +41,7 @@ func cmpAfterDecodeEncodeBox(t *testing.T, data []byte) {
 	}
 
 	bufIn := bytes.NewBuffer(data)
-	box, err = DecodeBox(0, bufIn)
+	box, err = mp4.DecodeBox(0, bufIn)
 	if err != nil {
 		t.Error(err)
 	}
@@ -54,7 +57,7 @@ func cmpAfterDecodeEncodeBox(t *testing.T, data []byte) {
 
 // boxDiffAfterEncodeAndDecode compares a box after encoding and decoding using deep.Equal().
 // Further check that Info can be run without an error.
-func boxDiffAfterEncodeAndDecode(t *testing.T, box Box) {
+func boxDiffAfterEncodeAndDecode(t *testing.T, box mp4.Box) {
 	t.Helper()
 
 	// First do encode in a slice via SliceWriter
@@ -66,7 +69,7 @@ func boxDiffAfterEncodeAndDecode(t *testing.T, box Box) {
 	}
 	buf := bytes.NewBuffer(sw.Bytes())
 
-	boxDec, err := DecodeBox(0, buf)
+	boxDec, err := mp4.DecodeBox(0, buf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -83,7 +86,7 @@ func boxDiffAfterEncodeAndDecode(t *testing.T, box Box) {
 	}
 	// and decode using SliceReader
 	sr := bits.NewFixedSliceReader(midBuf.Bytes())
-	boxDec, err = DecodeBoxSR(0, sr)
+	boxDec, err = mp4.DecodeBoxSR(0, sr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -100,7 +103,7 @@ func boxDiffAfterEncodeAndDecode(t *testing.T, box Box) {
 	}
 }
 
-func boxAfterEncodeAndDecode(t *testing.T, box Box) Box {
+func boxAfterEncodeAndDecode(t *testing.T, box mp4.Box) mp4.Box {
 	t.Helper()
 	buf := bytes.Buffer{}
 	err := box.Encode(&buf)
@@ -108,7 +111,7 @@ func boxAfterEncodeAndDecode(t *testing.T, box Box) Box {
 		t.Error(err)
 	}
 
-	boxDec, err := DecodeBox(0, &buf)
+	boxDec, err := mp4.DecodeBox(0, &buf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,7 +142,7 @@ func changeBoxSizeAndAssertError(t *testing.T, data []byte, pos uint64, newSize 
 
 func assertBoxDecodeError(t *testing.T, data []byte, pos uint64, errMsg string) {
 	t.Helper()
-	_, err := DecodeBox(pos, bytes.NewBuffer(data))
+	_, err := mp4.DecodeBox(pos, bytes.NewBuffer(data))
 	if err == nil || err.Error() != errMsg {
 		got := ""
 		if err != nil {
@@ -147,7 +150,7 @@ func assertBoxDecodeError(t *testing.T, data []byte, pos uint64, errMsg string) 
 		}
 		t.Errorf("DecodeBox: Expected error msg: %q, got: %q", errMsg, got)
 	}
-	_, err = DecodeBoxSR(pos, bits.NewFixedSliceReader(data))
+	_, err = mp4.DecodeBoxSR(pos, bits.NewFixedSliceReader(data))
 	if err == nil || err.Error() != errMsg {
 		got := ""
 		if err != nil {
@@ -157,7 +160,7 @@ func assertBoxDecodeError(t *testing.T, data []byte, pos uint64, errMsg string) 
 	}
 }
 
-func encodeBox(t *testing.T, box Box) []byte {
+func encodeBox(t *testing.T, box mp4.Box) []byte {
 	buf := bytes.Buffer{}
 	err := box.Encode(&buf)
 	if err != nil {
@@ -180,8 +183,61 @@ func writeGolden(t *testing.T, goldenAssetPath string, data []byte) error {
 	return nil
 }
 
+type testReadSeeker struct {
+	data []byte
+	pos  int
+}
+
+func newTestReadSeeker(data []byte) *testReadSeeker {
+	return &testReadSeeker{
+		data: data,
+		pos:  0,
+	}
+}
+
+func (sr *testReadSeeker) Read(p []byte) (n int, err error) {
+	if sr.pos >= len(sr.data) {
+		return 0, io.EOF
+	}
+	n = copy(p, sr.data[sr.pos:])
+	sr.pos += n
+	return n, nil
+}
+
+func (sr *testReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	case 0:
+		sr.pos = int(offset)
+	case 1:
+		sr.pos += int(offset)
+	case 2:
+		sr.pos = len(sr.data) + int(offset)
+	default:
+		return 0, fmt.Errorf("invalid whence: %d", whence)
+	}
+	return int64(sr.pos), nil
+}
+
+func createLazyMdat(t *testing.T, data []byte) (*mp4.MdatBox, io.ReadSeeker) {
+	t.Helper()
+	fullData := make([]byte, 8+len(data))
+	binary.BigEndian.PutUint32(fullData[0:4], uint32(len(data)+8))
+	copy(fullData[4:], "mdat")
+	copy(fullData[8:], data)
+	testSeeker := newTestReadSeeker(fullData)
+	box, err := mp4.DecodeBoxLazyMdat(0, testSeeker)
+	if err != nil {
+		t.Error(err)
+	}
+	lazyMdat := box.(*mp4.MdatBox)
+	return lazyMdat, testSeeker
+}
+
 // TestMain is to set flags for tests. In particular, the update flag to update golden files.
 func TestMain(m *testing.M) {
 	flag.Parse()
+	if *update {
+		fmt.Println("update flag is set to:", *update)
+	}
 	os.Exit(m.Run())
 }

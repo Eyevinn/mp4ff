@@ -1,16 +1,17 @@
-package mp4
+package mp4_test
 
 import (
 	"encoding/hex"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestPrft(t *testing.T) {
-	prfts := []*PrftBox{
-		CreatePrftBox(0, PrftTimeCaptured, 1, 8998, 98),
-		CreatePrftBox(1, PrftTimeEncoderOutput, 2, 8998, 98),
+	prfts := []*mp4.PrftBox{
+		mp4.CreatePrftBox(0, mp4.PrftTimeCaptured, 1, 8998, 98),
+		mp4.CreatePrftBox(1, mp4.PrftTimeEncoderOutput, 2, 8998, 98),
 	}
 	for _, prft := range prfts {
 		boxDiffAfterEncodeAndDecode(t, prft)
@@ -24,11 +25,11 @@ func TestPrftDecodeSize(t *testing.T) {
 		t.Error(err)
 	}
 	sr := bits.NewFixedSliceReader(data)
-	decBox, err := DecodeBoxSR(0, sr)
+	decBox, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
 		t.Error(err)
 	}
-	prft, ok := decBox.(*PrftBox)
+	prft, ok := decBox.(*mp4.PrftBox)
 	if !ok {
 		t.Error("box is not PrftBox")
 	}

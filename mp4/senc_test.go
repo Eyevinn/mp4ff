@@ -1,73 +1,76 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
 func TestSencDirectValues(t *testing.T) {
-	iv8 := InitializationVector("12345678")
-	iv16 := InitializationVector("0123456789abcdef")
+	iv8 := mp4.InitializationVector("12345678")
+	iv16 := mp4.InitializationVector("0123456789abcdef")
 	cases := []struct {
-		desc string
-		senc *SencBox
+		desc            string
+		senc            *mp4.SencBox
+		perSampleIVSize byte
 	}{
 		{
 			desc: "No perSampleIVs",
-			senc: &SencBox{
-				Version:         0,
-				Flags:           0,
-				SampleCount:     431, // No perSampleIVs
-				perSampleIVSize: 0,
+			senc: &mp4.SencBox{
+				Version:     0,
+				Flags:       0,
+				SampleCount: 431, // No perSampleIVs
 			},
+			perSampleIVSize: 0,
 		},
 		{
 			desc: "perSampleIVSize 8",
-			senc: &SencBox{
-				Version:         0,
-				Flags:           0,
-				SampleCount:     1,
-				perSampleIVSize: 8,
-				IVs:             []InitializationVector{iv8},
-				SubSamples:      [][]SubSamplePattern{{{10, 1000}}},
+			senc: &mp4.SencBox{
+				Version:     0,
+				Flags:       0,
+				SampleCount: 1,
+				IVs:         []mp4.InitializationVector{iv8},
+				SubSamples:  [][]mp4.SubSamplePattern{{{10, 1000}}},
 			},
+			perSampleIVSize: 8,
 		},
 		{
 			desc: "perSampleIVSize 16",
-			senc: &SencBox{
-				Version:         0,
-				Flags:           0,
-				SampleCount:     1,
-				perSampleIVSize: 16,
-				IVs:             []InitializationVector{iv16},
-				SubSamples:      [][]SubSamplePattern{{{10, 1000}, {20, 2000}}},
+			senc: &mp4.SencBox{
+				Version:     0,
+				Flags:       0,
+				SampleCount: 1,
+				IVs:         []mp4.InitializationVector{iv16},
+				SubSamples:  [][]mp4.SubSamplePattern{{{10, 1000}, {20, 2000}}},
 			},
+			perSampleIVSize: 16,
 		},
 		{
 			desc: "perSampleIVSize 16, 2 subsamples",
-			senc: &SencBox{
-				Version:         0,
-				Flags:           0,
-				SampleCount:     2,
-				perSampleIVSize: 16,
-				IVs:             []InitializationVector{iv16, iv16},
-				SubSamples:      [][]SubSamplePattern{{{10, 1000}}, {{20, 2000}}},
+			senc: &mp4.SencBox{
+				Version:     0,
+				Flags:       0,
+				SampleCount: 2,
+				IVs:         []mp4.InitializationVector{iv16, iv16},
+				SubSamples:  [][]mp4.SubSamplePattern{{{10, 1000}}, {{20, 2000}}},
 			},
+			perSampleIVSize: 16,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
+			c.senc.SetPerSampleIVSize(c.perSampleIVSize)
 			sencDiffAfterEncodeAndDecode(t, c.senc, 0)
-			sencDiffAfterEncodeAndDecode(t, c.senc, c.senc.perSampleIVSize)
+			sencDiffAfterEncodeAndDecode(t, c.senc, c.perSampleIVSize)
 		})
 	}
 }
 
-func sencDiffAfterEncodeAndDecode(t *testing.T, senc *SencBox, perSampleIVSize byte) {
+func sencDiffAfterEncodeAndDecode(t *testing.T, senc *mp4.SencBox, perSampleIVSize byte) {
 	t.Helper()
 	buf := bytes.Buffer{}
 	err := senc.Encode(&buf)
@@ -75,14 +78,14 @@ func sencDiffAfterEncodeAndDecode(t *testing.T, senc *SencBox, perSampleIVSize b
 		t.Error(err)
 	}
 
-	boxDec, err := DecodeBox(0, &buf)
+	boxDec, err := mp4.DecodeBox(0, &buf)
 	if err != nil {
 		t.Error(err)
 	}
-	decSenc := boxDec.(*SencBox)
-	var saizBox *SaizBox
+	decSenc := boxDec.(*mp4.SencBox)
+	var saizBox *mp4.SaizBox
 
-	if decSenc.readButNotParsed {
+	if decSenc.ReadButNotParsed() {
 		err = decSenc.ParseReadBox(perSampleIVSize, saizBox)
 		if err != nil {
 			t.Error(err)
@@ -95,51 +98,51 @@ func sencDiffAfterEncodeAndDecode(t *testing.T, senc *SencBox, perSampleIVSize b
 }
 
 func TestAddSamples(t *testing.T) {
-	iv0 := InitializationVector("")
-	iv8 := InitializationVector("01234567")
-	iv16 := InitializationVector("0123456789abcdef")
+	iv0 := mp4.InitializationVector("")
+	iv8 := mp4.InitializationVector("01234567")
+	iv16 := mp4.InitializationVector("0123456789abcdef")
 
-	senc := CreateSencBox()
-	err := senc.AddSample(SencSample{iv0, []SubSamplePattern{{10, 1000}}})
+	senc := mp4.CreateSencBox()
+	err := senc.AddSample(mp4.SencSample{iv0, []mp4.SubSamplePattern{{10, 1000}}})
 	assertNoError(t, err)
 	sencDiffAfterEncodeAndDecode(t, senc, 0)
 
-	senc = CreateSencBox()
-	err = senc.AddSample(SencSample{iv8, nil})
-	assertNoError(t, err)
-	sencDiffAfterEncodeAndDecode(t, senc, 0)
-	sencDiffAfterEncodeAndDecode(t, senc, 8)
-
-	senc = CreateSencBox()
-	err = senc.AddSample(SencSample{iv8, []SubSamplePattern{{10, 1000}}})
+	senc = mp4.CreateSencBox()
+	err = senc.AddSample(mp4.SencSample{iv8, nil})
 	assertNoError(t, err)
 	sencDiffAfterEncodeAndDecode(t, senc, 0)
 	sencDiffAfterEncodeAndDecode(t, senc, 8)
 
-	senc = CreateSencBox()
-	err = senc.AddSample(SencSample{iv8, []SubSamplePattern{{10, 1000}}})
+	senc = mp4.CreateSencBox()
+	err = senc.AddSample(mp4.SencSample{iv8, []mp4.SubSamplePattern{{10, 1000}}})
 	assertNoError(t, err)
 	sencDiffAfterEncodeAndDecode(t, senc, 0)
 	sencDiffAfterEncodeAndDecode(t, senc, 8)
 
-	senc = CreateSencBox()
-	err = senc.AddSample(SencSample{iv16, []SubSamplePattern{{10, 1000}, {20, 2000}}})
+	senc = mp4.CreateSencBox()
+	err = senc.AddSample(mp4.SencSample{iv8, []mp4.SubSamplePattern{{10, 1000}}})
+	assertNoError(t, err)
+	sencDiffAfterEncodeAndDecode(t, senc, 0)
+	sencDiffAfterEncodeAndDecode(t, senc, 8)
+
+	senc = mp4.CreateSencBox()
+	err = senc.AddSample(mp4.SencSample{iv16, []mp4.SubSamplePattern{{10, 1000}, {20, 2000}}})
 	assertNoError(t, err)
 	sencDiffAfterEncodeAndDecode(t, senc, 0)
 	sencDiffAfterEncodeAndDecode(t, senc, 16)
 
-	senc = CreateSencBox()
-	err = senc.AddSample(SencSample{iv16, []SubSamplePattern{{10, 1000}}})
+	senc = mp4.CreateSencBox()
+	err = senc.AddSample(mp4.SencSample{iv16, []mp4.SubSamplePattern{{10, 1000}}})
 	assertNoError(t, err)
-	err = senc.AddSample(SencSample{iv16, []SubSamplePattern{{20, 2000}}})
+	err = senc.AddSample(mp4.SencSample{iv16, []mp4.SubSamplePattern{{20, 2000}}})
 	assertNoError(t, err)
 	sencDiffAfterEncodeAndDecode(t, senc, 0)
 	sencDiffAfterEncodeAndDecode(t, senc, 16)
 
-	senc = CreateSencBox()
-	err = senc.AddSample(SencSample{iv16, []SubSamplePattern{{10, 1000}}})
+	senc = mp4.CreateSencBox()
+	err = senc.AddSample(mp4.SencSample{iv16, []mp4.SubSamplePattern{{10, 1000}}})
 	assertNoError(t, err)
-	err = senc.AddSample(SencSample{iv8, []SubSamplePattern{{20, 2000}}})
+	err = senc.AddSample(mp4.SencSample{iv8, []mp4.SubSamplePattern{{20, 2000}}})
 	assertError(t, err, "Should have got error due to different iv size")
 }
 
@@ -154,7 +157,7 @@ func TestImplicitIVSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		// Read the file
-		m, err := ReadMP4File(tc.inputFile)
+		m, err := mp4.ReadMP4File(tc.inputFile)
 		if err != nil {
 			t.Error(err)
 		}
@@ -193,7 +196,7 @@ func TestBadSencData(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			buf := bytes.NewBuffer(c.raw)
-			_, err := DecodeBox(0, buf)
+			_, err := mp4.DecodeBox(0, buf)
 			if err == nil {
 				t.Errorf("expected error %q, but got nil", c.err)
 			}
@@ -202,7 +205,7 @@ func TestBadSencData(t *testing.T) {
 			}
 
 			sr := bits.NewFixedSliceReader(c.raw)
-			_, err = DecodeBoxSR(0, sr)
+			_, err = mp4.DecodeBoxSR(0, sr)
 			if err == nil {
 				t.Errorf("expected error %q, but got nil", c.err)
 			}

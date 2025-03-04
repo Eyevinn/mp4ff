@@ -85,6 +85,28 @@ func (s *SencBox) AddSample(sample SencSample) error {
 	return nil
 }
 
+// SetPerSampleIVSize sets the per-sample IV size. Should be 0, 8 or 16.
+func (s *SencBox) SetPerSampleIVSize(size byte) {
+	s.perSampleIVSize = size
+}
+
+// PerSampleIVSize returns the per-sample IV size, 0 if not known yet.
+// This will be automatically determined when parsing the box, or when
+// adding samples. It can also be set explicitly.
+func (s *SencBox) PerSampleIVSize() byte {
+	if s.SampleCount == 0 {
+		return 0
+	}
+	return s.perSampleIVSize
+}
+
+// ReadButNotParsed returns true if box has been read but not parsed.
+// The parsing happens as a second step after perSampleIVSize is known.
+// ParseReadBox should be called to parse the box.
+func (s *SencBox) ReadButNotParsed() bool {
+	return s.readButNotParsed
+}
+
 // DecodeSenc - box-specific decode
 func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if hdr.Size < 16 {

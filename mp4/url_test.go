@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestUrl(t *testing.T) {
 
-	urlBox := &URLBox{
+	urlBox := &mp4.URLBox{
 		Version:  0,
 		Flags:    0,
 		Location: "location",
@@ -60,14 +61,14 @@ func TestUrlDecode(t *testing.T) {
 				t.Error(err)
 			}
 			sr := bits.NewFixedSliceReader(d)
-			box, err := DecodeBoxSR(0, sr)
+			box, err := mp4.DecodeBoxSR(0, sr)
 			if err != nil {
 				t.Error(err)
 			}
 			if box.Type() != "url " {
 				t.Errorf("Expected 'url ', got %s", box.Type())
 			}
-			urlBox := box.(*URLBox)
+			urlBox := box.(*mp4.URLBox)
 			o := bytes.Buffer{}
 			err = urlBox.Encode(&o)
 			if err != nil {

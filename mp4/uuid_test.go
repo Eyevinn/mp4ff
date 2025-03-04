@@ -1,9 +1,11 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"encoding/hex"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestUUIDVariants(t *testing.T) {
@@ -26,15 +28,15 @@ func TestUUIDVariants(t *testing.T) {
 	for _, ti := range testInputs {
 		inRawBox, _ := hex.DecodeString(ti.rawData)
 		inbuf := bytes.NewBuffer(inRawBox)
-		hdr, err := DecodeHeader(inbuf)
+		hdr, err := mp4.DecodeHeader(inbuf)
 		if err != nil {
 			t.Error(err)
 		}
-		uuidRead, err := DecodeUUIDBox(hdr, 0, inbuf)
+		uuidRead, err := mp4.DecodeUUIDBox(hdr, 0, inbuf)
 		if err != nil {
 			t.Error(err)
 		}
-		uBox := uuidRead.(*UUIDBox)
+		uBox := uuidRead.(*mp4.UUIDBox)
 		if uBox.SubType() != ti.expectedSubType {
 			t.Errorf("got subtype %s instead of %s", uBox.SubType(), ti.expectedSubType)
 		}
@@ -60,7 +62,7 @@ func TestUUIDVariants(t *testing.T) {
 func TestSetUUID(t *testing.T) {
 	testCases := []struct {
 		uuidStr    string
-		expected   UUID
+		expected   mp4.UUID
 		shouldFail bool
 	}{
 		{
@@ -73,7 +75,7 @@ func TestSetUUID(t *testing.T) {
 		},
 	}
 	for i, tc := range testCases {
-		u := UUIDBox{}
+		u := mp4.UUIDBox{}
 		err := u.SetUUID(tc.uuidStr)
 		if tc.shouldFail {
 			if err == nil {
@@ -89,24 +91,10 @@ func TestSetUUID(t *testing.T) {
 
 func TestUUIDEncodeDecoder(t *testing.T) {
 
-	tfrf := &UUIDBox{
-		uuid: mustCreateUUID(UUIDTfrf),
-		Tfrf: &TfrfData{
-			FragmentCount:             1,
-			FragmentAbsoluteTimes:     []uint64{0},
-			FragmentAbsoluteDurations: []uint64{1000000},
-		},
-	}
-
+	tfrf := mp4.NewTfrfBox(1, []uint64{0}, []uint64{1000000})
 	boxDiffAfterEncodeAndDecode(t, tfrf)
 
-	tfxd := &UUIDBox{
-		uuid: mustCreateUUID(UUIDTfxd),
-		Tfxd: &TfxdData{
-			FragmentAbsoluteTime:     0,
-			FragmentAbsoluteDuration: 1000000,
-		},
-	}
+	tfxd := mp4.NewTfxdBox(0, 1_000_000)
 	boxDiffAfterEncodeAndDecode(t, tfxd)
 }
 
@@ -164,7 +152,7 @@ func TestUnpackKey(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			key, err := UnpackKey(c.keyStr)
+			key, err := mp4.UnpackKey(c.keyStr)
 			if c.expectedErr != "" {
 				if err == nil {
 					t.Error("expected error but got nil")

@@ -1,9 +1,13 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestEncodeDecodeMfhd(t *testing.T) {
-	mfhd := &MfhdBox{
+	mfhd := &mp4.MfhdBox{
 		Version:        0,
 		Flags:          0,
 		SequenceNumber: 1,

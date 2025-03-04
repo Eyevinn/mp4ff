@@ -1,9 +1,11 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestDecodEncodeFile(t *testing.T) {
@@ -20,12 +22,12 @@ func TestDecodEncodeFile(t *testing.T) {
 		outBuf := bytes.NewBuffer(rawOut)
 		t.Run(testFile, func(t *testing.T) {
 			buf := bytes.NewBuffer(raw)
-			f, err := DecodeFile(buf)
+			f, err := mp4.DecodeFile(buf)
 			if err != nil {
 				t.Error(err)
 			}
 			outBuf.Reset()
-			f.FragEncMode = EncModeBoxTree
+			f.FragEncMode = mp4.EncModeBoxTree
 			err = f.Encode(outBuf)
 			if err != nil {
 				t.Error(err)
@@ -47,7 +49,7 @@ func BenchmarkDecodeFile(b *testing.B) {
 		b.Run(testFile, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				buf := bytes.NewBuffer(raw)
-				_, _ = DecodeFile(buf)
+				_, _ = mp4.DecodeFile(buf)
 			}
 		})
 	}
@@ -61,7 +63,7 @@ func BenchmarkEncodeFile(b *testing.B) {
 	for _, testFile := range testFiles {
 		raw, _ := os.ReadFile("testdata/" + testFile)
 		inBuf := bytes.NewBuffer(raw)
-		decFile, _ := DecodeFile(inBuf)
+		decFile, _ := mp4.DecodeFile(inBuf)
 		rawOut := make([]byte, 0, len(raw))
 		outBuf := bytes.NewBuffer(rawOut)
 		b.Run(testFile, func(b *testing.B) {

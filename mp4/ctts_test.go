@@ -1,9 +1,13 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestCtts(t *testing.T) {
-	ctts := &CttsBox{
+	ctts := &mp4.CttsBox{
 		Version: 0,
 		Flags:   0,
 	}
@@ -16,7 +20,7 @@ func TestCtts(t *testing.T) {
 }
 
 func TestGetCompositionTimeOffset(t *testing.T) {
-	ctts := &CttsBox{
+	ctts := &mp4.CttsBox{
 		Version: 0,
 		Flags:   0,
 	}

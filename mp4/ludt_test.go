@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"encoding/hex"

@@ -1,9 +1,13 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestCslgEncodeDecode(t *testing.T) {
-	cslg := CslgBox{
+	cslg := mp4.CslgBox{
 		Version:                      0,
 		CompositionToDTSShift:        -100,
 		LeastDecodeToDisplayDelta:    200,
@@ -14,7 +18,7 @@ func TestCslgEncodeDecode(t *testing.T) {
 
 	boxDiffAfterEncodeAndDecode(t, &cslg)
 
-	cslg = CslgBox{
+	cslg = mp4.CslgBox{
 		Version:                      1,
 		CompositionToDTSShift:        -100,
 		LeastDecodeToDisplayDelta:    200,

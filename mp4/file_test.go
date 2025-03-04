@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/Eyevinn/mp4ff/aac"
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestDecodeFileWithLazyMdatOption(t *testing.T) {
@@ -18,7 +19,7 @@ func TestDecodeFileWithLazyMdatOption(t *testing.T) {
 		t.Error(err)
 	}
 
-	parsedFile, err := DecodeFile(file, WithDecodeMode(DecModeLazyMdat))
+	parsedFile, err := mp4.DecodeFile(file, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
 	if err != nil {
 		t.Error(err)
 	}
@@ -44,15 +45,15 @@ func TestDecodeFileWithNoLazyMdatOption(t *testing.T) {
 		t.Error(err)
 	}
 
-	parsedFile, err := DecodeFile(file)
+	parsedFile, err := mp4.DecodeFile(file)
 	if err != nil {
 		t.Error(err)
 	}
 
 	for _, seg := range parsedFile.Segments {
 		for _, frag := range seg.Fragments {
-			if frag.Mdat.lazyDataSize != 0 {
-				t.Error("decLazyDataSize is expected to be 0")
+			if frag.Mdat.IsLazy() {
+				t.Error("mdat box is expected to be non-lazy")
 			}
 			if len(frag.Mdat.Data) == 0 {
 				t.Error("Mdat Data is expected to be non-nil")
@@ -79,13 +80,13 @@ func TestCopyTrackSampleData(t *testing.T) {
 			t.Error(err)
 		}
 		defer fd.Close()
-		var mp4f *File
+		var mp4f *mp4.File
 		var workSpace []byte
 		if tc.lazy {
-			mp4f, err = DecodeFile(fd, WithDecodeMode(DecModeLazyMdat))
+			mp4f, err = mp4.DecodeFile(fd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
 			workSpace = make([]byte, tc.workSpaceSize)
 		} else {
-			mp4f, err = DecodeFile(fd)
+			mp4f, err = mp4.DecodeFile(fd)
 		}
 		if err != nil {
 			t.Error(err)
@@ -130,7 +131,7 @@ func TestDecodeEncode(t *testing.T) {
 		}
 		rawOutput := make([]byte, len(rawInput))
 		inBuf := bytes.NewBuffer(rawInput)
-		parsedFile, err := DecodeFile(inBuf)
+		parsedFile, err := mp4.DecodeFile(inBuf)
 		if err != nil {
 			t.Error(err)
 		}
@@ -160,7 +161,7 @@ func TestDecodeEncode(t *testing.T) {
 
 func TestFilesWithEmsg(t *testing.T) {
 	// File with ftyp, moov, styp, emsg, emsg, moof, mdat, moof, mdat
-	init := CreateEmptyInit()
+	init := mp4.CreateEmptyInit()
 	init.AddEmptyTrack(uint32(48000), "audio", "en")
 	trak := init.Moov.Trak
 	err := trak.SetAACDescriptor(aac.AAClc, 48000)
@@ -173,10 +174,10 @@ func TestFilesWithEmsg(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	seg := NewMediaSegment()
+	seg := mp4.NewMediaSegment()
 	frag := createFragment(t, 1, 1024, 0)
-	frag.AddEmsg(&EmsgBox{ID: 1})
-	frag.AddEmsg(&EmsgBox{ID: 2})
+	frag.AddEmsg(&mp4.EmsgBox{ID: 1})
+	frag.AddEmsg(&mp4.EmsgBox{ID: 2})
 	seg.AddFragment(frag)
 	frag = createFragment(t, 2, 1024, 1024)
 	seg.AddFragment(frag)
@@ -186,7 +187,7 @@ func TestFilesWithEmsg(t *testing.T) {
 	}
 	encData := buf.Bytes()
 	sr := bits.NewFixedSliceReader(encData)
-	decFile, err := DecodeFileSR(sr)
+	decFile, err := mp4.DecodeFileSR(sr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,7 +220,7 @@ func TestFilesWithEmsg(t *testing.T) {
 
 func TestSegmentWith2Fragments(t *testing.T) {
 	// File styp, moof, mdat, moof, mdat
-	seg := NewMediaSegment()
+	seg := mp4.NewMediaSegment()
 	frag := createFragment(t, 1, 1024, 0)
 	seg.AddFragment(frag)
 	frag = createFragment(t, 2, 1024, 1024)
@@ -231,7 +232,7 @@ func TestSegmentWith2Fragments(t *testing.T) {
 	}
 	encData := buf.Bytes()
 	sr := bits.NewFixedSliceReader(encData)
-	decFile, err := DecodeFileSR(sr)
+	decFile, err := mp4.DecodeFileSR(sr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -252,13 +253,13 @@ func TestSegmentWith2Fragments(t *testing.T) {
 	}
 }
 
-func createFragment(t *testing.T, seqNr, dur uint32, decTime uint64) *Fragment {
-	frag, err := CreateFragment(seqNr, 1)
+func createFragment(t *testing.T, seqNr, dur uint32, decTime uint64) *mp4.Fragment {
+	frag, err := mp4.CreateFragment(seqNr, 1)
 	if err != nil {
 		t.Fail()
 	}
-	frag.AddFullSample(FullSample{
-		Sample: Sample{
+	frag.AddFullSample(mp4.FullSample{
+		Sample: mp4.Sample{
 			Flags:                 0x0,
 			Dur:                   dur,
 			Size:                  6,
@@ -276,7 +277,7 @@ func TestGetSegmentBoundariesFromSidx(t *testing.T) {
 		t.Error(err)
 	}
 
-	parsedFile, err := DecodeFile(file, WithDecodeFlags(DecISMFlag))
+	parsedFile, err := mp4.DecodeFile(file, mp4.WithDecodeFlags(mp4.DecISMFlag))
 	if err != nil {
 		t.Error(err)
 	}
@@ -291,7 +292,7 @@ func TestGetSegmentBoundariesFromMfra(t *testing.T) {
 		t.Error(err)
 	}
 
-	parsedFile, err := DecodeFile(file, WithDecodeFlags(DecISMFlag))
+	parsedFile, err := mp4.DecodeFile(file, mp4.WithDecodeFlags(mp4.DecISMFlag))
 	if err != nil {
 		t.Error(err)
 	}
@@ -306,7 +307,7 @@ func TestUpdateSidx(t *testing.T) {
 		t.Error(err)
 	}
 
-	parsedFile, err := DecodeFile(file)
+	parsedFile, err := mp4.DecodeFile(file)
 	if err != nil {
 		t.Error(err)
 	}
@@ -343,7 +344,7 @@ func TestEmptyMdat(t *testing.T) {
 			t.Run(fmt.Sprintf("%s_readSlice_%t", tc.desc, readSlice), func(t *testing.T) {
 				buf := bytes.Buffer{}
 				for _, mdatSize := range tc.mdatSizes {
-					mdat := &MdatBox{}
+					mdat := &mp4.MdatBox{}
 					if mdatSize > 8 {
 						mdat.Data = make([]byte, mdatSize-8)
 					}
@@ -352,13 +353,13 @@ func TestEmptyMdat(t *testing.T) {
 						t.Error(err)
 					}
 				}
-				var decFile *File
+				var decFile *mp4.File
 				var err error
 				if readSlice {
 					sr := bits.NewFixedSliceReader(buf.Bytes())
-					decFile, err = DecodeFileSR(sr)
+					decFile, err = mp4.DecodeFileSR(sr)
 				} else {
-					decFile, err = DecodeFile(&buf)
+					decFile, err = mp4.DecodeFile(&buf)
 				}
 				if tc.expectedError != "" {
 					if err == nil {

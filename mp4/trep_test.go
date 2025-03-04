@@ -1,11 +1,13 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestTrep(t *testing.T) {
-	trep := &TrepBox{TrackID: 1}
-	trep.AddChild(&KindBox{SchemeURI: "X", Value: "Y"})
+	trep := &mp4.TrepBox{TrackID: 1}
+	trep.AddChild(&mp4.KindBox{SchemeURI: "X", Value: "Y"})
 	boxDiffAfterEncodeAndDecode(t, trep)
 }

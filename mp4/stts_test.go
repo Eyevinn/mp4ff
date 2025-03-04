@@ -1,9 +1,13 @@
-package mp4
+package mp4_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
+)
 
 func TestSttsEncDec(t *testing.T) {
-	stts := SttsBox{
+	stts := mp4.SttsBox{
 		SampleCount:     []uint32{3, 2},
 		SampleTimeDelta: []uint32{10, 14},
 	}
@@ -12,18 +16,18 @@ func TestSttsEncDec(t *testing.T) {
 
 func TestGetSampleNrAtTime(t *testing.T) {
 
-	stts := SttsBox{
+	stts := mp4.SttsBox{
 		SampleCount:     []uint32{3, 2},
 		SampleTimeDelta: []uint32{10, 14},
 	}
 
-	sttsZero := SttsBox{
+	sttsZero := mp4.SttsBox{
 		SampleCount:     []uint32{2, 1},
 		SampleTimeDelta: []uint32{10, 0}, // Single zero duration at end
 	}
 
 	testCases := []struct {
-		stts        SttsBox
+		stts        mp4.SttsBox
 		startTime   uint64
 		sampleNr    uint32
 		expectError bool
@@ -64,7 +68,7 @@ func TestGetSampleNrAtTime(t *testing.T) {
 }
 
 func TestGetDecodeTime(t *testing.T) {
-	stts := SttsBox{
+	stts := mp4.SttsBox{
 		SampleCount:     []uint32{3, 1, 1},
 		SampleTimeDelta: []uint32{1024, 1025, 1024},
 	}

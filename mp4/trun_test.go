@@ -1,19 +1,20 @@
-package mp4
+package mp4_test
 
 import (
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
 // TestTrunDump versus golden file. Can be regenerated with -update
 func TestTrunInfo(t *testing.T) {
 	goldenDumpPath := "testdata/golden_trun_dump.txt"
-	trun := CreateTrun(0)
+	trun := mp4.CreateTrun(0)
 	trun.DataOffset = 314159
-	fs := FullSample{
-		Sample: Sample{
-			Flags:                 SyncSampleFlags,
+	fs := mp4.FullSample{
+		Sample: mp4.Sample{
+			Flags:                 mp4.SyncSampleFlags,
 			Dur:                   1024,
 			Size:                  4,
 			CompositionTimeOffset: -512,
@@ -30,9 +31,8 @@ func TestTrunInfo(t *testing.T) {
 }
 
 func TestGetSampleNrForRelativeTime(t *testing.T) {
-	trun := CreateTrun(0)
-	trun.AddSamples([]Sample{
-		{0, 1024, 100, 0},
+	trun := mp4.CreateTrun(0)
+	trun.AddSamples([]mp4.Sample{
 		{0, 1024, 100, 0},
 		{0, 1024, 100, 0},
 		{0, 1024, 100, 0},
@@ -40,7 +40,7 @@ func TestGetSampleNrForRelativeTime(t *testing.T) {
 		{0, 1024, 100, 0},
 		{0, 1024, 100, 0},
 	})
-	trun.Flags |= TrunSampleSizePresentFlag | TrunSampleDurationPresentFlag
+	trun.Flags |= mp4.TrunSampleSizePresentFlag | mp4.TrunSampleDurationPresentFlag
 
 	testCases := []struct {
 		sampleTime     uint64
@@ -52,10 +52,10 @@ func TestGetSampleNrForRelativeTime(t *testing.T) {
 		{5 * 1024, 6, 0, false},
 		{1023, 0, 0, true},
 		{7 * 1024, 0, 0, true},
-		{0, 1, TrunSampleDurationPresentFlag, false},
-		{5 * 1024, 6, TrunSampleDurationPresentFlag, false},
-		{1023, 0, TrunSampleDurationPresentFlag, true},
-		{7 * 1024, 0, TrunSampleDurationPresentFlag, true},
+		{0, 1, mp4.TrunSampleDurationPresentFlag, false},
+		{5 * 1024, 6, mp4.TrunSampleDurationPresentFlag, false},
+		{1023, 0, mp4.TrunSampleDurationPresentFlag, true},
+		{7 * 1024, 0, mp4.TrunSampleDurationPresentFlag, true},
 	}
 
 	const defaultSampleDuration = 1024
@@ -80,8 +80,8 @@ func TestGetSampleNrForRelativeTime(t *testing.T) {
 }
 
 func TestGetSampleInterval(t *testing.T) {
-	trun := CreateTrun(0)
-	trun.AddSamples([]Sample{
+	trun := mp4.CreateTrun(0)
+	trun.AddSamples([]mp4.Sample{
 		{0, 100, 1000, 0},
 		{0, 200, 2000, 0},
 		{0, 300, 3000, 0},
@@ -91,21 +91,28 @@ func TestGetSampleInterval(t *testing.T) {
 		{0, 700, 7000, 0},
 	})
 
-	mdat := MdatBox{lazyDataSize: 28000}
+	// Use lazyMdat since we don't care about the actual data
+	raw := []byte{0x00, 0x00, 0x00, 0x0e, 0x6d, 0x64, 0x61, 0x74, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	testSeeker := newTestReadSeeker(raw)
+	box, err := mp4.DecodeBoxLazyMdat(4000, testSeeker)
+	if err != nil {
+		t.Error(err)
+	}
+	lazyMdat := box.(*mp4.MdatBox)
 
 	testCases := []struct {
 		startSampleNr  uint32
 		endSampleNr    uint32
 		baseDecodeTime uint64
-		mdat           *MdatBox
+		mdat           *mp4.MdatBox
 		offsetInMdat   uint32
-		wantedSItvl    SampleInterval
+		wantedSItvl    mp4.SampleInterval
 	}{
 		{
-			1, 2, 10000, &mdat, 0, SampleInterval{10000, []Sample{{0, 100, 1000, 0}, {0, 200, 2000, 0}}, 0, 3000, nil},
+			1, 2, 10000, lazyMdat, 0, mp4.SampleInterval{10000, []mp4.Sample{{0, 100, 1000, 0}, {0, 200, 2000, 0}}, 0, 3000, nil},
 		},
 		{
-			3, 4, 10000, &mdat, 0, SampleInterval{10300, []Sample{{0, 300, 3000, 0}, {0, 400, 4000, 0}}, 3000, 7000, nil},
+			3, 4, 10000, lazyMdat, 0, mp4.SampleInterval{10300, []mp4.Sample{{0, 300, 3000, 0}, {0, 400, 4000, 0}}, 3000, 7000, nil},
 		},
 	}
 
@@ -121,16 +128,16 @@ func TestGetSampleInterval(t *testing.T) {
 }
 
 func TestFirstSampleFlags(t *testing.T) {
-	trun := CreateTrun(0)
+	trun := mp4.CreateTrun(0)
 	trun.DataOffset = 314159
-	trun.AddSample(Sample{
-		Flags:                 NonSyncSampleFlags,
+	trun.AddSample(mp4.Sample{
+		Flags:                 mp4.NonSyncSampleFlags,
 		Dur:                   1000,
 		Size:                  1000,
 		CompositionTimeOffset: 0,
 	})
-	trun.AddSample(Sample{
-		Flags:                 NonSyncSampleFlags,
+	trun.AddSample(mp4.Sample{
+		Flags:                 mp4.NonSyncSampleFlags,
 		Dur:                   1000,
 		Size:                  1000,
 		CompositionTimeOffset: 0,
@@ -139,13 +146,13 @@ func TestFirstSampleFlags(t *testing.T) {
 	if present {
 		t.Error("firstSampleFlags present")
 	}
-	trun.SetFirstSampleFlags(SyncSampleFlags)
+	trun.SetFirstSampleFlags(mp4.SyncSampleFlags)
 	gotFirstFlags, present := trun.FirstSampleFlags()
 	if !present {
 		t.Error("firstSampleFlags absent")
 	}
-	if gotFirstFlags != SyncSampleFlags {
-		t.Errorf("got firstSampleFlags %02x instead of %02x", gotFirstFlags, SyncSampleFlags)
+	if gotFirstFlags != mp4.SyncSampleFlags {
+		t.Errorf("got firstSampleFlags %02x instead of %02x", gotFirstFlags, mp4.SyncSampleFlags)
 	}
 	trun.RemoveFirstSampleFlags()
 	_, present = trun.FirstSampleFlags()
@@ -177,12 +184,12 @@ func TestCommonDuration(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		trun := CreateTrun(0)
+		trun := mp4.CreateTrun(0)
 		for _, s := range c.sampleDurs {
-			trun.AddSample(Sample{Dur: s})
+			trun.AddSample(mp4.Sample{Dur: s})
 		}
 		if c.commonDur != 0 {
-			trun.Flags &= ^TrunSampleDurationPresentFlag
+			trun.Flags &= ^mp4.TrunSampleDurationPresentFlag
 		}
 		gotCommonDur := trun.CommonSampleDuration(c.commonDur)
 		if gotCommonDur != c.wantedCommonDur {

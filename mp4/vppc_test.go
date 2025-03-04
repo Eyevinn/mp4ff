@@ -1,13 +1,15 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestVppC(t *testing.T) {
 	// Create a sample VppC box
-	vppc := &VppCBox{
+	vppc := &mp4.VppCBox{
 		Version:                 1,
 		Flags:                   0,
 		Profile:                 1,
@@ -35,7 +37,7 @@ func TestVppC(t *testing.T) {
 	raw := make([]byte, len(data))
 	copy(raw, data)
 	raw[8] = 0
-	_, err = DecodeBox(0, bytes.NewBuffer(raw))
+	_, err = mp4.DecodeBox(0, bytes.NewBuffer(raw))
 	errMsg := "decode vpcC pos 0: version 0 not supported"
 	if err == nil || err.Error() != errMsg {
 		t.Errorf("Expected error msg: %q", errMsg)

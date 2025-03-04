@@ -1,4 +1,4 @@
-package mp4
+package mp4_test
 
 import (
 	"bytes"
@@ -8,20 +8,21 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
 
 const sps1nalu = "674d401fe4605017fcb80b4f00000300010000030032e4800753003a9e08200e58e189c0"
 const pps1nalu = "685bdf20"
 
-func parseInitFile(fileName string) (*File, error) {
+func parseInitFile(fileName string) (*mp4.File, error) {
 	fd, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
 	}
 	defer fd.Close()
 
-	f, err := DecodeFile(fd)
+	f, err := mp4.DecodeFile(fd)
 	if err != io.EOF && err != nil {
 		return nil, err
 	}
@@ -29,7 +30,7 @@ func parseInitFile(fileName string) (*File, error) {
 		return nil, fmt.Errorf("No ftyp present")
 	}
 
-	if f.isFragmented && len(f.Init.Moov.Traks) != 1 {
+	if f.IsFragmented() && len(f.Init.Moov.Traks) != 1 {
 		return nil, fmt.Errorf("Not exactly one track")
 	}
 	return f, nil
@@ -149,7 +150,7 @@ func TestGenerateInitSegment(t *testing.T) {
 	pps, _ := hex.DecodeString(pps1nalu)
 	ppsData := [][]byte{pps}
 
-	init := CreateEmptyInit()
+	init := mp4.CreateEmptyInit()
 	init.AddEmptyTrack(180000, "video", "und")
 	trak := init.Moov.Trak
 	err := trak.SetAVCDescriptor("avc3", spsData, ppsData, true)
@@ -168,7 +169,7 @@ func TestGenerateInitSegment(t *testing.T) {
 		t.Error(err)
 	}
 
-	initRead, err := DecodeFile(&buf)
+	initRead, err := mp4.DecodeFile(&buf)
 	if err != io.EOF && err != nil {
 		t.Error(err)
 	}
@@ -212,13 +213,13 @@ func TestInitTweakSingleTrakLive(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f, err := DecodeFile(r)
+	f, err := mp4.DecodeFile(r)
 	if err != nil {
 		t.Error(err)
 	}
 	moov := f.Init.Moov
 	mvex := moov.Mvex
-	mehd := MehdBox{
+	mehd := mp4.MehdBox{
 		FragmentDuration: 1000,
 	}
 	mvex.AddChild(&mehd)
