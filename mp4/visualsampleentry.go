@@ -127,10 +127,7 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	// 14496-15  5.4.2.1.2 avcC should be inside avc1, avc3 box
 	pos := startPos + 86 // Size of all previous data
 	endPos := startPos + uint64(hdr.Hdrlen) + uint64(hdr.payloadLen())
-	for {
-		if pos >= endPos {
-			break
-		}
+	for pos < endPos {
 		box, err := DecodeBoxSR(pos, sr)
 		if err != nil {
 			return nil, fmt.Errorf("error decoding childBox of VisualSampleEntry: %w", err)
@@ -284,9 +281,9 @@ func (b *VisualSampleEntryBox) ConvertHev1ToHvc1(vpss [][]byte, spss [][]byte, p
 		return fmt.Errorf("type is %s and not hev1", b.Type())
 	}
 	b.SetType("hvc1")
-	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_VPS, vpss))
-	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_SPS, spss))
-	b.HvcC.DecConfRec.NaluArrays = append(b.HvcC.DecConfRec.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_PPS, ppss))
+	b.HvcC.NaluArrays = append(b.HvcC.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_VPS, vpss))
+	b.HvcC.NaluArrays = append(b.HvcC.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_SPS, spss))
+	b.HvcC.NaluArrays = append(b.HvcC.NaluArrays, hevc.NewNaluArray(true, hevc.NALU_PPS, ppss))
 	return nil
 }
 
@@ -296,7 +293,7 @@ func (b *VisualSampleEntryBox) ConvertAvc3ToAvc1(spss [][]byte, ppss [][]byte) e
 		return fmt.Errorf("type is %s and not avc3", b.Type())
 	}
 	b.SetType("avc1")
-	b.AvcC.DecConfRec.SPSnalus = spss
-	b.AvcC.DecConfRec.PPSnalus = ppss
+	b.AvcC.SPSnalus = spss
+	b.AvcC.PPSnalus = ppss
 	return nil
 }

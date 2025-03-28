@@ -91,7 +91,7 @@ func TestStpp(t *testing.T) {
 		hexData := ("0000002b737470700000000000000001" +
 			"687474703a2f2f7777772e77332e6f72" +
 			"672f6e732f74746d6c0000")
-		hexData = strings.Replace(hexData, " ", "", -1)
+		hexData = strings.ReplaceAll(hexData, " ", "")
 		data, err := hex.DecodeString(hexData)
 		if err != nil {
 			t.Error(err)

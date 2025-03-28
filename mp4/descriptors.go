@@ -701,10 +701,7 @@ func CreateESDescriptor(decConfig []byte) ESDescriptor {
 func readSizeSize(sr bits.SliceReader) (sizeFieldSizeMinus1 byte, size uint64, err error) {
 	tmp := sr.ReadUint8()
 	sizeOfInstance := uint64(tmp & 0x7f)
-	for {
-		if (tmp >> 7) == 0 {
-			break // Last byte of size field
-		}
+	for tmp&0x80 != 0 {
 		tmp = sr.ReadUint8()
 		sizeFieldSizeMinus1++
 		sizeOfInstance = sizeOfInstance<<7 | uint64(tmp&0x7f)

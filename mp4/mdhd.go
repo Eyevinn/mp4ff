@@ -43,17 +43,18 @@ func DecodeMdhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	if version == 1 {
+	switch version {
+	case 1:
 		b.CreationTime = sr.ReadUint64()
 		b.ModificationTime = sr.ReadUint64()
 		b.Timescale = sr.ReadUint32()
 		b.Duration = sr.ReadUint64()
-	} else if version == 0 {
+	case 0:
 		b.CreationTime = uint64(sr.ReadUint32())
 		b.ModificationTime = uint64(sr.ReadUint32())
 		b.Timescale = sr.ReadUint32()
 		b.Duration = uint64(sr.ReadUint32())
-	} else {
+	default:
 		return nil, fmt.Errorf("unknown mdhd version %d", version)
 	}
 	b.Language = sr.ReadUint16()

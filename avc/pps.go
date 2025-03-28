@@ -42,7 +42,7 @@ type PPS struct {
 
 // AVC PPS errors
 var (
-	ErrNotPPS = errors.New("Not an PPS NAL unit")
+	ErrNotPPS = errors.New("not an PPS NAL unit")
 )
 
 // ParsePPSNALUnit - Parse AVC PPS NAL unit starting with NAL header
@@ -163,7 +163,7 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	}
 	_ = reader.Read(1)
 	if reader.AccError() != io.EOF {
-		return nil, fmt.Errorf("Not at end after reading rbsp_trailing_bits")
+		return nil, fmt.Errorf("not at end after reading rbsp_trailing_bits")
 	}
 	return pps, nil
 }

@@ -198,10 +198,7 @@ func GetParameterSets(sample []byte) (vps, sps, pps [][]byte) {
 	sampleLength := uint32(len(sample))
 	var pos uint32 = 0
 naluLoop:
-	for {
-		if pos >= sampleLength {
-			break
-		}
+	for pos < sampleLength {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
 		switch naluType := GetNaluType(sample[pos]); {

@@ -42,7 +42,8 @@ func DecodeEmsgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		Flags:       versionAndFlags & flagsMask,
 		MessageData: nil,
 	}
-	if version == 1 {
+	switch version {
+	case 1:
 		b.TimeScale = sr.ReadUint32()
 		b.PresentationTime = sr.ReadUint64()
 		b.EventDuration = sr.ReadUint32()
@@ -51,7 +52,7 @@ func DecodeEmsgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.SchemeIDURI = sr.ReadZeroTerminatedString(maxLen)
 		maxLen = hdr.payloadLen() - (sr.GetPos() - initPos)
 		b.Value = sr.ReadZeroTerminatedString(maxLen)
-	} else if version == 0 {
+	case 0:
 		maxLen := hdr.payloadLen() - (sr.GetPos() - initPos) - 17
 		b.SchemeIDURI = sr.ReadZeroTerminatedString(maxLen)
 		maxLen = hdr.payloadLen() - (sr.GetPos() - initPos) - 16
@@ -60,7 +61,7 @@ func DecodeEmsgSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.PresentationTimeDelta = sr.ReadUint32()
 		b.EventDuration = sr.ReadUint32()
 		b.ID = sr.ReadUint32()
-	} else {
+	default:
 		return nil, fmt.Errorf("unknown version %d for emsg", version)
 	}
 

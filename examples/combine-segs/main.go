@@ -120,7 +120,7 @@ func combineMediaSegments(files []string, newTrackIDs []uint32) (*mp4.MediaSegme
 			return nil, fmt.Errorf("failed to get full samples: %w", err)
 		}
 		for _, fs := range fss {
-			outFrag.AddFullSampleToTrack(fs, newTrackIDs[i])
+			_ = outFrag.AddFullSampleToTrack(fs, newTrackIDs[i])
 		}
 	}
 	return combinedSeg, nil

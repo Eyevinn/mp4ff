@@ -18,7 +18,8 @@ func TestCommandLines(t *testing.T) {
 		{desc: "no args", args: []string{appName}, expectedErr: true},
 		{desc: "duration = 0", args: []string{appName, "-d", "0", "dummy.mp4", "dummy.mp4"}, expectedErr: true},
 		{desc: "non-existing infile", args: []string{appName, "-d", "1000", "notExists.mp4", "dummy.mp4"}, expectedErr: true},
-		{desc: "segment 2s to 1s (30fps 3000 ticks/frame)", args: []string{appName, "-v", "-d", "90000", "../../mp4/testdata/1.m4s", outFile},
+		{desc: "segment 2s to 1s (30fps 3000 ticks/frame)", args: []string{appName, "-v", "-d", "90000", "../../mp4/testdata/1.m4s",
+			outFile},
 			wantedOutput: `Started segment 1 at dts=0 pts=6000
    0 DTS 0 PTS 6000
   30 DTS 90000 PTS 96000
