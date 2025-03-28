@@ -277,3 +277,69 @@ func TestDecryptInit(t *testing.T) {
 		}
 	}
 }
+
+func TestAppendProtectRange(t *testing.T) {
+	testCases := []struct {
+		name        string
+		nrClear     uint32
+		nrProtected uint32
+		expected    []mp4.SubSamplePattern
+	}{
+		{
+			name:        "clear data under limit",
+			nrClear:     1000,
+			nrProtected: 500,
+			expected: []mp4.SubSamplePattern{
+				{BytesOfClearData: 1000, BytesOfProtectedData: 500},
+			},
+		},
+		{
+			name:        "clear data at limit",
+			nrClear:     65535,
+			nrProtected: 500,
+			expected: []mp4.SubSamplePattern{
+				{BytesOfClearData: 65535, BytesOfProtectedData: 500},
+			},
+		},
+		{
+			name:        "clear data just over limit",
+			nrClear:     65536,
+			nrProtected: 500,
+			expected: []mp4.SubSamplePattern{
+				{BytesOfClearData: 65535, BytesOfProtectedData: 0},
+				{BytesOfClearData: 1, BytesOfProtectedData: 500},
+			},
+		},
+		{
+			name:        "clear data well over limit",
+			nrClear:     140000,
+			nrProtected: 800,
+			expected: []mp4.SubSamplePattern{
+				{BytesOfClearData: 65535, BytesOfProtectedData: 0},
+				{BytesOfClearData: 65535, BytesOfProtectedData: 0},
+				{BytesOfClearData: 140000 - 65535 - 65535, BytesOfProtectedData: 800},
+			},
+		},
+		{
+			name:        "multiple of 65535 plus remainder",
+			nrClear:     65535*3 + 42,
+			nrProtected: 100,
+			expected: []mp4.SubSamplePattern{
+				{BytesOfClearData: 65535, BytesOfProtectedData: 0},
+				{BytesOfClearData: 65535, BytesOfProtectedData: 0},
+				{BytesOfClearData: 65535, BytesOfProtectedData: 0},
+				{BytesOfClearData: 42, BytesOfProtectedData: 100},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := mp4.AppendProtectRange(nil, tc.nrClear, tc.nrProtected)
+			if diff := deep.Equal(result, tc.expected); diff != nil {
+				t.Errorf("AppendProtectRange(%d, %d) returned unexpected result: %v",
+					tc.nrClear, tc.nrProtected, diff)
+			}
+		})
+	}
+}

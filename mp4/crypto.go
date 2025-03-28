@@ -66,7 +66,7 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 			}
 		}
 		if bytesToProtect > 0 {
-			ssps = appendProtectRange(ssps, clearEnd-clearStart, bytesToProtect)
+			ssps = AppendProtectRange(ssps, clearEnd-clearStart, bytesToProtect)
 			clearStart = clearEnd + bytesToProtect
 			clearEnd = clearStart
 		}
@@ -74,7 +74,7 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 		pos += naluLength
 	}
 	if clearEnd > clearStart {
-		ssps = appendProtectRange(ssps, clearEnd-clearStart, 0)
+		ssps = AppendProtectRange(ssps, clearEnd-clearStart, 0)
 	}
 	return ssps, nil
 }
@@ -122,7 +122,7 @@ func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.P
 			}
 		}
 		if bytesToProtect > 0 {
-			ssps = appendProtectRange(ssps, clearEnd-clearStart, bytesToProtect)
+			ssps = AppendProtectRange(ssps, clearEnd-clearStart, bytesToProtect)
 			clearStart = clearEnd + bytesToProtect
 			clearEnd = clearStart
 		}
@@ -130,13 +130,13 @@ func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.P
 		pos += naluLength
 	}
 	if clearEnd > clearStart {
-		ssps = appendProtectRange(ssps, clearEnd-clearStart, 0)
+		ssps = AppendProtectRange(ssps, clearEnd-clearStart, 0)
 	}
 	return ssps, nil
 }
 
-// appendProtectRange appends a SubSamplePattern to a slice of SubSamplePattern, splitting into multiple if needed.
-func appendProtectRange(ssps []SubSamplePattern, nrClear, nrProtected uint32) []SubSamplePattern {
+// AppendProtectRange appends a SubSamplePattern to a slice of SubSamplePattern, splitting into multiple if needed.
+func AppendProtectRange(ssps []SubSamplePattern, nrClear, nrProtected uint32) []SubSamplePattern {
 	for nrClear >= 65536 {
 		ssps = append(ssps, SubSamplePattern{65535, 0})
 		nrClear -= 65535
