@@ -7,16 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### New
+- Nothing yet
 
-* UUID
-* Mdat
+## [0.48.0] - 2025-03-28
 
 ### Changed
 
 - mp4.NewUUIDFromHex() changed to more general mp4.NewUUIDFromString()
 - cmd/mp4ff-decrypt -key option instead of -k. Takes hex or base64 value
-- cmd/mp4ff-encrypt -key and -kid options now take hex or bae64 values
+- cmd/mp4ff-encrypt -key and -kid options now take hex or base64 values
 - Replaced mp4.AlouBox and mp4.TlouBox with a common mp4.LoudnessBaseBox
 - mp4.Measurement changed to clearer mp4.LoudnessMeasurement
 
@@ -32,14 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported constants for ColrBox's ColorType
 - mp4.NewFreeBox, mp4.NewSkipBox functions
 - mp4.FreeBox.Payload method
-- New mp4.SencBox methods: SetPerSampleIVSize, PerSampleIVSize, and ReadButNotParsed
-- New function mp4.CreateUnknownBox
-- New functions mp4.NewTfrfBox and mp4.NewTfxdBox
+- mp4.SencBox methods: SetPerSampleIVSize, PerSampleIVSize, and ReadButNotParsed
+- Function mp4.CreateUnknownBox
+- Functions mp4.NewTfrfBox and mp4.NewTfxdBox
+- HEVC (hvc1) encryption
+- AppendProtectRange function is now public
 
 ### Fixed
 
-- support short ESDS without SLConfig descriptor (issue #393)
+- Support short ESDS without SLConfig descriptor (issue #393)
 - HEVC Slice Header CollocatedFromL0Flag should be true by default
+- Update to golangci-lint/v2 and fixed all warnings
 
 ## [0.47.0] - 2024-11-12
 
@@ -698,7 +700,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/Eyevinn/mp4ff/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/Eyevinn/mp4ff/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/Eyevinn/mp4ff/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/Eyevinn/mp4ff/compare/v0.45.0...v0.45.1
