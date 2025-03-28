@@ -58,7 +58,7 @@ func (e *EsdsBox) Type() string {
 
 // Size - calculated size of box
 func (e *EsdsBox) Size() uint64 {
-	return uint64(8 + 4 + e.ESDescriptor.SizeSize())
+	return uint64(8 + 4 + e.SizeSize())
 }
 
 // Encode - write box to w

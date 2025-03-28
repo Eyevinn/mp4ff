@@ -49,21 +49,22 @@ func DecodeElstSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 
 	b.Entries = make([]ElstEntry, entryCount)
 
-	if version == 1 {
+	switch version {
+	case 1:
 		for i := 0; i < int(entryCount); i++ {
 			b.Entries[i].SegmentDuration = sr.ReadUint64()
 			b.Entries[i].MediaTime = sr.ReadInt64()
 			b.Entries[i].MediaRateInteger = sr.ReadInt16()
 			b.Entries[i].MediaRateFraction = sr.ReadInt16()
 		}
-	} else if version == 0 {
+	case 0:
 		for i := 0; i < int(entryCount); i++ {
 			b.Entries[i].SegmentDuration = uint64(sr.ReadUint32())
 			b.Entries[i].MediaTime = int64(sr.ReadInt32())
 			b.Entries[i].MediaRateInteger = sr.ReadInt16()
 			b.Entries[i].MediaRateFraction = sr.ReadInt16()
 		}
-	} else {
+	default:
 		return nil, fmt.Errorf("unknown version for elst")
 	}
 	return b, sr.AccError()

@@ -13,7 +13,7 @@ const ExtendedSAR = 255
 
 // SPS errors
 var (
-	ErrNotSPS = errors.New("Not an SPS NAL unit")
+	ErrNotSPS = errors.New("not an SPS NAL unit")
 )
 
 // SPS - AVC SPS parameters
@@ -173,9 +173,10 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 
 	sps.Log2MaxFrameNumMinus4 = reader.ReadExpGolomb()
 	sps.PicOrderCntType = reader.ReadExpGolomb()
-	if sps.PicOrderCntType == 0 {
+	switch sps.PicOrderCntType {
+	case 0:
 		sps.Log2MaxPicOrderCntLsbMinus4 = reader.ReadExpGolomb()
-	} else if sps.PicOrderCntType == 1 {
+	case 1:
 		sps.DeltaPicOrderAlwaysZeroFlag = reader.ReadFlag()
 		sps.OffsetForNonRefPic = reader.ReadExpGolomb()
 		sps.OffsetForTopToBottomField = reader.ReadExpGolomb()
@@ -219,7 +220,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		case 3: //This lacks one extra check?
 			cropUnitX, cropUnitY = 1, 1*(2-frameMbsOnly)
 		default:
-			return nil, fmt.Errorf("Non-vaild chroma_format_idc value: %d", sps.ChromaFormatIDC)
+			return nil, fmt.Errorf("non-vaild chroma_format_idc value: %d", sps.ChromaFormatIDC)
 		}
 
 		sps.FrameCropLeftOffset = reader.ReadExpGolomb()

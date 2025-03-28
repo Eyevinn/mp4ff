@@ -11,9 +11,9 @@ import (
 
 // Errors for parsing and handling AVC slices
 var (
-	ErrNoSliceHeader      = errors.New("No slice header")
-	ErrInvalidSliceType   = errors.New("Invalid slice type")
-	ErrTooFewBytesToParse = errors.New("Too few bytes to parse symbol")
+	ErrNoSliceHeader      = errors.New("no slice header")
+	ErrInvalidSliceType   = errors.New("invalid slice type")
+	ErrTooFewBytesToParse = errors.New("too few bytes to parse symbol")
 )
 
 // SliceType - AVC slice type

@@ -135,10 +135,11 @@ func ParseCEA608(payload []byte) ([]byte, []byte, error) {
 		ccData2 := payload[pos] // Keep parity bit
 		pos++
 		if ccValid != 0 && ((ccData1&0x7f)+(ccData2&0x7f) != 0) { //Check validity and non-empty data
-			if ccType == 0 {
+			switch ccType {
+			case 0:
 				field1 = append(field1, ccData1)
 				field1 = append(field1, ccData2)
-			} else if ccType == 1 {
+			case 1:
 				field2 = append(field2, ccData1)
 				field2 = append(field2, ccData2)
 			}

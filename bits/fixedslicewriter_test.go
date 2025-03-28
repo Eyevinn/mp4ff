@@ -106,7 +106,7 @@ func TestFixedSliceWriter(t *testing.T) {
 			t.Errorf("unexpected offset %d instead of %d", offset, wantedOffset)
 		}
 		result := sw.Bytes()
-		if !(result[0] == 0xf2 && result[1] == 0x50) {
+		if result[0] != 0xf2 || result[1] != 0x50 {
 			t.Errorf("got %02x%02x instead of 0xf250", result[0], result[1])
 		}
 		sw.WriteUint16(0xffff)

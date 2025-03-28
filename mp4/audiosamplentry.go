@@ -135,10 +135,7 @@ func DecodeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReade
 
 	pos := startPos + nrAudioSampleBytesBeforeChildren // Size of all previous data
 	lastPos := startPos + hdr.Size
-	for {
-		if pos >= lastPos {
-			break
-		}
+	for pos < lastPos {
 		box, err := DecodeBoxSR(pos, sr)
 		if err != nil {
 			return nil, err

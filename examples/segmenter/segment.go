@@ -213,7 +213,7 @@ func getSegmentStartsFromVideo(parsedMp4 *mp4.File, segDurMS uint32) (timeScale 
 	stss := refTrak.Mdia.Minf.Stbl.Stss
 	ctts := refTrak.Mdia.Minf.Stbl.Ctts
 	syncPoints = make([]syncPoint, 0, stss.EntryCount())
-	var segmentStep uint32 = uint32(uint64(segDurMS) * uint64(timeScale) / 1000)
+	var segmentStep = uint32(uint64(segDurMS) * uint64(timeScale) / 1000)
 	var nextSegmentStart uint32 = 0
 	for _, sampleNr := range stss.SampleNumber {
 		decodeTime, _ := stts.GetDecodeTime(sampleNr)

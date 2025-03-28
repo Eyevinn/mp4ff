@@ -1,11 +1,26 @@
+version: "2"
 linters:
   enable:
     - lll
-
-linters-settings:
-  lll:
-    # max line length, lines longer will be reported. Default is 120.
-    # '\t' is counted as 1 character by default, and can be changed with the tab-width option
-    line-length: 140
-    # tab width in spaces. Default to 1.
-    tab-width: 4
+  settings:
+    lll:
+      line-length: 140
+      tab-width: 4
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

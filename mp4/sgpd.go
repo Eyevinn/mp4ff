@@ -48,7 +48,7 @@ func DecodeSgpdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	}
 	entryCount := sr.ReadUint32()
 	for i := uint32(0); i < entryCount; i++ {
-		var descriptionLength uint32 = b.DefaultLength
+		var descriptionLength = b.DefaultLength
 		if b.Version >= 1 && b.DefaultLength == 0 {
 			descriptionLength = sr.ReadUint32()
 			b.DescriptionLengths = append(b.DescriptionLengths, descriptionLength)

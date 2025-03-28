@@ -92,13 +92,14 @@ func getInfoLevel(b boxLike, specificBoxLevels string) (level int) {
 		}
 		bt := bl[:splitPos]
 		nr := bl[splitPos+1:]
-		if bt == boxType {
+		switch bt {
+		case boxType:
 			level, err = strconv.Atoi(nr)
 			if err != nil {
 				level = 0
 			}
 			return level
-		} else if bt == "all" {
+		case "all":
 			level, err = strconv.Atoi(nr)
 			if err != nil {
 				level = 0

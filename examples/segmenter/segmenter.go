@@ -137,7 +137,8 @@ func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 }
 
 // GetFullSamplesForInterval - get slice of fullsamples with numbers startSampleNr to endSampleNr (inclusive)
-func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSampleNr, endSampleNr uint32, rs io.ReadSeeker) ([]mp4.FullSample, error) {
+func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSampleNr, endSampleNr uint32,
+	rs io.ReadSeeker) ([]mp4.FullSample, error) {
 	stbl := tr.inTrak.Mdia.Minf.Stbl
 	samples := make([]mp4.FullSample, 0, endSampleNr-startSampleNr+1)
 	mdat := mp4f.Mdat

@@ -137,10 +137,7 @@ func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.P
 
 // appendProtectRange appends a SubSamplePattern to a slice of SubSamplePattern, splitting into multiple if needed.
 func appendProtectRange(ssps []SubSamplePattern, nrClear, nrProtected uint32) []SubSamplePattern {
-	for {
-		if nrClear < 65536 {
-			break
-		}
+	for nrClear >= 65536 {
 		ssps = append(ssps, SubSamplePattern{65535, 0})
 		nrClear -= 65535
 	}
@@ -244,10 +241,7 @@ func cbcsCrypt(dir cryptoDir, data []byte, key []byte, iv []byte, nrInCryptBlock
 		cph.CryptBlocks(data[:nrToCrypt], data[:nrToCrypt])
 		return nil
 	}
-	for {
-		if size-pos < nrInCryptBlock { // Leave the rest
-			break
-		}
+	for size-pos >= nrInCryptBlock {
 		cph.CryptBlocks(data[pos:pos+nrInCryptBlock], data[pos:pos+nrInCryptBlock])
 		pos += nrInCryptBlock
 		if size-pos < nrInSkipBlock {

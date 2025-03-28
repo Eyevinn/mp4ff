@@ -11,8 +11,8 @@ import (
 
 // AVC parsing errors
 var (
-	ErrCannotParseAVCExtension = errors.New("Cannot parse SPS extensions")
-	ErrLengthSize              = errors.New("Can only handle 4byte NAL length size")
+	ErrCannotParseAVCExtension = errors.New("cannot parse SPS extensions")
+	ErrLengthSize              = errors.New("can only handle 4byte NAL length size")
 )
 
 // DecConfRec - AVCDecoderConfigurationRecord
@@ -203,17 +203,17 @@ func (a *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteUint8(a.AVCLevelIndication)
 	sw.WriteUint8(0xff) // Set length to 4
 
-	var nrSPS byte = byte(len(a.SPSnalus)) | 0xe0 // Added reserved 3 bits
+	var nrSPS = byte(len(a.SPSnalus)) | 0xe0 // Added reserved 3 bits
 	sw.WriteUint8(nrSPS)
 	for _, sps := range a.SPSnalus {
-		var length uint16 = uint16(len(sps))
+		var length = uint16(len(sps))
 		sw.WriteUint16(length)
 		sw.WriteBytes(sps)
 	}
-	var nrPPS byte = byte(len(a.PPSnalus))
+	var nrPPS = byte(len(a.PPSnalus))
 	sw.WriteUint8(nrPPS)
 	for _, pps := range a.PPSnalus {
-		var length uint16 = uint16(len(pps))
+		var length = uint16(len(pps))
 		sw.WriteUint16(length)
 		sw.WriteBytes(pps)
 	}

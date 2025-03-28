@@ -62,10 +62,7 @@ func DecodeWvttSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	w.DataReferenceIndex = sr.ReadUint16()
 	pos := startPos + nrWvttBytesBeforeChildren
 	endPos := startPos + uint64(hdr.Hdrlen+hdr.payloadLen())
-	for {
-		if pos >= endPos {
-			break
-		}
+	for pos < endPos {
 		box, err := DecodeBoxSR(pos, sr)
 		if err != nil {
 			return nil, err

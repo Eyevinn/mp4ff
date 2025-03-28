@@ -192,7 +192,8 @@ func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	}
 	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
 	headerLen := boxHeaderSize
-	if size == 1 {
+	switch size {
+	case 1: // size 1 means large size in next 8 bytes
 		buf := make([]byte, largeSizeLen)
 		_, err = io.ReadFull(r, buf)
 		if err != nil {
@@ -200,7 +201,7 @@ func DecodeHeader(r io.Reader) (BoxHeader, error) {
 		}
 		size = binary.BigEndian.Uint64(buf)
 		headerLen += largeSizeLen
-	} else if size == 0 {
+	case 0: // size 0 means to end of file
 		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
 	if uint64(headerLen) > size {

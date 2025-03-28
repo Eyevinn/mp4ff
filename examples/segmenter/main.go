@@ -47,7 +47,8 @@ func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
 
 	opts := options{}
 
-	fs.Uint64Var(&opts.chunkDurMS, "d", 0, "Required: segment duration (milliseconds). The segments will start at syncSamples with decoded time >= n*segDur")
+	fs.Uint64Var(&opts.chunkDurMS, "d", 0,
+		"Required: segment duration (milliseconds). The segments will start at syncSamples with decoded time >= n*segDur")
 	fs.BoolVar(&opts.multipex, "m", false, "Output multiplexed segments")
 	fs.BoolVar(&opts.lazy, "lazy", false, "Read/write mdat lazily")
 	fs.BoolVar(&opts.verbose, "v", false, "Verbose output")

@@ -24,11 +24,11 @@ type ADTSHeader struct {
 // NewADTSHeader - create a new ADTS header
 func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, plLen uint16) (*ADTSHeader, error) {
 	if objectType != AAClc {
-		return nil, fmt.Errorf("Must use AAC-LC (type 2) not %d", objectType)
+		return nil, fmt.Errorf("must use AAC-LC (type 2) not %d", objectType)
 	}
 	sfi, ok := ReverseFrequencies[samplingFrequency]
 	if !ok {
-		return nil, fmt.Errorf("Sampling frequency %d not supported", samplingFrequency)
+		return nil, fmt.Errorf("sampling frequency %d not supported", samplingFrequency)
 	}
 	return &ADTSHeader{
 		ObjectType:             objectType,

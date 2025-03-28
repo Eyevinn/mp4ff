@@ -188,10 +188,11 @@ func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
 	size := uint64(sr.ReadUint32())
 	boxType := sr.ReadFixedLengthString(4)
 	headerLen := boxHeaderSize
-	if size == 1 {
+	switch size {
+	case 1: // size 1 means large size in next 8 bytes
 		size = sr.ReadUint64()
 		headerLen += largeSizeLen
-	} else if size == 0 {
+	case 0: // size 0 means to end of file
 		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
 	if uint64(headerLen) > size {

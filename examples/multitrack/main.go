@@ -128,7 +128,7 @@ func writeScenaristFile(w io.Writer, clcpTrack *Track) error {
 		}
 		cdat, ok := box.(*mp4.CdatBox)
 		if !ok {
-			return fmt.Errorf("Box type is not cdat")
+			return fmt.Errorf("box type is not cdat")
 		}
 		dataStr := hex.EncodeToString(cdat.Data)
 		for i := 0; i < len(dataStr); i += 4 {
