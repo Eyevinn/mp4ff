@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet
+### Added
+
+- NewPsshBox function
 
 ## [0.48.0] - 2025-03-28
 

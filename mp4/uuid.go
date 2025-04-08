@@ -24,7 +24,7 @@ func (u UUID) String() string {
 
 // Equal compares with other UUID
 func (u UUID) Equal(a UUID) bool {
-	return bytes.Equal(u[:], a[:])
+	return bytes.Equal(u, a)
 }
 
 // NewUUIDFromString creates a UUID from a hexadecimal, uuid-string or base64 string
