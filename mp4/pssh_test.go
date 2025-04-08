@@ -81,3 +81,34 @@ func TestPsshUUIDs(t *testing.T) {
 		}
 	}
 }
+
+// TestNewPsshBox tests the NewPsshBox function including error cases
+func TestNewPsshBox(t *testing.T) {
+	cases := []struct {
+		desc     string
+		systemID string
+		kIDs     []string
+		data     []byte
+		err      bool
+	}{
+		{"only UUID", "9a04f079-9840-4286-ab92-e65be0885f95", nil, []byte("data"), false},
+		{"bad UUID", "invalid-uuid", nil, []byte("data"), true},
+		{"bad KID", "9a04f079-9840-4286-ab92-e65be0885f95", []string{"invalid-uuid"}, []byte("data"), true},
+		{"v1 with KID", "9a04f079-9840-4286-ab92-e65be0885f95",
+			[]string{"00112233445566778899aabbccddeeff"}, []byte("data"), false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			pssh, err := mp4.NewPsshBox(c.systemID, c.kIDs, c.data) // Remove version and flags
+			switch {
+			case c.err && err == nil:
+				t.Errorf("Expected error: %v, got: %v", c.err, err)
+			case !c.err && err != nil:
+				t.Errorf("Expected no error, got: %v", err)
+			case !c.err && err == nil:
+				boxDiffAfterEncodeAndDecode(t, pssh)
+			}
+		})
+	}
+}

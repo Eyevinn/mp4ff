@@ -49,6 +49,37 @@ type PsshBox struct {
 	Data     []byte
 }
 
+// NewPsshBox makes a PsshBox with the given systemID, KIDs and data.
+// If there are KIDs, the version is set to 1, otherwise it is set to 0.
+// The systemID and KIDs are expected to be in the form of UUIDs
+// (e.g., "9a04f079-9840-4286-ab92-e65be0885f95"), hex without hyphens, or base-64 encoded strings.
+func NewPsshBox(systemID string, KIDs []string, data []byte) (*PsshBox, error) {
+	sysIdUUID, err := NewUUIDFromString(systemID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid system ID %s: %w", systemID, err)
+	}
+	b := &PsshBox{
+		Version:  0,
+		Flags:    0,
+		SystemID: sysIdUUID,
+		KIDs:     nil,
+		Data:     nil,
+	}
+	if len(KIDs) > 0 {
+		b.Version = 1
+		b.KIDs = make([]UUID, 0, len(KIDs))
+		for _, kid := range KIDs {
+			kUUID, err := NewUUIDFromString(kid)
+			if err != nil {
+				return nil, fmt.Errorf("invalid KID %s: %w", kid, err)
+			}
+			b.KIDs = append(b.KIDs, kUUID)
+		}
+	}
+
+	return b, nil
+}
+
 // DecodePssh - box-specific decode
 func DecodePssh(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
@@ -79,7 +110,10 @@ func DecodePsshSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		}
 	}
 	dataLength := int(sr.ReadUint32())
-	b.Data = sr.ReadBytes(dataLength)
+	if dataLength > 0 {
+		b.Data = sr.ReadBytes(dataLength)
+	}
+
 	return &b, sr.AccError()
 }
 
