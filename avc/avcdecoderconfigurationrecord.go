@@ -27,6 +27,7 @@ type DecConfRec struct {
 	BitDepthChromaMinus1 byte
 	NumSPSExt            byte
 	NoTrailingInfo       bool // To handle strange cases where trailing info is missing
+	SkipBytes            int
 }
 
 // CreateAVCDecConfRec - extract information from sps and insert sps, pps if includePS set
@@ -141,14 +142,17 @@ func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 	switch AVCProfileIndication {
 	case 66, 77, 88: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
 		// No extra bytes
-	default:
-		if pos == len(data) { // Not according to standard, but have been seen
+		if pos < len(data) {
 			adcr.NoTrailingInfo = true
-			return adcr, nil
+			adcr.SkipBytes = len(data) - pos
 		}
+	default:
 		// Check if we have enough bytes for the trailing info
+		// Not according to standard, but have been seen
 		if pos+4 > len(data) {
-			return DecConfRec{}, fmt.Errorf("not enough data for trailing info at position %d", pos)
+			adcr.NoTrailingInfo = true
+			adcr.SkipBytes = len(data) - pos
+			return adcr, nil
 		}
 		adcr.ChromaFormat = data[pos] & 0x03
 		adcr.BitDepthLumaMinus1 = data[pos+1] & 0x07
@@ -179,6 +183,7 @@ func (a *DecConfRec) Size() uint64 {
 			totalSize += 4
 		}
 	}
+	totalSize += a.SkipBytes
 	return uint64(totalSize)
 }
 
@@ -218,8 +223,13 @@ func (a *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
 		sw.WriteBytes(pps)
 	}
 	switch a.AVCProfileIndication {
+	case 66, 77, 88:
+		if a.NoTrailingInfo {
+			sw.WriteZeroBytes(a.SkipBytes)
+		}
 	case 100, 110, 122, 144: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
 		if a.NoTrailingInfo { // Strange content, but consistent with Size()
+			sw.WriteZeroBytes(a.SkipBytes)
 			return sw.AccError()
 		}
 		sw.WriteUint8(0xfc | a.ChromaFormat)
