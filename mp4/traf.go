@@ -202,7 +202,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 		}
 		if hasCommonDur {
 			// Set defaultSampleDuration in tfhd and remove from trun
-			tfhd.Flags = tfhd.Flags | defaultSampleDurationPresent
+			tfhd.Flags = tfhd.Flags | TfhdDefaultSampleDurationPresentFlag
 			tfhd.DefaultSampleDuration = commonDur
 			trun.Flags = trun.Flags & ^TrunSampleDurationPresentFlag
 		}
@@ -219,7 +219,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 		}
 		if hasCommonSize {
 			// Set defaultSampleSize in tfhd and remove from trun
-			tfhd.Flags = tfhd.Flags | defaultSampleSizePresent
+			tfhd.Flags = tfhd.Flags | TfhdDefaultSampleSizePresentFlag
 			tfhd.DefaultSampleSize = commonSize
 			trun.Flags = trun.Flags & ^TrunSampleSizePresentFlag
 		}
@@ -241,7 +241,7 @@ func (t *TrafBox) OptimizeTfhdTrun() error {
 			if firstSampleFlags != commonSampleFlags {
 				trun.SetFirstSampleFlags(firstSampleFlags)
 			}
-			tfhd.Flags = tfhd.Flags | defaultSampleFlagsPresent
+			tfhd.Flags = tfhd.Flags | TfhdDefaultSampleFlagsPresentFlag
 			tfhd.DefaultSampleFlags = commonSampleFlags
 			trun.Flags = trun.Flags & ^TrunSampleFlagsPresentFlag
 		}
