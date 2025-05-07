@@ -6,13 +6,13 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
-const baseDataOffsetPresent uint32 = 0x000001
-const sampleDescriptionIndexPresent uint32 = 0x000002
-const defaultSampleDurationPresent uint32 = 0x000008
-const defaultSampleSizePresent uint32 = 0x000010
-const defaultSampleFlagsPresent uint32 = 0x000020
-const durationIsEmpty uint32 = 0x010000
-const defaultBaseIsMoof uint32 = 0x020000
+const TfhdBaseDataOffsetPresentFlag uint32 = 0x000001
+const TfhdSampleDescriptionIndexPresentFlag uint32 = 0x000002
+const TfhdDefaultSampleDurationPresentFlag uint32 = 0x000008
+const TfhdDefaultSampleSizePresentFlag uint32 = 0x000010
+const TfhdDefaultSampleFlagsPresentFlag uint32 = 0x000020
+const TfhdDurationIsEmptyFlag uint32 = 0x010000
+const TfhdDefaultBaseIsMoofFlag uint32 = 0x020000
 
 // TfhdBox - Track Fragment Header Box (tfhd)
 //
@@ -75,7 +75,7 @@ func CreateTfhd(trackID uint32) *TfhdBox {
 	// The only flag set is defaultBaseIsMoof
 	tfhd := &TfhdBox{
 		Version:                0,
-		Flags:                  defaultBaseIsMoof,
+		Flags:                  TfhdDefaultBaseIsMoofFlag,
 		TrackID:                trackID,
 		BaseDataOffset:         0,
 		SampleDescriptionIndex: 1,
@@ -88,37 +88,37 @@ func CreateTfhd(trackID uint32) *TfhdBox {
 
 // HasBaseDataOffset - interpreted flags value
 func (t *TfhdBox) HasBaseDataOffset() bool {
-	return t.Flags&baseDataOffsetPresent != 0
+	return t.Flags&TfhdBaseDataOffsetPresentFlag != 0
 }
 
 // HasSampleDescriptionIndex - interpreted flags value
 func (t *TfhdBox) HasSampleDescriptionIndex() bool {
-	return t.Flags&sampleDescriptionIndexPresent != 0
+	return t.Flags&TfhdSampleDescriptionIndexPresentFlag != 0
 }
 
 // HasDefaultSampleDuration - interpreted flags value
 func (t *TfhdBox) HasDefaultSampleDuration() bool {
-	return t.Flags&defaultSampleDurationPresent != 0
+	return t.Flags&TfhdDefaultSampleDurationPresentFlag != 0
 }
 
 // HasDefaultSampleSize - interpreted flags value
 func (t *TfhdBox) HasDefaultSampleSize() bool {
-	return t.Flags&defaultSampleSizePresent != 0
+	return t.Flags&TfhdDefaultSampleSizePresentFlag != 0
 }
 
 // HasDefaultSampleFlags - interpreted flags value
 func (t *TfhdBox) HasDefaultSampleFlags() bool {
-	return t.Flags&defaultSampleFlagsPresent != 0
+	return t.Flags&TfhdDefaultSampleFlagsPresentFlag != 0
 }
 
 // DurationIsEmpty - interpreted flags value
 func (t *TfhdBox) DurationIsEmpty() bool {
-	return t.Flags&durationIsEmpty != 0
+	return t.Flags&TfhdDurationIsEmptyFlag != 0
 }
 
 // DefaultBaseIfMoof - interpreted flags value
 func (t *TfhdBox) DefaultBaseIfMoof() bool {
-	return t.Flags&defaultBaseIsMoof != 0
+	return t.Flags&TfhdDefaultBaseIsMoofFlag != 0
 }
 
 // Type - returns box type
@@ -190,7 +190,7 @@ func (t *TfhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd := newInfoDumper(w, indent, t, int(t.Version), t.Flags)
 	bd.write(" - trackID: %d", t.TrackID)
 
-	if t.Flags&defaultBaseIsMoof != 0 {
+	if t.Flags&TfhdDefaultBaseIsMoofFlag != 0 {
 		bd.write(" - defaultBaseIsMoof: true")
 	}
 
