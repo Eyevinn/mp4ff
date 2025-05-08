@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - mp4.SetUUID() can take base64 string as well as hex-encoded.
-- Support for weird dac3 box with initial 4 zero bytes (Issue #395)
+- Support for weird dac3 box with initial 4 zero bytes (#395)
 - Lots of fuzzying tests and changes to avoid panic on bad input data
 - Support for SMPTE-2086 Mastering Display Metadata Box (SmDm)
 - Support for Content Light Level Box (CoLL)
@@ -38,12 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Functions mp4.NewTfrfBox and mp4.NewTfxdBox
 - HEVC (hvc1) encryption
 - AppendProtectRange function is now public
+- Tfhd bit masks are now public (#423)
+- Skip bytes support for AVCDecoderConfigurationRecord (#420)
 
 ### Fixed
 
 - Support short ESDS without SLConfig descriptor (issue #393)
 - HEVC Slice Header CollocatedFromL0Flag should be true by default
 - Update to golangci-lint/v2 and fixed all warnings
+- Remove more boxes when decrypting files (pr #424)
 
 ## [0.47.0] - 2024-11-12
 
