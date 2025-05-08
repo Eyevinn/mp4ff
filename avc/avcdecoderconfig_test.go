@@ -49,6 +49,7 @@ func TestAvcDecoderConfigRecord(t *testing.T) {
 }
 
 func TestAvcDecoderConfigRecordWithExtraBytes(t *testing.T) {
+	//nolint: lll
 	byteData, _ := hex.DecodeString("014d4029ffe10026674d40299e5281e022fde028404040500000030010000003032e04000ea6000057e43f13e0a001000468ef752000")
 	spsBytes, _ := hex.DecodeString("674d40299e5281e022fde028404040500000030010000003032e04000ea6000057e43f13e0a0")
 	ppsBytes, _ := hex.DecodeString("68ef7520")
@@ -86,6 +87,7 @@ func TestAvcDecoderConfigRecordWithExtraBytes(t *testing.T) {
 }
 
 func TestAvcDecoderConfigRecordWithExtraBytesProfileHigh(t *testing.T) {
+	//nolint: lll
 	byteData, _ := hex.DecodeString("01640029ffe1002667640029ac3ca5014016ec050808080a00000300020000030065c0c000b71a00022551f89f0501000468ef752500")
 	spsBytes, _ := hex.DecodeString("67640029ac3ca5014016ec050808080a00000300020000030065c0c000b71a00022551f89f05")
 	ppsBytes, _ := hex.DecodeString("68ef7525")
