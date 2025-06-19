@@ -249,6 +249,10 @@ func (f *File) Size() uint64 {
 
 // AddChild - add child with start position
 func (f *File) AddChild(child Box, boxStartPos uint64) {
+	lastChildType := ""
+	if len(f.Children) > 0 {
+		lastChildType = f.Children[len(f.Children)-1].Type()
+	}
 	switch box := child.(type) {
 	case *FtypBox:
 		f.Ftyp = box
@@ -261,19 +265,27 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 			f.Init.AddChild(f.Moov)
 		}
 	case *SidxBox:
-		// sidx boxes are either added to the File or to the current media segment.
+		// sidx boxes are either added to the File or to a later media segment.
 		// Since sidx boxes for a segment come before the moof, it is important that a new
 		// segment is started with a styp box for the sidx to be associated with the
-		// right segment.
+		// right segment. An alternative is that the sidx box is coming after
+		// an mdat box. This is the end of a fragment or segment, but since the sidx box
+		// should not be inside a segment, a new segment is started.
+		//
 		// A more general solution could possibly be implemented by looking at the
 		// sidx details like reference_ID to understand the sidx chain structure,
 		// and/or by waiting with associating the sidx box until more boxes are read.
 		// Given the rareness of multiple sidx boxes and the complexity of implementing
 		// and testing such a solution, that track is not deemed worth the effort for now.
-		if len(f.Segments) == 0 {
-			// Add sidx to top level until we know that a segment has started
+		switch {
+		case len(f.Segments) == 0 && lastChildType != "mdat":
 			f.AddSidx(box)
-		} else {
+		case lastChildType == "mdat":
+			// Start a new segment since we cannot have sidx later in a segment
+			f.isFragmented = true
+			f.AddMediaSegment(&MediaSegment{Styp: nil, StartPos: boxStartPos})
+			fallthrough
+		default:
 			currSeg := f.Segments[len(f.Segments)-1]
 			currSeg.AddSidx(box)
 		}

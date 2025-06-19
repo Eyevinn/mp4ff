@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - NewPsshBox function
 
+### Fixed
+
+- Handle multi-segment files with sidx without styp #430
+
 ## [0.48.0] - 2025-03-28
 
 ### Changed

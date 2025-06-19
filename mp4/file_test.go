@@ -122,10 +122,13 @@ func TestCopyTrackSampleData(t *testing.T) {
 }
 
 func TestDecodeEncode(t *testing.T) {
-	testFiles := []string{"./testdata/prog_8s.mp4", "./testdata/multi_sidx_segment.m4s"}
+	testFiles := []string{
+		"./testdata/prog_8s.mp4",
+		"./testdata/multi_sidx_segment.m4s",
+		"./testdata/interleaved_sidxs_segment.m4s"}
 
 	for _, testFile := range testFiles {
-		rawInput, err := os.ReadFile("./testdata/prog_8s.mp4")
+		rawInput, err := os.ReadFile(testFile)
 		if err != nil {
 			t.Error(err)
 		}
