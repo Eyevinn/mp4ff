@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - NewPsshBox function
 
+### Changed
+
+* `mp4.DecodeFile` can return a partially decoded file with an error
+* `mp4ff-info` may print a partially parsed box tree together with an error
+
 ### Fixed
 
 - Handle multi-segment files with sidx without styp #430

@@ -118,7 +118,7 @@ func ReadMP4File(path string) (*File, error) {
 
 	mp4Root, err := DecodeFile(f, WithDecodeFlags(DecISMFlag))
 	if err != nil {
-		return nil, err
+		return mp4Root, err
 	}
 	return mp4Root, nil
 }
@@ -146,6 +146,7 @@ func (f *File) AddMediaSegment(m *MediaSegment) {
 
 // DecodeFile - parse and decode a file from reader r with optional file options.
 // For example, the file options overwrite the default decode or encode mode.
+// On decode problems, the returned File may contain some top-level boxes, but not all.
 func DecodeFile(r io.Reader, options ...Option) (*File, error) {
 	f := NewFile()
 
@@ -167,7 +168,7 @@ func DecodeFile(r io.Reader, options ...Option) (*File, error) {
 	if (f.fileDecFlags & DecISMFlag) != 0 {
 		err := f.findAndReadMfra(r)
 		if err != nil {
-			return nil, fmt.Errorf("checkMfra: %w", err)
+			return f, fmt.Errorf("checkMfra: %w", err)
 		}
 	}
 
@@ -187,14 +188,14 @@ LoopBoxes:
 			break LoopBoxes
 		}
 		if err != nil {
-			return nil, err
+			return f, err
 		}
 		boxType, boxSize := box.Type(), box.Size()
 		switch boxType {
 		case "mdat":
 			if f.isFragmented {
 				if lastBoxType != "moof" {
-					return nil, fmt.Errorf("does not support %v between moof and mdat", lastBoxType)
+					return f, fmt.Errorf("does not support %v between moof and mdat", lastBoxType)
 				}
 			} else {
 				if f.Mdat != nil {
@@ -202,7 +203,7 @@ LoopBoxes:
 					newMdat := box.(*MdatBox)
 					newPayloadSize := newMdat.Size() - newMdat.HeaderSize()
 					if oldPayloadSize > 0 && newPayloadSize > 0 {
-						return nil, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)",
+						return f, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)",
 							oldPayloadSize, newPayloadSize)
 					}
 				}
@@ -224,7 +225,7 @@ LoopBoxes:
 					if isEncrypted { // Don't do if encryption boxes still remain, but are not
 						err = traf.ParseReadSenc(defaultIVSize, moof.StartPos)
 						if err != nil {
-							return nil, err
+							return f, err
 						}
 					}
 				}

@@ -383,3 +383,24 @@ func TestEmptyMdat(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeTrunctedFile(t *testing.T) {
+	file, err := os.Open("./testdata/init_truncated.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	// Attempt to decode the file
+	boxTree, err := mp4.DecodeFile(file)
+	if err == nil {
+		t.Error("expected error for truncated file, but got nil")
+	} else {
+		t.Logf("expected error for truncated file: %s", err)
+	}
+	if boxTree == nil {
+		t.Fatal("expected boxTree to be returned for truncated file")
+	}
+	if boxTree.Ftyp == nil {
+		t.Error("expected styp box to be present in truncated file")
+	}
+}

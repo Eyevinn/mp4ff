@@ -75,13 +75,16 @@ func run(args []string, w io.Writer) error {
 		return fmt.Errorf("could not open input file: %w", err)
 	}
 	defer ifd.Close()
-	parsedMp4, err := mp4.DecodeFile(ifd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
-	if err != nil {
-		return fmt.Errorf("could not parse input file: %w", err)
+	parsedMp4, parseErr := mp4.DecodeFile(ifd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
+	if parseErr != nil {
+		if parsedMp4 == nil {
+			return fmt.Errorf("could not parse input file: %w", err)
+		}
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: could not parse input file completely: %v\n", parseErr)
 	}
 	err = parsedMp4.Info(w, opts.levels, "", "  ")
 	if err != nil {
 		return fmt.Errorf("could not print info: %w", err)
 	}
-	return nil
+	return parseErr
 }
