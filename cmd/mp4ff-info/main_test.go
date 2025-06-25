@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"testing"
@@ -34,6 +35,32 @@ func TestOptions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTruncatedFile(t *testing.T) {
+
+	w := &bytes.Buffer{}
+	wantedOutput := `[ftyp] size=32
+ - majorBrand: iso5
+ - minorVersion: 0
+ - compatibleBrand: isom
+ - compatibleBrand: iso5
+ - compatibleBrand: dash
+ - compatibleBrand: mp42
+[skip] size=37
+`
+
+	t.Run("truncated file", func(t *testing.T) {
+		args := []string{appName, "../../mp4/testdata/init_truncated.mp4"}
+		err := run(args, w)
+		if err == nil {
+			t.Error("expected error for truncated file, but got nil")
+		}
+		out := w.String()
+		if out != wantedOutput {
+			t.Errorf("expected output:\n%s\nbut got:\n%s", wantedOutput, out)
+		}
+	})
 }
 
 type badWriter struct{}
