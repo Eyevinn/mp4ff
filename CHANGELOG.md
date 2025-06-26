@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.49.0] - 2025-06-26
+
 ### Added
 
 - NewPsshBox function
@@ -19,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Handle multi-segment files with sidx without styp #430
+- Improved RemoveEncryptionBoxes function
 
 ## [0.48.0] - 2025-03-28
 
@@ -714,7 +719,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.49.0...HEAD
+[0.49.0]: https://github.com/Eyevinn/mp4ff/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/Eyevinn/mp4ff/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/Eyevinn/mp4ff/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/Eyevinn/mp4ff/compare/v0.45.1...v0.46.0
