@@ -6,6 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Eyevinn/mp4ff)](https://goreportcard.com/report/github.com/Eyevinn/mp4ff)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#video)
 [![license](https://img.shields.io/github/license/Eyevinn/mp4ff.svg)](https://github.com/Eyevinn/mp4ff/blob/master/LICENSE)
+[![Badge OSC](https://img.shields.io/badge/Evaluate-24243B?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8yODIxXzMxNjcyKSIvPgo8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI3IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz4KPGRlZnM%2BCjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhcl8yODIxXzMxNjcyIiB4MT0iMTIiIHkxPSIwIiB4Mj0iMTIiIHkyPSIyNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQzE4M0ZGIi8%2BCjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzREQzlGRiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM%2BCjwvc3ZnPgo%3D)](https://app.osaas.io/browse/eyevinn-mp4ff)
 
 Module mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC and AC-3 audio, stpp and wvtt subtitles, and
 timed metadata tracks.
@@ -33,6 +34,21 @@ You can install these tools by going to their respective directory and run `go i
     ...
 
 for each individual tool.
+
+## Open Source Cloud
+
+You can also run the tools as a job in [Eyevinn Open Source Cloud](https://app.osaas.io/dashboard/service/eyevinn-mp4ff). Here is an example using the `mp4ff-crop` command and the Open Source Cloud CLI.
+
+```bash
+% export OSC_ACCESS_TOKEN=<your-personal-access-token>
+% npx -y @osaas/cli@latest create eyevinn-mp4ff test \
+  -o awsAccessKeyId=<s3-access-key-id> \
+  -o awsSecretAccessKey=<s3-secret-key> \
+  -o s3EndpointUrl=https://eyevinnlab-birme.minio-minio.auto.prod.osaas.io \
+  -o cmdLineArgs="mp4ff-crop s3://input/VINN.mp4 s3://output/VINN-crop2.mp4"
+```
+
+The file VINN.mp4 on the bucket called "input" on the MinIO server at https://eyevinnlab-birme.minio-minio.auto.prod.osaas.io is processed and output uploaded to bucket "output" on the same MinIO server.
 
 ## Example code
 
