@@ -21,6 +21,7 @@ type VisualSampleEntryBox struct {
 	AvcC               *AvcCBox
 	HvcC               *HvcCBox
 	Av1C               *Av1CBox
+	VvcC               *VvcCBox
 	VppC               *VppCBox
 	Btrt               *BtrtBox
 	Clap               *ClapBox
@@ -38,7 +39,7 @@ func NewVisualSampleEntryBox(name string) *VisualSampleEntryBox {
 	return b
 }
 
-// CreateVisualSampleEntryBox creates a new VisualSampleEntry such as avc1, avc3, hev1, hvc1
+// CreateVisualSampleEntryBox creates a new VisualSampleEntry such as avc1, avc3, hev1, hvc1, vvc1, vvi1
 func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry Box) *VisualSampleEntryBox {
 	b := &VisualSampleEntryBox{
 		name:               name,
@@ -66,6 +67,8 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.HvcC = box
 	case *Av1CBox:
 		b.Av1C = box
+	case *VvcCBox:
+		b.VvcC = box
 	case *VppCBox:
 		b.VppC = box
 	case *BtrtBox:
@@ -84,7 +87,7 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 	b.Children = append(b.Children, child)
 }
 
-// DecodeVisualSampleEntry decodes avc1/avc3/hvc1/hev1 box
+// DecodeVisualSampleEntry decodes avc1/avc3/hvc1/hev1/vvc1/vvi1 box
 func DecodeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
@@ -94,7 +97,7 @@ func DecodeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, 
 	return DecodeVisualSampleEntrySR(hdr, startPos, sr)
 }
 
-// DecodeVisualSampleEntrySR decodes avc1/avc3/hvc1/hev1 box
+// DecodeVisualSampleEntrySR decodes avc1/avc3/hvc1/hev1/vvc1/vvi1 box
 func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := VisualSampleEntryBox{name: hdr.Name}
 

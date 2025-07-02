@@ -74,13 +74,14 @@ The top-level packages in the mp4ff module are
    It also contains helper functions for extracting, encrypting, dectrypting samples and a lot more.
 2. [avc](avc) deals with AVC (aka H.264) video in the `mp4ff/avc` package including parsing of SPS and PPS,
     and finding start-codes in Annex B byte streams.
-3. [hevc](hevc) provides structures and functions for dealing with HEVC video and its packaging
-4. [sei](sei) provides support for handling  Supplementary Enhancement Information (SEI) such as timestamps
+3. [hevc](hevc) provides structures and functions for dealing with HEVC video and its packaging.
+4. [vvc](vvc) provides structures and functions for dealing with VVC video and its packaging.
+5. [sei](sei) provides support for handling  Supplementary Enhancement Information (SEI) such as timestamps
    for AVC and HEVC video.
-5. [av1](av1) provides basic support for AV1 video packaging
-6. [aac](aac) provides support for AAC audio. This includes handling ADTS headers which is common
+6. [av1](av1) provides basic support for AV1 video packaging
+7. [aac](aac) provides support for AAC audio. This includes handling ADTS headers which is common
    for AAC inside MPEG-2 TS streams.
-7. [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
+8. [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
 
 ## Structure and usage
 
