@@ -32,6 +32,8 @@ type StsdBox struct {
 	AC3 *AudioSampleEntryBox
 	// EC3 is a pointer to a box with name ec-3
 	EC3 *AudioSampleEntryBox
+	// AC4 is a pointer to a box with name ac-4
+	AC4 *AudioSampleEntryBox
 	// Enca is a pointer to a box with name enca
 	Enca *AudioSampleEntryBox
 	// Wvtt is a pointer to a WvttBox
@@ -67,6 +69,8 @@ func (s *StsdBox) AddChild(box Box) {
 		s.AC3 = box.(*AudioSampleEntryBox)
 	case "ec-3":
 		s.EC3 = box.(*AudioSampleEntryBox)
+	case "ac-4":
+		s.AC4 = box.(*AudioSampleEntryBox)
 	case "enca":
 		s.Enca = box.(*AudioSampleEntryBox)
 	case "wvtt":
