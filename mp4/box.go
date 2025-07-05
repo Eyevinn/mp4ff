@@ -24,6 +24,7 @@ func init() {
 		"\xa9too": DecodeGenericContainerBox,
 		"\xa9cpy": DecodeGenericContainerBox,
 		"ac-3":    DecodeAudioSampleEntry,
+		"ac-4":    DecodeAudioSampleEntry,
 		"alou":    DecodeLoudnessBaseBox,
 		"av01":    DecodeVisualSampleEntry,
 		"av1C":    DecodeAv1C,

@@ -3,9 +3,11 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/hex"
+	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/aac"
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
@@ -90,4 +92,42 @@ func TestStsdVP9(t *testing.T) {
 	}
 
 	cmpAfterDecodeEncodeBox(t, binData)
+	// Check that VP9 pointer is set
+	stsd := decodeStsdBox(t, binData)
+	if stsd.VpXX == nil {
+		t.Errorf("Expected VP9 box pointer, got nil")
+	}
+	if stsd.VpXX.Type() != "vp09" {
+		t.Errorf("VpXX type is %s, expected vp09", stsd.VpXX.Type())
+	}
+}
+
+func TestStsdAC4(t *testing.T) {
+	data, err := os.ReadFile("testdata/stsd_ac4.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmpAfterDecodeEncodeBox(t, data)
+	// Check that AC4 pointer is set
+	stsd := decodeStsdBox(t, data)
+	if stsd.AC4 == nil {
+		t.Errorf("Expected AC4 box pointer, got nil")
+	}
+	if stsd.AC4.Type() != "ac-4" {
+		t.Errorf("AC4 type is %s, expected ac-4", stsd.AC4.Type())
+	}
+}
+
+func decodeStsdBox(t *testing.T, data []byte) *mp4.StsdBox {
+	t.Helper()
+	sr := bits.NewFixedSliceReader(data)
+	box, err := mp4.DecodeBoxSR(0, sr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stsd, ok := box.(*mp4.StsdBox)
+	if !ok {
+		t.Fatalf("Expected StsdBox, got %T", box)
+	}
+	return stsd
 }
