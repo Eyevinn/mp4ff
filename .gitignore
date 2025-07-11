@@ -1,20 +1,19 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Programs built
+out/
+examples-out/
 
 # Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+coverage.*
 
-# Dependency directories (remove the comment below to include it)
+# vendor directory
 vendor/
-
-/mp4/test_data/out_init.cmfv
 
 # VS Code settings
 .vscode/
+
+# venv for pre-commits
+.venv/
+venv/
