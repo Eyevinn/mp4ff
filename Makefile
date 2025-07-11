@@ -6,7 +6,7 @@ build: mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-p
 
 .PHONY: prepare
 prepare:
-	go mod vendor
+	go mod tidy
 
 mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-subslister:
 	go build -ldflags "-X github.com/Eyevinn/mp4ff/mp4.commitVersion=$$(git describe --tags HEAD) -X github.com/Eyevinn/mp4ff/mp4.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@/main.go
@@ -41,8 +41,25 @@ coverage:
 	go tool cover -func coverage.out -o coverage.txt
 	tail -1 coverage.txt
 
+.PHONY: venv
+venv: .venv/bin/activate
+
+.venv/bin/activate:
+	python3 -m venv .venv
+	.venv/bin/pip install --upgrade pip
+	.venv/bin/pip install pre-commit==4.2.0
+	touch .venv/bin/activate
+
+.PHONY: pre-commit-install
+pre-commit-install: venv
+	.venv/bin/pre-commit install
+
+.PHONY: pre-commit
+pre-commit: venv
+	.venv/bin/pre-commit run --all-files
+
 .PHONY: check
-check: prepare
+check: prepare pre-commit
 	golangci-lint run
 
 clean:

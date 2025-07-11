@@ -368,6 +368,16 @@ Following the ISOBMFF standard, sample numbers and other numbers start at 1 (one
 This applies to arguments of functions and methods.
 The actual storage in slices is zero-based, so sample nr 1 has index 0 in the corresponding slice.
 
+## Contributing
+
+When contributing to this project, please ensure that commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/) specification. This helps maintain a consistent and readable commit history.
+
+Examples of conventional commit messages:
+- `feat: add support for VVC video codec`
+- `fix: resolve memory leak in fragment processing`
+- `docs: update API documentation for mp4.File`
+- `chore: update dependencies to latest versions`
+
 ## Stability
 
 The APIs should be fairly stable, but minor non-backwards-compatible changes may happen until version 1.

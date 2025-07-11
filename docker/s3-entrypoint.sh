@@ -62,7 +62,7 @@ $CMD "$@"
 if [ -n "$UPLOAD_FILES" ]; then
   echo "Uploading files to S3: $UPLOAD_FILES"
   for s3url in $UPLOAD_FILES; do
-    file="$STAGING_DIR/$(basename "$s3url")"    
+    file="$STAGING_DIR/$(basename "$s3url")"
     aws s3 $ENDPOINT_URL cp "$file" "$s3url"
   done
 fi

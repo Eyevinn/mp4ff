@@ -24,7 +24,7 @@ RUN apk add --no-cache aws-cli
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /source/out/* /usr/local/bin/ 
+COPY --from=builder /source/out/* /usr/local/bin/
 COPY --from=builder /source/docker/s3-entrypoint.sh ./
 RUN chmod +x /app/s3-entrypoint.sh
 ENTRYPOINT ["/app/s3-entrypoint.sh"]
