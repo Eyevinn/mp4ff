@@ -119,7 +119,7 @@ func writeScenaristFile(w io.Writer, clcpTrack *Track) error {
 		return err
 	}
 	for _, sample := range clcpTrack.samples {
-		tMs := sample.PresentationTime() * 1000 / clcpTrack.timeScale
+		tMs := uint64(sample.PresentationTime()) * 1000 / clcpTrack.timeScale
 		msg := timeFromMs(tMs)
 		buf := bytes.NewBuffer(sample.Data)
 		box, err := mp4.DecodeBox(0, buf)

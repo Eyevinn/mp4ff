@@ -62,7 +62,7 @@ func Resegment(w io.Writer, in *mp4.File, chunkDur uint64, verbose bool) (*mp4.F
 		if verbose && s.IsSync() {
 			fmt.Fprintf(w, "%4d DTS %d PTS %d\n", nr, s.DecodeTime, s.PresentationTime())
 		}
-		if s.PresentationTime() >= chunkDur*uint64(currOutSeqNr) && s.IsSync() {
+		if uint64(s.PresentationTime()) >= chunkDur*uint64(currOutSeqNr) && s.IsSync() {
 			err = addSamplesToFrag(frag, inSamples, nextSampleNrToWrite, nr+1, trackID)
 			if err != nil {
 				return nil, err

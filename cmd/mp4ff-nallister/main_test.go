@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/avc"
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestOptions(t *testing.T) {
@@ -28,7 +31,7 @@ func TestOptions(t *testing.T) {
 			goldenOut: "testdata/golden_prot_h264_4pics.txt", expectedErr: false},
 		{desc: "mp4H264", args: []string{appName, "testdata/h264.mp4"},
 			goldenOut: "testdata/golden_h264_mp4.txt", expectedErr: false},
-		{desc: "annexBHEVC", args: []string{appName, "-annexb", "-c", "hevc", "testdata/hevc.265"},
+		{desc: "annexBHEVC", args: []string{appName, "-annexb", "-c", "hevc", "-ps", "testdata/hevc.265"},
 			goldenOut: "testdata/golden_hevc_265.txt", expectedErr: false},
 		{desc: "annexBHEVC with SEI", args: []string{appName, "-annexb", "-c", "hevc", "-sei", "2", "testdata/hevc.265"},
 			goldenOut: "", expectedErr: false},
@@ -38,6 +41,10 @@ func TestOptions(t *testing.T) {
 			goldenOut: "testdata/golden_h264_frag_raw.txt", expectedErr: false},
 		{desc: "avcSeiTime", args: []string{appName, "-sei", "2", "-annexb", "testdata/4pics.264"},
 			goldenOut: "testdata/golden_4pic_sei_264.txt", expectedErr: false},
+		{desc: "vvc 2s", args: []string{appName, "../../mp4/testdata/vvc_400kbps_2s.mp4"}, expectedErr: false,
+			goldenOut: "testdata/golden_vvc_2s.txt"},
+		{desc: "vvc annexB", args: []string{appName, "-annexb", "-ps", "-c", "vvc", "testdata/annexb.vvc"}, expectedErr: false,
+			goldenOut: "testdata/golden_vvc_annexb.txt"},
 		{desc: "version", args: []string{appName, "-version"}, expectedErr: false},
 		{desc: "help", args: []string{appName, "-h"}, expectedErr: false},
 	}
@@ -74,4 +81,30 @@ func getExpected(t *testing.T, filename string) string {
 	}
 	r := bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))
 	return string(r)
+}
+
+func MakeByteStream(t *testing.T, inFile, outFile string) {
+	t.Helper()
+	ifd, err := os.Open(inFile)
+	if err != nil {
+		t.Fatalf("could not open file %s: %s", inFile, err)
+	}
+	d, err := mp4.DecodeFile(ifd)
+	if err != nil {
+		t.Fatalf("could not decode file %s: %s", inFile, err)
+	}
+	fullSamples, err := d.Segments[0].Fragments[0].GetFullSamples(nil)
+	if err != nil {
+		t.Fatalf("could not get full samples: %s", err)
+	}
+	byteStream := make([]byte, 0, 1024)
+	for i := 0; i <= 5; i++ {
+		fs := fullSamples[i]
+		bs := avc.ConvertSampleToByteStream(fs.Data)
+		byteStream = append(byteStream, bs...)
+	}
+	err = os.WriteFile(outFile, byteStream, 0644)
+	if err != nil {
+		t.Fatalf("could not write file %s: %s", outFile, err)
+	}
 }

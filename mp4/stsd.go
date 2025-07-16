@@ -20,6 +20,8 @@ type StsdBox struct {
 	AvcX *VisualSampleEntryBox
 	// HvcX is a pointer to a box with name hvc1 or hev1
 	HvcX *VisualSampleEntryBox
+	// VvcX is apointer to a box with name vvc1 or vvi1
+	VvcX *VisualSampleEntryBox
 	// Av01 is a pointer to a box with name av01
 	Av01 *VisualSampleEntryBox
 	// Encv is a pointer to a box with name encv
@@ -59,6 +61,8 @@ func (s *StsdBox) AddChild(box Box) {
 		s.AvcX = box.(*VisualSampleEntryBox)
 	case "hvc1", "hev1":
 		s.HvcX = box.(*VisualSampleEntryBox)
+	case "vvc1", "vvi1":
+		s.VvcX = box.(*VisualSampleEntryBox)
 	case "encv":
 		s.Encv = box.(*VisualSampleEntryBox)
 	case "av01":

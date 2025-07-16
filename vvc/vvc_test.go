@@ -197,3 +197,142 @@ func TestNaluArrayNaluTypeName(t *testing.T) {
 		t.Errorf("NaluArray.NaluTypeName() = %q, want %q", got, expected)
 	}
 }
+
+func TestParseNaluHeader(t *testing.T) {
+	testCases := []struct {
+		name           string
+		rawBytes       []byte
+		expectedHeader NaluHeader
+		expectedError  string
+	}{
+		{
+			name:     "Valid VPS header",
+			rawBytes: []byte{0x1C, 0x71}, // layer_id=28, nalu_type=14 (VPS), temporal_id_plus1=1
+			expectedHeader: NaluHeader{
+				NuhLayerId:         28,
+				NaluType:           NALU_VPS,
+				NuhTemporalIdPlus1: 1,
+			},
+		},
+		{
+			name:     "Valid SPS header",
+			rawBytes: []byte{0x00, 0x79}, // layer_id=0, nalu_type=15 (SPS), temporal_id_plus1=1
+			expectedHeader: NaluHeader{
+				NuhLayerId:         0,
+				NaluType:           NALU_SPS,
+				NuhTemporalIdPlus1: 1,
+			},
+		},
+		{
+			name:     "Valid PPS header",
+			rawBytes: []byte{0x3F, 0x83}, // layer_id=63, nalu_type=16 (PPS), temporal_id_plus1=3
+			expectedHeader: NaluHeader{
+				NuhLayerId:         63,
+				NaluType:           NALU_PPS,
+				NuhTemporalIdPlus1: 3,
+			},
+		},
+		{
+			name:     "Valid IDR header",
+			rawBytes: []byte{0x00, 0x3F}, // layer_id=0, nalu_type=7 (IDR_W_RADL), temporal_id_plus1=7
+			expectedHeader: NaluHeader{
+				NuhLayerId:         0,
+				NaluType:           NALU_IDR_W_RADL,
+				NuhTemporalIdPlus1: 7,
+			},
+		},
+		{
+			name:     "Valid TRAIL header",
+			rawBytes: []byte{0x05, 0x01}, // layer_id=5, nalu_type=0 (TRAIL), temporal_id_plus1=1
+			expectedHeader: NaluHeader{
+				NuhLayerId:         5,
+				NaluType:           NALU_TRAIL,
+				NuhTemporalIdPlus1: 1,
+			},
+		},
+		{
+			name:     "Valid SEI PREFIX header",
+			rawBytes: []byte{0x00, 0xBF}, // layer_id=0, nalu_type=23 (SEI_PREFIX), temporal_id_plus1=7
+			expectedHeader: NaluHeader{
+				NuhLayerId:         0,
+				NaluType:           NALU_SEI_PREFIX,
+				NuhTemporalIdPlus1: 7,
+			},
+		},
+		{
+			name:     "Valid AUD header",
+			rawBytes: []byte{0x00, 0xA1}, // layer_id=0, nalu_type=20 (AUD), temporal_id_plus1=1
+			expectedHeader: NaluHeader{
+				NuhLayerId:         0,
+				NaluType:           NALU_AUD,
+				NuhTemporalIdPlus1: 1,
+			},
+		},
+		{
+			name:     "Maximum valid values",
+			rawBytes: []byte{0x3F, 0xFF}, // layer_id=63, nalu_type=31, temporal_id_plus1=7
+			expectedHeader: NaluHeader{
+				NuhLayerId:         63,
+				NaluType:           NALU_UNSPEC_31,
+				NuhTemporalIdPlus1: 7,
+			},
+		},
+		{
+			name:          "Insufficient bytes - empty",
+			rawBytes:      []byte{},
+			expectedError: "NaluHeader: not enough bytes to parse header",
+		},
+		{
+			name:          "Insufficient bytes - single byte",
+			rawBytes:      []byte{0x00},
+			expectedError: "NaluHeader: not enough bytes to parse header",
+		},
+		{
+			name:          "Forbidden zero bit set",
+			rawBytes:      []byte{0x80, 0x79}, // forbidden_zero_bit=1, rest valid
+			expectedError: "NaluHeader: forbidden zero bit is set",
+		},
+		{
+			name:          "Reserved zero bit set",
+			rawBytes:      []byte{0x40, 0x79}, // reserved_zero_bit=1, rest valid
+			expectedError: "NaluHeader: reserved zero bit is set",
+		},
+		{
+			name:          "Both forbidden and reserved bits set",
+			rawBytes:      []byte{0xC0, 0x79}, // both forbidden and reserved bits set
+			expectedError: "NaluHeader: forbidden zero bit is set",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			header, err := ParseNaluHeader(tc.rawBytes)
+
+			if tc.expectedError != "" {
+				if err == nil {
+					t.Errorf("Expected error %q, but got nil", tc.expectedError)
+				} else if err.Error() != tc.expectedError {
+					t.Errorf("Expected error %q, but got %q", tc.expectedError, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if header.NuhLayerId != tc.expectedHeader.NuhLayerId {
+				t.Errorf("NuhLayerId mismatch: got %d, want %d", header.NuhLayerId, tc.expectedHeader.NuhLayerId)
+			}
+			if header.NaluType != tc.expectedHeader.NaluType {
+				t.Errorf("NaluType mismatch: got %d (%s), want %d (%s)",
+					header.NaluType, header.NaluType.String(),
+					tc.expectedHeader.NaluType, tc.expectedHeader.NaluType.String())
+			}
+			if header.NuhTemporalIdPlus1 != tc.expectedHeader.NuhTemporalIdPlus1 {
+				t.Errorf("NuhTemporalIdPlus1 mismatch: got %d, want %d", header.NuhTemporalIdPlus1, tc.expectedHeader.NuhTemporalIdPlus1)
+			}
+		})
+	}
+}

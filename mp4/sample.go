@@ -32,10 +32,6 @@ type FullSample struct {
 }
 
 // PresentationTime - DecodeTime displaced by composition time offset (possibly negative)
-func (s *FullSample) PresentationTime() uint64 {
-	p := int64(s.DecodeTime) + int64(s.CompositionTimeOffset)
-	if p < 0 {
-		p = 0 // Extraordinary case. Clip it to 0.
-	}
-	return uint64(p)
+func (s *FullSample) PresentationTime() int64 {
+	return int64(s.DecodeTime) + int64(s.CompositionTimeOffset)
 }
