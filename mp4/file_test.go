@@ -125,7 +125,8 @@ func TestDecodeEncode(t *testing.T) {
 	testFiles := []string{
 		"./testdata/prog_8s.mp4",
 		"./testdata/multi_sidx_segment.m4s",
-		"./testdata/interleaved_sidxs_segment.m4s"}
+		"./testdata/interleaved_sidxs_segment.m4s",
+		"./testdata/opus.mp4"}
 
 	for _, testFile := range testFiles {
 		rawInput, err := os.ReadFile(testFile)
@@ -147,6 +148,9 @@ func TestDecodeEncode(t *testing.T) {
 		}
 		if !bytes.Equal(rawOutput, rawInput) {
 			t.Errorf("encode differs from input for EncodeSW() and %s", testFile)
+			//outf := fmt.Sprintf("bad_encode_sw_%s", path.Base(testFile))
+			//fmt.Printf("writing bad encode sw to %s\n", outf)
+			//_ = os.WriteFile(outf, rawOutput, 0644)
 		}
 
 		// io.Writer case

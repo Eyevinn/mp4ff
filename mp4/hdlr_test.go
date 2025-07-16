@@ -69,3 +69,25 @@ func TestHdlrDecodeMissingNullTermination(t *testing.T) {
 		t.Errorf("Expected empty name, but got %s", hdlr.Name)
 	}
 }
+
+// TestDecodeMdirHandler tests decoding of a mdir handler box
+// found in output from ffmpeg when encoding Opus in ISOBMFF.
+func TestDecodeMdirHandler(t *testing.T) {
+	mdirHdlrHex := "0000002168646c7200000000000000006d6469726170706c000000000000000000"
+	byteData, _ := hex.DecodeString(mdirHdlrHex)
+	buf := bytes.NewBuffer(byteData)
+	box, err := mp4.DecodeBox(0, buf)
+	if err != nil {
+		t.Error(err)
+	}
+	mdirHdlr := box.(*mp4.HdlrBox)
+	if mdirHdlr.HandlerType != "mdir" {
+		t.Errorf("Expected handler type 'mdir', but got %s", mdirHdlr.HandlerType)
+	}
+	if mdirHdlr.Name != "" {
+		t.Errorf("Expected empty name, but got %s", mdirHdlr.Name)
+	}
+	// Note. There is a name "appl", but is is placed right at start after
+	// the header, so it is not read by DecodeHdlrSR, which assumes 12 bytes of zero
+	// first following the ISO/IEC 14496-12:2022 standard.
+}
