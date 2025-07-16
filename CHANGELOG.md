@@ -10,12 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Basic VVC support with vvcC box and VvcDecoderConfigurationRecord
+- Support for parsing VVC NAL unit headers and listing types in mp4ff-nallister
 - Minimal AC-4 support by recognizing ac-4 as AudioSampleDescrition box
 - Support for Opus and dOps boxes
 
 ### Changed
 
 - Makefile update to setup and run pre-commit with configuration
+- Return type of Sample.PresentationTime is now int64 instead of uint64
+  This may happen together with edit lists (seen for VVC video)
 
 ## [0.49.0] - 2025-06-26
 

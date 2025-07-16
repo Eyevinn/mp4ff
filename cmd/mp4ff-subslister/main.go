@@ -152,18 +152,15 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 		}
 		size := stbl.Stsz.GetSampleSize(sampleNr)
 		decTime, dur := stbl.Stts.GetDecodeTime(uint32(sampleNr))
-		var cto int32 = 0
-		if stbl.Ctts != nil {
-			cto = stbl.Ctts.GetCompositionTimeOffset(uint32(sampleNr))
-		}
+		// Skip checking compositionTimeOffset since not uset for subtitles
 		// Next find sample bytes as slice in mdat
 		offsetInMdatData := uint64(offset) - mdatPayloadStart
 		sample := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
 		switch subsTrak.variant {
 		case "wvtt":
-			err = printWvttSample(w, sample, sampleNr, decTime+uint64(cto), dur)
+			err = printWvttSample(w, sample, sampleNr, int64(decTime), dur)
 		case "stpp":
-			err = printStppSample(w, sample, sampleNr, decTime+uint64(cto), dur)
+			err = printStppSample(w, sample, sampleNr, int64(decTime), dur)
 		}
 		if err != nil {
 			return err
@@ -293,7 +290,7 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 	return nil
 }
 
-func printWvttSample(w io.Writer, sample []byte, nr int, pts uint64, dur uint32) error {
+func printWvttSample(w io.Writer, sample []byte, nr int, pts int64, dur uint32) error {
 	fmt.Fprintf(w, "Sample %d, pts=%d, dur=%d\n", nr, pts, dur)
 	buf := bytes.NewBuffer(sample)
 	pos := 0
@@ -317,7 +314,7 @@ func printWvttSample(w io.Writer, sample []byte, nr int, pts uint64, dur uint32)
 	return nil
 }
 
-func printStppSample(w io.Writer, sample []byte, nr int, pts uint64, dur uint32) error {
+func printStppSample(w io.Writer, sample []byte, nr int, pts int64, dur uint32) error {
 	fmt.Fprintf(w, "Sample %d, pts=%d, dur=%d\n", nr, pts, dur)
 	_, err := w.Write(sample)
 	return err

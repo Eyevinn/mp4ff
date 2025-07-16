@@ -142,3 +142,28 @@ func NewNaluArray(complete bool, naluType NaluType, nalus [][]byte) NaluArray {
 func (n NaluArray) NaluTypeName() string {
 	return n.NaluType.String()
 }
+
+// NaluHeader is VVC NAL unit header
+type NaluHeader struct {
+	NuhLayerId         uint8 // NAL unit header layer ID
+	NaluType           NaluType
+	NuhTemporalIdPlus1 uint8 // NAL unit header temporal ID plus 1
+}
+
+// ParseNaluHeader parses the NAL unit header from raw bytes
+func ParseNaluHeader(rawBytes []byte) (NaluHeader, error) {
+	if len(rawBytes) < 2 {
+		return NaluHeader{}, fmt.Errorf("NaluHeader: not enough bytes to parse header")
+	}
+	if forbiddenZeroBit := rawBytes[0] & 0x80; forbiddenZeroBit != 0 {
+		return NaluHeader{}, fmt.Errorf("NaluHeader: forbidden zero bit is set")
+	}
+	if reservedZeroBit := rawBytes[0] & 0x40; reservedZeroBit != 0 {
+		return NaluHeader{}, fmt.Errorf("NaluHeader: reserved zero bit is set")
+	}
+	return NaluHeader{
+		NuhLayerId:         rawBytes[0] & 0x3f,         // 6 bits for layer ID
+		NaluType:           NaluType(rawBytes[1] >> 3), // 5 bits for NALU type
+		NuhTemporalIdPlus1: rawBytes[1] & 0x07,         // 3 bits for temporal ID plus 1
+	}, nil
+}

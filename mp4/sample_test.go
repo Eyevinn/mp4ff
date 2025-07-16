@@ -16,7 +16,7 @@ func TestSample(t *testing.T) {
 	if !s.IsSync() {
 		t.Error("Expected sync sample")
 	}
-	if fs.PresentationTime() != 0 {
-		t.Error("Expected presentation time 0")
+	if fs.PresentationTime() != -1 {
+		t.Error("Expected negative presentation time (-1)")
 	}
 }
