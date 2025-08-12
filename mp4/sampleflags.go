@@ -36,6 +36,9 @@ const SyncSampleFlags uint32 = 0x02000000
 // NonSyncSampleFlags - flags for non-sync sample
 const NonSyncSampleFlags uint32 = 0x00010000
 
+// SampleDependsOn1 - flags for non-sync sample
+const SampleDependsOn1 uint32 = 0x01000000
+
 // IsSyncSampleFlags - flags is set correctly for sync sample
 func IsSyncSampleFlags(flags uint32) bool {
 	return flags&SyncSampleFlags == SyncSampleFlags
@@ -43,12 +46,12 @@ func IsSyncSampleFlags(flags uint32) bool {
 
 // SetSyncSampleFlags - return flags with syncsample pattern
 func SetSyncSampleFlags(flags uint32) uint32 {
-	return flags & SyncSampleFlags & ^NonSyncSampleFlags
+	return flags & ^NonSyncSampleFlags | SyncSampleFlags
 }
 
 // SetNonSyncSampleFlags - return flags with nonsyncsample pattern
 func SetNonSyncSampleFlags(flags uint32) uint32 {
-	return flags & ^SyncSampleFlags & NonSyncSampleFlags
+	return flags & ^SyncSampleFlags | NonSyncSampleFlags | SampleDependsOn1
 }
 
 // DecodeSampleFlags - decode a uint32 flags field
