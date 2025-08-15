@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Makefile update to setup and run pre-commit with configuration
 - Return type of Sample.PresentationTime is now int64 instead of uint64
   This may happen together with edit lists (seen for VVC video)
+- Corrected SetSyncSampleFlags and SetNonSyncSampleFlags functions
 
 ## [0.49.0] - 2025-06-26
 
