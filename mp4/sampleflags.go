@@ -36,7 +36,7 @@ const SyncSampleFlags uint32 = 0x02000000
 // NonSyncSampleFlags - flags for non-sync sample
 const NonSyncSampleFlags uint32 = 0x00010000
 
-// SampleDependsOn1 - flags for non-sync sample
+// SampleDependsOn1 - this sample depends on others (not an I picture)
 const SampleDependsOn1 uint32 = 0x01000000
 
 // IsSyncSampleFlags - flags is set correctly for sync sample
