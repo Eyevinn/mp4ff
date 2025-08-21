@@ -1,9 +1,10 @@
-package avc
+package avc_test
 
 import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/go-test/deep"
 )
 
@@ -11,12 +12,13 @@ const (
 	sps1nalu = "67640020accac05005bb0169e0000003002000000c9c4c000432380008647c12401cb1c31380"
 	sps2nalu = "6764000dacd941419f9e10000003001000000303c0f1429960"
 	sps3nalu = "27640020ac2ec05005bb011000000300100000078e840016e300005b8d8bdef83b438627"
+	sps4nalu = "674d00329a64015005fff8037010101400000fa000013883a1800fee0003fb52ef2e343001fdc0007f6a5de5c280"
 )
 
 func TestSPSParser1(t *testing.T) {
 	byteData, _ := hex.DecodeString(sps1nalu)
 
-	wanted := SPS{
+	wanted := avc.SPS{
 		Profile:                         100,
 		ProfileCompatibility:            0,
 		Level:                           32,
@@ -45,7 +47,7 @@ func TestSPSParser1(t *testing.T) {
 		FrameCropBottomOffset:           0,
 		Width:                           1280,
 		Height:                          720,
-		VUI: &VUIParameters{
+		VUI: &avc.VUIParameters{
 			SampleAspectRatioWidth:      1,
 			SampleAspectRatioHeight:     1,
 			VideoSignalTypePresentFlag:  true,
@@ -56,11 +58,11 @@ func TestSPSParser1(t *testing.T) {
 			TimeScale:                   100,
 			FixedFrameRateFlag:          true,
 			NalHrdParametersPresentFlag: true,
-			NalHrdParameters: &HrdParameters{
+			NalHrdParameters: &avc.HrdParameters{
 				CpbCountMinus1: 0,
 				BitRateScale:   1,
 				CpbSizeScale:   3,
-				CpbEntries: []CpbEntry{{
+				CpbEntries: []avc.CpbEntry{{
 					34374, 34374, true,
 				}},
 				InitialCpbRemovalDelayLengthMinus1: 16,
@@ -79,7 +81,7 @@ func TestSPSParser1(t *testing.T) {
 			MaxDecFrameBuffering:               2,
 		},
 	}
-	got, err := ParseSPSNALUnit(byteData, true)
+	got, err := avc.ParseSPSNALUnit(byteData, true)
 	got.NrBytesBeforeVUI = 0
 	got.NrBytesRead = 0
 	if err != nil {
@@ -93,7 +95,7 @@ func TestSPSParser1(t *testing.T) {
 func TestSPSParser2(t *testing.T) {
 	byteData, _ := hex.DecodeString(sps2nalu)
 
-	wanted := SPS{
+	wanted := avc.SPS{
 		Profile:                         100,
 		ProfileCompatibility:            0,
 		Level:                           13,
@@ -122,7 +124,7 @@ func TestSPSParser2(t *testing.T) {
 		FrameCropBottomOffset:           6,
 		Width:                           320,
 		Height:                          180,
-		VUI: &VUIParameters{
+		VUI: &avc.VUIParameters{
 			SampleAspectRatioWidth:             0,
 			SampleAspectRatioHeight:            0,
 			TimingInfoPresentFlag:              true,
@@ -136,7 +138,7 @@ func TestSPSParser2(t *testing.T) {
 			MaxDecFrameBuffering:               4,
 		},
 	}
-	got, err := ParseSPSNALUnit(byteData, true)
+	got, err := avc.ParseSPSNALUnit(byteData, true)
 	got.NrBytesBeforeVUI = 0
 	got.NrBytesRead = 0
 	if err != nil {
@@ -150,7 +152,7 @@ func TestSPSParser2(t *testing.T) {
 func TestSPSParser3(t *testing.T) {
 	byteData, _ := hex.DecodeString(sps3nalu)
 
-	wanted := SPS{
+	wanted := avc.SPS{
 		Profile:                         100,
 		ProfileCompatibility:            0,
 		Level:                           32,
@@ -179,7 +181,7 @@ func TestSPSParser3(t *testing.T) {
 		FrameCropBottomOffset:           0,
 		Width:                           1280,
 		Height:                          720,
-		VUI: &VUIParameters{
+		VUI: &avc.VUIParameters{
 			SampleAspectRatioWidth:      1,
 			SampleAspectRatioHeight:     1,
 			TimingInfoPresentFlag:       true,
@@ -187,11 +189,11 @@ func TestSPSParser3(t *testing.T) {
 			TimeScale:                   120,
 			FixedFrameRateFlag:          true,
 			NalHrdParametersPresentFlag: true,
-			NalHrdParameters: &HrdParameters{
+			NalHrdParameters: &avc.HrdParameters{
 				CpbCountMinus1: 0,
 				BitRateScale:   4,
 				CpbSizeScale:   2,
-				CpbEntries: []CpbEntry{{
+				CpbEntries: []avc.CpbEntry{{
 					5858, 187499, false,
 				}},
 				InitialCpbRemovalDelayLengthMinus1: 23,
@@ -210,7 +212,7 @@ func TestSPSParser3(t *testing.T) {
 			MaxDecFrameBuffering:               2,
 		},
 	}
-	got, err := ParseSPSNALUnit(byteData, true)
+	got, err := avc.ParseSPSNALUnit(byteData, true)
 	got.NrBytesBeforeVUI = 0
 	got.NrBytesRead = 0
 	if err != nil {
@@ -221,10 +223,103 @@ func TestSPSParser3(t *testing.T) {
 	}
 }
 
+func TestSPSParser4(t *testing.T) {
+	byteData, _ := hex.DecodeString(sps4nalu)
+
+	wanted := avc.SPS{
+		Profile:                         77,
+		ProfileCompatibility:            0,
+		Level:                           50,
+		ParameterID:                     0,
+		ChromaFormatIDC:                 1,
+		SeparateColourPlaneFlag:         false,
+		BitDepthLumaMinus8:              0,
+		BitDepthChromaMinus8:            0,
+		QPPrimeYZeroTransformBypassFlag: false,
+		SeqScalingMatrixPresentFlag:     false,
+		Log2MaxFrameNumMinus4:           5,
+		PicOrderCntType:                 0,
+		Log2MaxPicOrderCntLsbMinus4:     5,
+		DeltaPicOrderAlwaysZeroFlag:     false,
+		OffsetForNonRefPic:              0,
+		RefFramesInPicOrderCntCycle:     nil,
+		NumRefFrames:                    1,
+		GapsInFrameNumValueAllowedFlag:  false,
+		FrameMbsOnlyFlag:                true,
+		MbAdaptiveFrameFieldFlag:        false,
+		Direct8x8InferenceFlag:          true,
+		FrameCroppingFlag:               true,
+		FrameCropLeftOffset:             0,
+		FrameCropRightOffset:            0,
+		FrameCropTopOffset:              0,
+		FrameCropBottomOffset:           0,
+		Width:                           2688,
+		Height:                          1520,
+		VUI: &avc.VUIParameters{
+			SampleAspectRatioWidth:      1,
+			SampleAspectRatioHeight:     1,
+			VideoSignalTypePresentFlag:  true,
+			VideoFormat:                 5,
+			VideoFullRangeFlag:          true,
+			ColourDescriptionFlag:       true,
+			ColourPrimaries:             1,
+			TransferCharacteristics:     1,
+			MatrixCoefficients:          1,
+			TimingInfoPresentFlag:       true,
+			NumUnitsInTick:              1000,
+			TimeScale:                   20000,
+			FixedFrameRateFlag:          true,
+			NalHrdParametersPresentFlag: true,
+			NalHrdParameters: &avc.HrdParameters{
+				CpbCountMinus1: 0,
+				BitRateScale:   4,
+				CpbSizeScale:   3,
+				CpbEntries: []avc.CpbEntry{{
+					4077, 32617, false,
+				}},
+				InitialCpbRemovalDelayLengthMinus1: 23,
+				CpbRemovalDelayLengthMinus1:        15,
+				DpbOutputDelayLengthMinus1:         5,
+				TimeOffsetLength:                   24,
+			},
+			VclHrdParametersPresentFlag: true,
+			VclHrdParameters: &avc.HrdParameters{
+				BitRateScale: 4,
+				CpbSizeScale: 3,
+				CpbEntries: []avc.CpbEntry{{
+					4077, 32617, false,
+				}},
+				InitialCpbRemovalDelayLengthMinus1: 23,
+				CpbRemovalDelayLengthMinus1:        15,
+				DpbOutputDelayLengthMinus1:         5,
+				TimeOffsetLength:                   24,
+			},
+			PicStructPresentFlag:               true,
+			BitstreamRestrictionFlag:           false,
+			MotionVectorsOverPicBoundariesFlag: false,
+			MaxBytesPerPicDenom:                0,
+			MaxBitsPerMbDenom:                  0,
+			Log2MaxMvLengthHorizontal:          0,
+			Log2MaxMvLengthVertical:            0,
+			MaxNumReorderFrames:                0,
+			MaxDecFrameBuffering:               0,
+		},
+	}
+	got, err := avc.ParseSPSNALUnit(byteData, true)
+	got.NrBytesBeforeVUI = 0
+	got.NrBytesRead = 0
+	if err != nil {
+		t.Error("Error parsing SPS", err)
+	}
+	if diff := deep.Equal(*got, wanted); diff != nil {
+		t.Error(diff)
+	}
+}
+
 func TestCodecString(t *testing.T) {
 	spsRaw, _ := hex.DecodeString(sps1nalu)
-	sps, _ := ParseSPSNALUnit(spsRaw, true)
-	codec := CodecString("avc3", sps)
+	sps, _ := avc.ParseSPSNALUnit(spsRaw, true)
+	codec := avc.CodecString("avc3", sps)
 	expected := "avc3.640020"
 	if codec != expected {
 		t.Errorf("expected codec: %q, got %q", expected, codec)
