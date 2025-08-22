@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for parsing VVC NAL unit headers and listing types in mp4ff-nallister
 - Minimal AC-4 support by recognizing ac-4 as AudioSampleDescrition box
 - Support for Opus and dOps boxes
+- Improved error handling for too short box header
 
 ### Changed
 
