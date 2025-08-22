@@ -30,6 +30,7 @@ type VisualSampleEntryBox struct {
 	SmDm               *SmDmBox
 	CoLL               *CoLLBox
 	Children           []Box
+	TrailingBytes      []byte
 }
 
 // NewVisualSampleEntryBox creates new empty box with an appropriate name such as avc1
@@ -51,6 +52,7 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry B
 		FrameCount:         1,
 		CompressorName:     "mp4ff video packager",
 		Children:           []Box{},
+		TrailingBytes:      nil,
 	}
 	if sampleEntry != nil {
 		b.AddChild(sampleEntry)
@@ -131,6 +133,11 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	pos := startPos + 86 // Size of all previous data
 	endPos := startPos + uint64(hdr.Hdrlen) + uint64(hdr.payloadLen())
 	for pos < endPos {
+		if sr.NrRemainingBytes() < boxHeaderSize {
+			// This should not happen, but was reported in issue #444
+			b.TrailingBytes = sr.ReadBytes(sr.NrRemainingBytes())
+			break
+		}
 		box, err := DecodeBoxSR(pos, sr)
 		if err != nil {
 			return nil, fmt.Errorf("error decoding childBox of VisualSampleEntry: %w", err)
@@ -161,6 +168,7 @@ func (b *VisualSampleEntryBox) Size() uint64 {
 	for _, child := range b.Children {
 		totalSize += child.Size()
 	}
+	totalSize += uint64(len(b.TrailingBytes))
 	return totalSize
 }
 
@@ -202,6 +210,12 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 			return err
 		}
 	}
+	if len(b.TrailingBytes) > 0 {
+		_, err = w.Write(b.TrailingBytes)
+		if err != nil {
+			return err
+		}
+	}
 	return err
 }
 
@@ -236,7 +250,10 @@ func (b *VisualSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
 			return err
 		}
 	}
-	return err
+	if len(b.TrailingBytes) > 0 {
+		sw.WriteBytes(b.TrailingBytes)
+	}
+	return sw.AccError()
 }
 
 // Info writes box-specific information
@@ -254,6 +271,9 @@ func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 		if err != nil {
 			return err
 		}
+	}
+	if len(b.TrailingBytes) > 0 {
+		bd.write(" - trailingBytes: %x", b.TrailingBytes)
 	}
 	return nil
 }
