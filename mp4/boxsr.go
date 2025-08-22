@@ -191,6 +191,9 @@ func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
 
 // DecodeHeaderSR - decode a box header (size + box type + possible largeSize) from sr
 func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
+	if sr.NrRemainingBytes() < boxHeaderSize {
+		return BoxHeader{}, fmt.Errorf("not enough bytes to read box header, need %d, have %d", boxHeaderSize, sr.NrRemainingBytes())
+	}
 	size := uint64(sr.ReadUint32())
 	boxType := sr.ReadFixedLengthString(4)
 	headerLen := boxHeaderSize

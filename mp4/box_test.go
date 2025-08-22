@@ -52,6 +52,51 @@ func TestBadBoxAndRemoveBoxDecoder(t *testing.T) {
 	}
 }
 
+// TestDecodeHeader tests DecodeHeader with sufficient and insufficient bytes
+func TestDecodeHeader(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr bool
+	}{
+		{
+			name:    "7 bytes (one less than boxHeaderSize)",
+			data:    make([]byte, 7),
+			wantErr: true,
+		},
+		{
+			name:    "8 bytes (exactly boxHeaderSize)",
+			data:    []byte{0x00, 0x00, 0x00, 0x10, 't', 'e', 's', 't'}, // size=16, type="test"
+			wantErr: false,
+		},
+		{
+			name:    "extended size with insufficient bytes",
+			data:    []byte{0x00, 0x00, 0x00, 0x01, 't', 'e', 's', 't', 0x00, 0x00, 0x00},
+			wantErr: true,
+		},
+		{
+			name:    "extended size with sufficient bytes",
+			data:    []byte{0x00, 0x00, 0x00, 0x01, 't', 'e', 's', 't', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20},
+			wantErr: false,
+		},
+		{
+			name:    "zero size not supported",
+			data:    []byte{0x00, 0x00, 0x00, 0x00, 't', 'e', 's', 't'},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := bytes.NewReader(tt.data)
+			_, err := mp4.DecodeHeader(r)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DecodeHeader() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestFixed16and32(t *testing.T) {
 	f16 := mp4.Fixed16(256)
 	if f16.String() != "1.0" {

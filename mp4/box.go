@@ -192,9 +192,12 @@ func (b BoxHeader) payloadLen() int {
 // DecodeHeader decodes a box header (size + box type + possible largeSize)
 func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	buf := make([]byte, boxHeaderSize)
-	_, err := io.ReadFull(r, buf)
+	n, err := io.ReadFull(r, buf)
 	if err != nil {
 		return BoxHeader{}, err
+	}
+	if n != boxHeaderSize {
+		return BoxHeader{}, fmt.Errorf("incomplete box header read: %d/%d", n, boxHeaderSize)
 	}
 	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
 	headerLen := boxHeaderSize
