@@ -370,10 +370,11 @@ func (a *SPS) ConstraintFlags() byte {
 
 // GetSARfromIDC - get Sample Aspect Ratio from IDC index
 func GetSARfromIDC(index uint) (uint, uint, error) {
-	if index == 0 { // index 0 is a special case; don’t emit an error.
+	if index == 0 { // index 0 is unspecified in the standard. Return 1:1 as a reasonable default
 		return 1, 1, nil
-	} else if index > 16 {
-		return 0, 0, fmt.Errorf("SAR bad index %d", index)
+	}
+	if index > 16 {
+		return 0, 0, fmt.Errorf("SAR bad index %d", index) // 255 is custom and should be handled outside
 	}
 	aspectRatioTable := [][]uint{
 		{1, 1}, {12, 11}, {10, 11}, {16, 11},
