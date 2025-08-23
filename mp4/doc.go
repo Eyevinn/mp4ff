@@ -155,7 +155,7 @@ dispatched from the parsed box name.
 That dispatch based on box name is defined by the tables "mp4.decodersSR" and "mp4.decoders"
 for the functions "mp4.DecodeBoxSR" and "mp4.DecodeBox", respectively.
 The "SR" variant that uses [bits/SliceReader] should normally be used for better performance.
-If a box name is unkonwn, it will result in an [mp4.UnknownBox] being created.
+If a box name is unknown, it will result in an [mp4.UnknownBox] being created.
 
 # How to implement a new box
 

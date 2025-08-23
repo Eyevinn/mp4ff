@@ -52,7 +52,7 @@ func TestInitSegmentParsing(t *testing.T) {
 	wanted := byte(31)
 	got := avcC.AVCLevelIndication
 	if got != wanted {
-		t.Errorf("Got level %d insted of %d", got, wanted)
+		t.Errorf("Got level %d instead of %d", got, wanted)
 	}
 
 }
@@ -74,7 +74,7 @@ func TestMoovParsingWithBtrt(t *testing.T) {
 	wanted := byte(31)
 	got := avcC.AVCLevelIndication
 	if got != wanted {
-		t.Errorf("Got level %d insted of %d", got, wanted)
+		t.Errorf("Got level %d instead of %d", got, wanted)
 	}
 
 	btrt := avcx.Btrt

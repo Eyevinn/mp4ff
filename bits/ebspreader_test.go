@@ -309,7 +309,7 @@ func TestEBSPReader(t *testing.T) {
 			})
 		}
 	})
-	t.Run("read traling RBSP bits", func(t *testing.T) {
+	t.Run("read trailing RBSP bits", func(t *testing.T) {
 		input := []byte{0b10000000}
 		brd := bytes.NewReader(input)
 		r := bits.NewEBSPReader(brd)
@@ -327,7 +327,7 @@ func TestEBSPReader(t *testing.T) {
 		brd := bytes.NewReader(input)
 		r := bits.NewEBSPReader(brd)
 		r.SetError(io.ErrUnexpectedEOF)
-		// Read shold never result in panic
+		// Read should never result in panic
 		// Error should be preservedd
 		_ = r.Read(100)
 		if r.AccError() != io.ErrUnexpectedEOF {

@@ -305,7 +305,7 @@ Most boxes have their own file named after the box, but in some cases, there may
 that have the same content, and the code file then has a generic name like
 `mp4/visualsampleentry.go`.
 
-There is an interface for boxes: `Box` specificied in `mp4.box.go`,
+There is an interface for boxes: `Box` specified in `mp4.box.go`,
 
 The interfaces define common Box methods including encode (writing),
 but not the decode (parsing) methods which have distinct names for each box type and are
@@ -314,7 +314,7 @@ dispatched from the parsed box name.
 That dispatch based on box name is defined by the tables `mp4.decodersSR` and `mp4.decoders`
 for the functions `mp4.DecodeBoxSR()` and `mp4.DecodeBox()`, respectively.
 The `SR` variant should normally be used for better performance.
-If a box name is unkonwn, it will result in an `UnknownBox` being created.
+If a box name is unknown, it will result in an `UnknownBox` being created.
 
 ### How to implement a new box
 

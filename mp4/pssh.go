@@ -40,7 +40,7 @@ func ProtectionSystemName(systemID UUID) string {
 }
 
 // PsshBox - Protection System Specific Header Box
-// Defined in ISO/IEC 23001-7 Secion 8.1
+// Defined in ISO/IEC 23001-7 Section 8.1
 type PsshBox struct {
 	Version  byte
 	Flags    uint32

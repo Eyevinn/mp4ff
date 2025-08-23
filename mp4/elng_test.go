@@ -13,7 +13,7 @@ func TestDecodeElng(t *testing.T) {
 	boxDiffAfterEncodeAndDecode(t, elng)
 }
 
-// TestElngWithoutFullBox tests erronous case where full box headers are not present.
+// TestElngWithoutFullBox tests erroneous case where full box headers are not present.
 func TestElngWithoutFullBox(t *testing.T) {
 	data := []byte("\x00\x00\x00\x0belngdk\x00")
 	bufIn := bytes.NewBuffer(data)

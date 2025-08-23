@@ -161,7 +161,7 @@ func TestEncryptDecrypt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Write init segment with encyption info
+			// Write init segment with encryption info
 			encInitBuf := bytes.Buffer{}
 			err = init.Encode(&encInitBuf)
 			if err != nil {

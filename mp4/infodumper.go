@@ -61,7 +61,7 @@ func newInfoDumper(w io.Writer, indent string, b boxLike, version int, flags uin
 	return &bd
 }
 
-// write - write formated objecds if level <= bd.level
+// write - write formatted objecds if level <= bd.level
 func (b *infoDumper) write(format string, p ...interface{}) {
 	if b.err != nil {
 		return

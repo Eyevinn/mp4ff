@@ -39,7 +39,7 @@ func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
 		case "soun":
 			track.trackType = "audio"
 		default:
-			return nil, fmt.Errorf("hdlr typpe %q not supported", hdlrType)
+			return nil, fmt.Errorf("hdlr type %q not supported", hdlrType)
 		}
 		track.lang = trak.Mdia.Mdhd.GetLanguage()
 		if trak.Mdia.Elng != nil {

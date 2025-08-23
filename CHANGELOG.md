@@ -102,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cmd/mp4ff-encrypt` did not parse command line
 - `SeigSampleGroupEntry` calculated skipBytes incorrectly
 - `cmd/mp4ff-pslister` did not parse annex B HEVC correctly
-- error when decrypting and re-encrypting a segement (issue #378)
+- error when decrypting and re-encrypting a segment (issue #378)
 
 ### Removed
 
@@ -154,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - support for ssix box
 - support for leva box
-- details of descriptors as Info outout (mp4ff-info)
+- details of descriptors as Info output (mp4ff-info)
 
 ## [0.44.0] - 2024-04-19
 
@@ -175,7 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - More robust check for mfro at the end of file
 - GetTrex() return value
 - Can now write PIFF `uuid` box that has previously been read
-- Does now avoid the second parsing of `senc` box if the file is ot encrypted as seen in moov box.
+- Does now avoid the second parsing of `senc` box if the file is to encrypted as seen in moov box.
 
 ### Removed
 

@@ -164,7 +164,7 @@ func (r *EBSPReader) ReadSignedGolomb() int {
 	return -int(unsignedGolomb / 2)
 }
 
-// IsSeeker returns tru if underluing reader supports Seek interface.
+// IsSeeker returns true if underluing reader supports Seek interface.
 func (r *EBSPReader) IsSeeker() bool {
 	_, ok := r.rd.(io.ReadSeeker)
 	return ok
@@ -191,7 +191,7 @@ func (r *EBSPReader) MoreRbspData() (bool, error) {
 		}
 		return true, nil
 	}
-	// If all remainging bits are zero, there is no more rbsp data
+	// If all remaining bits are zero, there is no more rbsp data
 	more := false
 	for {
 		b := r.Read(1)

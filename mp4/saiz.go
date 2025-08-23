@@ -64,7 +64,7 @@ func NewSaizBox(capacity int) *SaizBox {
 }
 
 // AddSampleInfo adds a sampleinfo info based on parameters provided.
-// If no length field, don't update the sample field (typicall audio cbcs)
+// If no length field, don't update the sample field (typically audio cbcs)
 func (b *SaizBox) AddSampleInfo(iv []byte, subsamplePatterns []SubSamplePattern) {
 	size := len(iv)
 	if len(subsamplePatterns) > 0 {

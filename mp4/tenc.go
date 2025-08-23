@@ -8,7 +8,7 @@ import (
 )
 
 // TencBox - Track Encryption Box
-// Defined in ISO/IEC 23001-7 Secion 8.2
+// Defined in ISO/IEC 23001-7 Section 8.2
 type TencBox struct {
 	Version                byte
 	Flags                  uint32
