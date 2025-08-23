@@ -44,7 +44,7 @@ func TagType(tag byte) string {
 type Descriptor interface {
 	// Tag - descriptor tag. Fixed for each descriptor type
 	Tag() byte
-	// Type is string describing Tag, making descriptor fullfill boxLike interface
+	// Type is string describing Tag, making descriptor fulfill boxLike interface
 	Type() string
 	// Size - size of descriptor, excluding tag byte and size field
 	Size() uint64
@@ -102,7 +102,7 @@ type ESDescriptor struct {
 	DecConfigDescriptor *DecoderConfigDescriptor
 	SLConfigDescriptor  *SLConfigDescriptor
 	OtherDescriptors    []Descriptor
-	UnknownData         []byte // Data, probably erronous, that we don't understand
+	UnknownData         []byte // Data, probably erroneous, that we don't understand
 }
 
 func DecodeDescriptor(sr bits.SliceReader, maxNrBytes int) (Descriptor, error) {
@@ -348,7 +348,7 @@ type DecoderConfigDescriptor struct {
 	AvgBitrate          uint32
 	DecSpecificInfo     *DecSpecificInfoDescriptor
 	OtherDescriptors    []Descriptor
-	UnknownData         []byte // Data, probably erronous, that we don't understand
+	UnknownData         []byte // Data, probably erroneous, that we don't understand
 }
 
 func exceedsMaxNrBytes(sizeFieldSizeMinus1 byte, size uint64, maxNrBytes int) bool {
@@ -678,7 +678,7 @@ func (d *RawDescriptor) Info(w io.Writer, specificLevels, indent, indentStep str
 	return bd.err
 }
 
-// CreateESDescriptor creats an ESDescriptor with a DecoderConfigDescriptor for audio.
+// CreateESDescriptor creates an ESDescriptor with a DecoderConfigDescriptor for audio.
 func CreateESDescriptor(decConfig []byte) ESDescriptor {
 	e := ESDescriptor{
 		EsID: 0x01,

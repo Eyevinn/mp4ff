@@ -11,7 +11,7 @@ import (
 const (
 	// boxHeaderSize - standard size + name header
 	boxHeaderSize = 8
-	largeSizeLen  = 8          // Length of largesize exension
+	largeSizeLen  = 8          // Length of largesize extension
 	flagsMask     = 0x00ffffff // Flags for masks from full header
 )
 

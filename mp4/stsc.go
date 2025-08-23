@@ -17,7 +17,7 @@ import (
 //   - sample description id : description (see the sample description box - stsd)
 //     this value is most often the same for all samples, so it is stored as a single value if possible.
 //
-// FirstSampleNr is a helper value for fast lookup. Somthing that is often a bottleneck.
+// FirstSampleNr is a helper value for fast lookup. Something that is often a bottleneck.
 type StscBox struct {
 	Version                   byte
 	Flags                     uint32

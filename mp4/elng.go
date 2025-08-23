@@ -9,9 +9,9 @@ import (
 
 // ElngBox - Extended Language Box
 // Defined in ISO/IEC 14496-12 Section 8.4.6
-// It should be a full box, but was erronously implemented
+// It should be a full box, but was erroneously implemented
 // as a normal box. For backwards compatibility, the
-// erronous box without full header can still be decoded.
+// erroneous box without full header can still be decoded.
 // The method MissingFullBoxBytes() returns true if that is the case.
 type ElngBox struct {
 	missingFullBox bool
@@ -20,7 +20,7 @@ type ElngBox struct {
 	Language       string
 }
 
-// MissingFullBoxBytes indicates that the box is errornously not including the 4 full box header bytes
+// MissingFullBoxBytes indicates that the box is erroneously not including the 4 full box header bytes
 func (b *ElngBox) MissingFullBoxBytes() bool {
 	return b.missingFullBox
 }

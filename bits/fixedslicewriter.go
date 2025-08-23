@@ -56,7 +56,7 @@ func (sw *FixedSliceWriter) Bytes() []byte {
 	return sw.buf[:sw.off]
 }
 
-// AccError - return accumulated erro
+// AccError - return accumulated error
 func (sw *FixedSliceWriter) AccError() error {
 	return sw.accError
 }

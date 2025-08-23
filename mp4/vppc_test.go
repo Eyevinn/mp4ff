@@ -43,7 +43,7 @@ func TestVppC(t *testing.T) {
 		t.Errorf("Expected error msg: %q", errMsg)
 	}
 
-	// Check that there is an error if the CodecInitSize is not compatible withthe box size.
+	// Check that there is an error if the CodecInitSize is not compatible with the box size.
 	copy(raw, data)
 	raw[19] = 2
 	assertBoxDecodeError(t, raw, 0, "decode vpcC pos 0: incorrect box size")
