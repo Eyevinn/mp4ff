@@ -34,33 +34,31 @@ open-docs:
 .PHONY: coverage
 coverage:
 	# Ignore (allow) packages without any tests
-	set -o pipefail
 	go test ./... -coverprofile coverage.out
-	set +o pipefail
 	go tool cover -html=coverage.out -o coverage.html
 	go tool cover -func coverage.out -o coverage.txt
 	tail -1 coverage.txt
 
-.PHONY: venv
-venv: .venv/bin/activate
-
-.venv/bin/activate:
-	python3 -m venv .venv
-	.venv/bin/pip install --upgrade pip
-	.venv/bin/pip install pre-commit==4.2.0
-	touch .venv/bin/activate
+venv:
+	python3 -m venv venv
+	venv/bin/pip install --upgrade pip
+	venv/bin/pip install pre-commit==4.2.0
+	venv/bin/pip install codespell
 
 .PHONY: pre-commit-install
 pre-commit-install: venv
-	.venv/bin/pre-commit install
+	venv/bin/pre-commit install
 
 .PHONY: pre-commit
 pre-commit: venv
-	.venv/bin/pre-commit run --all-files
+	venv/bin/pre-commit run --all-files
+
+.PHONY: codespell
+codespell: venv
+	venv/bin/codespell -S ./mp4/testdata,./venv -L trun,te,truns,nam,toi,vie,testIn
 
 .PHONY: check
-check: prepare pre-commit
-	golangci-lint run
+check: prepare pre-commit codespell
 
 clean:
 	rm -f out/*
