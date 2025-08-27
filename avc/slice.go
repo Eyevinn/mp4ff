@@ -148,7 +148,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	if !ok {
 		return nil, fmt.Errorf("pps ID %d unknown", sh.PicParamID)
 	}
-	spsID := pps.PicParameterSetID
+	spsID := pps.SeqParameterSetID
 	sps, ok := spsMap[uint32(spsID)]
 	if !ok {
 		return nil, fmt.Errorf("sps ID %d unknown", spsID)
