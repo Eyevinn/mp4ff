@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow for trailing less than 8-bytes in VisualSampleEntry. Solves issue 444
 - Allow unspecified `aspect_radio_idc == 0` in avc VUI
 
+### Fixed
+
+- The SliceHeader parser for AVC now uses SPS ID and not PPS ID to look up the SPS
+
 ## [0.49.0] - 2025-06-26
 
 ### Added
