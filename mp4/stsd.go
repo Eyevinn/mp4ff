@@ -38,6 +38,8 @@ type StsdBox struct {
 	AC4 *AudioSampleEntryBox
 	// Opus is a pointer to a box with name Opus
 	Opus *AudioSampleEntryBox
+	// MhXX is a pointer to an MPEG-H mha1, mha2, mh1, mh2 sample entry box
+	MhXX *AudioSampleEntryBox
 	// Enca is a pointer to a box with name enca
 	Enca *AudioSampleEntryBox
 	// Wvtt is a pointer to a WvttBox
@@ -79,6 +81,8 @@ func (s *StsdBox) AddChild(box Box) {
 		s.AC4 = box.(*AudioSampleEntryBox)
 	case "Opus":
 		s.Opus = box.(*AudioSampleEntryBox)
+	case "mha1", "mha2", "mhm1", "mhm2":
+		s.MhXX = box.(*AudioSampleEntryBox)
 	case "enca":
 		s.Enca = box.(*AudioSampleEntryBox)
 	case "wvtt":

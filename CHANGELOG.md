@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimal AC-4 support by recognizing ac-4 as AudioSampleDescrition box
 - Support for Opus and dOps boxes
 - Improved error handling for too short box header
+- Support for MPEG-H sample descriptors including mhaC configuration boxes
 
 ### Changed
 
