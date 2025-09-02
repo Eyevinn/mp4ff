@@ -21,6 +21,7 @@ type VisualSampleEntryBox struct {
 	AvcC               *AvcCBox
 	HvcC               *HvcCBox
 	Av1C               *Av1CBox
+	Av3c               *Av3cBox
 	VvcC               *VvcCBox
 	VppC               *VppCBox
 	Btrt               *BtrtBox
@@ -69,6 +70,8 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.HvcC = box
 	case *Av1CBox:
 		b.Av1C = box
+	case *Av3cBox:
+		b.Av3c = box
 	case *VvcCBox:
 		b.VvcC = box
 	case *VppCBox:

@@ -178,3 +178,55 @@ func TestStsdMha1Decode(t *testing.T) {
 
 	cmpAfterDecodeEncodeBox(t, data)
 }
+
+func TestStsdAVS3Decode(t *testing.T) {
+	data, err := os.ReadFile("testdata/stsd_avs3.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stsd := decodeStsdBox(t, data)
+	if len(stsd.Children) != 1 {
+		t.Errorf("Expected one child, got %d", len(stsd.Children))
+	}
+	_, ok := stsd.Children[0].(*mp4.VisualSampleEntryBox)
+	if !ok {
+		t.Errorf("Expected VisualSampleEntryBox, got %T", stsd.Children[0])
+	}
+	if stsd.Avs3 == nil {
+		t.Errorf("Expected AVS3 visual sample entry box pointer, got nil")
+	}
+	avs3 := stsd.Avs3
+	if avs3.Type() != "avs3" {
+		t.Errorf("Expected avs3 type, got %s", avs3.Type())
+	}
+	if len(avs3.Children) != 3 { // Should have av3c, btrt, and colr boxes
+		t.Errorf("Expected three children (av3c, btrt, colr), got %d", len(avs3.Children))
+	}
+
+	// Check that av3c box is properly parsed
+	if avs3.Av3c == nil {
+		t.Errorf("Expected av3c box pointer, got nil")
+	} else {
+		// Basic validation of AVS3 decoder config record
+		if avs3.Av3c.Avs3Config.ConfigurationVersion != 1 {
+			t.Errorf("Expected configuration version 1, got %d", avs3.Av3c.Avs3Config.ConfigurationVersion)
+		}
+		if avs3.Av3c.Avs3Config.SequenceHeaderLength != 221 { // 0xdd from hex dump
+			t.Errorf("Expected sequence header length 221, got %d", avs3.Av3c.Avs3Config.SequenceHeaderLength)
+		}
+		if len(avs3.Av3c.Avs3Config.SequenceHeader) != 221 {
+			t.Errorf("Expected sequence header length 221, got %d", len(avs3.Av3c.Avs3Config.SequenceHeader))
+		}
+		// LibraryDependencyIDC should be extracted from the last byte (which should be 0xFC | value)
+		if avs3.Av3c.Avs3Config.LibraryDependencyIDC > 3 {
+			t.Errorf("Expected LibraryDependencyIDC 0-3, got %d", avs3.Av3c.Avs3Config.LibraryDependencyIDC)
+		}
+	}
+
+	// Check that btrt box is properly parsed
+	if avs3.Btrt == nil {
+		t.Errorf("Expected btrt box pointer, got nil")
+	}
+
+	cmpAfterDecodeEncodeBox(t, data)
+}
