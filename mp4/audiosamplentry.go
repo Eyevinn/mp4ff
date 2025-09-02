@@ -19,6 +19,7 @@ type AudioSampleEntryBox struct {
 	Dac3               *Dac3Box
 	Dec3               *Dec3Box
 	Dops               *DopsBox
+	MhaC               *MhaCBox
 	Btrt               *BtrtBox
 	Sinf               *SinfBox
 	Children           []Box
@@ -64,6 +65,8 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 		a.Dec3 = child.(*Dec3Box)
 	case "dOps":
 		a.Dops = child.(*DopsBox)
+	case "mhaC":
+		a.MhaC = child.(*MhaCBox)
 	case "btrt":
 		a.Btrt = child.(*BtrtBox)
 	case "sinf":

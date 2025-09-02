@@ -131,3 +131,50 @@ func decodeStsdBox(t *testing.T, data []byte) *mp4.StsdBox {
 	}
 	return stsd
 }
+
+// TestSdsdMha1Decode checks that mha1 is recognized as AudioSampleEntry
+func TestStsdMha1Decode(t *testing.T) {
+	data, err := os.ReadFile("testdata/stsd_mha1.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stsd := decodeStsdBox(t, data)
+	if len(stsd.Children) != 1 {
+		t.Errorf("Expected one child, got %d", len(stsd.Children))
+	}
+	_, ok := stsd.Children[0].(*mp4.AudioSampleEntryBox)
+	if !ok {
+		t.Errorf("Expected AudioSampleEntryBox, got %T", stsd.Children[0])
+	}
+	if stsd.MhXX == nil {
+		t.Errorf("Expected MHA1 box pointer, got nil")
+	}
+	mha1 := stsd.MhXX
+	if len(mha1.Children) != 2 {
+		t.Errorf("Expected two children, got %d", len(mha1.Children))
+	}
+	if mha1.Children[0].Type() != "mhaC" {
+		t.Errorf("Expected MHA1 first child to be mhaC, got %s", mha1.Children[0].Type())
+	}
+	// Validate that the mhaC box is properly decoded as MhaCBox
+	mhaC, ok := mha1.Children[0].(*mp4.MhaCBox)
+	if !ok {
+		t.Errorf("Expected MhaCBox, got %T", mha1.Children[0])
+	} else {
+		// Basic validation of MHA decoder config record
+		if mhaC.MHADecoderConfigRecord.ConfigVersion != 1 ||
+			mhaC.MHADecoderConfigRecord.MpegH3DAProfileLevelIndication != 12 ||
+			mhaC.MHADecoderConfigRecord.ReferenceChannelLayout != 6 ||
+			mhaC.MHADecoderConfigRecord.MpegH3DAConfigLength != 63 {
+			t.Errorf("MHA decoder config value does not match. Got: %+v", mhaC.MHADecoderConfigRecord)
+		}
+	}
+	if mha1.MhaC == nil {
+		t.Errorf("Expected MHA1 box pointer, got nil")
+	}
+	if mha1.Children[1].Type() != "btrt" {
+		t.Errorf("Expected MHA1 second child to be btrt, got %s", mha1.Children[1].Type())
+	}
+
+	cmpAfterDecodeEncodeBox(t, data)
+}
