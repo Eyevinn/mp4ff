@@ -170,3 +170,129 @@ func TestBadAccErrReader(t *testing.T) {
 		t.Errorf("Wanted io.EOF but got %v", err)
 	}
 }
+
+func TestByteAlign(t *testing.T) {
+	t.Run("align from middle of byte", func(t *testing.T) {
+		input := []byte{0xAB, 0xCD, 0xEF} // 10101011 11001101 11101111
+		rd := bytes.NewReader(input)
+		r := bits.NewReader(rd)
+
+		// Read 3 bits: 101 (5 bits remaining in first byte)
+		got := r.Read(3)
+		if got != 5 { // 101 binary = 5 decimal
+			t.Errorf("Expected 5, got %d", got)
+		}
+
+		// Now we should have 5 bits left in current byte
+		nrBitsInCurrentByte := r.NrBitsReadInCurrentByte()
+		if nrBitsInCurrentByte != 3 {
+			t.Errorf("Expected 3 bits read in current byte, got %d", nrBitsInCurrentByte)
+		}
+
+		// Align to byte boundary
+		r.ByteAlign()
+
+		// Now reading should start from next byte (0xCD)
+		got = r.Read(8)
+		if got != 0xCD {
+			t.Errorf("Expected 0xCD (%d), got %d", 0xCD, got)
+		}
+
+		// Verify no error occurred
+		if err := r.AccError(); err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
+
+	t.Run("align when already byte-aligned", func(t *testing.T) {
+		input := []byte{0xAB, 0xCD}
+		rd := bytes.NewReader(input)
+		r := bits.NewReader(rd)
+
+		// Read exactly 8 bits (already byte-aligned)
+		got := r.Read(8)
+		if got != 0xAB {
+			t.Errorf("Expected 0xAB (%d), got %d", 0xAB, got)
+		}
+
+		// Align (should be no-op)
+		r.ByteAlign()
+
+		// Next read should get the next byte
+		got = r.Read(8)
+		if got != 0xCD {
+			t.Errorf("Expected 0xCD (%d), got %d", 0xCD, got)
+		}
+
+		// Verify no error occurred
+		if err := r.AccError(); err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
+
+	t.Run("align with accumulated error", func(t *testing.T) {
+		input := []byte{0xAB}
+		rd := bytes.NewReader(input)
+		r := bits.NewReader(rd)
+
+		// Read more bits than available to cause error
+		_ = r.Read(16) // Only 8 bits available
+
+		// Ensure error is accumulated
+		if err := r.AccError(); err == nil {
+			t.Error("Expected error but got none")
+		}
+
+		// ByteAlign should not crash and should do nothing with error present
+		r.ByteAlign()
+
+		// Error should still be there
+		if err := r.AccError(); err == nil {
+			t.Error("Expected error to persist after ByteAlign")
+		}
+	})
+
+	t.Run("align after reading various bit counts", func(t *testing.T) {
+		testCases := []struct {
+			name           string
+			bitsToRead     int
+			expectedResult uint
+		}{
+			{"1 bit", 1, 1},   // First bit of 0xAB (1010 1011) = 1
+			{"2 bits", 2, 2},  // First 2 bits = 10 = 2
+			{"3 bits", 3, 5},  // First 3 bits = 101 = 5
+			{"4 bits", 4, 10}, // First 4 bits = 1010 = 10
+			{"5 bits", 5, 21}, // First 5 bits = 10101 = 21
+			{"6 bits", 6, 42}, // First 6 bits = 101010 = 42
+			{"7 bits", 7, 85}, // First 7 bits = 1010101 = 85
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				input := []byte{0xAB, 0xCD} // 10101011 11001101
+				rd := bytes.NewReader(input)
+				r := bits.NewReader(rd)
+
+				// Read specified number of bits
+				got := r.Read(tc.bitsToRead)
+				if got != tc.expectedResult {
+					t.Errorf("Read(%d) = %d, expected %d", tc.bitsToRead, got, tc.expectedResult)
+				}
+
+				// Align to byte boundary
+				r.ByteAlign()
+
+				// Next read should get the second byte (0xCD)
+				nextByte := r.Read(8)
+				if nextByte != 0xCD {
+					t.Errorf("After ByteAlign, expected 0xCD (%d), got %d", 0xCD, nextByte)
+				}
+
+				// Verify no error occurred
+				if err := r.AccError(); err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+			})
+		}
+	})
+}

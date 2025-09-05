@@ -110,3 +110,17 @@ func (r *Reader) NrBitsRead() int {
 func (r *Reader) NrBitsReadInCurrentByte() int {
 	return 8 - r.n
 }
+
+// ByteAlign aligns the reader to the next byte boundary by discarding
+// any remaining bits in the current byte. This is commonly used in
+// multimedia formats where data structures need to be byte-aligned.
+func (r *Reader) ByteAlign() {
+	if r.err != nil {
+		return
+	}
+	if r.n > 0 {
+		// Discard remaining bits in current byte to align to byte boundary
+		r.n = 0
+		r.value = 0
+	}
+}
