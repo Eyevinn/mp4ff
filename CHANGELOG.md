@@ -7,20 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet
+
+## [0.50.0] - 2025-09-05
+
 ### Added
 
-- Basic VVC support with vvcC box and VvcDecoderConfigurationRecord
-- Support for parsing VVC NAL unit headers and listing types in mp4ff-nallister
+- Support for VVC with vvcC box and VvcDecoderConfigurationRecord
+- Support for parsing of VVC NALU headers and listing types in mp4ff-nallister
 - Support for AC-4 audio including ac-4 and dac4 boxes
 - Support for Opus and dOps boxes
-- Improved error handling for too short box header
 - Support for MPEG-H sample descriptors including mhaC configuration boxes
 - Support for AVS3 video sample descriptors: avs3 and av3c boxes
+- Improved error handling for too short box header
 
 ### Changed
 
 - Makefile update to setup and run pre-commit with configuration
-- Return type of Sample.PresentationTime is now int64 instead of uint64
+- Return type of Sample.PresentationTime to int64 instead of uint64
   This may happen together with edit lists (seen for VVC video)
 - Corrected SetSyncSampleFlags and SetNonSyncSampleFlags functions
 - Allow for trailing less than 8-bytes in VisualSampleEntry. Solves issue 444
@@ -740,7 +744,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.49.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/Eyevinn/mp4ff/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/Eyevinn/mp4ff/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/Eyevinn/mp4ff/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/Eyevinn/mp4ff/compare/v0.46.0...v0.47.0
