@@ -44,6 +44,7 @@ func init() {
 		"ctim":    DecodeCtim,
 		"ctts":    DecodeCtts,
 		"dac3":    DecodeDac3,
+		"dac4":    DecodeDac4,
 		"mhaC":    DecodeMhaC,
 		"data":    DecodeData,
 		"dec3":    DecodeDec3,
