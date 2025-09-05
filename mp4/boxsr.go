@@ -35,6 +35,7 @@ func init() {
 		"ctim":    DecodeCtimSR,
 		"ctts":    DecodeCttsSR,
 		"dac3":    DecodeDac3SR,
+		"dac4":    DecodeDac4SR,
 		"mhaC":    DecodeMhaCSR,
 		"data":    DecodeDataSR,
 		"dec3":    DecodeDec3SR,
