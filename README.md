@@ -35,6 +35,31 @@ You can install these tools by going to their respective directory and run `go i
 
 for each individual tool.
 
+## Codec support
+
+This repo is focused on the file format, but goes beyond the base file format and supports
+codec-specific boxes. The codecs and their boxes are
+
+| Type| Codec | Sample Entry | Config Box | Other Boxes |
+| ----- | ----| ---- | ---- | ---- |
+| Video | AVC/H.264 | avc1, avc3 | avcC | btrt, pasp, colr |
+| Video | HEVC/H.265 | hvc1, hev1 | hvcC | btrt, pasp, colr |
+| Video | AV1 | av01 | av1C | btrt, pasp, colr |
+| Video | AVS3 | avs3 | av3c | btrt, pasp, colr |
+| Video | VP8/VP9 | vp08, vp09 | vpcC | btrt, pasp, colr |
+| Video | VVC/H.266 | vvc1, vvi1 | vvcC | btrt, pasp, colr |
+| Video | Encrypted | encv | sinf | btrt |
+| Audio | AAC | mp4a | esds | btrt |
+| Audio | AC-3 | ac-3 | dac3 | btrt |
+| Audio | E-AC-3 | ec-3 | dec3 | btrt |
+| Audio | AC-4 | ac-4 | dac4 | btrt |
+| Audio | Opus | Opus | dOps | btrt |
+| Audio | MPEG-H 3D Audio | mha1, mha2, mhm1, mhm2 | mhaC | btrt |
+| Audio | Encrypted | enca | sinf | btrt |
+| Subtitles | WebVTT | wvtt | vttC, vlab | vttc, vtte, vtta, vsid, ctim, iden, sttg, payl, btrt |
+| Subtitles | TTML | stpp | - | btrt |
+| Subtitles | Generic | evte | - | btrt |
+
 ## Open Source Cloud
 
 You can also run the tools as a job in [Eyevinn Open Source Cloud](https://app.osaas.io/dashboard/service/eyevinn-mp4ff). Here is an example using the `mp4ff-crop` command and the Open Source Cloud CLI.
