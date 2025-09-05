@@ -55,7 +55,7 @@ pre-commit: venv
 
 .PHONY: codespell
 codespell: venv
-	venv/bin/codespell -S ./mp4/testdata,./venv -L trun,te,truns,nam,toi,vie,testIn
+	venv/bin/codespell -S testdata,references,./venv -L trun,te,truns,nam,toi,vie,testIn
 
 .PHONY: check
 check: prepare pre-commit codespell
