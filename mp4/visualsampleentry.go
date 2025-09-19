@@ -141,6 +141,11 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 			b.TrailingBytes = sr.ReadBytes(sr.NrRemainingBytes())
 			break
 		}
+		trailing := endPos - pos
+		if trailing < boxHeaderSize {
+			b.TrailingBytes = sr.ReadBytes(int(trailing))
+			break
+		}
 		box, err := DecodeBoxSR(pos, sr)
 		if err != nil {
 			return nil, fmt.Errorf("error decoding childBox of VisualSampleEntry: %w", err)
