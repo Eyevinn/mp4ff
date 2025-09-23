@@ -131,14 +131,15 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	sr.SkipBytes(2) // Skip depth
 	sr.ReadUint16() // pre_defined == -1
 
-	// Now there may be clap and pasp boxes
+	// Now there may be clap, pasp, btrt and other boxes
 	// 14496-15  5.4.2.1.2 avcC should be inside avc1, avc3 box
 	pos := startPos + 86 // Size of all previous data
 	endPos := startPos + uint64(hdr.Hdrlen) + uint64(hdr.payloadLen())
 	for pos < endPos {
-		if sr.NrRemainingBytes() < boxHeaderSize {
+		remainingBytes := endPos - pos
+		if remainingBytes < boxHeaderSize {
 			// This should not happen, but was reported in issue #444
-			b.TrailingBytes = sr.ReadBytes(sr.NrRemainingBytes())
+			b.TrailingBytes = sr.ReadBytes(int(remainingBytes))
 			break
 		}
 		box, err := DecodeBoxSR(pos, sr)

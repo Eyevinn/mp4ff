@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"encoding/hex"
+	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -61,28 +62,21 @@ func TestVisualSampleEntryBoxVP9(t *testing.T) {
 }
 
 func TestAvc1WithTrailingBytes(t *testing.T) {
-	avc1Hex := "0000008b6176633100000000000000010000000000000000000000000000000002800168004800000048000000000000000100" +
-		"000000000000000000000000000000000000000000000000000000000000000018ffff00000031617663430164001effe100196764001ea" +
-		"cd940a02ff9610000030001000003003c8f162d9601000568ebecb22c00000000"
-	avc1Raw, err := hex.DecodeString(avc1Hex)
+	minfWithTrailingAvc1Bytes, err := os.ReadFile("testdata/minf_with_trailing_avc1_bytes.bin")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	sr := bits.NewFixedSliceReader(avc1Raw)
+	sr := bits.NewFixedSliceReader(minfWithTrailingAvc1Bytes)
 	// Decode the box
 	box, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
 		t.Error(err)
 	}
 	// Check the box type
-	if box.Type() != "avc1" {
-		t.Errorf("expected box type avc1, got %s", box.Type())
+	if box.Type() != "minf" {
+		t.Errorf("expected box type minf, got %s", box.Type())
 	}
-	// Check the box size
-	if box.Size() != uint64(len(avc1Raw)) {
-		t.Errorf("expected box size %d, got %d", len(avc1Raw), box.Size())
-	}
-	avc1 := box.(*mp4.VisualSampleEntryBox)
+	avc1 := box.(*mp4.MinfBox).Stbl.Stsd.Children[0].(*mp4.VisualSampleEntryBox)
 	if len(avc1.TrailingBytes) != 4 {
 		t.Errorf("expected 4 trailing bytes, got %d", len(avc1.TrailingBytes))
 	}
