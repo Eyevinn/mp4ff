@@ -134,8 +134,17 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 	}
 	moofStartPos := moof.StartPos
 	var samples []FullSample
-	for _, trun := range traf.Truns {
+	for i, trun := range traf.Truns {
 		totalDur := trun.AddSampleDefaultValues(tfhd, trex)
+		//Try to fix the missing sample size
+		if !trun.HasSampleSize() && len(traf.Truns)-i != 0 {
+			if trun.HasDataOffset() && traf.Truns[i+1].HasDataOffset() {
+				size := (traf.Truns[i+1].DataOffset - trun.DataOffset) / int32(trun.SampleCount())
+				for j := range trun.Samples {
+					trun.Samples[j].Size = uint32(size)
+				}
+			}
+		}
 		// The default is moofStartPos according to Section 8.8.7.1
 		baseOffset := moofStartPos
 		if tfhd.HasBaseDataOffset() {
