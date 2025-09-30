@@ -12,6 +12,13 @@ type FtypBox struct {
 	data []byte
 }
 
+// Copy - deep copy of Ftyp box.
+func (b *FtypBox) Copy() *FtypBox {
+	data := make([]byte, len(b.data))
+	copy(data, b.data)
+	return &FtypBox{data: data}
+}
+
 // MajorBrand - major brand (4 chars)
 func (b *FtypBox) MajorBrand() string {
 	return string(b.data[:4])
