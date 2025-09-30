@@ -271,30 +271,35 @@ func (t *TrafBox) RemoveEncryptionBoxes() uint64 {
 		case *SaizBox:
 			nrBytesRemoved += ch.Size()
 			t.Saiz = nil
+			continue
 		case *SaioBox:
 			nrBytesRemoved += ch.Size()
 			t.Saio = nil
+			continue
 		case *SencBox:
 			nrBytesRemoved += ch.Size()
 			t.Senc = nil
+			continue
 		case *UUIDBox:
 			if box.SubType() == "senc" {
 				nrBytesRemoved += ch.Size()
 				t.UUIDSenc = nil
+				continue
 			}
 		case *SbgpBox:
-			if box.GroupingType == "seig" {
+			if box.GroupingType == "seig" || box.GroupingType == "seam" {
 				nrBytesRemoved += ch.Size()
 				t.Sbgp = nil
+				continue
 			}
 		case *SgpdBox:
-			if box.GroupingType == "seig" {
+			if box.GroupingType == "seig" || box.GroupingType == "seam" {
 				nrBytesRemoved += ch.Size()
 				t.Sgpd = nil
+				continue
 			}
-		default:
-			remainingChildren = append(remainingChildren, ch)
 		}
+		remainingChildren = append(remainingChildren, ch)
 	}
 	t.Children = remainingChildren
 	return nrBytesRemoved
