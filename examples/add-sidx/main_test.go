@@ -48,7 +48,7 @@ func TestCommandLine(t *testing.T) {
 		},
 		{
 			desc:           "normal file with styp",
-			args:           []string{appName, "../resegmenter/testdata/testV300.mp4", path.Join(tmpDir, "out4.mp4")},
+			args:           []string{appName, "../../mp4/testdata/v300_multiple_segments.mp4", path.Join(tmpDir, "out4.mp4")},
 			checkOutput:    true,
 			wantedNrSegs:   4,
 			wantedFirstDur: 180000,

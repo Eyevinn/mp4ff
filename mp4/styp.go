@@ -12,6 +12,13 @@ type StypBox struct {
 	data []byte
 }
 
+// Copy - deep copy of Styp box.
+func (b *StypBox) Copy() *StypBox {
+	data := make([]byte, len(b.data))
+	copy(data, b.data)
+	return &StypBox{data: data}
+}
+
 // MajorBrand - major brand (4 chars)
 func (b *StypBox) MajorBrand() string {
 	return string(b.data[:4])
