@@ -66,8 +66,7 @@ func writeVideoAVCInitSegment(outPath string) error {
 
 	videoTimescale := uint32(180000)
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(videoTimescale, "video", "und")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(videoTimescale, "video", "und")
 	includePS := true
 	err := trak.SetAVCDescriptor("avc1", spsNALUs, ppsNALUs, includePS)
 	if err != nil {
@@ -92,8 +91,7 @@ func writeVideoHEVCInitSegment(outPath string) error {
 
 	videoTimescale := uint32(180000)
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(videoTimescale, "video", "und")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(videoTimescale, "video", "und")
 	err := trak.SetHEVCDescriptor("hvc1", vpsNALUs, spsNALUs, ppsNALUs, nil, true)
 	if err != nil {
 		return err
@@ -110,8 +108,7 @@ func writeVideoHEVCInitSegment(outPath string) error {
 func writeAudioAACInitSegment(outPath string) error {
 	audioTimeScale := 48000
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(uint32(audioTimeScale), "audio", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(audioTimeScale), "audio", "en")
 	err := trak.SetAACDescriptor(aac.AAClc, audioTimeScale)
 	if err != nil {
 		return err
@@ -134,8 +131,7 @@ func writeAudioAC3InitSegment(outPath string) error {
 	dac3 := box.(*mp4.Dac3Box)
 	init := mp4.CreateEmptyInit()
 	samplingRate := mp4.AC3SampleRates[dac3.FSCod]
-	init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
 	err = trak.SetAC3Descriptor(dac3)
 	if err != nil {
 		return err
@@ -158,8 +154,7 @@ func writeAudioEC3InitSegment(outPath string) error {
 	dec3 := box.(*mp4.Dec3Box)
 	init := mp4.CreateEmptyInit()
 	samplingRate := mp4.AC3SampleRates[dec3.EC3Subs[0].FSCod]
-	init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
 	err = trak.SetEC3Descriptor(dec3)
 	if err != nil {
 		return err
@@ -171,8 +166,7 @@ func writeAudioEC3InitSegment(outPath string) error {
 func writeSubtitlesWvttInitSegment(outPath string) error {
 	subtitleTimescale := 1000
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(uint32(subtitleTimescale), "wvtt", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(subtitleTimescale), "wvtt", "en")
 	err := trak.SetWvttDescriptor("WEBVTT")
 	if err != nil {
 		return err
@@ -184,8 +178,7 @@ func writeSubtitlesWvttInitSegment(outPath string) error {
 func writeSubtitlesStppInitSegment(outPath string) error {
 	subtitleTimescale := 1000
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(uint32(subtitleTimescale), "stpp", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(subtitleTimescale), "stpp", "en")
 	schemaLocation := ""
 	auxiliaryMimeType := ""
 	err := trak.SetStppDescriptor("http://www.w3.org/ns/ttml", schemaLocation, auxiliaryMimeType)
