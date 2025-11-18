@@ -151,8 +151,8 @@ func TestGenerateInitSegment(t *testing.T) {
 	ppsData := [][]byte{pps}
 
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(180000, "video", "und")
-	trak := init.Moov.Trak
+
+	trak := init.AddEmptyTrack(180000, "video", "und")
 	err := trak.SetAVCDescriptor("avc3", spsData, ppsData, true)
 	if err != nil {
 		t.Error(err)

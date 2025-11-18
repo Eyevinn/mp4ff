@@ -92,14 +92,15 @@ func CreateEmptyInit() *InitSegment {
 	return initSeg
 }
 
-// AddEmptyTrack - add trak + trex box with appropriate trackID value
-func (s *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string) {
+// AddEmptyTrack - add trak + trex box with appropriate trackID value and returns the reference to TrakBox
+func (s *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string) *TrakBox {
 	moov := s.Moov
 	trackID := uint32(len(moov.Traks) + 1)
 	moov.Mvhd.NextTrackID = trackID + 1
 	newTrak := CreateEmptyTrak(trackID, timeScale, mediaType, language)
 	moov.AddChild(newTrak)
 	moov.Mvex.AddChild(CreateTrex(trackID))
+	return newTrak
 }
 
 // CreateEmptyTrak - create a full trak-tree for an empty (fragmented) track with no samples or stsd content
