@@ -25,6 +25,7 @@
     [mdia] size=4816
       [mdhd] size=32 version=0 flags=000000
        - timeScale: 100
+       - duration: 1920
        - creation time: 2020-03-10T08:59:14Z
        - modification time: 2020-03-10T08:59:14Z
        - language: und

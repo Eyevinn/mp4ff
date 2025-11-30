@@ -26,6 +26,7 @@
     [mdia] size=393
       [mdhd] size=32 version=0 flags=000000
        - timeScale: 180000
+       - duration: 0
        - creation time: 0
        - modification time: 0
        - language: und

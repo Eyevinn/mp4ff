@@ -131,6 +131,7 @@ func (m *MdhdBox) EncodeSW(sw bits.SliceWriter) error {
 func (m *MdhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, m, int(m.Version), m.Flags)
 	bd.write(" - timeScale: %d", m.Timescale)
+	bd.write(" - duration: %d", m.Duration)
 	bd.write(" - creation time: %s", timeStr(m.CreationTime))
 	bd.write(" - modification time: %s", timeStr(m.ModificationTime))
 	bd.write(" - language: %s", m.GetLanguage())
