@@ -92,7 +92,7 @@ func CreateEmptyInit() *InitSegment {
 	return initSeg
 }
 
-// AddEmptyTrack - add trak + trex box with appropriate trackID value and returns the reference to TrakBox
+// AddEmptyTrack - add trak + trex box with appropriate trackID value and returns a reference to the new TrakBox
 func (s *InitSegment) AddEmptyTrack(timeScale uint32, mediaType, language string) *TrakBox {
 	moov := s.Moov
 	trackID := uint32(len(moov.Traks) + 1)

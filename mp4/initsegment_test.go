@@ -153,6 +153,12 @@ func TestGenerateInitSegment(t *testing.T) {
 	init := mp4.CreateEmptyInit()
 
 	trak := init.AddEmptyTrack(180000, "video", "und")
+	trak1 := mp4.CreateEmptyTrak(1, 180000, "video", "und")
+
+	if diff := deep.Equal(trak, trak1); diff != nil {
+		t.Error(diff)
+	}
+
 	err := trak.SetAVCDescriptor("avc3", spsData, ppsData, true)
 	if err != nil {
 		t.Error(err)

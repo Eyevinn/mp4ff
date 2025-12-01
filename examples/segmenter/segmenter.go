@@ -107,8 +107,6 @@ func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 	inMovieDuration := s.inFile.Moov.Mvhd.Duration
 	init.Moov.Mvex.AddChild(&mp4.MehdBox{FragmentDuration: int64(inMovieDuration)})
 	for _, tr := range s.tracks {
-		init.AddEmptyTrack(tr.timeScale, tr.trackType, tr.lang)
-		// outTrak := init.Moov.Traks[len(init.Moov.Traks)-1]
 		outTrak := init.AddEmptyTrack(tr.timeScale, tr.trackType, tr.lang)
 		tr.trackID = outTrak.Tkhd.TrackID
 		inStsd := tr.inTrak.Mdia.Minf.Stbl.Stsd
