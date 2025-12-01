@@ -148,8 +148,7 @@ func createVideoHEVCInitSegment() (*mp4.InitSegment, error) {
 
 func createAudioAACInitSegment(timeScale uint32, objType byte) (*mp4.InitSegment, error) {
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(timeScale, "audio", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(timeScale, "audio", "en")
 	err := trak.SetAACDescriptor(objType, int(timeScale))
 	if err != nil {
 		return nil, err
@@ -171,8 +170,7 @@ func createAudioAC3InitSegment() (*mp4.InitSegment, error) {
 	dac3 := box.(*mp4.Dac3Box)
 	init := mp4.CreateEmptyInit()
 	samplingRate := mp4.AC3SampleRates[dac3.FSCod]
-	init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
 	err = trak.SetAC3Descriptor(dac3)
 	if err != nil {
 		return nil, err
@@ -194,8 +192,7 @@ func createAudioEC3InitSegment() (*mp4.InitSegment, error) {
 	dec3 := box.(*mp4.Dec3Box)
 	init := mp4.CreateEmptyInit()
 	samplingRate := mp4.AC3SampleRates[dec3.EC3Subs[0].FSCod]
-	init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
 	err = trak.SetEC3Descriptor(dec3)
 	if err != nil {
 		return nil, err
@@ -206,8 +203,7 @@ func createAudioEC3InitSegment() (*mp4.InitSegment, error) {
 func createSubtitlesWvttInitSegment() (*mp4.InitSegment, error) {
 	subtitleTimescale := 1000
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(uint32(subtitleTimescale), "wvtt", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(subtitleTimescale), "wvtt", "en")
 	err := trak.SetWvttDescriptor("WEBVTT")
 	if err != nil {
 		return nil, err
@@ -218,8 +214,7 @@ func createSubtitlesWvttInitSegment() (*mp4.InitSegment, error) {
 func createSubtitlesStppInitSegment() (*mp4.InitSegment, error) {
 	subtitleTimescale := 1000
 	init := mp4.CreateEmptyInit()
-	init.AddEmptyTrack(uint32(subtitleTimescale), "stpp", "en")
-	trak := init.Moov.Trak
+	trak := init.AddEmptyTrack(uint32(subtitleTimescale), "stpp", "en")
 	schemaLocation := ""
 	auxiliaryMimeType := ""
 	err := trak.SetStppDescriptor("http://www.w3.org/ns/ttml", schemaLocation, auxiliaryMimeType)
