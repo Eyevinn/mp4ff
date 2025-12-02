@@ -119,10 +119,7 @@ func writeAudioAACInitSegment(outPath string) error {
 
 func writeAudioAC3InitSegment(outPath string) error {
 	dac3Hex := "0000000b646163330c3dc0"
-	dac3Bytes, err := hex.DecodeString(dac3Hex)
-	if err != nil {
-		return err
-	}
+	dac3Bytes, _ := hex.DecodeString(dac3Hex)
 	sr := bits.NewFixedSliceReader(dac3Bytes)
 	box, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
@@ -132,20 +129,14 @@ func writeAudioAC3InitSegment(outPath string) error {
 	init := mp4.CreateEmptyInit()
 	samplingRate := mp4.AC3SampleRates[dac3.FSCod]
 	trak := init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
-	err = trak.SetAC3Descriptor(dac3)
-	if err != nil {
-		return err
-	}
+	_ = trak.SetAC3Descriptor(dac3)
 	err = writeToFile(init, outPath)
 	return err
 }
 
 func writeAudioEC3InitSegment(outPath string) error {
 	dec3Hex := "0000000e646563330c00200f0202"
-	dec3Bytes, err := hex.DecodeString(dec3Hex)
-	if err != nil {
-		return err
-	}
+	dec3Bytes, _ := hex.DecodeString(dec3Hex)
 	sr := bits.NewFixedSliceReader(dec3Bytes)
 	box, err := mp4.DecodeBoxSR(0, sr)
 	if err != nil {
@@ -155,10 +146,7 @@ func writeAudioEC3InitSegment(outPath string) error {
 	init := mp4.CreateEmptyInit()
 	samplingRate := mp4.AC3SampleRates[dec3.EC3Subs[0].FSCod]
 	trak := init.AddEmptyTrack(uint32(samplingRate), "audio", "en")
-	err = trak.SetEC3Descriptor(dec3)
-	if err != nil {
-		return err
-	}
+	_ = trak.SetEC3Descriptor(dec3)
 	err = writeToFile(init, outPath)
 	return err
 }
@@ -167,11 +155,8 @@ func writeSubtitlesWvttInitSegment(outPath string) error {
 	subtitleTimescale := 1000
 	init := mp4.CreateEmptyInit()
 	trak := init.AddEmptyTrack(uint32(subtitleTimescale), "wvtt", "en")
-	err := trak.SetWvttDescriptor("WEBVTT")
-	if err != nil {
-		return err
-	}
-	err = writeToFile(init, outPath)
+	_ = trak.SetWvttDescriptor("WEBVTT")
+	err := writeToFile(init, outPath)
 	return err
 }
 
@@ -181,11 +166,8 @@ func writeSubtitlesStppInitSegment(outPath string) error {
 	trak := init.AddEmptyTrack(uint32(subtitleTimescale), "stpp", "en")
 	schemaLocation := ""
 	auxiliaryMimeType := ""
-	err := trak.SetStppDescriptor("http://www.w3.org/ns/ttml", schemaLocation, auxiliaryMimeType)
-	if err != nil {
-		return err
-	}
-	err = writeToFile(init, outPath)
+	_ = trak.SetStppDescriptor("http://www.w3.org/ns/ttml", schemaLocation, auxiliaryMimeType)
+	err := writeToFile(init, outPath)
 	return err
 }
 
