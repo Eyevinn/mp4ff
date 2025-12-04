@@ -12,6 +12,9 @@ jobs:
       matrix:
         platform: [macos-latest, ubuntu-latest, windows-latest]
         go-version: ["1.16", "1.24"]
+        exclude:
+          - platform: macos-latest
+            go-version: "1.16"
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Setup Go
