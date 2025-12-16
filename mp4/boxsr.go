@@ -166,35 +166,11 @@ type BoxDecoderSR func(hdr BoxHeader, startPos uint64, sw bits.SliceReader) (Box
 
 // DecodeBoxSR - decode a box from SliceReader
 func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
-	var err error
-	var b Box
-
 	h, err := DecodeHeaderSR(sr)
 	if err != nil {
 		return nil, err
 	}
-
-	maxSize := uint64(sr.NrRemainingBytes()) + uint64(h.Hdrlen)
-	// In the following, we do not block mdat to allow for the case
-	// that the first kiloBytes of a file are fetched and parsed to
-	// get the init part of a file. In the future, a new decode option that
-	// stops before the mdat starts is a better alternative.
-	if h.Size > maxSize && h.Name != "mdat" {
-		return nil, fmt.Errorf("decode box %q, size %d too big (max %d)", h.Name, h.Size, maxSize)
-	}
-
-	d, ok := decodersSR[h.Name]
-
-	if !ok {
-		b, err = DecodeUnknownSR(h, startPos, sr)
-	} else {
-		b, err = d(h, startPos, sr)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("decode %s pos %d: %w", h.Name, startPos, err)
-	}
-
-	return b, nil
+	return DecodeBoxBodySR(startPos, h, sr)
 }
 
 // DecodeHeaderSR - decode a box header (size + box type + possible largeSize) from sr
@@ -216,6 +192,33 @@ func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
 		return BoxHeader{}, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)
 	}
 	return BoxHeader{boxType, size, headerLen}, sr.AccError()
+}
+
+// DecodeBoxBodySR - decode box body from SliceReader given BoxHeader
+func DecodeBoxBodySR(startPos uint64, hdr BoxHeader, sr bits.SliceReader) (Box, error) {
+	maxSize := uint64(sr.NrRemainingBytes()) + uint64(hdr.Hdrlen)
+	// In the following, we do not block mdat to allow for the case
+	// that the first kiloBytes of a file are fetched and parsed to
+	// get the init part of a file. In the future, a new decode option that
+	// stops before the mdat starts is a better alternative.
+	if hdr.Size > maxSize && hdr.Name != "mdat" {
+		return nil, fmt.Errorf("decode box %q, size %d too big (max %d)", hdr.Name, hdr.Size, maxSize)
+	}
+
+	d, ok := decodersSR[hdr.Name]
+
+	var b Box
+	var err error
+	if !ok {
+		b, err = DecodeUnknownSR(hdr, startPos, sr)
+	} else {
+		b, err = d(hdr, startPos, sr)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("decode %s pos %d: %w", hdr.Name, startPos, err)
+	}
+
+	return b, nil
 }
 
 // DecodeFile - parse and decode a file from reader r with optional file options.

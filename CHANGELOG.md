@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - AddEmptyTrack returns reference to newly added track
 
+### Added
+
+- New functions DecodeBoxBody and similar to allow for two-step header and body parsing
+
 ### Fixed
 
 - duration is printed by `MdhdBox.Info()`
