@@ -322,23 +322,27 @@ type BoxDecoder func(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
 func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
-	var err error
-	var b Box
-
 	h, err := DecodeHeader(r)
 	if err != nil {
 		return nil, err
 	}
+	return DecodeBoxBody(startPos, h, r)
+}
 
-	d, ok := decoders[h.Name]
+// DecodeBoxBody decodes a box body from an io.Reader given BoxHeader
+func DecodeBoxBody(startPos uint64, hdr BoxHeader, r io.Reader) (Box, error) {
+	var err error
+	var b Box
+
+	d, ok := decoders[hdr.Name]
 
 	if !ok {
-		b, err = DecodeUnknown(h, startPos, r)
+		b, err = DecodeUnknown(hdr, startPos, r)
 	} else {
-		b, err = d(h, startPos, r)
+		b, err = d(hdr, startPos, r)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("decode %s pos %d: %w", h.Name, startPos, err)
+		return nil, fmt.Errorf("decode %s pos %d: %w", hdr.Name, startPos, err)
 	}
 
 	return b, nil
@@ -346,13 +350,17 @@ func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeBoxLazyMdat decodes a box but doesn't read mdat into memory
 func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
-	var err error
-	var b Box
-
 	h, err := DecodeHeader(r)
 	if err != nil {
 		return nil, err
 	}
+	return DecodeBoxBodyLazily(startPos, h, r)
+
+}
+
+func DecodeBoxBodyLazily(startPos uint64, h BoxHeader, r io.ReadSeeker) (Box, error) {
+	var err error
+	var b Box
 
 	d, ok := decoders[h.Name]
 
