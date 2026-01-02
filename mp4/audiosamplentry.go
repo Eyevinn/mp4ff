@@ -19,6 +19,7 @@ type AudioSampleEntryBox struct {
 	Dac3               *Dac3Box
 	Dac4               *Dac4Box
 	Dec3               *Dec3Box
+	DfLa               *DfLaBox
 	Dops               *DopsBox
 	MhaC               *MhaCBox
 	Btrt               *BtrtBox
@@ -66,6 +67,8 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 		a.Dac4 = child.(*Dac4Box)
 	case "dec3":
 		a.Dec3 = child.(*Dec3Box)
+	case "dfLa":
+		a.DfLa = child.(*DfLaBox)
 	case "dOps":
 		a.Dops = child.(*DopsBox)
 	case "mhaC":
@@ -237,6 +240,10 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 	if bd.err != nil {
 		return bd.err
 	}
+	bd.write(" - data_reference_index: %d", a.DataReferenceIndex)
+	bd.write(" - channel_count: %d", a.ChannelCount)
+	bd.write(" - sample_size: %d", a.SampleSize)
+	bd.write(" - sample_rate: %d", a.SampleRate)
 	var err error
 	for _, child := range a.Children {
 		err = child.Info(w, specificBoxLevels, indent+indentStep, indentStep)
