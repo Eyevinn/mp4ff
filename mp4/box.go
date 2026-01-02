@@ -77,6 +77,7 @@ func init() {
 		"hvc1":    DecodeVisualSampleEntry,
 		"hvcC":    DecodeHvcC,
 		"iden":    DecodeIden,
+		"ID32":    DecodeID32,
 		"ilst":    DecodeIlst,
 		"iods":    DecodeUnknown,
 		"ipir":    DecodeTrefType,
