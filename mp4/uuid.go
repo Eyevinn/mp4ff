@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"strings"
@@ -49,6 +50,9 @@ const (
 
 	// UUIDPiffSenc - PIFF UUID for Sample Encryption Box (PIFF 1.1 spec)
 	UUIDPiffSenc = "a2394f52-5a9b-4f14-a244-6c427c648df4"
+
+	// UUIDSphericalVideoV1 - Spherical Video V1 UUID
+	UUIDSphericalVideoV1 = "ffcc8263-f855-4a93-8814-587a02521fdd"
 )
 
 // NewTrfrfBox creates a new TfrfBox with values.
@@ -97,9 +101,10 @@ func mustCreateUUID(u string) UUID {
 }
 
 var (
-	uuidTfxd     UUID = mustCreateUUID(UUIDTfxd)
-	uuidTfrf     UUID = mustCreateUUID(UUIDTfrf)
-	uuidPiffSenc UUID = mustCreateUUID(UUIDPiffSenc)
+	uuidTfxd             UUID = mustCreateUUID(UUIDTfxd)
+	uuidTfrf             UUID = mustCreateUUID(UUIDTfrf)
+	uuidPiffSenc         UUID = mustCreateUUID(UUIDPiffSenc)
+	uuidSphericalVideoV1 UUID = mustCreateUUID(UUIDSphericalVideoV1)
 )
 
 // UUIDBox - Used as container for MSS boxes tfxd and tfrf
@@ -109,6 +114,7 @@ type UUIDBox struct {
 	Tfxd           *TfxdData
 	Tfrf           *TfrfData
 	Senc           *SencBox
+	SphericalV1    *SphericalVideoV1Data
 	StartPos       uint64
 	UnknownPayload []byte
 }
@@ -142,6 +148,30 @@ type TfrfData struct {
 	FragmentCount             byte
 	FragmentAbsoluteTimes     []uint64
 	FragmentAbsoluteDurations []uint64
+}
+
+// SphericalVideoV1Data - Spherical Video V1 metadata
+// Defined in Google's Spherical Video V1 RFC
+// https://github.com/google/spatial-media/blob/master/docs/spherical-video-rfc.md
+type SphericalVideoV1Data struct {
+	XMLData string // Raw XML content
+	// Parsed fields
+	Spherical                    string
+	Stitched                     string
+	StitchingSoftware            string
+	ProjectionType               string
+	StereoMode                   string
+	SourceCount                  string
+	InitialViewHeadingDegrees    string
+	InitialViewPitchDegrees      string
+	InitialViewRollDegrees       string
+	Timestamp                    string
+	FullPanoWidthPixels          string
+	FullPanoHeightPixels         string
+	CroppedAreaImageWidthPixels  string
+	CroppedAreaImageHeightPixels string
+	CroppedAreaLeftPixels        string
+	CroppedAreaTopPixels         string
 }
 
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
@@ -184,6 +214,16 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 			return nil, fmt.Errorf("failed to decode senc in UUID: %w", err)
 		}
 		b.Senc = box.(*SencBox)
+	case UUIDSphericalVideoV1:
+		if hdr.Size < 8+16 {
+			return nil, fmt.Errorf("uuid box size too small: %d < 24", hdr.Size)
+		}
+		xmlData := sr.ReadBytes(int(hdr.Size) - 8 - 16)
+		spherical, err := decodeSphericalVideoV1(string(xmlData))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode spherical video v1: %w", err)
+		}
+		b.SphericalV1 = spherical
 	default:
 		if hdr.Size < 8+16 {
 			return nil, fmt.Errorf("uuid box size too small: %d < 24", hdr.Size)
@@ -209,6 +249,8 @@ func (b *UUIDBox) Size() uint64 {
 		size += b.Tfrf.size()
 	case u.Equal(uuidPiffSenc):
 		size += b.Senc.Size() - 8 // -8 because no header
+	case u.Equal(uuidSphericalVideoV1):
+		size += uint64(len(b.SphericalV1.XMLData))
 	default:
 		size += uint64(len(b.UnknownPayload))
 	}
@@ -240,6 +282,8 @@ func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
 		err = b.Tfrf.encode(sw)
 	case u.Equal(uuidPiffSenc):
 		err = b.Senc.EncodeSWNoHdr(sw)
+	case u.Equal(uuidSphericalVideoV1):
+		sw.WriteBytes([]byte(b.SphericalV1.XMLData))
 	default:
 		sw.WriteBytes(b.UnknownPayload)
 	}
@@ -258,6 +302,8 @@ func (b *UUIDBox) SubType() string {
 		return "tfrf"
 	case u.Equal(uuidPiffSenc):
 		return "senc"
+	case u.Equal(uuidSphericalVideoV1):
+		return "spherical-v1"
 	default:
 		return "unknown"
 	}
@@ -324,6 +370,58 @@ func decodeTfrf(s bits.SliceReader) (*TfrfData, error) {
 	return t, nil
 }
 
+func decodeSphericalVideoV1(xmlData string) (*SphericalVideoV1Data, error) {
+	s := &SphericalVideoV1Data{
+		XMLData: xmlData,
+	}
+
+	// Parse XML using proper XML decoder
+	var envelope struct {
+		XMLName                       xml.Name `xml:"SphericalVideo"`
+		Spherical                     string   `xml:"http://ns.google.com/videos/1.0/spherical/ Spherical"`
+		Stitched                      string   `xml:"http://ns.google.com/videos/1.0/spherical/ Stitched"`
+		StitchingSoftware             string   `xml:"http://ns.google.com/videos/1.0/spherical/ StitchingSoftware"`
+		ProjectionType                string   `xml:"http://ns.google.com/videos/1.0/spherical/ ProjectionType"`
+		StereoMode                    string   `xml:"http://ns.google.com/videos/1.0/spherical/ StereoMode"`
+		SourceCount                   string   `xml:"http://ns.google.com/videos/1.0/spherical/ SourceCount"`
+		InitialViewHeadingDegrees     string   `xml:"http://ns.google.com/videos/1.0/spherical/ InitialViewHeadingDegrees"`
+		InitialViewPitchDegrees       string   `xml:"http://ns.google.com/videos/1.0/spherical/ InitialViewPitchDegrees"`
+		InitialViewRollDegrees        string   `xml:"http://ns.google.com/videos/1.0/spherical/ InitialViewRollDegrees"`
+		Timestamp                     string   `xml:"http://ns.google.com/videos/1.0/spherical/ Timestamp"`
+		FullPanoWidthPixels           string   `xml:"http://ns.google.com/videos/1.0/spherical/ FullPanoWidthPixels"`
+		FullPanoHeightPixels          string   `xml:"http://ns.google.com/videos/1.0/spherical/ FullPanoHeightPixels"`
+		CroppedAreaImageWidthPixels   string   `xml:"http://ns.google.com/videos/1.0/spherical/ CroppedAreaImageWidthPixels"`
+		CroppedAreaImageHeightPixels  string   `xml:"http://ns.google.com/videos/1.0/spherical/ CroppedAreaImageHeightPixels"`
+		CroppedAreaLeftPixels         string   `xml:"http://ns.google.com/videos/1.0/spherical/ CroppedAreaLeftPixels"`
+		CroppedAreaTopPixels          string   `xml:"http://ns.google.com/videos/1.0/spherical/ CroppedAreaTopPixels"`
+	}
+
+	err := xml.Unmarshal([]byte(xmlData), &envelope)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse spherical video XML: %w", err)
+	}
+
+	// Copy parsed values, trimming whitespace
+	s.Spherical = strings.TrimSpace(envelope.Spherical)
+	s.Stitched = strings.TrimSpace(envelope.Stitched)
+	s.StitchingSoftware = strings.TrimSpace(envelope.StitchingSoftware)
+	s.ProjectionType = strings.TrimSpace(envelope.ProjectionType)
+	s.StereoMode = strings.TrimSpace(envelope.StereoMode)
+	s.SourceCount = strings.TrimSpace(envelope.SourceCount)
+	s.InitialViewHeadingDegrees = strings.TrimSpace(envelope.InitialViewHeadingDegrees)
+	s.InitialViewPitchDegrees = strings.TrimSpace(envelope.InitialViewPitchDegrees)
+	s.InitialViewRollDegrees = strings.TrimSpace(envelope.InitialViewRollDegrees)
+	s.Timestamp = strings.TrimSpace(envelope.Timestamp)
+	s.FullPanoWidthPixels = strings.TrimSpace(envelope.FullPanoWidthPixels)
+	s.FullPanoHeightPixels = strings.TrimSpace(envelope.FullPanoHeightPixels)
+	s.CroppedAreaImageWidthPixels = strings.TrimSpace(envelope.CroppedAreaImageWidthPixels)
+	s.CroppedAreaImageHeightPixels = strings.TrimSpace(envelope.CroppedAreaImageHeightPixels)
+	s.CroppedAreaLeftPixels = strings.TrimSpace(envelope.CroppedAreaLeftPixels)
+	s.CroppedAreaTopPixels = strings.TrimSpace(envelope.CroppedAreaTopPixels)
+
+	return s, nil
+}
+
 func (t *TfrfData) size() uint64 {
 	return 4 + 1 + (8+8*uint64(t.Version))*uint64(t.FragmentCount)
 }
@@ -364,6 +462,58 @@ func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			err := b.Senc.Info(w, specificBoxLevels, indent+"    ", indentStep)
 			if err != nil {
 				return fmt.Errorf("piff senc: %w", err)
+			}
+		case "spherical-v1":
+			if b.SphericalV1 != nil {
+				s := b.SphericalV1
+				if s.Spherical != "" {
+					bd.write(" - Spherical: %s", s.Spherical)
+				}
+				if s.Stitched != "" {
+					bd.write(" - Stitched: %s", s.Stitched)
+				}
+				if s.StitchingSoftware != "" {
+					bd.write(" - StitchingSoftware: %s", s.StitchingSoftware)
+				}
+				if s.ProjectionType != "" {
+					bd.write(" - ProjectionType: %s", s.ProjectionType)
+				}
+				if s.StereoMode != "" {
+					bd.write(" - StereoMode: %s", s.StereoMode)
+				}
+				if s.SourceCount != "" {
+					bd.write(" - SourceCount: %s", s.SourceCount)
+				}
+				if s.InitialViewHeadingDegrees != "" {
+					bd.write(" - InitialViewHeadingDegrees: %s", s.InitialViewHeadingDegrees)
+				}
+				if s.InitialViewPitchDegrees != "" {
+					bd.write(" - InitialViewPitchDegrees: %s", s.InitialViewPitchDegrees)
+				}
+				if s.InitialViewRollDegrees != "" {
+					bd.write(" - InitialViewRollDegrees: %s", s.InitialViewRollDegrees)
+				}
+				if s.Timestamp != "" {
+					bd.write(" - Timestamp: %s", s.Timestamp)
+				}
+				if s.FullPanoWidthPixels != "" {
+					bd.write(" - FullPanoWidthPixels: %s", s.FullPanoWidthPixels)
+				}
+				if s.FullPanoHeightPixels != "" {
+					bd.write(" - FullPanoHeightPixels: %s", s.FullPanoHeightPixels)
+				}
+				if s.CroppedAreaImageWidthPixels != "" {
+					bd.write(" - CroppedAreaImageWidthPixels: %s", s.CroppedAreaImageWidthPixels)
+				}
+				if s.CroppedAreaImageHeightPixels != "" {
+					bd.write(" - CroppedAreaImageHeightPixels: %s", s.CroppedAreaImageHeightPixels)
+				}
+				if s.CroppedAreaLeftPixels != "" {
+					bd.write(" - CroppedAreaLeftPixels: %s", s.CroppedAreaLeftPixels)
+				}
+				if s.CroppedAreaTopPixels != "" {
+					bd.write(" - CroppedAreaTopPixels: %s", s.CroppedAreaTopPixels)
+				}
 			}
 		default:
 			bd.write(" - payload: %s", hex.EncodeToString(b.UnknownPayload))
