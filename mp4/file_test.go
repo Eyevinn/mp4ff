@@ -404,7 +404,7 @@ func TestDecodeTrunctedFile(t *testing.T) {
 	if boxTree == nil {
 		t.Fatal("expected boxTree to be returned for truncated file")
 	}
-	if boxTree.Ftyp == nil {
+	if boxTree != nil && boxTree.Ftyp == nil {
 		t.Error("expected styp box to be present in truncated file")
 	}
 }
