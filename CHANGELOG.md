@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - duration is printed by `MdhdBox.Info()`
 - extended size usage only allowed for `mdat` boxes
+- trackID is checked when decrypting content
+- Proper handling of trailing bytes in avc1 (VisualSampleEntryBox). Issue 444
 
 ## [0.50.0] - 2025-09-05
 
