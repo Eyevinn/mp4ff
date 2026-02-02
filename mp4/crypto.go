@@ -624,6 +624,17 @@ func DecryptInit(init *InitSegment) (DecryptInfo, error) {
 // DecryptSegment decrypts a media segment in place
 func DecryptSegment(seg *MediaSegment, di DecryptInfo, key []byte) error {
 	for _, frag := range seg.Fragments {
+		for _, traf := range frag.Moof.Trafs {
+			hasSenc, _ := traf.ContainsSencBox()
+			if hasSenc {
+				ti := di.findTrackInfo(traf.Tfhd.TrackID)
+				if ti.Sinf == nil {
+					return fmt.Errorf("no decrypt info for trackID=%d which has senc box", traf.Tfhd.TrackID)
+				}
+			}
+		}
+	}
+	for _, frag := range seg.Fragments {
 		err := DecryptFragment(frag, di, key)
 		if err != nil {
 			return err

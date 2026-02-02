@@ -343,3 +343,90 @@ func TestAppendProtectRange(t *testing.T) {
 		})
 	}
 }
+
+func TestDecryptSegmentTrackIDMismatch(t *testing.T) {
+	initFile := "testdata/init.mp4"
+	segFile := "testdata/1.m4s"
+	keyHex := "00112233445566778899aabbccddeeff"
+	ivHex := "7766554433221100"
+	kidHex := "11112222333344445555666677778888"
+	key, _ := hex.DecodeString(keyHex)
+	iv, _ := hex.DecodeString(ivHex)
+	kidUUID, _ := mp4.NewUUIDFromString(kidHex)
+
+	ifh, err := os.Open(initFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	init, err := mp4.DecodeFile(ifh)
+	ifh.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ipf, err := mp4.InitProtect(init.Init, key, iv, "cenc", kidUUID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	encInitBuf := bytes.Buffer{}
+	err = init.Encode(&encInitBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawSeg, err := os.ReadFile(segFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg, err := mp4.DecodeFile(bytes.NewBuffer(rawSeg))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range seg.Segments {
+		for _, f := range s.Fragments {
+			err := mp4.EncryptFragment(f, key, iv, ipf)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	encBuf := bytes.Buffer{}
+	err = seg.Encode(&encBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sr := bits.NewFixedSliceReader(encInitBuf.Bytes())
+	encInit, err := mp4.DecodeFileSR(sr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decInfo, err := mp4.DecryptInit(encInit.Init)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sr = bits.NewFixedSliceReader(encBuf.Bytes())
+	encSeg, err := mp4.DecodeFileSR(sr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Change trackID in the segment's traf to create a mismatch
+	for _, s := range encSeg.Segments {
+		for _, f := range s.Fragments {
+			for _, traf := range f.Moof.Trafs {
+				traf.Tfhd.TrackID = 99999
+			}
+		}
+	}
+
+	for _, s := range encSeg.Segments {
+		err = mp4.DecryptSegment(s, decInfo, key)
+		if err == nil {
+			t.Fatal("expected error for mismatched trackID")
+		}
+	}
+}
