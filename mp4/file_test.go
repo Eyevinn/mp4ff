@@ -126,7 +126,9 @@ func TestDecodeEncode(t *testing.T) {
 		"./testdata/prog_8s.mp4",
 		"./testdata/multi_sidx_segment.m4s",
 		"./testdata/interleaved_sidxs_segment.m4s",
-		"./testdata/opus.mp4"}
+		"./testdata/opus.mp4",
+		"./testdata/init_with_colr.mp4",
+	}
 
 	for _, testFile := range testFiles {
 		rawInput, err := os.ReadFile(testFile)
