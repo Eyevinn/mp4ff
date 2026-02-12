@@ -305,7 +305,6 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 	if init.Moov == nil || init.Moov.Traks == nil {
 		return nil, fmt.Errorf("moov or traf is missing")
 	}
-	moov := init.Moov
 
 	for _, key := range protectKey {
 		if len(key.Iv) == 8 {
@@ -316,7 +315,7 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 		}
 		ipd := InitProtectData{Scheme: scheme}
 		// find trex
-		for _, t := range moov.Mvex.Trexs {
+		for _, t := range init.Moov.Mvex.Trexs {
 			if t.TrackID == key.TrackId {
 				ipd.Trex = t
 			}
@@ -327,7 +326,7 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 
 		// find trak
 		var trak *TrakBox
-		for _, t := range moov.Traks {
+		for _, t := range init.Moov.Traks {
 			if t.Tkhd.TrackID == key.TrackId {
 				trak = t
 			}
@@ -403,7 +402,7 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 
 	}
 	for _, pssh := range psshBoxes {
-		moov.AddChild(pssh)
+		init.Moov.AddChild(pssh)
 	}
 	return ipds, nil
 
