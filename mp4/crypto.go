@@ -299,7 +299,7 @@ type ProtectKey struct {
 	Kid UUID
 }
 
-func InitMultitrackProtect(init *InitSegment, scheme string, psshBoxes []*PsshBox, protectKey ...*ProtectKey) ([]*InitProtectData, error) {
+func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*ProtectKey, psshBoxes []*PsshBox) ([]*InitProtectData, error) {
 	ipds := make([]*InitProtectData, 0, len(protectKey))
 
 	if init.Moov == nil || init.Moov.Traks == nil {
