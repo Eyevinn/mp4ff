@@ -83,3 +83,41 @@ func TestColrInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestColrWithICCProfile(t *testing.T) {
+	infile := "testdata/init_with_colr.mp4"
+	fmp4, err := mp4.ReadMP4File(infile)
+	if err != nil {
+		t.Error(err)
+	}
+	if fmp4 == nil {
+		t.Fatal("Failed to read mp4 file")
+	}
+
+	track := fmp4.Moov.Traks[0]
+	avcx := track.Mdia.Minf.Stbl.Stsd.AvcX
+	if avcx == nil {
+		t.Fatal("No avcC box found")
+	}
+
+	colr := &mp4.ColrBox{}
+	for _, ch := range avcx.Children {
+		switch ch.Type() {
+		case "colr":
+			colr = ch.(*mp4.ColrBox)
+		}
+	}
+
+	if colr == nil {
+		t.Fatal("No colr box found")
+	}
+
+	if colr.ColorType != mp4.ColorTypeUnrestrictedICCTProfile {
+		t.Errorf("Expected ColorType %s, got %s", mp4.ColorTypeUnrestrictedICCTProfile, colr.ColorType)
+	}
+
+	// check ICC profile size, [colr] size=8+460
+	if len(colr.ICCProfile) != 460-4 {
+		t.Errorf("Expected ICCProfile size")
+	}
+}
