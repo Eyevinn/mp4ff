@@ -289,6 +289,126 @@ type InitProtectData struct {
 	Scheme   string
 }
 
+type ProtectKey struct {
+	StreamType string // video || audio
+	Resolution string
+	TrackId    uint32
+
+	Key []byte
+	Iv  []byte
+	Kid UUID
+}
+
+func InitMultitrackProtect(init *InitSegment, scheme string, psshBoxes []*PsshBox, protectKey ...*ProtectKey) ([]*InitProtectData, error) {
+	ipds := make([]*InitProtectData, 0, len(protectKey))
+
+	if init.Moov == nil || init.Moov.Traks == nil {
+		return nil, fmt.Errorf("moov or traf is missing")
+	}
+	moov := init.Moov
+
+	for _, key := range protectKey {
+		if len(key.Iv) == 8 {
+			// Convert to 16 bytes
+			iv8 := key.Iv
+			key.Iv = make([]byte, 16)
+			copy(key.Iv, iv8)
+		}
+		ipd := InitProtectData{Scheme: scheme}
+		// find trex
+		for _, t := range moov.Mvex.Trexs {
+			if t.TrackID == key.TrackId {
+				ipd.Trex = t
+			}
+		}
+		if ipd.Trex == nil {
+			return nil, fmt.Errorf("trex not found")
+		}
+
+		// find trak
+		var trak *TrakBox
+		for _, t := range moov.Traks {
+			if t.Tkhd.TrackID == key.TrackId {
+				trak = t
+			}
+		}
+		if trak == nil {
+			return nil, fmt.Errorf("trak not found")
+		}
+		stsd := trak.Mdia.Minf.Stbl.Stsd
+		if len(stsd.Children) != 1 {
+			return nil, fmt.Errorf("only one stsd child supported")
+		}
+
+		//make sinf
+		sinf := SinfBox{}
+		var mediaType string
+		var err error
+		switch se := stsd.Children[0].(type) {
+		case *VisualSampleEntryBox:
+			mediaType = "video"
+			veType := se.Type()
+			se.SetType("encv")
+			frma := FrmaBox{DataFormat: veType}
+			sinf.AddChild(&frma)
+			se.AddChild(&sinf)
+			switch veType {
+			case "avc1", "avc3":
+				ipd.ProtFunc, err = getAVCProtFunc(se.AvcC)
+				if err != nil {
+					return nil, fmt.Errorf("get avc protect func: %w", err)
+				}
+			case "hvc1", "hev1":
+				ipd.ProtFunc, err = getHEVCProtFunc(se.HvcC)
+				if err != nil {
+					return nil, fmt.Errorf("get hevc protect func: %w", err)
+				}
+			default:
+				return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
+			}
+		case *AudioSampleEntryBox:
+			mediaType = "audio"
+			aeType := se.Type()
+			se.SetType("enca")
+			frma := FrmaBox{DataFormat: aeType}
+			sinf.AddChild(&frma)
+			se.AddChild(&sinf)
+			ipd.ProtFunc = getAudioProtectRanges
+		default:
+			return nil, fmt.Errorf("sample entry type %s should not be encrypted", se.Type())
+		}
+		schi := SchiBox{}
+		switch scheme {
+		case "cenc":
+			ipd.Tenc = &TencBox{Version: 0, DefaultIsProtected: 1, DefaultPerSampleIVSize: 16, DefaultKID: key.Kid}
+			sinf.AddChild(&SchmBox{SchemeType: "cenc", SchemeVersion: 65536})
+		case "cbcs":
+			switch mediaType {
+			case "video":
+				ipd.Tenc = &TencBox{Version: 1, DefaultCryptByteBlock: 1, DefaultSkipByteBlock: 9,
+					DefaultIsProtected: 1, DefaultPerSampleIVSize: 0, DefaultKID: key.Kid,
+					DefaultConstantIV: key.Iv}
+			case "audio":
+				ipd.Tenc = &TencBox{Version: 1, DefaultCryptByteBlock: 0, DefaultSkipByteBlock: 0,
+					DefaultIsProtected: 1, DefaultPerSampleIVSize: 0, DefaultKID: key.Kid,
+					DefaultConstantIV: key.Iv}
+			}
+			sinf.AddChild(&SchmBox{SchemeType: "cbcs", SchemeVersion: 65536})
+		default:
+			return nil, fmt.Errorf("unknown protection scheme %s", scheme)
+		}
+		schi.AddChild(ipd.Tenc)
+		sinf.AddChild(&schi)
+		ipds = append(ipds, &ipd)
+
+	}
+	for _, pssh := range psshBoxes {
+		moov.AddChild(pssh)
+	}
+	return ipds, nil
+
+}
+
 // InitProtect modifies the init segment to add protection information and return what is needed to encrypt fragments.
 func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, psshBoxes []*PsshBox) (*InitProtectData, error) {
 	ipd := InitProtectData{Scheme: scheme}
