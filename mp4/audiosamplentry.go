@@ -21,6 +21,7 @@ type AudioSampleEntryBox struct {
 	Dec3               *Dec3Box
 	DfLa               *DfLaBox
 	Dops               *DopsBox
+	Iacb               *IacbBox
 	MhaC               *MhaCBox
 	Btrt               *BtrtBox
 	Sinf               *SinfBox
@@ -71,6 +72,8 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 		a.DfLa = child.(*DfLaBox)
 	case "dOps":
 		a.Dops = child.(*DopsBox)
+	case "iacb":
+    	a.Iacb = child.(*IacbBox)		
 	case "mhaC":
 		a.MhaC = child.(*MhaCBox)
 	case "btrt":
