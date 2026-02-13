@@ -54,6 +54,7 @@ codec-specific boxes. The codecs and their boxes are
 | Audio | E-AC-3 | ec-3 | dec3 | btrt |
 | Audio | AC-4 | ac-4 | dac4 | btrt |
 | Audio | Opus | Opus | dOps | btrt |
+| Audio | IAMF | iamf | iacb | btrt |
 | Audio | MPEG-H 3D Audio | mha1, mha2, mhm1, mhm2 | mhaC | btrt |
 | Audio | Encrypted | enca | sinf | btrt |
 | Subtitles | WebVTT | wvtt | vttC, vlab | vttc, vtte, vtta, vsid, ctim, iden, sttg, payl, btrt |
