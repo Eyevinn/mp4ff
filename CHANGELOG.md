@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fragment.ParseSenc()` and `MediaSegment.ParseSenc()` methods to parse senc boxes
   using encryption info from a separate init segment
 - `SencBox.IsParsedByGuess()` to check if senc was parsed by heuristic
+- Support for IAMF (Immersive Audio Model and Formats) `iamf` sample entry and
+  `iacb` configuration box, including parsing of IAMF OBU headers for info dumping
 
 ### Fixed
 
