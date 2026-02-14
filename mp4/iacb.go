@@ -100,9 +100,9 @@ func (b *IacbBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 				if obu == nil {
 					break
 				}
-				// err = obu.Info(func(format string, p ...interface{}) {
-				// 	bd.write("   "+format, p...)
-				// })
+				err = obu.Info(func(format string, p ...interface{}) {
+					bd.write("   "+format, p...)
+				})
 				if err != nil {
 					return err
 				}
@@ -115,9 +115,9 @@ func (b *IacbBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 					if ctx == nil {
 						continue
 					}
-					// err = ctx.Info(func(level int, format string, p ...interface{}) {
-					// 	bd.write("   "+indentStep+strings.Repeat(indentStep, level)+format, p...)
-					// })
+					err = ctx.Info(func(level int, format string, p ...interface{}) {
+						bd.write("   "+indentStep+strings.Repeat(indentStep, level)+format, p...)
+					})
 					if err != nil {
 						return err
 					}
