@@ -114,13 +114,13 @@ const (
 func (p ParamDefinitionType) String() string {
 	switch p {
 	case ParamDefinitionMixGain:
-		return "MIX_GAIN"
+		return "MixGain"
 	case ParamDefinitionDemixing:
-		return "DEMIXING"
+		return "Demixing"
 	case ParamDefinitionReconGain:
-		return "RECON_GAIN"
+		return "ReconGain"
 	default:
-		return fmt.Sprintf("UNKNOWN(%d)", p)
+		return fmt.Sprintf("Unknown(%d)", p)
 	}
 }
 
