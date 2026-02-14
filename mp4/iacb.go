@@ -3,6 +3,7 @@ package mp4
 import (
 	"encoding/hex"
 	"io"
+	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/iamf"
@@ -88,16 +89,45 @@ func (b *IacbBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	// Parse and display OBUs
 	level := getInfoLevel(b, specificBoxLevels)
 	if level > 0 {
-		bd.write(" - descriptors: %s", hex.EncodeToString(b.IASequenceData))
-		// desc, err := iamf.ReadDescriptors(b.IASequenceData, len(b.IASequenceData))
-		// if err != nil {
-		// 	bd.write(" - error parsing OBUs: %v", err)
-		// 	return bd.err
-		// }
-		// err = desc.Info(newInfoDumper, w, specificBoxLevels, indent+indentStep, indent)
-		// if err != nil {
-		// 	return err
-		// }
+		if level > 1 {
+			or := iamf.NewObuReader(b.IASequenceData, len(b.IASequenceData))
+			for {
+				obu, err := or.ReadObu()
+				if err != nil {
+					bd.write(" - error parsing OBUs: %v", err)
+					break
+				}
+				if obu == nil {
+					break
+				}
+				// err = obu.Info(func(format string, p ...interface{}) {
+				// 	bd.write("   "+format, p...)
+				// })
+				if err != nil {
+					return err
+				}
+				if level > 2 {
+					ctx, err := obu.ReadDescriptors(&or)
+					if err != nil {
+						bd.write(" - error: %v", err)
+						break
+					}
+					if ctx == nil {
+						continue
+					}
+					// err = ctx.Info(func(level int, format string, p ...interface{}) {
+					// 	bd.write("   "+indentStep+strings.Repeat(indentStep, level)+format, p...)
+					// })
+					if err != nil {
+						return err
+					}
+				} else {
+					or.SkipPayload(obu)
+				}
+			}
+		} else {
+			bd.write(" - descriptors: %s", hex.EncodeToString(b.IASequenceData))
+		}
 	}
 
 	return bd.err
