@@ -1451,6 +1451,91 @@ func (obu ObuInfo) ReadDescriptors(r *ObuReader) (*IamfContext, error) {
 	return nil, nil
 }
 
+func (o *ObuInfo) Info(writer func(format string, p ...interface{})) error {
+	writer("obu: Type=%s Size=%d Start=%d", o.Type, o.Size, o.Start)
+	return nil
+}
+
+func (i *IamfContext) Info(f func(level int, format string, p ...interface{})) error {
+	f(0, "IAMF Context:")
+	f(1, "Codec Configs (%d):", i.NumCodecConfigs)
+	for _, cc := range i.CodecConfigs[:i.NumCodecConfigs] {
+		f(2, "CodecConfigID=%d Codec=%s SampleRate=%d NumSamples=%d RollDistance=%d",
+			cc.CodecConfigID, cc.CodecID, cc.SampleRate, cc.NumSamples, cc.AudioRollDistance)
+	}
+
+	f(1, "Audio Elements (%d):", i.NumAudioElements)
+	for _, ae := range i.AudioElements[:i.NumAudioElements] {
+		f(2, "AudioElementID=%d Type=%s CodecConfigID=%d NumSubstreams=%d NumLayers=%d",
+			ae.AudioElementID, ae.Element.AudioElementType, ae.CodecConfigID, ae.NumSubstreams, ae.NumLayers)
+		for j, layer := range ae.Element.Layers {
+			f(3, "Layer[%d]: %s", j, layer.ChannelLayout)
+			if layer.AmbisonicsMode != 0 {
+				f(4, "AmbisonicsMode: %s", layer.AmbisonicsMode)
+			}
+			if layer.OutputGain.Num != 0 || layer.OutputGain.Den != 1 {
+				f(4, "OutputGain: %d/%d", layer.OutputGain.Num, layer.OutputGain.Den)
+			}
+		}
+		for j, ss := range ae.Substreams {
+			f(3, "Substream[%d]: ID=%d", j, ss.AudioSubstreamID)
+		}
+		if ae.Element.DemixingInfo != nil {
+			f(3, "Demixing: ID=%d Rate=%d Duration=%d",
+				ae.Element.DemixingInfo.ParameterID,
+				ae.Element.DemixingInfo.ParameterRate,
+				ae.Element.DemixingInfo.Duration)
+		}
+		if ae.Element.ReconGainInfo != nil {
+			f(3, "ReconGain: ID=%d Rate=%d Duration=%d",
+				ae.Element.ReconGainInfo.ParameterID,
+				ae.Element.ReconGainInfo.ParameterRate,
+				ae.Element.ReconGainInfo.Duration)
+		}
+	}
+
+	f(1, "Mix Presentations (%d):", i.NumMixPresentations)
+	for _, mp := range i.MixPresentations[:i.NumMixPresentations] {
+		f(2, "MixPresentationID=%d Labels=%v", mp.MixPresentationID, mp.LanguageLabel)
+		for lang, ann := range mp.Mix.Annotations {
+			f(3, "%s: %s", lang, ann)
+		}
+		for j, submix := range mp.Mix.Submixes {
+			f(3, "Submix[%d]: NumElements=%d NumLayouts=%d", j, submix.NumElements, submix.NumLayouts)
+			for k, elem := range submix.Elements {
+				f(4, "Element[%d]: AudioElementID=%d HeadphonesMode=%s",
+					k, elem.AudioElementID, elem.HeadphonesRenderingMode)
+				f(5, "DefaultMixGain: %d/%d", elem.DefaultMixGain.Num, elem.DefaultMixGain.Den)
+				for lang, ann := range elem.Annotations {
+					f(6, "%s: %s", lang, ann)
+				}
+			}
+			for k, layout := range submix.Layouts {
+				f(4, "Layout[%d]: Type=%s", k, layout.LayoutType)
+				if layout.SoundSystem.NumChannels > 0 {
+					f(5, "SoundSystem: %s", layout.SoundSystem)
+					f(5, "Channels: %d", layout.SoundSystem.NumChannels)
+				}
+				f(5, "IntegratedLoudness: %d/%d", layout.IntegratedLoudness.Num, layout.IntegratedLoudness.Den)
+				f(5, "DigitalPeak: %d/%d", layout.DigitalPeak.Num, layout.DigitalPeak.Den)
+				if layout.TruePeak.Num != 0 {
+					f(5, "TruePeak: %d/%d", layout.TruePeak.Num, layout.TruePeak.Den)
+				}
+			}
+		}
+	}
+
+	f(1, "Param Definitions (%d):", i.NumParamDefinitions)
+	for _, pd := range i.ParamDefinitions[:i.NumParamDefinitions] {
+		f(2, "Type=%s ParameterID=%d ParameterRate=%d Duration=%d",
+			pd.Param.Type, pd.Param.ParameterID, pd.Param.ParameterRate, pd.Param.Duration)
+		f(3, "Mode=%d NumSubblocks=%d", pd.Mode, pd.Param.NumSubblocks)
+		if pd.AudioElement != nil {
+			f(3, "AudioElementID=%d", pd.AudioElement.AudioElementID)
+		}
+	}
+
+	return nil
 }
 
 func (c channelLayout) toChannelLayout() ChannelLayout {
