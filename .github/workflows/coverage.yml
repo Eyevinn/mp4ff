@@ -9,14 +9,20 @@ on:
 jobs:
   coverage:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Setup Go
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.24
-      - name: Checkout
-        uses: actions/checkout@v4
-      - run: go test -v -coverprofile=profile.cov ./...
-      - uses: shogo82148/actions-goveralls@v1
+          go-version: "1.24"
+
+      - name: Generate coverage
+        run: go test -coverpkg=./... -coverprofile=profile.cov ./...
+
+      - name: Upload coverage
+        uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: profile.cov
+          github-token: ${{ secrets.GITHUB_TOKEN }}
