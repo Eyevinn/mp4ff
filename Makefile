@@ -9,7 +9,7 @@ prepare:
 	go mod tidy
 
 mp4ff-crop mp4ff-decrypt mp4ff-encrypt mp4ff-info mp4ff-nallister mp4ff-pslister mp4ff-subslister:
-	go build -ldflags "-X github.com/Eyevinn/mp4ff/mp4.commitVersion=$$(git describe --tags HEAD) -X github.com/Eyevinn/mp4ff/mp4.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@/main.go
+	go build -ldflags "-X github.com/Eyevinn/mp4ff/internal.commitVersion=$$(git describe --tags HEAD) -X github.com/Eyevinn/mp4ff/internal.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@/main.go
 
 .PHONY: examples
 examples: add-sidx combine-segs initcreator multitrack resegmenter segmenter

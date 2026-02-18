@@ -1,0 +1,99 @@
+version: 2
+
+builds:
+  - id: mp4ff-crop
+    main: ./cmd/mp4ff-crop
+    binary: mp4ff-crop
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+  - id: mp4ff-decrypt
+    main: ./cmd/mp4ff-decrypt
+    binary: mp4ff-decrypt
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+  - id: mp4ff-encrypt
+    main: ./cmd/mp4ff-encrypt
+    binary: mp4ff-encrypt
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+  - id: mp4ff-info
+    main: ./cmd/mp4ff-info
+    binary: mp4ff-info
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+  - id: mp4ff-nallister
+    main: ./cmd/mp4ff-nallister
+    binary: mp4ff-nallister
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+  - id: mp4ff-pslister
+    main: ./cmd/mp4ff-pslister
+    binary: mp4ff-pslister
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+  - id: mp4ff-subslister
+    main: ./cmd/mp4ff-subslister
+    binary: mp4ff-subslister
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+homebrew_casks:
+  - name: mp4ff
+    homepage: https://github.com/Eyevinn/mp4ff
+    description: "Tools for parsing and manipulating MP4/ISOBMFF files"
+    repository:
+      owner: Eyevinn
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+
+nfpms:
+  - package_name: mp4ff
+    homepage: https://github.com/Eyevinn/mp4ff
+    maintainer: "Eyevinn Technology <info@eyevinn.se>"
+    description: "Tools for parsing and manipulating MP4/ISOBMFF files"
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
