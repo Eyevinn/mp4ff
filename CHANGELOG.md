@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New functions DecodeBoxBody and similar to allow for two-step header and body parsing
 - Support for FLAC audio including fLaC and dfLa boxes
 - Support for ID32 (ID3v2) box
+- Support Spherical Video V1 Metadata
 
 ### Fixed
 
