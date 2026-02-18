@@ -3,7 +3,6 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/hex"
-	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -222,21 +221,8 @@ xmlns:GSpherical="http://ns.google.com/videos/1.0/spherical/">` +
 		t.Fatal("SphericalV1 data is nil")
 	}
 
-	s := uuidBox.SphericalV1
-	if s.Spherical != "true" {
-		t.Errorf("got Spherical %s instead of true", s.Spherical)
-	}
-	if s.Stitched != "true" {
-		t.Errorf("got Stitched %s instead of true", s.Stitched)
-	}
-	if s.StitchingSoftware != "Spherical Metadata Tool" {
-		t.Errorf("got StitchingSoftware %s instead of Spherical Metadata Tool", s.StitchingSoftware)
-	}
-	if s.ProjectionType != "equirectangular" {
-		t.Errorf("got ProjectionType %s instead of equirectangular", s.ProjectionType)
-	}
-	if s.StereoMode != "top-bottom" {
-		t.Errorf("got StereoMode %s instead of top-bottom", s.StereoMode)
+	if uuidBox.SphericalV1.XMLData != xmlData {
+		t.Errorf("XMLData mismatch")
 	}
 
 	// Test encode/decode round-trip
@@ -250,101 +236,46 @@ xmlns:GSpherical="http://ns.google.com/videos/1.0/spherical/">` +
 		t.Errorf("encoded size %d doesn't match Size() %d", outBuf.Len(), uuidBox.Size())
 	}
 
-	// Test with all optional fields
-	fullXML := `<?xml version="1.0"?><rdf:SphericalVideo
-xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-xmlns:GSpherical="http://ns.google.com/videos/1.0/spherical/">` +
-		`<GSpherical:Spherical>true</GSpherical:Spherical>` +
-		`<GSpherical:Stitched>true</GSpherical:Stitched>` +
-		`<GSpherical:StitchingSoftware>Test Software</GSpherical:StitchingSoftware>` +
-		`<GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType>` +
-		`<GSpherical:StereoMode>mono</GSpherical:StereoMode>` +
-		`<GSpherical:SourceCount>6</GSpherical:SourceCount>` +
-		`<GSpherical:InitialViewHeadingDegrees>90</GSpherical:InitialViewHeadingDegrees>` +
-		`<GSpherical:InitialViewPitchDegrees>0</GSpherical:InitialViewPitchDegrees>` +
-		`<GSpherical:InitialViewRollDegrees>0</GSpherical:InitialViewRollDegrees>` +
-		`<GSpherical:Timestamp>1400454971</GSpherical:Timestamp>` +
-		`<GSpherical:FullPanoWidthPixels>1920</GSpherical:FullPanoWidthPixels>` +
-		`<GSpherical:FullPanoHeightPixels>1080</GSpherical:FullPanoHeightPixels>` +
-		`<GSpherical:CroppedAreaImageWidthPixels>1920</GSpherical:CroppedAreaImageWidthPixels>` +
-		`<GSpherical:CroppedAreaImageHeightPixels>1080</GSpherical:CroppedAreaImageHeightPixels>` +
-		`<GSpherical:CroppedAreaLeftPixels>0</GSpherical:CroppedAreaLeftPixels>` +
-		`<GSpherical:CroppedAreaTopPixels>0</GSpherical:CroppedAreaTopPixels>` +
-		`</rdf:SphericalVideo>`
-
-	fullSize := uint32(8 + 16 + len(fullXML))
-	buf.Reset()
-	buf.Write([]byte{byte(fullSize >> 24), byte(fullSize >> 16), byte(fullSize >> 8), byte(fullSize)})
-	buf.Write([]byte{'u', 'u', 'i', 'd'})
-	buf.Write(uuidBytes)
-	buf.Write([]byte(fullXML))
-
-	reader = bytes.NewReader(buf.Bytes())
-	hdr, err = mp4.DecodeHeader(reader)
+	// Test decode of re-encoded box
+	reader2 := bytes.NewReader(outBuf.Bytes())
+	hdr2, err := mp4.DecodeHeader(reader2)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	box, err = mp4.DecodeUUIDBox(hdr, 0, reader)
+	box2, err := mp4.DecodeUUIDBox(hdr2, 0, reader2)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	uuidBox = box.(*mp4.UUIDBox)
-	s = uuidBox.SphericalV1
-
-	// Verify all optional fields are parsed
-	if s.SourceCount != "6" {
-		t.Errorf("got SourceCount %s instead of 6", s.SourceCount)
-	}
-	if s.InitialViewHeadingDegrees != "90" {
-		t.Errorf("got InitialViewHeadingDegrees %s instead of 90", s.InitialViewHeadingDegrees)
-	}
-	if s.Timestamp != "1400454971" {
-		t.Errorf("got Timestamp %s instead of 1400454971", s.Timestamp)
-	}
-	if s.FullPanoWidthPixels != "1920" {
-		t.Errorf("got FullPanoWidthPixels %s instead of 1920", s.FullPanoWidthPixels)
-	}
-	if s.CroppedAreaLeftPixels != "0" {
-		t.Errorf("got CroppedAreaLeftPixels %s instead of 0", s.CroppedAreaLeftPixels)
+	uuidBox2 := box2.(*mp4.UUIDBox)
+	if uuidBox2.SphericalV1.XMLData != xmlData {
+		t.Error("round-trip XMLData mismatch")
 	}
 
-	// Test Info method output
+	// Test Info method output at level 1 (no XML content)
 	var infoBuf bytes.Buffer
 	err = uuidBox.Info(&infoBuf, "uuid:1", "", "  ")
 	if err != nil {
 		t.Fatal(err)
 	}
 	infoStr := infoBuf.String()
-	if !strings.Contains(infoStr, "spherical-v1") {
+	if !bytes.Contains([]byte(infoStr), []byte("spherical-v1")) {
 		t.Error("Info output should contain spherical-v1")
 	}
-	if !strings.Contains(infoStr, "Spherical: true") {
-		t.Error("Info output should contain Spherical: true")
+	if !bytes.Contains([]byte(infoStr), []byte("xmlDataLength")) {
+		t.Error("Info output should contain xmlDataLength")
 	}
-}
+	if bytes.Contains([]byte(infoStr), []byte("xmlData:")) {
+		t.Error("Info output at level 1 should not contain xmlData")
+	}
 
-func TestSphericalVideoV1Errors(t *testing.T) {
-	// Test with malformed XML
-	uuidBytes, _ := hex.DecodeString("ffcc8263f8554a938814587a02521fdd")
-	badXML := `<broken xml`
-
-	size := uint32(8 + 16 + len(badXML))
-	var buf bytes.Buffer
-	buf.Write([]byte{byte(size >> 24), byte(size >> 16), byte(size >> 8), byte(size)})
-	buf.Write([]byte{'u', 'u', 'i', 'd'})
-	buf.Write(uuidBytes)
-	buf.Write([]byte(badXML))
-
-	reader := bytes.NewReader(buf.Bytes())
-	hdr, err := mp4.DecodeHeader(reader)
+	// Test Info method output at level 2 (includes XML content)
+	var infoBuf2 bytes.Buffer
+	err = uuidBox.Info(&infoBuf2, "uuid:2", "", "  ")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = mp4.DecodeUUIDBox(hdr, 0, reader)
-	if err == nil {
-		t.Error("expected error for malformed XML, got nil")
+	infoStr2 := infoBuf2.String()
+	if !bytes.Contains([]byte(infoStr2), []byte("xmlData:")) {
+		t.Error("Info output at level 2 should contain xmlData")
 	}
 }
