@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/aac"
@@ -128,6 +129,7 @@ func TestDecodeEncode(t *testing.T) {
 		"./testdata/interleaved_sidxs_segment.m4s",
 		"./testdata/opus.mp4",
 		"./testdata/init_with_colr.mp4",
+		"./testdata/iamf.mp4",
 	}
 
 	for _, testFile := range testFiles {
@@ -150,9 +152,14 @@ func TestDecodeEncode(t *testing.T) {
 		}
 		if !bytes.Equal(rawOutput, rawInput) {
 			t.Errorf("encode differs from input for EncodeSW() and %s", testFile)
-			//outf := fmt.Sprintf("bad_encode_sw_%s", path.Base(testFile))
-			//fmt.Printf("writing bad encode sw to %s\n", outf)
-			//_ = os.WriteFile(outf, rawOutput, 0644)
+			outf := fmt.Sprintf("bad_encode_sw_%s", path.Base(testFile))
+			fmt.Printf("writing bad encode sw to %s\n", outf)
+			_ = os.WriteFile(outf, rawOutput, 0644)
+			for i, b := range rawInput {
+				if rawOutput[i] != b {
+					t.Errorf("block data byte %d: got 0x%02x, expected 0x%02x", i, rawOutput[i], b)
+				}
+			}
 		}
 
 		// io.Writer case
@@ -164,6 +171,11 @@ func TestDecodeEncode(t *testing.T) {
 		}
 		if !bytes.Equal(outBuf.Bytes(), rawInput) {
 			t.Errorf("encode differs from input for Encode() and %s", testFile)
+			for i, b := range rawInput {
+				if outBuf.Bytes()[i] != b {
+					t.Errorf("block data byte %d: got 0x%02x, expected 0x%02x", i, outBuf.Bytes()[i], b)
+				}
+			}
 		}
 	}
 }
