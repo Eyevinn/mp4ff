@@ -109,8 +109,8 @@ func (s *SencBox) ReadButNotParsed() bool {
 
 // DecodeSenc - box-specific decode
 func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	if hdr.Size < 16 {
-		return nil, fmt.Errorf("box size %d less than min size 16", hdr.Size)
+	if hdr.payloadLen() < 8 {
+		return nil, fmt.Errorf("payload size %d less than min size 8", hdr.payloadLen())
 	}
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
@@ -125,10 +125,6 @@ func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 	sampleCount := binary.BigEndian.Uint32(data[4:8])
 
-	if len(data) < 8 {
-		return nil, fmt.Errorf("senc: box size %d less than 16", hdr.Size)
-	}
-
 	senc := SencBox{
 		Version:          version,
 		rawData:          data[8:], // After the first 8 bytes of box content
@@ -140,8 +136,8 @@ func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	}
 
 	if flags&UseSubSampleEncryption != 0 && (len(senc.rawData) < 2*int(sampleCount)) {
-		return nil, fmt.Errorf("box size %d too small for %d samples and subSampleEncryption",
-			hdr.Size, sampleCount)
+		return nil, fmt.Errorf("payload size %d too small for %d samples and subSampleEncryption",
+			hdr.payloadLen(), sampleCount)
 	}
 
 	if senc.SampleCount == 0 || len(senc.rawData) == 0 {
@@ -153,9 +149,10 @@ func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeSencSR - box-specific decode
 func DecodeSencSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	if hdr.Size < 16 {
-		return nil, fmt.Errorf("box size %d less than min size 16", hdr.Size)
+	if hdr.payloadLen() < 8 {
+		return nil, fmt.Errorf("payload size %d less than min size 8", hdr.payloadLen())
 	}
+	payloadLen := uint64(hdr.payloadLen())
 
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
@@ -165,14 +162,14 @@ func DecodeSencSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	flags := versionAndFlags & flagsMask
 	sampleCount := sr.ReadUint32()
 
-	if flags&UseSubSampleEncryption != 0 && ((hdr.Size - 16) < 2*uint64(sampleCount)) {
-		return nil, fmt.Errorf("box size %d too small for %d samples and subSampleEncryption",
-			hdr.Size, sampleCount)
+	if flags&UseSubSampleEncryption != 0 && ((payloadLen - 8) < 2*uint64(sampleCount)) {
+		return nil, fmt.Errorf("payload size %d too small for %d samples and subSampleEncryption",
+			hdr.payloadLen(), sampleCount)
 	}
 
 	senc := SencBox{
 		Version:          version,
-		rawData:          sr.ReadBytes(hdr.payloadLen() - 8), // After the first 8 bytes of box content
+		rawData:          sr.ReadBytes(int(payloadLen - 8)), // After the first 8 bytes of box content
 		Flags:            flags,
 		StartPos:         startPos,
 		SampleCount:      sampleCount,

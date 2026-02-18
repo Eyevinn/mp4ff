@@ -34,7 +34,7 @@ open-docs:
 .PHONY: coverage
 coverage:
 	# Ignore (allow) packages without any tests
-	go test ./... -coverprofile coverage.out
+	go test -coverpkg=./... -coverprofile coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	go tool cover -func coverage.out -o coverage.txt
 	tail -1 coverage.txt

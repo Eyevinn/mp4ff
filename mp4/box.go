@@ -214,6 +214,10 @@ func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	headerLen := boxHeaderSize
 	switch size {
 	case 1: // size 1 means large size in next 8 bytes
+		boxType := string(buf[4:8])
+		if boxType != "mdat" {
+			return BoxHeader{}, fmt.Errorf("extended size not supported for box type %s", boxType)
+		}
 		buf := make([]byte, largeSizeLen)
 		_, err = io.ReadFull(r, buf)
 		if err != nil {

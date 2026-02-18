@@ -179,7 +179,7 @@ func TestBadSencData(t *testing.T) {
 		{
 			desc: "too short",
 			raw:  []byte{0x00, 0x00, 0x00, 0x0f, 's', 'e', 'n', 'c', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-			err:  "decode senc pos 0: box size 15 less than min size 16",
+			err:  "decode senc pos 0: payload size 7 less than min size 8",
 		},
 		{
 			desc: "v1 not supported",
@@ -189,7 +189,12 @@ func TestBadSencData(t *testing.T) {
 		{
 			desc: "too short for subsample encryption",
 			raw:  []byte{0x00, 0x00, 0x00, 0x10, 's', 'e', 'n', 'c', 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0xff},
-			err:  "decode senc pos 0: box size 16 too small for 255 samples and subSampleEncryption",
+			err:  "decode senc pos 0: payload size 8 too small for 255 samples and subSampleEncryption",
+		},
+		{
+			desc: "extended size rejected for senc (issue 479)",
+			raw:  []byte{0x00, 0x00, 0x00, 0x01, 's', 'e', 'n', 'c', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
+			err:  "extended size not supported for box type senc",
 		},
 	}
 
