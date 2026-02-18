@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - duration is printed by `MdhdBox.Info()`
+- extended size usage only allowed for `mdat` boxes
 
 ## [0.50.0] - 2025-09-05
 

@@ -186,6 +186,9 @@ func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
 	headerLen := boxHeaderSize
 	switch size {
 	case 1: // size 1 means large size in next 8 bytes
+		if boxType != "mdat" {
+			return BoxHeader{}, fmt.Errorf("extended size not supported for box type %s", boxType)
+		}
 		size = sr.ReadUint64()
 		headerLen += largeSizeLen
 	case 0: // size 0 means to end of file
