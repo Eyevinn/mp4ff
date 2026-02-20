@@ -70,14 +70,25 @@ archives:
       - goos: windows
         formats: [zip]
 
-homebrew_casks:
+brews:
   - name: mp4ff
     homepage: https://github.com/Eyevinn/mp4ff
     description: "Tools for parsing and manipulating MP4/ISOBMFF files"
+    license: MIT
     repository:
       owner: Eyevinn
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    install: |
+      bin.install "mp4ff-crop"
+      bin.install "mp4ff-decrypt"
+      bin.install "mp4ff-encrypt"
+      bin.install "mp4ff-info"
+      bin.install "mp4ff-nallister"
+      bin.install "mp4ff-pslister"
+      bin.install "mp4ff-subslister"
+    test: |
+      system "#{bin}/mp4ff-info -version"
 
 nfpms:
   - package_name: mp4ff
