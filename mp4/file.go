@@ -259,10 +259,17 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		f.Ftyp = box
 	case *MoovBox:
 		f.Moov = box
-		if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+		if f.Moov.Trak != nil &&
+			f.Moov.Trak.Mdia != nil &&
+			f.Moov.Trak.Mdia.Minf != nil &&
+			f.Moov.Trak.Mdia.Minf.Stbl != nil &&
+			f.Moov.Trak.Mdia.Minf.Stbl.Stts != nil &&
+			len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
 			f.isFragmented = true
 			f.Init = NewMP4Init()
-			f.Init.AddChild(f.Ftyp)
+			if f.Ftyp != nil {
+				f.Init.AddChild(f.Ftyp)
+			}
 			f.Init.AddChild(f.Moov)
 		}
 	case *SidxBox:
@@ -322,7 +329,14 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 				f.Mdat = box
 			}
 		} else {
-			currentFragment := f.LastSegment().LastFragment()
+			lastSeg := f.LastSegment()
+			if lastSeg == nil {
+				break
+			}
+			currentFragment := lastSeg.LastFragment()
+			if currentFragment == nil {
+				break
+			}
 			currentFragment.AddChild(box)
 		}
 	case *MfraBox:
@@ -332,7 +346,7 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 }
 
 // startSegmentIfNeeded starts a new segment if there is none or if position match with sidx of tfra.
-func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
+func (f *File) startSegmentIfNeeded(_ Box, boxStartPos uint64) {
 	segStart := false
 	segIdx := len(f.Segments)
 	switch {
@@ -354,7 +368,7 @@ func (f *File) startSegmentIfNeeded(b Box, boxStartPos uint64) {
 			}
 		}
 	case f.tfra != nil:
-		if boxStartPos == uint64(f.tfra.Entries[segIdx].MoofOffset) {
+		if len(f.tfra.Entries) > segIdx && boxStartPos == uint64(f.tfra.Entries[segIdx].MoofOffset) {
 			segStart = true
 		}
 	case (f.fileDecFlags & DecStartOnMoof) != 0:
@@ -406,7 +420,7 @@ func (f *File) findAndReadMfra(r io.Reader) error {
 	if !ok {
 		return fmt.Errorf("expecting mfra box, but got %T", b)
 	}
-	f.tfra = mfra.Tfras[0]
+	f.tfra = mfra.Tfra
 	for i := 1; i < len(mfra.Tfras); i++ {
 		if mfra.Tfras[i].TrackID == f.tfra.TrackID {
 			return fmt.Errorf("only one tfra box per trackID is supported")
@@ -598,12 +612,18 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 		return fmt.Errorf("only available for progressive files")
 	}
 	mdat := f.Mdat
+	if mdat == nil {
+		return fmt.Errorf("no mdat box in file")
+	}
 
 	if mdat.IsLazy() && rs == nil {
 		return fmt.Errorf("no ReadSeeker for lazy mdat")
 	}
 	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 
+	if trak.Mdia == nil || trak.Mdia.Minf == nil || trak.Mdia.Minf.Stbl == nil {
+		return fmt.Errorf("trak does not have a complete mdia/minf/stbl structure")
+	}
 	stbl := trak.Mdia.Minf.Stbl
 	chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
 	if err != nil {
@@ -726,7 +746,13 @@ func (f *File) UpdateSidx(addIfNotExists, nonZeroEPT bool) error {
 		return nil
 	}
 
-	refTrak := findReferenceTrak(initSeg)
+	if initSeg.Moov == nil || initSeg.Moov.Mvex == nil {
+		return fmt.Errorf("init segment does not have moov/mvex boxes")
+	}
+	refTrak, err := findReferenceTrak(initSeg)
+	if err != nil {
+		return err
+	}
 	trex, ok := initSeg.Moov.Mvex.GetTrex(refTrak.Tkhd.TrackID)
 	if !ok {
 		return fmt.Errorf("no trex box found for track %d", refTrak.Tkhd.TrackID)
@@ -752,19 +778,21 @@ func (f *File) UpdateSidx(addIfNotExists, nonZeroEPT bool) error {
 	return nil
 }
 
-func findReferenceTrak(initSeg *InitSegment) *TrakBox {
-	var trak *TrakBox
-	for _, trak = range initSeg.Moov.Traks {
-		if trak.Mdia.Hdlr.HandlerType == "vide" {
-			return trak
+func findReferenceTrak(initSeg *InitSegment) (*TrakBox, error) {
+	if initSeg.Moov == nil || len(initSeg.Moov.Traks) == 0 {
+		return nil, fmt.Errorf("no traks in init segment moov")
+	}
+	for _, trak := range initSeg.Moov.Traks {
+		if trak.Mdia != nil && trak.Mdia.Hdlr != nil && trak.Mdia.Hdlr.HandlerType == "vide" {
+			return trak, nil
 		}
 	}
-	for _, trak = range initSeg.Moov.Traks {
-		if trak.Mdia.Hdlr.HandlerType == "soun" {
-			return trak
+	for _, trak := range initSeg.Moov.Traks {
+		if trak.Mdia != nil && trak.Mdia.Hdlr != nil && trak.Mdia.Hdlr.HandlerType == "soun" {
+			return trak, nil
 		}
 	}
-	return initSeg.Moov.Traks[0]
+	return initSeg.Moov.Traks[0], nil
 }
 
 type segData struct {

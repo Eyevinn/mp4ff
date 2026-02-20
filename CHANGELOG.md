@@ -11,12 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Copy methods for FtypBox and StypBox
 - StreamFile for decoding a stream of fragmented mp4
-- BoxSeekReader to make an io.Reader available for lazy mdat processing
-- examples/stream-encrypt showing how to read and process a multi-segment file
-  - On an HTTP request, a file is read, optionally further fragmented, and then encrypted
-
-### Added
-
+  - BoxSeekReader to make an io.Reader available for lazy mdat processing
+  - examples/stream-encrypt showing how to read and process a multi-segment file
+    - On an HTTP request, a file is read, optionally further fragmented, and then encrypted
 - New functions DecodeBoxBody and similar to allow for two-step header and body parsing
 - Support for FLAC audio including fLaC and dfLa boxes
 - Support for ID32 (ID3v2) box
@@ -30,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - trackID is checked when decrypting content
 - Proper handling of trailing bytes in avc1 (VisualSampleEntryBox). Issue 444
 - Proper removal of boxes when decrypting PR 464
+- More robust decode of malformed files
 
 ## [0.50.0] - 2025-09-05
 
