@@ -40,6 +40,15 @@ func monitorMemory(ctx context.Context, t *testing.T, memoryLimit int) {
 	}()
 }
 
+// FuzzDecodeBox tests box decoding with malformed input.
+// The corpus in testdata/fuzz/FuzzDecodeBox/ includes entries for specific fixes:
+//
+//	7e07cf8cc85e7f41 - co64 memory overflow on 32-bit size (2330aaa)
+//	dc68c3d7e3180551 - invalid subs box memory usage (5fb4e82)
+//	6041c517bf46e9ee - ssix box too small to read (cfc0783)
+//	77cf6e30648805ea - mime box too small to read (fa56081)
+//	0881196294cc083f - senc parsing robustness (38ff9db)
+//	(remaining 39 entries from initial fuzzing session 9409e9b)
 func FuzzDecodeBox(f *testing.F) {
 	entries, err := os.ReadDir("testdata")
 	if err != nil {
