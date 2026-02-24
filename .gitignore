@@ -18,3 +18,5 @@ vendor/
 # venv for pre-commits
 .venv/
 venv/
+
+.idea/

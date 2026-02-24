@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
+	"sort"
 
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/hevc"
@@ -663,6 +664,8 @@ func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey) error {
 		return fmt.Errorf("no moof or trafs in fragment")
 	}
 
+	var allTruns []*TrunBox
+
 	for _, k := range protectKey {
 		iv := k.Iv
 		trackID := k.TrackId
@@ -687,6 +690,8 @@ func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey) error {
 			if k.Ipd == nil {
 				return fmt.Errorf("no protection data for track %d", trackID)
 			}
+
+			allTruns = append(allTruns, traf.Truns...)
 
 			nrSamples := int(traf.Trun.SampleCount())
 			saiz := NewSaizBox(nrSamples)
@@ -741,13 +746,20 @@ func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey) error {
 					return fmt.Errorf("unknown scheme %s", k.Ipd.Scheme)
 				}
 			}
-
 		}
 
 		if err := setSaioOffsets(f); err != nil {
 			return fmt.Errorf("set saio offsets: %w", err)
 		}
 	}
+
+	sort.Slice(allTruns, func(i, j int) bool {
+		return allTruns[i].DataOffset < allTruns[j].DataOffset
+	})
+	for i, trun := range allTruns {
+		trun.writeOrderNr = uint32(i + 1)
+	}
+
 	return nil
 }
 

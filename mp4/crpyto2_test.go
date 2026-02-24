@@ -22,23 +22,23 @@ func Test_Encrypt(t *testing.T) {
 	key := []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X984")
 	iv16 := []byte("0123456789abcdef")
 	keyID := GenerateKeyID()
-	keyset1 := &ProtectKey{
+	videoKey := &ProtectKey{
 		StreamType: "video",
 		Resolution: "1920x1080",
-		TrackId:    1,
+		TrackId:    2,
 		Key:        key,
 		Iv:         iv16,
 		Kid:        keyID,
 	}
-	keyset2 := &ProtectKey{
+	audioKey := &ProtectKey{
 		StreamType: "audio",
 		Resolution: "1920x1080",
-		TrackId:    2,
+		TrackId:    1,
 		Key:        []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X982"),
 		Iv:         []byte("0123456789abcded"),
 		Kid:        GenerateKeyID(),
 	}
-	keylist := []*ProtectKey{keyset1, keyset2}
+	keylist := []*ProtectKey{audioKey, videoKey}
 	enc := NewMP4Encryptor(keylist)
 	if err := os.MkdirAll(filepath.Join(".", "test_data", "encrypted"), 0777); err != nil {
 		t.Fatalf("failed to create test data directory: %v", err)
@@ -60,7 +60,7 @@ func Test_Encrypt(t *testing.T) {
 
 	for _, seg := range []string{"1_partial_segment_0_0", "1_partial_segment_0_1", "1_partial_segment_0_2", "1_partial_segment_0_3"} {
 		func() {
-			f, err := files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s", seg)))
+			f, err = files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s", seg)))
 			if err != nil {
 				t.Fatalf("failed to open file: %v", err)
 			}
@@ -190,23 +190,23 @@ func Test_Decrypt(t *testing.T) {
 	key := []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X984")
 	iv16 := []byte("0123456789abcdef")
 	keyID := GenerateKeyID()
-	keyset1 := &ProtectKey{
+	videoKey := &ProtectKey{
 		StreamType: "video",
 		Resolution: "1920x1080",
-		TrackId:    1,
+		TrackId:    2,
 		Key:        key,
 		Iv:         iv16,
 		Kid:        keyID,
 	}
-	keyset2 := &ProtectKey{
+	audioKey := &ProtectKey{
 		StreamType: "audio",
 		Resolution: "1920x1080",
-		TrackId:    2,
+		TrackId:    1,
 		Key:        []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X982"),
 		Iv:         []byte("0123456789abcded"),
 		Kid:        GenerateKeyID(),
 	}
-	keylist := []*ProtectKey{keyset1, keyset2}
+	keylist := []*ProtectKey{audioKey, videoKey}
 
 	dec := NewMP4Decryptor(keylist)
 	if err := os.MkdirAll(filepath.Join(".", "test_data", "decrypted"), 0777); err != nil {
@@ -221,7 +221,7 @@ func Test_Decrypt(t *testing.T) {
 		t.Fatalf("failed to init protect: %v", err)
 	}
 
-	rawInit, err := files.ReadFile(filepath.Join("test_data", "init.mp4"))
+	rawInit, err := files.ReadFile(filepath.Join("test_data", "stream_moov_1.m4s"))
 	if err != nil {
 		t.Fatalf("failed to get raw seg: %v", err)
 	}
@@ -230,10 +230,11 @@ func Test_Decrypt(t *testing.T) {
 		t.Errorf("segment not equal after encryption+decryption")
 	}
 
-	if err := os.WriteFile(filepath.Join("test_data", "decrypted", "decrypted_init.mp4"), decryptedInit, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join("test_data", "decrypted", "decrypted_init.mp4"), decryptedInit, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	for _, seg := range []string{"segment_000", "segment_001", "segment_002"} {
+
+	for _, seg := range []string{"1_partial_segment_0_0", "1_partial_segment_0_1", "1_partial_segment_0_2", "1_partial_segment_0_3"} {
 		func() {
 			f, err = files.ReadFile(filepath.Join("test_data", "encrypted", fmt.Sprintf("encrypted_%s.m4s", seg)))
 			if err != nil {
@@ -244,7 +245,7 @@ func Test_Decrypt(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to decrypt: %v", err)
 			}
-			rawSeg, err := files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s.m4s", seg)))
+			rawSeg, err := files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s", seg)))
 			if err != nil {
 				t.Fatalf("failed to get raw seg: %v", err)
 			}
