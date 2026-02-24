@@ -126,7 +126,9 @@ func TestDecodeEncode(t *testing.T) {
 		"./testdata/prog_8s.mp4",
 		"./testdata/multi_sidx_segment.m4s",
 		"./testdata/interleaved_sidxs_segment.m4s",
-		"./testdata/opus.mp4"}
+		"./testdata/opus.mp4",
+		"./testdata/init_with_colr.mp4",
+	}
 
 	for _, testFile := range testFiles {
 		rawInput, err := os.ReadFile(testFile)
@@ -406,5 +408,86 @@ func TestDecodeTrunctedFile(t *testing.T) {
 	}
 	if boxTree != nil && boxTree.Ftyp == nil {
 		t.Error("expected styp box to be present in truncated file")
+	}
+}
+
+func TestAddChildMoovWithNilChain(t *testing.T) {
+	// A moov with nil Trak should not panic
+	f := mp4.NewFile()
+	moov := &mp4.MoovBox{}
+	f.AddChild(moov, 0)
+	if f.Moov != moov {
+		t.Error("expected Moov to be set")
+	}
+}
+
+func TestAddChildMoovWithoutFtyp(t *testing.T) {
+	// Moov arriving before ftyp should not panic on nil Ftyp
+	f := mp4.NewFile()
+	init := mp4.CreateEmptyInit()
+	init.AddEmptyTrack(48000, "audio", "en")
+	moov := init.Moov
+	// Clear stts to trigger fragmented path
+	moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount = nil
+	f.AddChild(moov, 0)
+	if !f.IsFragmented() {
+		t.Error("expected file to be fragmented")
+	}
+}
+
+func TestAddChildMdatFragmentedNoSegments(t *testing.T) {
+	// An mdat in fragmented mode with no segments should not panic
+	f := mp4.NewFile()
+	init := mp4.CreateEmptyInit()
+	init.AddEmptyTrack(48000, "audio", "en")
+	moov := init.Moov
+	moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount = nil
+	f.AddChild(moov, 0)
+	// Now add an mdat without any moof/segment - should not panic
+	mdat := &mp4.MdatBox{}
+	f.AddChild(mdat, 100)
+}
+
+func TestCopySampleDataNilMdat(t *testing.T) {
+	f := mp4.NewFile()
+	trak := &mp4.TrakBox{}
+	buf := &bytes.Buffer{}
+	err := f.CopySampleData(buf, nil, trak, 1, 1, nil)
+	if err == nil {
+		t.Error("expected error for nil mdat")
+	}
+}
+
+func TestCopySampleDataIncompleteTrak(t *testing.T) {
+	f := mp4.NewFile()
+	mdat := &mp4.MdatBox{Data: []byte{0}}
+	f.AddChild(mdat, 0)
+	trak := &mp4.TrakBox{} // No Mdia
+	buf := &bytes.Buffer{}
+	err := f.CopySampleData(buf, nil, trak, 1, 1, nil)
+	if err == nil {
+		t.Error("expected error for incomplete trak structure")
+	}
+}
+
+func TestUpdateSidxNilMvex(t *testing.T) {
+	f := mp4.NewFile()
+	// Build a minimal fragmented file with no mvex
+	init := mp4.CreateEmptyInit()
+	init.AddEmptyTrack(48000, "audio", "en")
+	moov := init.Moov
+	moov.Mvex = nil
+	moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount = nil
+	f.AddChild(init.Ftyp, 0)
+	f.AddChild(moov, uint64(init.Ftyp.Size()))
+
+	seg := mp4.NewMediaSegment()
+	frag := createFragment(t, 1, 1024, 0)
+	seg.AddFragment(frag)
+	f.AddMediaSegment(seg)
+
+	err := f.UpdateSidx(true, false)
+	if err == nil {
+		t.Error("expected error for nil mvex")
 	}
 }

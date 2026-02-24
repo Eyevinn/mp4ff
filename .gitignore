@@ -1,6 +1,7 @@
 # Programs built
 out/
 examples-out/
+dist/
 
 # Test binary, built with `go test -c`
 *.test
@@ -17,3 +18,5 @@ vendor/
 # venv for pre-commits
 .venv/
 venv/
+
+.idea/

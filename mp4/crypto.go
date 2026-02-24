@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
+	"sort"
 
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/hevc"
@@ -297,13 +298,13 @@ type ProtectKey struct {
 	Key []byte
 	Iv  []byte
 	Kid UUID
+
+	Ipd *InitProtectData
 }
 
-func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*ProtectKey, psshBoxes []*PsshBox) ([]*InitProtectData, error) {
-	ipds := make([]*InitProtectData, 0, len(protectKey))
-
+func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*ProtectKey, psshBoxes []*PsshBox) error {
 	if init.Moov == nil || init.Moov.Traks == nil {
-		return nil, fmt.Errorf("moov or traf is missing")
+		return fmt.Errorf("moov or traf is missing")
 	}
 
 	for _, key := range protectKey {
@@ -321,7 +322,7 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			}
 		}
 		if ipd.Trex == nil {
-			return nil, fmt.Errorf("trex not found")
+			return fmt.Errorf("trex not found")
 		}
 
 		// find trak
@@ -332,11 +333,11 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			}
 		}
 		if trak == nil {
-			return nil, fmt.Errorf("trak not found")
+			return fmt.Errorf("trak not found")
 		}
 		stsd := trak.Mdia.Minf.Stbl.Stsd
 		if len(stsd.Children) != 1 {
-			return nil, fmt.Errorf("only one stsd child supported")
+			return fmt.Errorf("only one stsd child supported")
 		}
 
 		//make sinf
@@ -355,15 +356,15 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			case "avc1", "avc3":
 				ipd.ProtFunc, err = getAVCProtFunc(se.AvcC)
 				if err != nil {
-					return nil, fmt.Errorf("get avc protect func: %w", err)
+					return fmt.Errorf("get avc protect func: %w", err)
 				}
 			case "hvc1", "hev1":
 				ipd.ProtFunc, err = getHEVCProtFunc(se.HvcC)
 				if err != nil {
-					return nil, fmt.Errorf("get hevc protect func: %w", err)
+					return fmt.Errorf("get hevc protect func: %w", err)
 				}
 			default:
-				return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
+				return fmt.Errorf("visual sample entry type %s not yet supported", veType)
 			}
 		case *AudioSampleEntryBox:
 			mediaType = "audio"
@@ -374,7 +375,7 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			se.AddChild(&sinf)
 			ipd.ProtFunc = getAudioProtectRanges
 		default:
-			return nil, fmt.Errorf("sample entry type %s should not be encrypted", se.Type())
+			return fmt.Errorf("sample entry type %s should not be encrypted", se.Type())
 		}
 		schi := SchiBox{}
 		switch scheme {
@@ -394,17 +395,18 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			}
 			sinf.AddChild(&SchmBox{SchemeType: "cbcs", SchemeVersion: 65536})
 		default:
-			return nil, fmt.Errorf("unknown protection scheme %s", scheme)
+			return fmt.Errorf("unknown protection scheme %s", scheme)
 		}
 		schi.AddChild(ipd.Tenc)
 		sinf.AddChild(&schi)
-		ipds = append(ipds, &ipd)
-
+		key.Ipd = &ipd
 	}
+
 	for _, pssh := range psshBoxes {
 		init.Moov.AddChild(pssh)
 	}
-	return ipds, nil
+
+	return nil
 
 }
 
@@ -656,6 +658,157 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 	return nil
 }
 
+// EncryptMultitrackFragment encrypts ALL tracks in a fragment (multi-traf support)
+func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey) error {
+	if f.Moof == nil || len(f.Moof.Trafs) == 0 {
+		return fmt.Errorf("no moof or trafs in fragment")
+	}
+
+	var allTruns []*TrunBox
+
+	for _, k := range protectKey {
+		iv := k.Iv
+		trackID := k.TrackId
+		key := k.Key
+
+		if len(iv) == 8 {
+			iv8 := iv
+			iv = make([]byte, 16)
+			copy(iv, iv8)
+		}
+		if len(iv) != 16 {
+			return fmt.Errorf("iv must be 16 bytes")
+		}
+
+		for _, traf := range f.Moof.Trafs {
+			if trackID != traf.Tfhd.TrackID {
+				continue
+			}
+			if len(traf.Truns) != 1 {
+				return fmt.Errorf("only one trun supported")
+			}
+			if k.Ipd == nil {
+				return fmt.Errorf("no protection data for track %d", trackID)
+			}
+
+			allTruns = append(allTruns, traf.Truns...)
+
+			nrSamples := int(traf.Trun.SampleCount())
+			saiz := NewSaizBox(nrSamples)
+			_ = traf.AddChild(saiz)
+			saio := NewSaioBox()
+			_ = traf.AddChild(saio)
+
+			var senc *SencBox
+			switch k.Ipd.Scheme {
+			case "cenc":
+				senc = NewSencBox(nrSamples, nrSamples)
+			case "cbcs":
+				senc = NewSencBox(0, nrSamples)
+			default:
+				return fmt.Errorf("unknown scheme %s", k.Ipd.Scheme)
+			}
+			if err := traf.AddChild(senc); err != nil {
+				panic(err)
+			}
+
+			fss, err := f.GetFullSamples(k.Ipd.Trex)
+			if err != nil {
+				return fmt.Errorf("GetFullSamples track %d: %w", trackID, err)
+			}
+
+			for _, fs := range fss {
+				sample := fs.Data
+				subSamples, err := k.Ipd.ProtFunc(sample, k.Ipd.Scheme)
+				if err != nil {
+					return fmt.Errorf("protect ranges track %d: %w", trackID, err)
+				}
+
+				switch k.Ipd.Scheme {
+				case "cenc":
+					if err = CryptSampleCenc(sample, key, iv, subSamples); err != nil {
+						return fmt.Errorf("crypt sample cenc: %w", err)
+					}
+					if err = senc.AddSample(SencSample{IV: append([]byte{}, iv...), SubSamples: subSamples}); err != nil {
+						return fmt.Errorf("add sample to senc: %w", err)
+					}
+					saiz.AddSampleInfo(iv, subSamples)
+					iv = incrementIV(iv, subSamples, len(sample))
+				case "cbcs":
+					if err = EncryptSampleCbcs(sample, key, iv, subSamples, k.Ipd.Tenc); err != nil {
+						return fmt.Errorf("crypt sample cbcs: %w", err)
+					}
+					if err = senc.AddSample(SencSample{SubSamples: subSamples}); err != nil {
+						return fmt.Errorf("add sample to senc: %w", err)
+					}
+					saiz.AddSampleInfo(nil, subSamples)
+				default:
+					return fmt.Errorf("unknown scheme %s", k.Ipd.Scheme)
+				}
+			}
+		}
+
+		if err := setSaioOffsets(f); err != nil {
+			return fmt.Errorf("set saio offsets: %w", err)
+		}
+	}
+
+	sort.Slice(allTruns, func(i, j int) bool {
+		return allTruns[i].DataOffset < allTruns[j].DataOffset
+	})
+	for i, trun := range allTruns {
+		trun.writeOrderNr = uint32(i + 1)
+	}
+
+	return nil
+}
+
+func setSaioOffsets(frag *Fragment) error {
+	if frag.Moof == nil {
+		return nil
+	}
+
+	_ = frag.Moof.Size()
+
+	moofOffset := uint64(8)
+
+	for _, child := range frag.Moof.Children {
+		if traf, ok := child.(*TrafBox); ok {
+			trafStart := moofOffset
+			internalOffset := uint64(8)
+
+			var saioBox *SaioBox
+			sencFound := false
+			sencDataStart := uint64(0)
+
+			for _, tchild := range traf.Children {
+				boxType := tchild.Type()
+				boxSize := tchild.Size()
+
+				if saio, ok := tchild.(*SaioBox); ok {
+					saioBox = saio
+				}
+
+				if boxType == "senc" {
+					sencDataStart = trafStart + internalOffset + 12 + 4
+					sencFound = true
+					break
+				}
+
+				internalOffset += boxSize
+			}
+
+			if saioBox != nil && sencFound {
+				saioBox.Offset = []int64{int64(sencDataStart)}
+			}
+		}
+
+		moofOffset += child.Size()
+	}
+
+	return nil
+}
+
 type DecryptInfo struct {
 	Psshs      []*PsshBox
 	TrackInfos []DecryptTrackInfo
@@ -759,10 +912,35 @@ func DecryptSegment(seg *MediaSegment, di DecryptInfo, key []byte) error {
 			return err
 		}
 	}
-	if len(seg.Sidxs) > 0 {
-		seg.Sidx = nil // drop sidx inside segment, since not modified properly
-		seg.Sidxs = nil
+	return nil
+}
+
+// DecryptMultiTrackSegment decrypts a media segment in place for a specific trackID
+func DecryptMultiTrackSegment(seg *MediaSegment, di DecryptInfo, protectKey []*ProtectKey) error {
+	for _, k := range protectKey {
+		for _, frag := range seg.Fragments {
+			for _, traf := range frag.Moof.Trafs {
+				if k.TrackId != traf.Tfhd.TrackID {
+					continue
+				}
+				hasSenc, _ := traf.ContainsSencBox()
+				if hasSenc {
+					ti := di.findTrackInfo(traf.Tfhd.TrackID)
+					if ti.Sinf == nil {
+						return fmt.Errorf("no decrypt info for trackID=%d which has senc box", traf.Tfhd.TrackID)
+					}
+				}
+			}
+		}
+
+		for _, frag := range seg.Fragments {
+			_, err := DecryptFragmentByTrackID(frag, di, k.Key, k.TrackId)
+			if err != nil {
+				return err
+			}
+		}
 	}
+
 	return nil
 }
 
@@ -820,6 +998,65 @@ func DecryptFragment(frag *Fragment, di DecryptInfo, key []byte) error {
 	}
 
 	return nil
+}
+
+// DecryptFragmentByTrackID decrypts a fragment in place and returns the number of bytes removed from moof.
+func DecryptFragmentByTrackID(frag *Fragment, di DecryptInfo, key []byte, trackID uint32) (uint64, error) {
+	moof := frag.Moof
+	var nrBytesRemoved uint64 = 0
+	for _, traf := range moof.Trafs {
+		if trackID != traf.Tfhd.TrackID {
+			continue
+		}
+		ti := di.findTrackInfo(traf.Tfhd.TrackID)
+		if ti.Sinf != nil {
+			schemeType := ti.Sinf.Schm.SchemeType
+			if schemeType != "cenc" && schemeType != "cbcs" {
+				return 0, fmt.Errorf("scheme type %s not supported", schemeType)
+			}
+			hasSenc, isParsed := traf.ContainsSencBox()
+			if !hasSenc {
+				return 0, fmt.Errorf("no senc box in traf")
+			}
+			if !isParsed {
+				defaultPerSampleIVSize := ti.Sinf.Schi.Tenc.DefaultPerSampleIVSize
+				err := traf.ParseReadSenc(defaultPerSampleIVSize, moof.StartPos)
+				if err != nil {
+					return 0, fmt.Errorf("parseReadSenc: %w", err)
+				}
+			}
+
+			tenc := ti.Sinf.Schi.Tenc
+			samples, err := frag.GetFullSamples(ti.Trex)
+			if err != nil {
+				return 0, err
+			}
+			var senc *SencBox
+			if traf.Senc != nil {
+				senc = traf.Senc
+			} else {
+				senc = traf.UUIDSenc.Senc
+			}
+
+			err = decryptSamplesInPlace(schemeType, samples, key, tenc, senc)
+			if err != nil {
+				return 0, err
+			}
+			nrBytesRemoved += traf.RemoveEncryptionBoxes()
+		}
+	}
+	_, psshBytesRemoved := moof.RemovePsshs()
+	nrBytesRemoved += psshBytesRemoved
+	for _, traf := range moof.Trafs {
+		for _, trun := range traf.Truns {
+			trun.DataOffset -= int32(nrBytesRemoved)
+		}
+	}
+	if frag.Mdat.StartPos > frag.Moof.StartPos {
+		frag.Mdat.StartPos -= nrBytesRemoved
+	}
+
+	return nrBytesRemoved, nil
 }
 
 // decryptSample - decrypt samples inplace

@@ -42,8 +42,9 @@ func DecodeColr(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeColrSR decodes a ColrBox from a SliceReader
 func DecodeColrSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	const colorTypeLen = 4
 	c := ColrBox{
-		ColorType: sr.ReadFixedLengthString(4),
+		ColorType: sr.ReadFixedLengthString(colorTypeLen),
 	}
 	switch c.ColorType {
 	case ColorTypeOnScreenColors:
@@ -53,7 +54,7 @@ func DecodeColrSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b := sr.ReadUint8()
 		c.FullRangeFlag = (b & fullRangeBit) == fullRangeBit
 	case ColorTypeRestrictedICCProfile, ColorTypeUnrestrictedICCTProfile:
-		c.ICCProfile = sr.RemainingBytes()
+		c.ICCProfile = sr.ReadBytes(hdr.payloadLen() - colorTypeLen)
 	case QuickTimeColorParameters:
 		c.ColorPrimaries = sr.ReadUint16()
 		c.TransferCharacteristics = sr.ReadUint16()

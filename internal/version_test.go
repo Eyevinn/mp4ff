@@ -4,5 +4,5 @@ import "fmt"
 
 func ExampleGetVersion() {
 	fmt.Println(GetVersion())
-	// Output: v0.50.0, date: 2025-09-05
+	// Output: v0.51.0, date: 2026-02-20
 }

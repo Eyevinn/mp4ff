@@ -19,8 +19,9 @@ type HdlrBox struct {
 	Flags                uint32
 	PreDefined           uint32
 	HandlerType          string
-	Name                 string // Null-terminated UTF-8 string according to ISO/IEC 14496-12 Sec. 8.4.3.3
-	LacksNullTermination bool   // This should be false, but we allow true as well
+	Reserved             [12]byte // 3 x uint32 reserved in spec, preserved for roundtrip fidelity
+	Name                 string   // Null-terminated UTF-8 string according to ISO/IEC 14496-12 Sec. 8.4.3.3
+	LacksNullTermination bool     // This should be false, but we allow true as well
 }
 
 // CreateHdlr - create mediaType-specific hdlr box
@@ -74,7 +75,7 @@ func DecodeHdlrSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		PreDefined:  sr.ReadUint32(),
 		HandlerType: sr.ReadFixedLengthString(4),
 	}
-	sr.SkipBytes(12) // 12 bytes of zero
+	copy(h.Reserved[:], sr.ReadBytes(12))
 	nrBytesLeft := hdr.payloadLen() - 24
 	if nrBytesLeft > 0 {
 		bytesLeft := sr.ReadBytes(nrBytesLeft)
@@ -126,7 +127,7 @@ func (b *HdlrBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(b.PreDefined)
 	sw.WriteString(b.HandlerType, false)
-	sw.WriteZeroBytes(12)
+	sw.WriteBytes(b.Reserved[:])
 	sw.WriteString(b.Name, !b.LacksNullTermination)
 	return sw.AccError()
 }

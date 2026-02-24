@@ -7,19 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- AddEmptyTrack returns reference to newly added track
+## [0.51.0] - 2026-02-20
 
 ### Added
 
+- Copy methods for FtypBox and StypBox
+- StreamFile for decoding a stream of fragmented mp4
+  - BoxSeekReader to make an io.Reader available for lazy mdat processing
+  - examples/stream-encrypt showing how to read and process a multi-segment file
+    - On an HTTP request, a file is read, optionally further fragmented, and then encrypted
 - New functions DecodeBoxBody and similar to allow for two-step header and body parsing
 - Support for FLAC audio including fLaC and dfLa boxes
 - Support for ID32 (ID3v2) box
+- Support Spherical Video V1 Metadata
 
 ### Fixed
 
+- AddEmptyTrack returns reference to newly added track
 - duration is printed by `MdhdBox.Info()`
+- extended size usage only allowed for `mdat` boxes
+- trackID is checked when decrypting content
+- Proper handling of trailing bytes in avc1 (VisualSampleEntryBox). Issue 444
+- Proper removal of boxes when decrypting PR 464
+- More robust decode of malformed files
 
 ## [0.50.0] - 2025-09-05
 
@@ -756,7 +766,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.50.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.51.0...HEAD
+[0.51.0]: https://github.com/Eyevinn/mp4ff/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/Eyevinn/mp4ff/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/Eyevinn/mp4ff/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/Eyevinn/mp4ff/compare/v0.47.0...v0.48.0

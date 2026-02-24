@@ -49,6 +49,9 @@ const (
 
 	// UUIDPiffSenc - PIFF UUID for Sample Encryption Box (PIFF 1.1 spec)
 	UUIDPiffSenc = "a2394f52-5a9b-4f14-a244-6c427c648df4"
+
+	// UUIDSphericalVideoV1 - Spherical Video V1 UUID
+	UUIDSphericalVideoV1 = "ffcc8263-f855-4a93-8814-587a02521fdd"
 )
 
 // NewTrfrfBox creates a new TfrfBox with values.
@@ -97,9 +100,10 @@ func mustCreateUUID(u string) UUID {
 }
 
 var (
-	uuidTfxd     UUID = mustCreateUUID(UUIDTfxd)
-	uuidTfrf     UUID = mustCreateUUID(UUIDTfrf)
-	uuidPiffSenc UUID = mustCreateUUID(UUIDPiffSenc)
+	uuidTfxd             UUID = mustCreateUUID(UUIDTfxd)
+	uuidTfrf             UUID = mustCreateUUID(UUIDTfrf)
+	uuidPiffSenc         UUID = mustCreateUUID(UUIDPiffSenc)
+	uuidSphericalVideoV1 UUID = mustCreateUUID(UUIDSphericalVideoV1)
 )
 
 // UUIDBox - Used as container for MSS boxes tfxd and tfrf
@@ -109,6 +113,7 @@ type UUIDBox struct {
 	Tfxd           *TfxdData
 	Tfrf           *TfrfData
 	Senc           *SencBox
+	SphericalV1    *SphericalVideoV1Data
 	StartPos       uint64
 	UnknownPayload []byte
 }
@@ -142,6 +147,13 @@ type TfrfData struct {
 	FragmentCount             byte
 	FragmentAbsoluteTimes     []uint64
 	FragmentAbsoluteDurations []uint64
+}
+
+// SphericalVideoV1Data - Spherical Video V1 metadata
+// Defined in Google's Spherical Video V1 RFC
+// https://github.com/google/spatial-media/blob/master/docs/spherical-video-rfc.md
+type SphericalVideoV1Data struct {
+	XMLData string
 }
 
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
@@ -184,6 +196,12 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 			return nil, fmt.Errorf("failed to decode senc in UUID: %w", err)
 		}
 		b.Senc = box.(*SencBox)
+	case UUIDSphericalVideoV1:
+		if hdr.Size < 8+16 {
+			return nil, fmt.Errorf("uuid box size too small: %d < 24", hdr.Size)
+		}
+		xmlData := sr.ReadBytes(int(hdr.Size) - 8 - 16)
+		b.SphericalV1 = &SphericalVideoV1Data{XMLData: string(xmlData)}
 	default:
 		if hdr.Size < 8+16 {
 			return nil, fmt.Errorf("uuid box size too small: %d < 24", hdr.Size)
@@ -209,6 +227,8 @@ func (b *UUIDBox) Size() uint64 {
 		size += b.Tfrf.size()
 	case u.Equal(uuidPiffSenc):
 		size += b.Senc.Size() - 8 // -8 because no header
+	case u.Equal(uuidSphericalVideoV1):
+		size += uint64(len(b.SphericalV1.XMLData))
 	default:
 		size += uint64(len(b.UnknownPayload))
 	}
@@ -240,6 +260,8 @@ func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
 		err = b.Tfrf.encode(sw)
 	case u.Equal(uuidPiffSenc):
 		err = b.Senc.EncodeSWNoHdr(sw)
+	case u.Equal(uuidSphericalVideoV1):
+		sw.WriteBytes([]byte(b.SphericalV1.XMLData))
 	default:
 		sw.WriteBytes(b.UnknownPayload)
 	}
@@ -258,6 +280,8 @@ func (b *UUIDBox) SubType() string {
 		return "tfrf"
 	case u.Equal(uuidPiffSenc):
 		return "senc"
+	case u.Equal(uuidSphericalVideoV1):
+		return "spherical-v1"
 	default:
 		return "unknown"
 	}
@@ -364,6 +388,13 @@ func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			err := b.Senc.Info(w, specificBoxLevels, indent+"    ", indentStep)
 			if err != nil {
 				return fmt.Errorf("piff senc: %w", err)
+			}
+		case "spherical-v1":
+			if b.SphericalV1 != nil {
+				bd.write(" - xmlDataLength: %d", len(b.SphericalV1.XMLData))
+				if level > 1 {
+					bd.write(" - xmlData: %s", b.SphericalV1.XMLData)
+				}
 			}
 		default:
 			bd.write(" - payload: %s", hex.EncodeToString(b.UnknownPayload))

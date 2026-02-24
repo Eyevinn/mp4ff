@@ -169,3 +169,113 @@ func TestUnpackKey(t *testing.T) {
 	}
 
 }
+
+func TestSphericalVideoV1(t *testing.T) {
+	// Sample spherical video v1 XML metadata
+	xmlData := `<?xml version="1.0"?><rdf:SphericalVideo
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+xmlns:GSpherical="http://ns.google.com/videos/1.0/spherical/">` +
+		`<GSpherical:Spherical>true</GSpherical:Spherical>` +
+		`<GSpherical:Stitched>true</GSpherical:Stitched>` +
+		`<GSpherical:StitchingSoftware>Spherical Metadata Tool</GSpherical:StitchingSoftware>` +
+		`<GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType>` +
+		`<GSpherical:StereoMode>top-bottom</GSpherical:StereoMode>` +
+		`</rdf:SphericalVideo>`
+
+	// Create a UUID box with spherical v1 UUID
+	uuidBytes, _ := hex.DecodeString("ffcc8263f8554a938814587a02521fdd")
+
+	// Create the raw box data: size + type + uuid + xml
+	size := uint32(8 + 16 + len(xmlData))
+	var buf bytes.Buffer
+
+	// Write manually since we're building from scratch
+	buf.Write([]byte{byte(size >> 24), byte(size >> 16), byte(size >> 8), byte(size)})
+	buf.Write([]byte{'u', 'u', 'i', 'd'})
+	buf.Write(uuidBytes)
+	buf.Write([]byte(xmlData))
+
+	reader := bytes.NewReader(buf.Bytes())
+	hdr, err := mp4.DecodeHeader(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	box, err := mp4.DecodeUUIDBox(hdr, 0, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	uuidBox := box.(*mp4.UUIDBox)
+
+	if uuidBox.SubType() != "spherical-v1" {
+		t.Errorf("got subtype %s instead of spherical-v1", uuidBox.SubType())
+	}
+
+	expectedUUID := "ffcc8263-f855-4a93-8814-587a02521fdd"
+	if uuidBox.UUID() != expectedUUID {
+		t.Errorf("got uuid %s instead of %s", uuidBox.UUID(), expectedUUID)
+	}
+
+	if uuidBox.SphericalV1 == nil {
+		t.Fatal("SphericalV1 data is nil")
+	}
+
+	if uuidBox.SphericalV1.XMLData != xmlData {
+		t.Errorf("XMLData mismatch")
+	}
+
+	// Test encode/decode round-trip
+	var outBuf bytes.Buffer
+	err = uuidBox.Encode(&outBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if uint64(outBuf.Len()) != uuidBox.Size() {
+		t.Errorf("encoded size %d doesn't match Size() %d", outBuf.Len(), uuidBox.Size())
+	}
+
+	// Test decode of re-encoded box
+	reader2 := bytes.NewReader(outBuf.Bytes())
+	hdr2, err := mp4.DecodeHeader(reader2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	box2, err := mp4.DecodeUUIDBox(hdr2, 0, reader2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uuidBox2 := box2.(*mp4.UUIDBox)
+	if uuidBox2.SphericalV1.XMLData != xmlData {
+		t.Error("round-trip XMLData mismatch")
+	}
+
+	// Test Info method output at level 1 (no XML content)
+	var infoBuf bytes.Buffer
+	err = uuidBox.Info(&infoBuf, "uuid:1", "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	infoStr := infoBuf.String()
+	if !bytes.Contains([]byte(infoStr), []byte("spherical-v1")) {
+		t.Error("Info output should contain spherical-v1")
+	}
+	if !bytes.Contains([]byte(infoStr), []byte("xmlDataLength")) {
+		t.Error("Info output should contain xmlDataLength")
+	}
+	if bytes.Contains([]byte(infoStr), []byte("xmlData:")) {
+		t.Error("Info output at level 1 should not contain xmlData")
+	}
+
+	// Test Info method output at level 2 (includes XML content)
+	var infoBuf2 bytes.Buffer
+	err = uuidBox.Info(&infoBuf2, "uuid:2", "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	infoStr2 := infoBuf2.String()
+	if !bytes.Contains([]byte(infoStr2), []byte("xmlData:")) {
+		t.Error("Info output at level 2 should contain xmlData")
+	}
+}
