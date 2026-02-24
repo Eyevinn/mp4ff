@@ -297,13 +297,13 @@ type ProtectKey struct {
 	Key []byte
 	Iv  []byte
 	Kid UUID
+
+	Ipd *InitProtectData
 }
 
-func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*ProtectKey, psshBoxes []*PsshBox) (map[uint32]*InitProtectData, error) {
-	ipds := make(map[uint32]*InitProtectData)
-
+func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*ProtectKey, psshBoxes []*PsshBox) error {
 	if init.Moov == nil || init.Moov.Traks == nil {
-		return nil, fmt.Errorf("moov or traf is missing")
+		return fmt.Errorf("moov or traf is missing")
 	}
 
 	for _, key := range protectKey {
@@ -321,7 +321,7 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			}
 		}
 		if ipd.Trex == nil {
-			return nil, fmt.Errorf("trex not found")
+			return fmt.Errorf("trex not found")
 		}
 
 		// find trak
@@ -332,11 +332,11 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			}
 		}
 		if trak == nil {
-			return nil, fmt.Errorf("trak not found")
+			return fmt.Errorf("trak not found")
 		}
 		stsd := trak.Mdia.Minf.Stbl.Stsd
 		if len(stsd.Children) != 1 {
-			return nil, fmt.Errorf("only one stsd child supported")
+			return fmt.Errorf("only one stsd child supported")
 		}
 
 		//make sinf
@@ -355,15 +355,15 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			case "avc1", "avc3":
 				ipd.ProtFunc, err = getAVCProtFunc(se.AvcC)
 				if err != nil {
-					return nil, fmt.Errorf("get avc protect func: %w", err)
+					return fmt.Errorf("get avc protect func: %w", err)
 				}
 			case "hvc1", "hev1":
 				ipd.ProtFunc, err = getHEVCProtFunc(se.HvcC)
 				if err != nil {
-					return nil, fmt.Errorf("get hevc protect func: %w", err)
+					return fmt.Errorf("get hevc protect func: %w", err)
 				}
 			default:
-				return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
+				return fmt.Errorf("visual sample entry type %s not yet supported", veType)
 			}
 		case *AudioSampleEntryBox:
 			mediaType = "audio"
@@ -374,7 +374,7 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			se.AddChild(&sinf)
 			ipd.ProtFunc = getAudioProtectRanges
 		default:
-			return nil, fmt.Errorf("sample entry type %s should not be encrypted", se.Type())
+			return fmt.Errorf("sample entry type %s should not be encrypted", se.Type())
 		}
 		schi := SchiBox{}
 		switch scheme {
@@ -394,19 +394,18 @@ func InitMultitrackProtect(init *InitSegment, scheme string, protectKey []*Prote
 			}
 			sinf.AddChild(&SchmBox{SchemeType: "cbcs", SchemeVersion: 65536})
 		default:
-			return nil, fmt.Errorf("unknown protection scheme %s", scheme)
+			return fmt.Errorf("unknown protection scheme %s", scheme)
 		}
 		schi.AddChild(ipd.Tenc)
 		sinf.AddChild(&schi)
-
-		ipds[key.TrackId] = &ipd
+		key.Ipd = &ipd
 	}
 
 	for _, pssh := range psshBoxes {
 		init.Moov.AddChild(pssh)
 	}
 
-	return ipds, nil
+	return nil
 
 }
 
@@ -659,7 +658,7 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 }
 
 // EncryptMultitrackFragment encrypts ALL tracks in a fragment (multi-traf support)
-func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey, ipds map[uint32]*InitProtectData) error {
+func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey) error {
 	if f.Moof == nil || len(f.Moof.Trafs) == 0 {
 		return fmt.Errorf("no moof or trafs in fragment")
 	}
@@ -678,12 +677,14 @@ func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey, ipds map[u
 			return fmt.Errorf("iv must be 16 bytes")
 		}
 
-		for i, traf := range f.Moof.Trafs {
+		for _, traf := range f.Moof.Trafs {
 			if trackID != traf.Tfhd.TrackID {
 				continue
 			}
-			ipd, ok := ipds[trackID]
-			if !ok {
+			if len(traf.Truns) != 1 {
+				return fmt.Errorf("only one trun supported")
+			}
+			if k.Ipd == nil {
 				return fmt.Errorf("no protection data for track %d", trackID)
 			}
 
@@ -694,31 +695,31 @@ func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey, ipds map[u
 			_ = traf.AddChild(saio)
 
 			var senc *SencBox
-			switch ipd.Scheme {
+			switch k.Ipd.Scheme {
 			case "cenc":
 				senc = NewSencBox(nrSamples, nrSamples)
 			case "cbcs":
 				senc = NewSencBox(0, nrSamples)
 			default:
-				return fmt.Errorf("unknown scheme %s", ipd.Scheme)
+				return fmt.Errorf("unknown scheme %s", k.Ipd.Scheme)
 			}
 			if err := traf.AddChild(senc); err != nil {
 				panic(err)
 			}
 
-			fss, err := f.GetFullSamples(ipd.Trex)
+			fss, err := f.GetFullSamples(k.Ipd.Trex)
 			if err != nil {
 				return fmt.Errorf("GetFullSamples track %d: %w", trackID, err)
 			}
 
 			for _, fs := range fss {
 				sample := fs.Data
-				subSamples, err := ipd.ProtFunc(sample, ipd.Scheme)
+				subSamples, err := k.Ipd.ProtFunc(sample, k.Ipd.Scheme)
 				if err != nil {
 					return fmt.Errorf("protect ranges track %d: %w", trackID, err)
 				}
 
-				switch ipd.Scheme {
+				switch k.Ipd.Scheme {
 				case "cenc":
 					if err = CryptSampleCenc(sample, key, iv, subSamples); err != nil {
 						return fmt.Errorf("crypt sample cenc: %w", err)
@@ -729,7 +730,7 @@ func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey, ipds map[u
 					saiz.AddSampleInfo(iv, subSamples)
 					iv = incrementIV(iv, subSamples, len(sample))
 				case "cbcs":
-					if err = EncryptSampleCbcs(sample, key, iv, subSamples, ipd.Tenc); err != nil {
+					if err = EncryptSampleCbcs(sample, key, iv, subSamples, k.Ipd.Tenc); err != nil {
 						return fmt.Errorf("crypt sample cbcs: %w", err)
 					}
 					if err = senc.AddSample(SencSample{SubSamples: subSamples}); err != nil {
@@ -737,13 +738,10 @@ func EncryptMultitrackFragment(f *Fragment, protectKey []*ProtectKey, ipds map[u
 					}
 					saiz.AddSampleInfo(nil, subSamples)
 				default:
-					return fmt.Errorf("unknown scheme %s", ipd.Scheme)
+					return fmt.Errorf("unknown scheme %s", k.Ipd.Scheme)
 				}
 			}
 
-			for j, trun := range traf.Truns {
-				trun.writeOrderNr = uint32(i + j + 1)
-			}
 		}
 
 		if err := setSaioOffsets(f); err != nil {

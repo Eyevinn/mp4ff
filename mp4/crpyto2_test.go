@@ -43,7 +43,7 @@ func Test_Encrypt(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(".", "test_data", "encrypted"), 0777); err != nil {
 		t.Fatalf("failed to create test data directory: %v", err)
 	}
-	f, err := files.ReadFile(filepath.Join("test_data", "init.mp4"))
+	f, err := files.ReadFile(filepath.Join("test_data", "stream_moov_1.m4s"))
 	if err != nil {
 		t.Fatalf("failed to open file: %v", err)
 	}
@@ -58,9 +58,9 @@ func Test_Encrypt(t *testing.T) {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
-	for _, seg := range []string{"segment_000", "segment_001", "segment_002"} {
+	for _, seg := range []string{"1_partial_segment_0_0", "1_partial_segment_0_1", "1_partial_segment_0_2", "1_partial_segment_0_3"} {
 		func() {
-			f, err := files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s.m4s", seg)))
+			f, err := files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s", seg)))
 			if err != nil {
 				t.Fatalf("failed to open file: %v", err)
 			}
@@ -84,19 +84,16 @@ func GenerateKeyID() UUID {
 	return cv[:]
 }
 
-type MP4Encryptor struct {
+type MP4Encryptor struct { // for one stream (e.g., audio only, video resolution 1 + audio)
 	keys []*ProtectKey
 	// psshs
 	psshs []*PsshBox
-	// initProtect
-	initProtects map[uint32]*InitProtectData
 }
 
 func NewMP4Encryptor(keys []*ProtectKey) *MP4Encryptor {
 	return &MP4Encryptor{
-		keys:         keys,
-		psshs:        make([]*PsshBox, 0),
-		initProtects: make(map[uint32]*InitProtectData),
+		keys:  keys,
+		psshs: make([]*PsshBox, 0),
 	}
 }
 
@@ -130,11 +127,10 @@ func (m *MP4Encryptor) InitProtect(initSeg io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("mp4.DecodeFile: %w", err)
 	}
 
-	ipd, err := InitMultitrackProtect(f.Init, "cbcs", m.keys, m.psshs) // psshs added into init
+	err = InitMultitrackProtect(f.Init, "cbcs", m.keys, m.psshs) // psshs added into init
 	if err != nil {
 		return nil, fmt.Errorf("mp4.InitProtect: %w", err)
 	}
-	m.initProtects = ipd
 
 	buf := bytes.NewBuffer(nil)
 	if err := f.Encode(buf); err != nil {
@@ -158,7 +154,7 @@ func (m *MP4Encryptor) Encrypt(segData io.Reader) ([]byte, error) {
 			//	}
 			//}
 
-			if err = EncryptMultitrackFragment(f, m.keys, m.initProtects); err != nil {
+			if err = EncryptMultitrackFragment(f, m.keys); err != nil {
 				return nil, fmt.Errorf("mp4.EncryptFragment: %w", err)
 			}
 		}
