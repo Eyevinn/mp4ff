@@ -15,20 +15,17 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:embed test_data/*.m4s  test_data/*.m4v
+//go:embed test_data
 var files embed.FS
 
 func Test_Encrypt(t *testing.T) {
-
-	// key := make([]byte, 32)
-	// iv16 := make([]byte, 16)
 	key := []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X984")
 	iv16 := []byte("0123456789abcdef")
 	keyID := GenerateKeyID()
 	keyset1 := &ProtectKey{
 		StreamType: "video",
 		Resolution: "1920x1080",
-		TrackId:    2,
+		TrackId:    1,
 		Key:        key,
 		Iv:         iv16,
 		Kid:        keyID,
@@ -36,7 +33,7 @@ func Test_Encrypt(t *testing.T) {
 	keyset2 := &ProtectKey{
 		StreamType: "audio",
 		Resolution: "1920x1080",
-		TrackId:    1,
+		TrackId:    2,
 		Key:        []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X982"),
 		Iv:         []byte("0123456789abcded"),
 		Kid:        GenerateKeyID(),
@@ -46,7 +43,7 @@ func Test_Encrypt(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(".", "test_data", "encrypted"), 0777); err != nil {
 		t.Fatalf("failed to create test data directory: %v", err)
 	}
-	f, err := files.ReadFile(filepath.Join("test_data", "stream_moov_1.m4s"))
+	f, err := files.ReadFile(filepath.Join("test_data", "init.mp4"))
 	if err != nil {
 		t.Fatalf("failed to open file: %v", err)
 	}
@@ -57,8 +54,26 @@ func Test_Encrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to init protect: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join("test_data", "encrypted", "stream_moov_1_encrpyted.m4s"), encryptedInit, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join("test_data", "encrypted", "encrypted_init.mp4"), encryptedInit, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
+	}
+
+	for _, seg := range []string{"segment_000", "segment_001", "segment_002"} {
+		func() {
+			f, err := files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s.m4s", seg)))
+			if err != nil {
+				t.Fatalf("failed to open file: %v", err)
+			}
+
+			d, err := enc.Encrypt(bytes.NewBuffer(f))
+			if err != nil {
+				t.Fatalf("failed to encrypt: %v", err)
+			}
+
+			if err := os.WriteFile(filepath.Join("test_data", "encrypted", fmt.Sprintf("encrypted_%s.m4s", seg)), d, 0600); err != nil {
+				t.Fatalf("failed to write file: %v", err)
+			}
+		}()
 	}
 
 }
@@ -74,14 +89,14 @@ type MP4Encryptor struct {
 	// psshs
 	psshs []*PsshBox
 	// initProtect
-	initProtects []*InitProtectData
+	initProtects map[uint32]*InitProtectData
 }
 
 func NewMP4Encryptor(keys []*ProtectKey) *MP4Encryptor {
 	return &MP4Encryptor{
 		keys:         keys,
 		psshs:        make([]*PsshBox, 0),
-		initProtects: nil,
+		initProtects: make(map[uint32]*InitProtectData),
 	}
 }
 
@@ -115,14 +130,179 @@ func (m *MP4Encryptor) InitProtect(initSeg io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("mp4.DecodeFile: %w", err)
 	}
 
-	_, err = InitMultitrackProtect(f.Init, "cbcs", m.keys, m.psshs) // psshs added into init
+	ipd, err := InitMultitrackProtect(f.Init, "cbcs", m.keys, m.psshs) // psshs added into init
 	if err != nil {
 		return nil, fmt.Errorf("mp4.InitProtect: %w", err)
 	}
+	m.initProtects = ipd
 
 	buf := bytes.NewBuffer(nil)
 	if err := f.Encode(buf); err != nil {
 		return nil, fmt.Errorf("mp4.InitProtect encode: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (m *MP4Encryptor) Encrypt(segData io.Reader) ([]byte, error) {
+	seg, err := DecodeFile(segData)
+	if err != nil {
+		return nil, fmt.Errorf("mp4.DecodeFile: %w", err)
+	}
+
+	for _, s := range seg.Segments {
+		for _, f := range s.Fragments {
+			//for _, pssh := range m.psshs {
+			//	if err = f.Moof.AddChild(pssh); err != nil {
+			//		return nil, fmt.Errorf("mp4.AddPsshInFragment: %w", err)
+			//	}
+			//}
+
+			if err = EncryptMultitrackFragment(f, m.keys, m.initProtects); err != nil {
+				return nil, fmt.Errorf("mp4.EncryptFragment: %w", err)
+			}
+		}
+	}
+
+	buf := bytes.NewBuffer(nil)
+	if err := seg.Encode(buf); err != nil {
+		return nil, fmt.Errorf("mp4.Encode: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+type MP4Decryptor struct {
+	keys []*ProtectKey
+	// psshs
+	psshs []*PsshBox
+	// initProtect
+	initProtects map[uint32]*InitProtectData
+
+	decryptedInfo *DecryptInfo
+}
+
+func NewMP4Decryptor(keys []*ProtectKey) *MP4Decryptor {
+	return &MP4Decryptor{
+		keys:         keys,
+		psshs:        make([]*PsshBox, 0),
+		initProtects: make(map[uint32]*InitProtectData),
+	}
+}
+
+func Test_Decrypt(t *testing.T) {
+	key := []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X984")
+	iv16 := []byte("0123456789abcdef")
+	keyID := GenerateKeyID()
+	keyset1 := &ProtectKey{
+		StreamType: "video",
+		Resolution: "1920x1080",
+		TrackId:    1,
+		Key:        key,
+		Iv:         iv16,
+		Kid:        keyID,
+	}
+	keyset2 := &ProtectKey{
+		StreamType: "audio",
+		Resolution: "1920x1080",
+		TrackId:    2,
+		Key:        []byte("1fTOHpfh0BP7zqVKgc4hdxqAGfI3X982"),
+		Iv:         []byte("0123456789abcded"),
+		Kid:        GenerateKeyID(),
+	}
+	keylist := []*ProtectKey{keyset1, keyset2}
+
+	dec := NewMP4Decryptor(keylist)
+	if err := os.MkdirAll(filepath.Join(".", "test_data", "decrypted"), 0777); err != nil {
+		t.Fatalf("failed to create test data directory: %v", err)
+	}
+	f, err := files.ReadFile(filepath.Join("test_data", "encrypted", "encrypted_init.mp4"))
+	if err != nil {
+		t.Fatalf("failed to open file: %v", err)
+	}
+	decryptedInit, err := dec.DecryptInit(bytes.NewBuffer(f))
+	if err != nil {
+		t.Fatalf("failed to init protect: %v", err)
+	}
+
+	rawInit, err := files.ReadFile(filepath.Join("test_data", "init.mp4"))
+	if err != nil {
+		t.Fatalf("failed to get raw seg: %v", err)
+	}
+
+	if !bytes.Equal(rawInit, decryptedInit) {
+		t.Errorf("segment not equal after encryption+decryption")
+	}
+
+	if err := os.WriteFile(filepath.Join("test_data", "decrypted", "decrypted_init.mp4"), decryptedInit, 0600); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	for _, seg := range []string{"segment_000", "segment_001", "segment_002"} {
+		func() {
+			f, err = files.ReadFile(filepath.Join("test_data", "encrypted", fmt.Sprintf("encrypted_%s.m4s", seg)))
+			if err != nil {
+				t.Fatalf("failed to open file: %v", err)
+			}
+
+			d, err := dec.Decrypt(bytes.NewBuffer(f))
+			if err != nil {
+				t.Fatalf("failed to decrypt: %v", err)
+			}
+			rawSeg, err := files.ReadFile(filepath.Join("test_data", fmt.Sprintf("%s.m4s", seg)))
+			if err != nil {
+				t.Fatalf("failed to get raw seg: %v", err)
+			}
+
+			if !bytes.Equal(rawSeg, d) {
+				t.Errorf("segment not equal after encryption+decryption")
+			}
+
+			if err := os.WriteFile(filepath.Join("test_data", "decrypted", fmt.Sprintf("decrypted_%s.m4s", seg)), d, 0600); err != nil {
+				t.Fatalf("failed to write file: %v", err)
+			}
+		}()
+	}
+}
+
+func (m *MP4Decryptor) DecryptInit(initSeg io.Reader) ([]byte, error) {
+	f, err := DecodeFile(initSeg)
+	if err != nil {
+		return nil, fmt.Errorf("mp4.DecodeFile: %w", err)
+	}
+
+	decinfo, err := DecryptInit(f.Init)
+	if err != nil {
+		return nil, fmt.Errorf("mp4.DecryptInit: %w", err)
+	}
+	m.decryptedInfo = &decinfo
+
+	buf := bytes.NewBuffer(nil)
+	if err := f.Encode(buf); err != nil {
+		return nil, fmt.Errorf("mp4.DecryptedInit encode: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (m *MP4Decryptor) Decrypt(segData io.Reader) ([]byte, error) {
+	if m.decryptedInfo == nil {
+		return nil, fmt.Errorf("DecryptedInit not called")
+	}
+
+	seg, err := DecodeFile(segData)
+	if err != nil {
+		return nil, fmt.Errorf("mp4.DecodeFile: %w", err)
+	}
+
+	for _, s := range seg.Segments {
+		if err = DecryptMultiTrackSegment(s, *m.decryptedInfo, m.keys); err != nil {
+			return nil, err
+		}
+	}
+
+	buf := bytes.NewBuffer(nil)
+	if err := seg.Encode(buf); err != nil {
+		return nil, fmt.Errorf("mp4.Encode: %w", err)
 	}
 
 	return buf.Bytes(), nil
