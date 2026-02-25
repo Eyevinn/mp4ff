@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/avc"
@@ -623,6 +624,13 @@ func DecryptInit(init *InitSegment) (DecryptInfo, error) {
 
 // DecryptSegment decrypts a media segment in place
 func DecryptSegment(seg *MediaSegment, di DecryptInfo, key []byte) error {
+	return DecryptSegmentWithKeys(seg, di, key, nil, false)
+}
+
+// DecryptSegmentWithKeys decrypts a media segment in place using either a legacy key
+// or keys selected by KID. KID values are expected as 32-char lowercase hex without dashes.
+// If strictKIDMode is true, encrypted tracks must have a matching key in keysByKID.
+func DecryptSegmentWithKeys(seg *MediaSegment, di DecryptInfo, key []byte, keysByKID map[string][]byte, strictKIDMode bool) error {
 	for _, frag := range seg.Fragments {
 		for _, traf := range frag.Moof.Trafs {
 			hasSenc, _ := traf.ContainsSencBox()
@@ -635,7 +643,7 @@ func DecryptSegment(seg *MediaSegment, di DecryptInfo, key []byte) error {
 		}
 	}
 	for _, frag := range seg.Fragments {
-		err := DecryptFragment(frag, di, key)
+		err := DecryptFragmentWithKeys(frag, di, key, keysByKID, strictKIDMode)
 		if err != nil {
 			return err
 		}
@@ -649,6 +657,42 @@ func DecryptSegment(seg *MediaSegment, di DecryptInfo, key []byte) error {
 
 // DecryptFragment decrypts a fragment in place
 func DecryptFragment(frag *Fragment, di DecryptInfo, key []byte) error {
+	return DecryptFragmentWithKeys(frag, di, key, nil, false)
+}
+
+func getTrackKIDHex(ti DecryptTrackInfo) (string, error) {
+	if ti.Sinf == nil || ti.Sinf.Schi == nil || ti.Sinf.Schi.Tenc == nil {
+		return "", fmt.Errorf("missing tenc for trackID=%d", ti.TrackID)
+	}
+	kid := ti.Sinf.Schi.Tenc.DefaultKID
+	if len(kid) != 16 {
+		return "", fmt.Errorf("bad kid length %d for trackID=%d", len(kid), ti.TrackID)
+	}
+	return hex.EncodeToString(kid), nil
+}
+
+func getTrackKey(ti DecryptTrackInfo, key []byte, keysByKID map[string][]byte, strictKIDMode bool) ([]byte, error) {
+	if len(keysByKID) == 0 {
+		return key, nil
+	}
+	kidHex, err := getTrackKIDHex(ti)
+	if err != nil {
+		return nil, err
+	}
+	mappedKey, ok := keysByKID[kidHex]
+	if !ok {
+		if strictKIDMode {
+			return nil, fmt.Errorf("requested key was not found for kid=%s", kidHex)
+		}
+		return key, nil
+	}
+	return mappedKey, nil
+}
+
+// DecryptFragmentWithKeys decrypts a fragment in place using either a legacy key
+// or keys selected by KID. KID values are expected as 32-char lowercase hex without dashes.
+// If strictKIDMode is true, encrypted tracks must have a matching key in keysByKID.
+func DecryptFragmentWithKeys(frag *Fragment, di DecryptInfo, key []byte, keysByKID map[string][]byte, strictKIDMode bool) error {
 	moof := frag.Moof
 	var nrBytesRemoved uint64 = 0
 	for _, traf := range moof.Trafs {
@@ -671,6 +715,10 @@ func DecryptFragment(frag *Fragment, di DecryptInfo, key []byte) error {
 			}
 
 			tenc := ti.Sinf.Schi.Tenc
+			trackKey, err := getTrackKey(ti, key, keysByKID, strictKIDMode)
+			if err != nil {
+				return err
+			}
 			samples, err := frag.GetFullSamples(ti.Trex)
 			if err != nil {
 				return err
@@ -682,7 +730,7 @@ func DecryptFragment(frag *Fragment, di DecryptInfo, key []byte) error {
 				senc = traf.UUIDSenc.Senc
 			}
 
-			err = decryptSamplesInPlace(schemeType, samples, key, tenc, senc)
+			err = decryptSamplesInPlace(schemeType, samples, trackKey, tenc, senc)
 			if err != nil {
 				return err
 			}

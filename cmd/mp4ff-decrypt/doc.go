@@ -10,7 +10,7 @@ options:
 	-init string
 	      Path to init file with encryption info (scheme, kid, pssh)
 	-key string
-	      Required: key (32 hex or 24 base64 chars)
+	      Required: key (32 hex or 24 base64 chars) or kid:key pair. Can be repeated
 	-version
 	      Get mp4ff version
 */
