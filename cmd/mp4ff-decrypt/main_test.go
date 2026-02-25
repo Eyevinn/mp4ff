@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -121,6 +123,107 @@ func TestDecodeFiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseKeys(t *testing.T) {
+	legacyKey := "00112233445566778899aabbccddeeff"
+	kidWithDash := "855ca997-b201-5736-f3d6-a59c9eff84d9"
+	kidNoDash := "855ca997b2015736f3d6a59c9eff84d9"
+
+	t.Run("legacy key", func(t *testing.T) {
+		key, keysByKID, strictMode, err := parseKeys([]string{legacyKey})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strictMode {
+			t.Fatal("expected non-strict mode")
+		}
+		if len(key) != 16 {
+			t.Fatalf("unexpected key length: %d", len(key))
+		}
+		if len(keysByKID) != 0 {
+			t.Fatalf("expected no kid map, got %d", len(keysByKID))
+		}
+	})
+
+	t.Run("duplicate kid fails", func(t *testing.T) {
+		_, _, _, err := parseKeys([]string{kidWithDash + ":" + legacyKey, kidNoDash + ":" + legacyKey})
+		if err == nil {
+			t.Fatal("expected duplicate kid error")
+		}
+		if !strings.Contains(err.Error(), "duplicate kid") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("mixed mode fails", func(t *testing.T) {
+		_, _, _, err := parseKeys([]string{legacyKey, kidNoDash + ":" + legacyKey})
+		if err == nil {
+			t.Fatal("expected strict mixed mode error")
+		}
+		if !strings.Contains(err.Error(), "cannot mix") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestStrictKIDKeySelection(t *testing.T) {
+	inFile := "../../mp4/testdata/cbcs_audio.mp4"
+	expectedOutFile := "../../mp4/testdata/cbcs_audiodec.mp4"
+	rawKey := "5ffd93861fa776e96cccd934898fc1c8"
+	tmpDir := t.TempDir()
+	outFile := path.Join(tmpDir, "outfile.mp4")
+
+	input, err := mp4.ReadMP4File(inFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decInfo, err := mp4.DecryptInit(input.Init)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decInfo.TrackInfos) == 0 || decInfo.TrackInfos[0].Sinf == nil {
+		t.Fatal("missing encrypted track info")
+	}
+	kid := decInfo.TrackInfos[0].Sinf.Schi.Tenc.DefaultKID
+	kidHex := hex.EncodeToString(kid)
+
+	t.Run("matching kid decrypts", func(t *testing.T) {
+		args := []string{"mp4ff-decrypt", "-key", kidHex + ":" + rawKey, inFile, outFile}
+		err := run(args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expectedOut, err := os.ReadFile(expectedOutFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := os.ReadFile(outFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(expectedOut, out) {
+			t.Fatal("output file does not match expected")
+		}
+	})
+
+	t.Run("missing kid fails", func(t *testing.T) {
+		missingKID := kidHex
+		if missingKID[0] == '0' {
+			missingKID = "1" + missingKID[1:]
+		} else {
+			missingKID = "0" + missingKID[1:]
+		}
+		args := []string{"mp4ff-decrypt", "-key", missingKID + ":" + rawKey, inFile, outFile}
+		err := run(args)
+		if err == nil {
+			t.Fatal("expected missing kid error")
+		}
+		if !strings.Contains(err.Error(), "requested key was not found") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 }
 
 func BenchmarkDecodeCenc(b *testing.B) {
