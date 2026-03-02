@@ -11,12 +11,16 @@ import (
 	"github.com/go-test/deep"
 )
 
-// compareOrUpdateInfo - compare box with golden dump or update it with -update flag set
 func compareOrUpdateInfo(t *testing.T, b mp4.Informer, path string) error {
+	return compareOrUpdateInfoLevel(t, b, "all:1", path)
+}
+
+// compareOrUpdateInfo - compare box with golden dump or update it with -update flag set
+func compareOrUpdateInfoLevel(t *testing.T, b mp4.Informer, specificLevels, path string) error {
 	t.Helper()
 
 	var dumpBuf bytes.Buffer
-	err := b.Info(&dumpBuf, "all:1", "", "  ")
+	err := b.Info(&dumpBuf, specificLevels, "", "  ")
 	if err != nil {
 		t.Error(err)
 	}

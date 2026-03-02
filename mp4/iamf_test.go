@@ -211,3 +211,29 @@ func TestCreateIAMFBox(t *testing.T) {
 	// Test encode/decode round-trip
 	boxDiffAfterEncodeAndDecode(t, iamf)
 }
+
+func TestIamfParser(t *testing.T) {
+	goldenDumpPath := "testdata/golden_iamf_dump.txt"
+	descriptorData := "" +
+		"f80669616d6601010014004f707573c007fffc010201380000bb800000000829" +
+		"ac02200010000102030405060708090a0b0c0d0e0f0000101000010203040506" +
+		"0708090a0b0c0d0e0f080bad0200000110002010010110772a01656e2d757300" +
+		"44656661756c74204d69782050726573656e746174696f6e000102ac02334f41" +
+		"20617564696f20656c656d656e74004000e70780f702800000ad027374657265" +
+		"6f20617564696f20656c656d656e74004000e30780f702800000e60780f70280" +
+		"0000028000ebe5ff85c00080008000"
+	descriptorBytes, err := hex.DecodeString(descriptorData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iacb := &mp4.IacbBox{
+		ConfigurationVersion: 1,
+		IASequenceData:       descriptorBytes,
+	}
+
+	err = compareOrUpdateInfoLevel(t, iacb, "iacb:3", goldenDumpPath)
+	if err != nil {
+		t.Error(err)
+	}
+}
