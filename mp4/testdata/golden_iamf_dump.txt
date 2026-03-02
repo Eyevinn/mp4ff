@@ -1,0 +1,79 @@
+[iacb] size=218
+ - configurationVersion: 1
+ - descriptorsSize: 207
+   obu: Type=IA Sequence Header Size=8 Start=2
+   obu: Type=Codec Config Size=22 Start=2
+     IAMF Context:
+       Codec Configs (1):
+         CodecConfigID=0 Codec=opus SampleRate=48000 NumSamples=960 RollDistance=-4
+       Audio Elements (0):
+       Mix Presentations (0):
+       Param Definitions (0):
+   obu: Type=Audio Element Size=43 Start=2
+     IAMF Context:
+       Codec Configs (0):
+       Audio Elements (1):
+         AudioElementID=300 Type=Scene CodecConfigID=0 NumSubstreams=16 NumLayers=1
+           Layer[0]: Custom 16-Channel Layout
+             OutputGain: 0/0
+           Substream[0]: ID=0
+           Substream[1]: ID=1
+           Substream[2]: ID=2
+           Substream[3]: ID=3
+           Substream[4]: ID=4
+           Substream[5]: ID=5
+           Substream[6]: ID=6
+           Substream[7]: ID=7
+           Substream[8]: ID=8
+           Substream[9]: ID=9
+           Substream[10]: ID=10
+           Substream[11]: ID=11
+           Substream[12]: ID=12
+           Substream[13]: ID=13
+           Substream[14]: ID=14
+           Substream[15]: ID=15
+       Mix Presentations (0):
+       Param Definitions (0):
+   obu: Type=Audio Element Size=13 Start=2
+     IAMF Context:
+       Codec Configs (0):
+       Audio Elements (1):
+         AudioElementID=301 Type=Channel CodecConfigID=0 NumSubstreams=1 NumLayers=2
+           Layer[0]: Stereo (System A - 0+2+0)
+             OutputGain: 0/0
+           Substream[0]: ID=16
+       Mix Presentations (0):
+       Param Definitions (0):
+   obu: Type=Mix Presentation Size=121 Start=2
+     IAMF Context:
+       Codec Configs (0):
+       Audio Elements (0):
+       Mix Presentations (1):
+         MixPresentationID=42 Labels=[en-us]
+           en-us: Default Mix Presentation
+           Submix[0]: NumElements=2 NumLayouts=2
+             Element[0]: AudioElementID=300 HeadphonesMode=Binaural
+               DefaultMixGain: 0/256
+                 en-us: 3OA audio element
+             Element[1]: AudioElementID=301 HeadphonesMode=Binaural
+               DefaultMixGain: 0/256
+                 en-us: stereo audio element
+             Layout[0]: Type=Loudspeakers
+               SoundSystem: Stereo (System A - 0+2+0)
+               Channels: 2
+               IntegratedLoudness: -5147/256
+               DigitalPeak: -123/256
+             Layout[1]: Type=Binaural
+               SoundSystem: Binaural
+               Channels: 2
+               IntegratedLoudness: -32768/256
+               DigitalPeak: -32768/256
+       Param Definitions (3):
+         Type=MixGain ParameterID=999 ParameterRate=48000 Duration=0
+           Mode=1 NumSubblocks=0
+           AudioElementID=300
+         Type=MixGain ParameterID=995 ParameterRate=48000 Duration=0
+           Mode=1 NumSubblocks=0
+           AudioElementID=301
+         Type=MixGain ParameterID=998 ParameterRate=48000 Duration=0
+           Mode=1 NumSubblocks=0
