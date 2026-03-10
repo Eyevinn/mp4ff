@@ -19,6 +19,7 @@ type TrakBox struct {
 	Tkhd     *TkhdBox
 	Edts     *EdtsBox
 	Mdia     *MdiaBox
+	Trgr     *TrgrBox
 	Children []Box
 }
 
@@ -36,6 +37,8 @@ func (t *TrakBox) AddChild(child Box) {
 		t.Mdia = box
 	case *EdtsBox:
 		t.Edts = box
+	case *TrgrBox:
+		t.Trgr = box
 	}
 	t.Children = append(t.Children, child)
 }

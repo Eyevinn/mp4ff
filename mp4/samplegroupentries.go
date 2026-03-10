@@ -31,6 +31,8 @@ func init() {
 		"roll": DecodeRollSampleGroupEntry,
 		"rap ": DecodeRapSampleGroupEntry,
 		"alst": DecodeAlstSampleGroupEntry,
+		"oinf": DecodeOinfSampleGroupEntry,
+		"linf": DecodeLinfSampleGroupEntry,
 	}
 }
 

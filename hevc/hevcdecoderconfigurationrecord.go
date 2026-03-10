@@ -131,9 +131,6 @@ func DecodeHEVCDecConfRec(data []byte) (DecConfRec, error) {
 	hdcr.NumTemporalLayers = (aByte >> 3) & 0x7
 	hdcr.TemporalIDNested = (aByte >> 2) & 0x1
 	hdcr.LengthSizeMinusOne = aByte & 0x3
-	if hdcr.LengthSizeMinusOne != 3 {
-		return hdcr, ErrLengthSize
-	}
 	numArrays := sr.ReadUint8()
 	for j := 0; j < int(numArrays); j++ {
 		array := NaluArray{
@@ -216,4 +213,82 @@ func (h *DecConfRec) GetNalusForType(naluType NaluType) [][]byte {
 // AddNaluArrays appends new nalus to HEVCDecConfRec.
 func (h *DecConfRec) AddNaluArrays(na []NaluArray) {
 	h.NaluArrays = append(h.NaluArrays, na...)
+}
+
+// DecodeLHEVCDecConfRec decodes an L-HEVC (lhvC) decoder configuration record.
+// The L-HEVC format differs from standard hvcC: it omits profile/tier/level info
+// and chroma/bitdepth/framerate fields. See ISO/IEC 14496-15 Section 9.5.3.
+func DecodeLHEVCDecConfRec(data []byte) (DecConfRec, error) {
+	hdcr := DecConfRec{}
+	sr := bits.NewFixedSliceReader(data)
+	hdcr.ConfigurationVersion = sr.ReadUint8()
+	if hdcr.ConfigurationVersion != 1 {
+		return DecConfRec{}, fmt.Errorf("L-HEVC decoder configuration record version %d unknown",
+			hdcr.ConfigurationVersion)
+	}
+	// No profile/tier/level/compatibility/constraint/level fields in lhvC
+	hdcr.MinSpatialSegmentationIDC = sr.ReadUint16() & 0x0fff
+	hdcr.ParallellismType = sr.ReadUint8() & 0x3
+	// No chroma/bitdepth/framerate/constantFrameRate — just 2 reserved bits
+	aByte := sr.ReadUint8()
+	hdcr.NumTemporalLayers = (aByte >> 3) & 0x7
+	hdcr.TemporalIDNested = (aByte >> 2) & 0x1
+	hdcr.LengthSizeMinusOne = aByte & 0x3
+	numArrays := sr.ReadUint8()
+	for j := 0; j < int(numArrays); j++ {
+		array := NaluArray{
+			completeAndType: sr.ReadUint8(),
+			Nalus:           nil,
+		}
+		numNalus := int(sr.ReadUint16())
+		for i := 0; i < numNalus; i++ {
+			naluLength := int(sr.ReadUint16())
+			array.Nalus = append(array.Nalus, sr.ReadBytes(naluLength))
+		}
+		hdcr.NaluArrays = append(hdcr.NaluArrays, array)
+	}
+	return hdcr, sr.AccError()
+}
+
+// LHEVCSize returns the total size in bytes for the L-HEVC config record format.
+func (h *DecConfRec) LHEVCSize() uint64 {
+	totalSize := 6 // configVersion(1) + minSpatialSeg(2) + parallelism(1) + flags(1) + numArrays(1)
+	for _, array := range h.NaluArrays {
+		totalSize += 3 // complete + nalu type + num nalus
+		for _, nalu := range array.Nalus {
+			totalSize += 2 // nal unit length
+			totalSize += len(nalu)
+		}
+	}
+	return uint64(totalSize)
+}
+
+// EncodeLHEVC writes an L-HEVC decoder configuration record to w.
+func (h *DecConfRec) EncodeLHEVC(w io.Writer) error {
+	sw := bits.NewFixedSliceWriter(int(h.LHEVCSize()))
+	err := h.EncodeLHEVCSW(sw)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(sw.Bytes())
+	return err
+}
+
+// EncodeLHEVCSW writes an L-HEVC decoder configuration record to sw.
+func (h *DecConfRec) EncodeLHEVCSW(sw bits.SliceWriter) error {
+	sw.WriteUint8(h.ConfigurationVersion)
+	sw.WriteUint16(0xf000 | h.MinSpatialSegmentationIDC)
+	sw.WriteUint8(0xfc | h.ParallellismType)
+	// reserved(2) + numTemporalLayers(3) + temporalIdNested(1) + lengthSizeMinusOne(2)
+	sw.WriteUint8(0xc0 | h.NumTemporalLayers<<3 | h.TemporalIDNested<<2 | h.LengthSizeMinusOne)
+	sw.WriteUint8(byte(len(h.NaluArrays)))
+	for _, array := range h.NaluArrays {
+		sw.WriteUint8(array.completeAndType)
+		sw.WriteUint16(uint16(len(array.Nalus)))
+		for _, nalu := range array.Nalus {
+			sw.WriteUint16(uint16(len(nalu)))
+			sw.WriteBytes(nalu)
+		}
+	}
+	return sw.AccError()
 }

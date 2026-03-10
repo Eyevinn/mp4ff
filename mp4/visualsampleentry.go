@@ -20,6 +20,7 @@ type VisualSampleEntryBox struct {
 	CompressorName     string
 	AvcC               *AvcCBox
 	HvcC               *HvcCBox
+	LhvC               *LhvCBox
 	Av1C               *Av1CBox
 	Av3c               *Av3cBox
 	VvcC               *VvcCBox
@@ -30,6 +31,8 @@ type VisualSampleEntryBox struct {
 	Sinf               *SinfBox
 	SmDm               *SmDmBox
 	CoLL               *CoLLBox
+	Vexu               *VexuBox
+	Hfov               *HfovBox
 	Children           []Box
 	TrailingBytes      []byte
 }
@@ -68,6 +71,8 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.AvcC = box
 	case *HvcCBox:
 		b.HvcC = box
+	case *LhvCBox:
+		b.LhvC = box
 	case *Av1CBox:
 		b.Av1C = box
 	case *Av3cBox:
@@ -88,6 +93,10 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.SmDm = box
 	case *CoLLBox:
 		b.CoLL = box
+	case *VexuBox:
+		b.Vexu = box
+	case *HfovBox:
+		b.Hfov = box
 	}
 	b.Children = append(b.Children, child)
 }
