@@ -3,6 +3,9 @@ out/
 examples-out/
 dist/
 
+# References to non-public MPEG standards
+references/
+
 # Test binary, built with `go test -c`
 *.test
 
