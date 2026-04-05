@@ -90,6 +90,61 @@ func GetNaluType(naluHeaderStart byte) NaluType {
 	return NaluType((naluHeaderStart >> 1) & 0x3f)
 }
 
+// GetNaluLayerID extracts nuh_layer_id (6 bits) from the 2-byte HEVC NAL unit header.
+// HEVC NAL header: forbidden(1) | nal_unit_type(6) | nuh_layer_id(6) | nuh_temporal_id_plus1(3)
+func GetNaluLayerID(naluHeader []byte) byte {
+	return ((naluHeader[0] & 0x01) << 5) | ((naluHeader[1] >> 3) & 0x1f)
+}
+
+// GetNaluTemporalID extracts nuh_temporal_id (nuh_temporal_id_plus1 - 1) from the 2-byte HEVC NAL unit header.
+func GetNaluTemporalID(naluHeader []byte) byte {
+	return (naluHeader[1] & 0x07) - 1
+}
+
+// NaluInfo holds parsed information from a HEVC NAL unit header.
+type NaluInfo struct {
+	Type       NaluType
+	LayerID    byte
+	TemporalID byte
+}
+
+// ParseNaluHeader parses a 2-byte HEVC NAL unit header.
+func ParseNaluHeader(naluHeader []byte) NaluInfo {
+	return NaluInfo{
+		Type:       GetNaluType(naluHeader[0]),
+		LayerID:    GetNaluLayerID(naluHeader),
+		TemporalID: GetNaluTemporalID(naluHeader),
+	}
+}
+
+// SplitNalusByLayerID splits length-prefixed NALUs in a sample by nuh_layer_id.
+// The lengthSize is typically 4 bytes.
+func SplitNalusByLayerID(sample []byte, lengthSize int) map[byte][][]byte {
+	result := make(map[byte][][]byte)
+	pos := 0
+	for pos+lengthSize <= len(sample) {
+		var naluLength uint32
+		switch lengthSize {
+		case 4:
+			naluLength = binary.BigEndian.Uint32(sample[pos : pos+4])
+		case 2:
+			naluLength = uint32(binary.BigEndian.Uint16(sample[pos : pos+2]))
+		case 1:
+			naluLength = uint32(sample[pos])
+		default:
+			return result
+		}
+		pos += lengthSize
+		if pos+int(naluLength) > len(sample) || naluLength < 2 {
+			break
+		}
+		layerID := GetNaluLayerID(sample[pos : pos+2])
+		result[layerID] = append(result[layerID], sample[pos:pos+int(naluLength)])
+		pos += int(naluLength)
+	}
+	return result
+}
+
 // FindNaluTypes - find list of nalu types in sample
 func FindNaluTypes(sample []byte) []NaluType {
 	naluList := make([]NaluType, 0)

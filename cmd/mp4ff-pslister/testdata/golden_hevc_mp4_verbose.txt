@@ -1,5 +1,41 @@
 Video hevc track ID=1
 VPS 1 len 24B: 40010c01ffff016000000300900000030000030078959809
+{
+  "VpsID": 0,
+  "BaseLayerInternalFlag": true,
+  "BaseLayerAvailableFlag": true,
+  "MaxLayersMinus1": 0,
+  "MaxSubLayersMinus1": 0,
+  "TemporalIdNestingFlag": true,
+  "ProfileTierLevel": {
+    "GeneralProfileSpace": 0,
+    "GeneralTierFlag": false,
+    "GeneralProfileIDC": 1,
+    "GeneralProfileCompatibilityFlags": 1610612736,
+    "GeneralProgressiveSourceFlag": true,
+    "GeneralInterlacedSourceFlag": false,
+    "GeneralNonPackedConstraintFlag": false,
+    "GeneralFrameOnlyConstraintFlag": true,
+    "GeneralConstraintIndicatorFlags": 158329674399744,
+    "GeneralLevelIDC": 120,
+    "SubLayers": null
+  },
+  "SubLayerOrderingInfoPresentFlag": true,
+  "MaxDecPicBufferingMinus1": [
+    4
+  ],
+  "MaxNumReorderPics": [
+    2
+  ],
+  "MaxLatencyIncreasePlus1": [
+    5
+  ],
+  "MaxLayerID": 0,
+  "NumLayerSetsMinus1": 0,
+  "TimingInfoPresentFlag": false,
+  "TimingInfo": null,
+  "ExtensionFlag": false
+}
 SPS 1 len 45B: 420101016000000300900000030000030078a00502016965959a4932bc05a80808082000000300200000030321
 {
   "VpsID": 0,
