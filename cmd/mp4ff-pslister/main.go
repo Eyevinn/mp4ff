@@ -360,7 +360,11 @@ func printAvcPS(w io.Writer, spsNalus, ppsNalus [][]byte, verbose bool) error {
 
 func printHevcPS(w io.Writer, vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) error {
 	for i, vps := range vpsNalus {
-		printPS(w, "VPS", i+1, vps, nil, false)
+		vpsInfo, err := hevc.ParseVPSNALUnit(vps)
+		if err != nil {
+			return fmt.Errorf("ParseVPSNALUnit: %w", err)
+		}
+		printPS(w, "VPS", i+1, vps, vpsInfo, verbose)
 	}
 	spsMap := make(map[uint32]*hevc.SPS)
 	for i, sps := range spsNalus {

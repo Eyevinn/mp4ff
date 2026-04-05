@@ -153,6 +153,97 @@ func TestGetParameterSets(t *testing.T) {
 	}
 }
 
+func TestParseNaluHeader(t *testing.T) {
+	// VPS NALU: forbidden(0) | type=32(100000) | layer_id=0(000000) | temporal_id_plus1=1(001)
+	// Byte 0: 0_100000_0 = 0x40, Byte 1: 00000_001 = 0x01
+	hdr := []byte{0x40, 0x01}
+	info := ParseNaluHeader(hdr)
+	if info.Type != NALU_VPS {
+		t.Errorf("got type %s, want VPS", info.Type)
+	}
+	if info.LayerID != 0 {
+		t.Errorf("got layer ID %d, want 0", info.LayerID)
+	}
+	if info.TemporalID != 0 {
+		t.Errorf("got temporal ID %d, want 0", info.TemporalID)
+	}
+
+	// Layer 1 NALU: forbidden(0) | type=1(000001) | layer_id=1(000001) | temporal_id_plus1=1(001)
+	// Byte 0: 0_000001_0 = 0x02, Byte 1: 00001_001 = 0x09
+	hdr2 := []byte{0x02, 0x09}
+	info2 := ParseNaluHeader(hdr2)
+	if info2.Type != NALU_TRAIL_R {
+		t.Errorf("got type %s, want TRAIL_R", info2.Type)
+	}
+	if info2.LayerID != 1 {
+		t.Errorf("got layer ID %d, want 1", info2.LayerID)
+	}
+	if info2.TemporalID != 0 {
+		t.Errorf("got temporal ID %d, want 0", info2.TemporalID)
+	}
+}
+
+func TestSplitNalusByLayerID(t *testing.T) {
+	// Two NALUs: layer 0 VPS (3 bytes) + layer 1 TRAIL_R (3 bytes)
+	sample := []byte{
+		0, 0, 0, 3, 0x40, 0x01, 0xAA, // layer 0 VPS
+		0, 0, 0, 3, 0x02, 0x09, 0xBB, // layer 1 TRAIL_R
+	}
+	result := SplitNalusByLayerID(sample, 4)
+	if len(result) != 2 {
+		t.Fatalf("got %d layers, want 2", len(result))
+	}
+	if len(result[0]) != 1 {
+		t.Errorf("layer 0: got %d NALUs, want 1", len(result[0]))
+	}
+	if len(result[1]) != 1 {
+		t.Errorf("layer 1: got %d NALUs, want 1", len(result[1]))
+	}
+	if result[0][0][2] != 0xAA {
+		t.Errorf("layer 0 payload mismatch")
+	}
+	if result[1][0][2] != 0xBB {
+		t.Errorf("layer 1 payload mismatch")
+	}
+
+	// 2-byte length size
+	sample2 := []byte{
+		0, 3, 0x40, 0x01, 0xCC, // layer 0, length 3
+	}
+	result2 := SplitNalusByLayerID(sample2, 2)
+	if len(result2) != 1 || len(result2[0]) != 1 {
+		t.Fatalf("2-byte length: got %d layers", len(result2))
+	}
+
+	// 1-byte length size
+	sample1 := []byte{
+		3, 0x40, 0x01, 0xDD, // layer 0, length 3
+	}
+	result1 := SplitNalusByLayerID(sample1, 1)
+	if len(result1) != 1 || len(result1[0]) != 1 {
+		t.Fatalf("1-byte length: got %d layers", len(result1))
+	}
+
+	// Unsupported length size
+	resultBad := SplitNalusByLayerID(sample, 3)
+	if len(resultBad) != 0 {
+		t.Errorf("expected empty for unsupported length size")
+	}
+
+	// Truncated NALU (length exceeds data)
+	truncated := []byte{0, 0, 0, 99, 0x40, 0x01}
+	resultTrunc := SplitNalusByLayerID(truncated, 4)
+	if len(resultTrunc) != 0 {
+		t.Errorf("expected empty for truncated data")
+	}
+
+	// Empty sample
+	empty := SplitNalusByLayerID(nil, 4)
+	if len(empty) != 0 {
+		t.Errorf("expected empty result for nil input")
+	}
+}
+
 func TestNaluTypeStrings(t *testing.T) {
 	named := 0
 	for n := NaluType(0); n < NaluType(64); n++ {
