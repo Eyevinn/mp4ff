@@ -65,6 +65,18 @@ func (s *MediaSegment) LastFragment() *Fragment {
 	return s.Fragments[len(s.Fragments)-1]
 }
 
+// ParseSenc parses any deferred senc boxes in all fragments using encryption info from the init segment.
+// This is needed when the init segment is in a separate file and was not available during decoding.
+func (s *MediaSegment) ParseSenc(init *InitSegment) error {
+	for _, frag := range s.Fragments {
+		err := frag.ParseSenc(init)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Size - return size of media segment
 func (s *MediaSegment) Size() uint64 {
 	var size uint64 = 0

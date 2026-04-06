@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -29,6 +28,7 @@ type InitializationVector []byte
 type SencBox struct {
 	Version          byte
 	readButNotParsed bool
+	isParsedByGuess  bool // true if parsed by heuristic, can be re-parsed with authoritative value
 	perSampleIVSize  byte
 	Flags            uint32
 	SampleCount      uint32
@@ -107,44 +107,21 @@ func (s *SencBox) ReadButNotParsed() bool {
 	return s.readButNotParsed
 }
 
+// IsParsedByGuess returns true if the box was parsed using a heuristic
+// rather than an authoritative perSampleIVSize from tenc or seig.
+// Such a result can be replaced by calling ParseReadBox with a known value.
+func (s *SencBox) IsParsedByGuess() bool {
+	return s.isParsedByGuess
+}
+
 // DecodeSenc - box-specific decode
 func DecodeSenc(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	if hdr.payloadLen() < 8 {
-		return nil, fmt.Errorf("payload size %d less than min size 8", hdr.payloadLen())
-	}
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-
-	versionAndFlags := binary.BigEndian.Uint32(data[0:4])
-	version := byte(versionAndFlags >> 24)
-	flags := versionAndFlags & flagsMask
-	if version > 0 {
-		return nil, fmt.Errorf("version %d not supported", version)
-	}
-	sampleCount := binary.BigEndian.Uint32(data[4:8])
-
-	senc := SencBox{
-		Version:          version,
-		rawData:          data[8:], // After the first 8 bytes of box content
-		Flags:            flags,
-		StartPos:         startPos,
-		SampleCount:      sampleCount,
-		readButNotParsed: true,
-		readBoxSize:      hdr.Size,
-	}
-
-	if flags&UseSubSampleEncryption != 0 && (len(senc.rawData) < 2*int(sampleCount)) {
-		return nil, fmt.Errorf("payload size %d too small for %d samples and subSampleEncryption",
-			hdr.payloadLen(), sampleCount)
-	}
-
-	if senc.SampleCount == 0 || len(senc.rawData) == 0 {
-		senc.readButNotParsed = false
-		return &senc, nil
-	}
-	return &senc, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeSencSR(hdr, startPos, sr)
 }
 
 // DecodeSencSR - box-specific decode
@@ -184,14 +161,27 @@ func DecodeSencSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &senc, sr.AccError()
 }
 
-// ParseReadBox - second phase when perSampleIVSize should be known from tenc or sgpd boxes
-// if perSampleIVSize is 0, we try to find the appropriate error given data length
+// ParseReadBox parses a previously read senc box.
+// perSampleIVSize should be known from seig sample group or tenc box.
+// If perSampleIVSize is 0, a heuristic using saiz sample sizes is attempted.
+// A heuristic result can be replaced later by calling this method again with
+// an authoritative perSampleIVSize from a tenc box.
 func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
-	if !s.readButNotParsed {
+	if !s.readButNotParsed && !s.isParsedByGuess {
 		return fmt.Errorf("senc box already parsed")
 	}
+	if s.isParsedByGuess && perSampleIVSize == 0 {
+		// Already parsed by heuristic, no better info available.
+		return nil
+	}
+	// Reset parsed state for re-parsing
+	s.IVs = nil
+	s.SubSamples = nil
+	s.readButNotParsed = true
+	s.isParsedByGuess = false
+
 	if perSampleIVSize != 0 {
-		s.perSampleIVSize = byte(perSampleIVSize)
+		s.perSampleIVSize = perSampleIVSize
 	}
 	sr := bits.NewFixedSliceReader(s.rawData)
 	nrBytesLeft := uint32(sr.NrRemainingBytes())
@@ -221,10 +211,7 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 		s.readButNotParsed = false
 		return nil
 	}
-	// 6 bytes of subsamplecount per subsample and known perSampleIVSize
-	// The total length for each sample should correspond to
-	// sizes in saiz (defaultSampleInfoSize or SampleInfo value)
-	// We don't check that though, but it could be implemented here.
+	// With subsamples and known perSampleIVSize
 	if perSampleIVSize != 0 {
 		if ok := s.parseAndFillSamples(sr, perSampleIVSize); !ok {
 			return fmt.Errorf("error decoding senc with perSampleIVSize = %d", perSampleIVSize)
@@ -233,21 +220,53 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 		return nil
 	}
 
-	// Finally, 6 bytes of subsamplecount per subsample and unknown perSampleIVSize
+	// With subsamples and unknown perSampleIVSize, try to find a valid size.
+	// Use saiz sample sizes to quickly reject invalid candidates.
 	startPos := sr.GetPos()
 	ok := false
-	for perSampleIVSize := byte(0); perSampleIVSize <= 16; perSampleIVSize += 8 {
+	for _, candidate := range []byte{0, 8, 16} {
+		if saiz != nil && !saizMatchesIVSize(saiz, s.SampleCount, candidate) {
+			continue
+		}
 		sr.SetPos(startPos)
-		ok = s.parseAndFillSamples(sr, perSampleIVSize)
+		ok = s.parseAndFillSamples(sr, candidate)
 		if ok {
-			break // We have found a working perSampleIVSize
+			break
 		}
 	}
 	if !ok {
 		return fmt.Errorf("could not decode senc")
 	}
+	s.isParsedByGuess = true
 	s.readButNotParsed = false
 	return nil
+}
+
+// saizMatchesIVSize checks whether a candidate perSampleIVSize is consistent
+// with the sample auxiliary information sizes in the saiz box.
+// Each saiz entry should equal ivSize + 2 (subsample count) + N*6 (subsample entries)
+// for some non-negative integer N.
+func saizMatchesIVSize(saiz *SaizBox, sampleCount uint32, ivSize byte) bool {
+	for i := uint32(0); i < sampleCount; i++ {
+		sampleInfoSize := saiz.DefaultSampleInfoSize
+		if sampleInfoSize == 0 {
+			if int(i) >= len(saiz.SampleInfo) {
+				return false
+			}
+			sampleInfoSize = saiz.SampleInfo[i]
+		}
+		if sampleInfoSize == 0 {
+			continue // unprotected sample
+		}
+		remaining := int(sampleInfoSize) - int(ivSize)
+		if remaining < 2 {
+			return false
+		}
+		if (remaining-2)%6 != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // parseAndFillSamples - parse and fill senc samples given perSampleIVSize
