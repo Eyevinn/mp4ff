@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   multi-key decryption using KID/key maps. Currently only reads KID from tenc box
   (seig sample group entry overrides are not yet supported)
 
+### Changed
+
+- Minimum Go version bumped from 1.16 to 1.17 (ARM64 macOS support)
+
 ## [0.51.0] - 2026-02-20
 
 ### Added
