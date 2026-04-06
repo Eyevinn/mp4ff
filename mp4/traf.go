@@ -73,6 +73,23 @@ func (t *TrafBox) ContainsSencBox() (ok, parsed bool) {
 	return false, false
 }
 
+// needsSencParsing returns true if the traf contains a senc box that is either
+// not yet parsed or was parsed by heuristic (and can benefit from re-parsing
+// with authoritative tenc info).
+func (t *TrafBox) needsSencParsing() bool {
+	for _, c := range t.Children {
+		switch box := c.(type) {
+		case *SencBox:
+			return box.readButNotParsed || box.isParsedByGuess
+		case *UUIDBox:
+			if box.SubType() == "senc" {
+				return box.Senc.readButNotParsed || box.Senc.isParsedByGuess
+			}
+		}
+	}
+	return false
+}
+
 // ParseReadSenc makes a second round to parse a senc box previously read
 func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 	if t.Senc == nil && t.UUIDSenc == nil {

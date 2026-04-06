@@ -172,10 +172,6 @@ func run(args []string) error {
 	return nil
 }
 
-func decryptFile(r, initR io.Reader, w io.Writer, key []byte) error {
-	return decryptFileWithKeyMap(r, initR, w, key, nil, false)
-}
-
 func decryptFileWithKeyMap(r, initR io.Reader, w io.Writer, key []byte, keysByKID map[string][]byte, strictKIDMode bool) error {
 	inMp4, err := mp4.DecodeFile(r)
 	if err != nil {
@@ -212,6 +208,14 @@ func decryptFileWithKeyMap(r, initR io.Reader, w io.Writer, key []byte, keysByKI
 	}
 
 	for _, seg := range inMp4.Segments {
+		if inMp4.Init == nil {
+			// Init segment was separate, so senc boxes were not parsed during decode.
+			// Parse them now using the init segment's encryption info.
+			err = seg.ParseSenc(init)
+			if err != nil {
+				return fmt.Errorf("parseSenc: %w", err)
+			}
+		}
 		err = mp4.DecryptSegmentWithKeys(seg, decryptInfo, key, keysByKID, strictKIDMode)
 		if err != nil {
 			return fmt.Errorf("decryptSegment: %w", err)

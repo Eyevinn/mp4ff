@@ -50,6 +50,86 @@ func TestNonRunningOptionCases(t *testing.T) {
 	}
 }
 
+func TestDecryptWithSeparateInit(t *testing.T) {
+	// Split a combined init+segments file into separate init and segment files,
+	// then decrypt using the separate init path and compare with golden output.
+	combinedFile := "../../mp4/testdata/prog_8s_enc_dashinit.mp4"
+	key := "63cb5f7184dd4b689a5c5ff11ee6a328"
+
+	combined, err := mp4.ReadMP4File(combinedFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := t.TempDir()
+	initPath := path.Join(tmpDir, "init.mp4")
+	segPath := path.Join(tmpDir, "seg.m4s")
+	outPath := path.Join(tmpDir, "out.mp4")
+
+	// Write init segment
+	initFh, err := os.Create(initPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = combined.Init.Encode(initFh)
+	initFh.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write all media segments
+	segFh, err := os.Create(segPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, seg := range combined.Segments {
+		err = seg.Encode(segFh)
+		if err != nil {
+			segFh.Close()
+			t.Fatal(err)
+		}
+	}
+	segFh.Close()
+
+	// Decrypt using separate init
+	args := []string{"mp4ff-decrypt", "-init", initPath, "-key", key, segPath, outPath}
+	err = run(args)
+	if err != nil {
+		t.Fatalf("decrypt with separate init failed: %v", err)
+	}
+
+	// Decrypt the combined file the normal way for comparison
+	combinedOutPath := path.Join(tmpDir, "combined_out.mp4")
+	args = []string{"mp4ff-decrypt", "-key", key, combinedFile, combinedOutPath}
+	err = run(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The separate-init decrypted segments should match those from the combined decrypted file
+	combinedDec, err := mp4.ReadMP4File(combinedOutPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var expectedSegs bytes.Buffer
+	for _, seg := range combinedDec.Segments {
+		err = seg.Encode(&expectedSegs)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	actualSegs, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(expectedSegs.Bytes(), actualSegs) {
+		t.Errorf("decrypted segments from separate init (%d bytes) differ from combined decrypt (%d bytes)",
+			len(actualSegs), expectedSegs.Len())
+	}
+}
+
 func TestDecodeFiles(t *testing.T) {
 	testCases := []struct {
 		desc            string
@@ -156,6 +236,59 @@ func TestParseKeys(t *testing.T) {
 		}
 	})
 
+	t.Run("single kid:key pair", func(t *testing.T) {
+		_, keysByKID, strictMode, err := parseKeys([]string{kidNoDash + ":" + legacyKey})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strictMode {
+			t.Fatal("expected strict mode")
+		}
+		if len(keysByKID) != 1 {
+			t.Fatalf("expected 1 kid map entry, got %d", len(keysByKID))
+		}
+	})
+
+	t.Run("multiple legacy keys fails", func(t *testing.T) {
+		_, _, _, err := parseKeys([]string{legacyKey, legacyKey})
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "multiple legacy keys") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("bad kid:key format", func(t *testing.T) {
+		_, _, _, err := parseKeys([]string{":"})
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "bad kid:key format") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("bad kid in pair", func(t *testing.T) {
+		_, _, _, err := parseKeys([]string{"badkid:" + legacyKey})
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "unpacking kid") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("bad key in pair", func(t *testing.T) {
+		_, _, _, err := parseKeys([]string{kidNoDash + ":badkey"})
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "unpacking key for kid") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
 	t.Run("mixed mode fails", func(t *testing.T) {
 		_, _, _, err := parseKeys([]string{legacyKey, kidNoDash + ":" + legacyKey})
 		if err == nil {
@@ -242,7 +375,7 @@ func BenchmarkDecodeCenc(b *testing.B) {
 		if err != nil {
 			b.Error(err)
 		}
-		err = decryptFile(inBuf, nil, outBuf, key)
+		err = decryptFileWithKeyMap(inBuf, nil, outBuf, key, nil, false)
 		if err != nil {
 			b.Error(err)
 		}

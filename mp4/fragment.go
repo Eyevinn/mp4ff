@@ -84,6 +84,35 @@ func (f *Fragment) AddChild(b Box) {
 	f.Children = append(f.Children, b)
 }
 
+// ParseSenc parses any deferred or heuristic-parsed senc boxes in the fragment
+// using authoritative encryption info from the init segment.
+// This is needed when the init segment is in a separate file and was not available during decoding.
+// The priority for determining perSampleIVSize is:
+// 1. seig sample group entry in the traf (checked inside ParseReadSenc)
+// 2. tenc defaultPerSampleIVSize from the init segment
+// 3. heuristic using saiz sample sizes (fallback, already applied during decode if possible)
+func (f *Fragment) ParseSenc(init *InitSegment) error {
+	if f.Moof == nil {
+		return nil
+	}
+	for _, traf := range f.Moof.Trafs {
+		if !traf.needsSencParsing() {
+			continue
+		}
+		defaultIVSize := byte(0)
+		trackID := traf.Tfhd.TrackID
+		sinf := init.Moov.GetSinf(trackID)
+		if sinf != nil && sinf.Schi != nil && sinf.Schi.Tenc != nil {
+			defaultIVSize = sinf.Schi.Tenc.DefaultPerSampleIVSize
+		}
+		err := traf.ParseReadSenc(defaultIVSize, f.Moof.StartPos)
+		if err != nil {
+			return fmt.Errorf("parseReadSenc for trackID=%d: %w", trackID, err)
+		}
+	}
+	return nil
+}
+
 // AddEmsg inserts an emsg box at the end of a sequence of emsg boxes at the start of the fragment.
 func (f *Fragment) AddEmsg(emsg *EmsgBox) {
 	prevEmsg := -1

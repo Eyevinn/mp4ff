@@ -212,21 +212,25 @@ LoopBoxes:
 			moof := box.(*MoofBox)
 			for _, traf := range moof.Trafs {
 				if ok, parsed := traf.ContainsSencBox(); ok && !parsed {
-					isEncrypted := true
-					defaultIVSize := byte(0) // Should get this from tenc in sinf
+					defaultIVSize := byte(0)
 					if f.Moov != nil {
 						trackID := traf.Tfhd.TrackID
-						isEncrypted = f.Moov.IsEncrypted(trackID)
+						if !f.Moov.IsEncrypted(trackID) {
+							continue
+						}
 						sinf := f.Moov.GetSinf(trackID)
 						if sinf != nil && sinf.Schi != nil && sinf.Schi.Tenc != nil {
 							defaultIVSize = sinf.Schi.Tenc.DefaultPerSampleIVSize
 						}
 					}
-					if isEncrypted { // Don't do if encryption boxes still remain, but are not
-						err = traf.ParseReadSenc(defaultIVSize, moof.StartPos)
-						if err != nil {
-							return f, err
+					err = traf.ParseReadSenc(defaultIVSize, moof.StartPos)
+					if err != nil {
+						if f.Moov == nil {
+							// No moov and heuristic failed.
+							// Leave senc deferred for caller to parse later with init info.
+							continue
 						}
+						return f, err
 					}
 				}
 			}

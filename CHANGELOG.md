@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DecryptSegmentWithKeys` and `DecryptFragmentWithKeys` functions in mp4 package for
   multi-key decryption using KID/key maps. Currently only reads KID from tenc box
   (seig sample group entry overrides are not yet supported)
+- `Fragment.ParseSenc()` and `MediaSegment.ParseSenc()` methods to parse senc boxes
+  using encryption info from a separate init segment
+- `SencBox.IsParsedByGuess()` to check if senc was parsed by heuristic
+
+### Fixed
+
+- senc parsing when init segment is in a separate file (issue #492).
+  The perSampleIVSize is now determined with correct priority:
+  1. seig sample group entry, 2. tenc from init segment, 3. heuristic with saiz validation
+- `DecodeSenc` now delegates to `DecodeSencSR` removing duplicated code
+- Heuristic senc parsing validates candidates against saiz sample sizes,
+  preventing incorrect perSampleIVSize selection
 
 ### Changed
 

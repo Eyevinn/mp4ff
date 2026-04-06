@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -144,6 +145,180 @@ func TestAddSamples(t *testing.T) {
 	assertNoError(t, err)
 	err = senc.AddSample(mp4.SencSample{iv8, []mp4.SubSamplePattern{{20, 2000}}})
 	assertError(t, err, "Should have got error due to different iv size")
+}
+
+// TestParseSencWithSeparateInit tests parsing senc when init segment is in a separate file.
+// The media segment (seg_cenc_no_seig.m4v) has no seig sample group, so the perSampleIVSize
+// must come from the tenc box in the init segment (init_cenc_test.m4i).
+func TestParseSencWithSeparateInit(t *testing.T) {
+	// Decode init segment
+	initData, err := os.ReadFile("testdata/init_cenc_test.m4i")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initFile, err := mp4.DecodeFile(bytes.NewBuffer(initData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	init := initFile.Init
+
+	// Decode media segment without init (no moov available)
+	segData, err := os.ReadFile("testdata/seg_cenc_no_seig.m4v")
+	if err != nil {
+		t.Fatal(err)
+	}
+	segFile, err := mp4.DecodeFile(bytes.NewBuffer(segData))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Heuristic with saiz should have parsed senc during decode
+	seg := segFile.Segments[0]
+	frag := seg.Fragments[0]
+	senc := frag.Moof.Traf.Senc
+	if senc == nil {
+		t.Fatal("expected senc box in traf")
+	}
+	if senc.ReadButNotParsed() {
+		t.Error("expected senc to be parsed by heuristic")
+	}
+	if !senc.IsParsedByGuess() {
+		t.Error("expected senc to be marked as parsed by guess")
+	}
+	if senc.PerSampleIVSize() != 8 {
+		t.Errorf("expected heuristic perSampleIVSize=8, got %d", senc.PerSampleIVSize())
+	}
+
+	// Now re-parse with authoritative init segment info
+	err = seg.ParseSenc(init)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if senc.IsParsedByGuess() {
+		t.Error("expected senc to no longer be marked as parsed by guess after ParseSenc")
+	}
+	if senc.PerSampleIVSize() != 8 {
+		t.Errorf("expected perSampleIVSize=8 after ParseSenc, got %d", senc.PerSampleIVSize())
+	}
+}
+
+// TestParseSencWithSeig tests that senc is parsed using seig when moov is not available.
+// moof_enc.m4s has a seig sample group with perSampleIVSize=8.
+func TestParseSencWithSeig(t *testing.T) {
+	segData, err := os.ReadFile("testdata/moof_enc.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	segFile, err := mp4.DecodeFile(bytes.NewBuffer(segData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg := segFile.Segments[0]
+	frag := seg.Fragments[0]
+	senc := frag.Moof.Traf.Senc
+	if senc == nil {
+		t.Fatal("expected senc box in traf")
+	}
+	if senc.ReadButNotParsed() {
+		t.Error("expected senc to be parsed")
+	}
+	// seig provides the authoritative value, not a guess
+	if senc.IsParsedByGuess() {
+		t.Error("expected senc parsed via seig, not by guess")
+	}
+	if senc.PerSampleIVSize() != 8 {
+		t.Errorf("expected perSampleIVSize=8, got %d", senc.PerSampleIVSize())
+	}
+}
+
+// TestParseSencGuessThenReparse tests that a heuristic-parsed senc can be re-parsed
+// with an authoritative value, and that re-parsing with 0 is a no-op.
+func TestParseSencGuessThenReparse(t *testing.T) {
+	// Decode media segment without init — senc will be parsed by heuristic
+	segData, err := os.ReadFile("testdata/seg_cenc_no_seig.m4v")
+	if err != nil {
+		t.Fatal(err)
+	}
+	segFile, err := mp4.DecodeFile(bytes.NewBuffer(segData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	senc := segFile.Segments[0].Fragments[0].Moof.Traf.Senc
+	if !senc.IsParsedByGuess() {
+		t.Fatal("expected senc to be parsed by guess")
+	}
+
+	// Re-parse with 0 should be a no-op (no better info)
+	err = senc.ParseReadBox(0, nil)
+	if err != nil {
+		t.Fatalf("re-parse with 0 should succeed as no-op, got: %v", err)
+	}
+	if !senc.IsParsedByGuess() {
+		t.Error("should still be marked as guess after re-parse with 0")
+	}
+
+	// Re-parse with authoritative value should replace the guess
+	err = senc.ParseReadBox(8, nil)
+	if err != nil {
+		t.Fatalf("re-parse with 8 should succeed, got: %v", err)
+	}
+	if senc.IsParsedByGuess() {
+		t.Error("should no longer be marked as guess after authoritative re-parse")
+	}
+	if senc.PerSampleIVSize() != 8 {
+		t.Errorf("expected perSampleIVSize=8, got %d", senc.PerSampleIVSize())
+	}
+}
+
+func TestParseSencAlreadyParsed(t *testing.T) {
+	// Create a senc box, encode it, decode it, parse it, then try to parse again
+	senc := mp4.CreateSencBox()
+	iv8 := mp4.InitializationVector("01234567")
+	err := senc.AddSample(mp4.SencSample{IV: iv8, SubSamples: []mp4.SubSamplePattern{{10, 1000}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := bytes.Buffer{}
+	err = senc.Encode(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	boxDec, err := mp4.DecodeBox(0, &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decSenc := boxDec.(*mp4.SencBox)
+
+	// First parse should succeed
+	err = decSenc.ParseReadBox(8, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Second parse with same authoritative value should fail (already parsed, not by guess)
+	err = decSenc.ParseReadBox(8, nil)
+	if err == nil {
+		t.Error("expected error when parsing already-parsed senc box")
+	}
+}
+
+func TestParseSencNilMoof(t *testing.T) {
+	// ParseSenc on a fragment with nil moof should be a no-op
+	frag := mp4.NewFragment()
+	initData, err := os.ReadFile("testdata/init_cenc_test.m4i")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initFile, err := mp4.DecodeFile(bytes.NewBuffer(initData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = frag.ParseSenc(initFile.Init)
+	if err != nil {
+		t.Errorf("ParseSenc on nil moof should not error, got: %v", err)
+	}
 }
 
 // TestImplicitIVSize tests that the implicit IV size is correctly calculated (perSampleIVSize != 0)
