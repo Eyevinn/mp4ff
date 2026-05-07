@@ -63,7 +63,7 @@ func NewPsshBox(systemID string, KIDs []string, data []byte) (*PsshBox, error) {
 		Flags:    0,
 		SystemID: sysIdUUID,
 		KIDs:     nil,
-		Data:     nil,
+		Data:     data,
 	}
 	if len(KIDs) > 0 {
 		b.Version = 1

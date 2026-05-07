@@ -89,13 +89,14 @@ func TestNewPsshBox(t *testing.T) {
 		systemID string
 		kIDs     []string
 		data     []byte
+		version  byte
 		err      bool
 	}{
-		{"only UUID", "9a04f079-9840-4286-ab92-e65be0885f95", nil, []byte("data"), false},
-		{"bad UUID", "invalid-uuid", nil, []byte("data"), true},
-		{"bad KID", "9a04f079-9840-4286-ab92-e65be0885f95", []string{"invalid-uuid"}, []byte("data"), true},
+		{"only UUID", "9a04f079-9840-4286-ab92-e65be0885f95", nil, []byte("data"), 0, false},
+		{"bad UUID", "invalid-uuid", nil, []byte("data"), 0, true},
+		{"bad KID", "9a04f079-9840-4286-ab92-e65be0885f95", []string{"invalid-uuid"}, []byte("data"), 0, true},
 		{"v1 with KID", "9a04f079-9840-4286-ab92-e65be0885f95",
-			[]string{"00112233445566778899aabbccddeeff"}, []byte("data"), false},
+			[]string{"00112233445566778899aabbccddeeff"}, []byte("data"), 1, false},
 	}
 
 	for _, c := range cases {
@@ -108,6 +109,25 @@ func TestNewPsshBox(t *testing.T) {
 				t.Errorf("Expected no error, got: %v", err)
 			case !c.err && err == nil:
 				boxDiffAfterEncodeAndDecode(t, pssh)
+
+				if c.version != pssh.Version {
+					t.Errorf("Expected version to be %v, got %v", c.version, pssh.Version)
+				}
+
+				if !bytes.Equal(c.data, pssh.Data) {
+					t.Errorf("Expected data to be %v, got %v", c.data, pssh.Data)
+				}
+
+				if len(pssh.KIDs) != len(c.kIDs) {
+					t.Errorf("Expected %d KIDs, got %v", len(c.kIDs), len(pssh.KIDs))
+				}
+
+				for i, kid := range pssh.KIDs {
+					gotKid := strings.ReplaceAll(kid.String(), "-", "")
+					if gotKid != c.kIDs[0] {
+						t.Errorf("Expected KID %d to be %q, got %q", i, c.kIDs[i], gotKid)
+					}
+				}
 			}
 		})
 	}
