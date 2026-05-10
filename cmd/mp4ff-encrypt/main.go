@@ -195,7 +195,7 @@ func encryptFile(ifh io.Reader, ofh io.Writer, initSeg *mp4.InitSegment,
 
 	for _, s := range inFile.Segments {
 		for _, f := range s.Fragments {
-			err = mp4.EncryptFragment(f, key, iv, ipd)
+			iv, err = mp4.EncryptFragment(f, key, iv, ipd)
 			if err != nil {
 				return fmt.Errorf("encrypt fragment: %w", err)
 			}
