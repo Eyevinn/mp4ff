@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DecodeSenc` now delegates to `DecodeSencSR` removing duplicated code
 - Heuristic senc parsing validates candidates against saiz sample sizes,
   preventing incorrect perSampleIVSize selection
+- `mp4.NewPsshBox` now stores the supplied `data` argument on the returned
+  box instead of dropping it (issue #497)
 
 ### Changed
 
