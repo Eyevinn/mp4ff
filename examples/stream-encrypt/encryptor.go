@@ -59,7 +59,7 @@ func (se *StreamEncryptor) EncryptFragment(frag *mp4.Fragment) error {
 
 	iv := se.deriveIV(se.fragNum)
 
-	err := mp4.EncryptFragment(frag, se.config.Key, iv, se.ipd)
+	_, err := mp4.EncryptFragment(frag, se.config.Key, iv, se.ipd)
 	if err != nil {
 		return fmt.Errorf("encrypt fragment %d: %w", se.fragNum, err)
 	}

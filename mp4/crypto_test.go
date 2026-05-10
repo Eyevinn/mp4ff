@@ -188,9 +188,10 @@ func TestEncryptDecrypt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			fragIV := iv
 			for _, s := range seg.Segments {
 				for _, f := range s.Fragments {
-					err := mp4.EncryptFragment(f, key, iv, ipf)
+					fragIV, err = mp4.EncryptFragment(f, key, fragIV, ipf)
 					if err != nil {
 						t.Error(err)
 					}
@@ -246,15 +247,93 @@ func TestEncryptDecrypt(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			fragIV = iv
 			for _, s := range decode.Segments {
 				for _, f := range s.Fragments {
-					err := mp4.EncryptFragment(f, key, iv, pd2)
+					fragIV, err = mp4.EncryptFragment(f, key, fragIV, pd2)
 					if err != nil {
 						t.Errorf("Error re-encrypting fragment: %v\n", err)
 					}
 				}
 			}
 		})
+	}
+}
+
+// TestEncryptFragmentIVChaining is a regression test for issue #499.
+// EncryptFragment must return an updated IV so that callers encrypting
+// multiple fragments with the same key advance the IV between fragments
+// and avoid IV/keystream reuse.
+func TestEncryptFragmentIVChaining(t *testing.T) {
+	initFile := "testdata/init.mp4"
+	segFile := "testdata/1.m4s"
+	keyHex := "00112233445566778899aabbccddeeff"
+	ivHex := "7766554433221100"
+	kidHex := "11112222333344445555666677778888"
+	key, _ := hex.DecodeString(keyHex)
+	iv, _ := hex.DecodeString(ivHex)
+	kidUUID, _ := mp4.NewUUIDFromString(kidHex)
+
+	ifh, err := os.Open(initFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initSeg, err := mp4.DecodeFile(ifh)
+	ifh.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ipd, err := mp4.InitProtect(initSeg.Init, key, iv, "cenc", kidUUID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawSeg, err := os.ReadFile(segFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loadFragment := func() *mp4.Fragment {
+		seg, err := mp4.DecodeFile(bytes.NewBuffer(rawSeg))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(seg.Segments) == 0 || len(seg.Segments[0].Fragments) == 0 {
+			t.Fatal("expected at least one fragment in segment")
+		}
+		return seg.Segments[0].Fragments[0]
+	}
+
+	fragA := loadFragment()
+	nextIV, err := mp4.EncryptFragment(fragA, key, iv, ipd)
+	if err != nil {
+		t.Fatalf("EncryptFragment fragA: %v", err)
+	}
+	if bytes.Equal(nextIV, iv) {
+		t.Fatalf("expected returned IV to differ from input IV after cenc encryption")
+	}
+
+	fragB := loadFragment()
+	_, err = mp4.EncryptFragment(fragB, key, nextIV, ipd)
+	if err != nil {
+		t.Fatalf("EncryptFragment fragB: %v", err)
+	}
+
+	sencA := fragA.Moof.Traf.Senc
+	sencB := fragB.Moof.Traf.Senc
+	if sencA == nil || sencB == nil {
+		t.Fatal("missing senc box after encryption")
+	}
+	if len(sencA.IVs) == 0 || len(sencB.IVs) == 0 {
+		t.Fatal("expected per-sample IVs in senc for cenc")
+	}
+	if bytes.Equal(sencA.IVs[0], sencB.IVs[0]) {
+		t.Fatalf("first-sample IVs must differ between chained fragments; got %x for both",
+			sencA.IVs[0])
+	}
+	if !bytes.Equal(sencB.IVs[0], nextIV) {
+		t.Fatalf("fragB first-sample IV %x does not match returned next IV %x",
+			sencB.IVs[0], nextIV)
 	}
 }
 
@@ -385,9 +464,10 @@ func TestDecryptSegmentTrackIDMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fragIV := iv
 	for _, s := range seg.Segments {
 		for _, f := range s.Fragments {
-			err := mp4.EncryptFragment(f, key, iv, ipf)
+			fragIV, err = mp4.EncryptFragment(f, key, fragIV, ipf)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -479,9 +559,10 @@ func TestDecryptSegmentWithKeys(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		fragIV := iv
 		for _, s := range seg.Segments {
 			for _, f := range s.Fragments {
-				err := mp4.EncryptFragment(f, key, iv, ipf)
+				fragIV, err = mp4.EncryptFragment(f, key, fragIV, ipf)
 				if err != nil {
 					t.Fatal(err)
 				}

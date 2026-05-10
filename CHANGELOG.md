@@ -27,10 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preventing incorrect perSampleIVSize selection
 - `mp4.NewPsshBox` now stores the supplied `data` argument on the returned
   box instead of dropping it (issue #497)
+- IV is now advanced between fragments when encrypting multiple cenc fragments
+  with `mp4ff-encrypt`, avoiding IV/keystream reuse across fragments (issue #499)
 
 ### Changed
 
 - Minimum Go version bumped from 1.16 to 1.17 (ARM64 macOS support)
+- `mp4.EncryptFragment` now returns `(nextIV []byte, err error)` so callers
+  can chain the IV across fragments. Update call sites that previously
+  captured only the error
 
 ## [0.51.0] - 2026-02-20
 

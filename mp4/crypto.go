@@ -448,9 +448,15 @@ func getHEVCProtFunc(hvcC *HvcCBox) (ProtectionRangeFunc, error) {
 
 }
 
-func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
+// EncryptFragment encrypts a fragment in place and returns the next IV to use
+// for the following fragment. For cenc, the returned IV is the input IV
+// incremented by the number of encrypted AES blocks in the fragment, so that
+// callers processing multiple fragments with the same key can chain calls and
+// avoid IV reuse. For cbcs the IV is constant and the returned slice is a
+// copy of the input IV.
+func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte, error) {
 	if ipd == nil {
-		return fmt.Errorf("no protection data")
+		return nil, fmt.Errorf("no protection data")
 	}
 	if len(iv) == 8 {
 		// Convert to 16 bytes
@@ -459,14 +465,14 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 		copy(iv, iv8)
 	}
 	if len(iv) != 16 {
-		return fmt.Errorf("iv must be 16 bytes")
+		return nil, fmt.Errorf("iv must be 16 bytes")
 	}
 	if len(f.Moof.Trafs) != 1 {
-		return fmt.Errorf("only one traf supported")
+		return nil, fmt.Errorf("only one traf supported")
 	}
 	traf := f.Moof.Traf
 	if len(traf.Truns) != 1 {
-		return fmt.Errorf("only one trun supported")
+		return nil, fmt.Errorf("only one trun supported")
 	}
 	nrSamples := int(f.Moof.Traf.Trun.SampleCount())
 	saiz := NewSaizBox(nrSamples)
@@ -480,25 +486,25 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 	case "cbcs":
 		senc = NewSencBox(0, nrSamples)
 	default:
-		return fmt.Errorf("unknown scheme %s", ipd.Scheme)
+		return nil, fmt.Errorf("unknown scheme %s", ipd.Scheme)
 	}
 	_ = traf.AddChild(senc)
 	fss, err := f.GetFullSamples(ipd.Trex)
 	if err != nil {
-		return fmt.Errorf("get full samples: %w", err)
+		return nil, fmt.Errorf("get full samples: %w", err)
 	}
 
 	for _, fs := range fss {
 		sample := fs.Data
 		subsamplePatterns, err := ipd.ProtFunc(sample, ipd.Scheme)
 		if err != nil {
-			return fmt.Errorf("get protect ranges: %w", err)
+			return nil, fmt.Errorf("get protect ranges: %w", err)
 		}
 		switch ipd.Scheme {
 		case "cenc":
 			err = CryptSampleCenc(sample, key, iv, subsamplePatterns)
 			if err != nil {
-				return fmt.Errorf("crypt sample cenc: %w", err)
+				return nil, fmt.Errorf("crypt sample cenc: %w", err)
 			}
 			// Store IVs in the senc box and update depending on blocks of encrypted data
 			_ = senc.AddSample(SencSample{IV: iv, SubSamples: subsamplePatterns})
@@ -507,13 +513,13 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 		case "cbcs":
 			err = EncryptSampleCbcs(sample, key, iv, subsamplePatterns, ipd.Tenc)
 			if err != nil {
-				return fmt.Errorf("crypt sample cbcs: %w", err)
+				return nil, fmt.Errorf("crypt sample cbcs: %w", err)
 			}
 			// iv is constant and not sent t senc
 			_ = senc.AddSample(SencSample{IV: nil, SubSamples: subsamplePatterns})
 			saiz.AddSampleInfo(nil, subsamplePatterns)
 		default:
-			return fmt.Errorf("unknown scheme %s", ipd.Scheme)
+			return nil, fmt.Errorf("unknown scheme %s", ipd.Scheme)
 		}
 	}
 	moof := f.Moof
@@ -535,7 +541,7 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) error {
 		break
 	}
 	saio.Offset[0] = int64(sencDataOffset)
-	return nil
+	return iv, nil
 }
 
 type DecryptInfo struct {
