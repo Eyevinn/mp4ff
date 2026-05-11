@@ -1,7 +1,9 @@
 package iamf
 
 import (
+	"encoding/hex"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -131,7 +133,17 @@ func TestStringers(t *testing.T) {
 
 		{SoundSystemA_0_2_0.String(), "Sound System A (0.2.0)"},
 		{SoundSystemB_0_5_0.String(), "Sound System B (0.5.0)"},
+		{SoundSystemC_2_5_0.String(), "Sound System C (2.5.0)"},
+		{SoundSystemD_4_5_0.String(), "Sound System D (4.5.0)"},
+		{SoundSystemE_4_5_1.String(), "Sound System E (4.5.1)"},
+		{SoundSystemF_3_7_0.String(), "Sound System F (3.7.0)"},
+		{SoundSystemG_4_9_0.String(), "Sound System G (4.9.0)"},
 		{SoundSystemH_9_10_3.String(), "Sound System H (9.10.3)"},
+		{SoundSystemI_0_7_0.String(), "Sound System I (0.7.0)"},
+		{SoundSystemJ_4_7_0.String(), "Sound System J (4.7.0)"},
+		{SoundSystem10_2_7_0.String(), "Sound System I + Ltf + Rtf (10.2.7.0)"},
+		{SoundSystem11_2_3_0.String(), "Sound System J Front Subset (11.2.3.0)"},
+		{SoundSystem12_0_1_0.String(), "Mono (12.0.1.0)"},
 		{SoundSystem13_9_1_6.String(), "Sound System H Subset (13.9.1.6)"},
 		{SoundSystem(99).String(), "Unknown(99)"},
 	}
@@ -194,18 +206,31 @@ func TestObuInfoPayloadSize(t *testing.T) {
 }
 
 func TestPcmDecoderConfig(t *testing.T) {
-	// sample_format=1 (LE), sample_size=24 (idx 1), sample_rate=48000
-	data := []byte{0x01, 24, 0x00, 0x00, 0xbb, 0x80}
-	sr := bits.NewFixedSliceReader(data)
-	cc := &IamfCodecConfig{AudioRollDistance: 0}
-	if err := PcmDecoderConfig(sr, cc); err != nil {
-		t.Fatalf("PcmDecoderConfig: %v", err)
+	cases := []struct {
+		format    byte
+		bits      byte
+		wantCodec string
+	}{
+		{0, 16, "pcm_s16be"},
+		{0, 24, "pcm_s24be"},
+		{0, 32, "pcm_s32be"},
+		{1, 16, "pcm_s16le"},
+		{1, 24, "pcm_s24le"},
+		{1, 32, "pcm_s32le"},
 	}
-	if cc.SampleRate != 48000 {
-		t.Errorf("SampleRate = %d, want 48000", cc.SampleRate)
-	}
-	if cc.CodecID != "pcm_s24le" {
-		t.Errorf("CodecID = %q, want pcm_s24le", cc.CodecID)
+	for _, c := range cases {
+		data := []byte{c.format, c.bits, 0x00, 0x00, 0xbb, 0x80}
+		sr := bits.NewFixedSliceReader(data)
+		cc := &IamfCodecConfig{AudioRollDistance: 0}
+		if err := PcmDecoderConfig(sr, cc); err != nil {
+			t.Fatalf("PcmDecoderConfig(%d,%d): %v", c.format, c.bits, err)
+		}
+		if cc.SampleRate != 48000 {
+			t.Errorf("SampleRate = %d, want 48000", cc.SampleRate)
+		}
+		if cc.CodecID != c.wantCodec {
+			t.Errorf("CodecID = %q, want %q", cc.CodecID, c.wantCodec)
+		}
 	}
 }
 
@@ -432,6 +457,66 @@ func TestParseObuSRTooShort(t *testing.T) {
 	}
 }
 
+func TestParseObuSRWithTrimming(t *testing.T) {
+	// header byte: type=1 (AudioElement), trimming=1, extension=0
+	//   bits MSB-first: type[5]=00001 redundant[1]=0 trimming[1]=1 extension[1]=0
+	//   => 0b00001010 = 0x0A
+	// then leb128 obuSize = 5
+	// then 2 leb128s for trimming counts (samples_to_trim_at_end, _at_start)
+	// then 5 bytes of payload
+	data := []byte{0x0A, 0x05, 0x00, 0x00, 1, 2, 3, 4, 5}
+	sr := bits.NewFixedSliceReader(data)
+	obu, err := parseObuSR(sr)
+	if err != nil {
+		t.Fatalf("parseObuSR: %v", err)
+	}
+	if obu.Type != ObuTypeAudioElement {
+		t.Errorf("Type = %v, want AudioElement", obu.Type)
+	}
+}
+
+func TestParseObuSRWithExtension(t *testing.T) {
+	// header byte: type=0 (CodecConfig), trimming=0, extension=1
+	//   bits: 00000 0 0 1 => 0x01
+	// then leb128 obuSize = 4
+	// then leb128 extensionBytes = 2
+	// then 2 extension bytes (skipped)
+	// then 4 payload bytes
+	data := []byte{0x01, 0x04, 0x02, 0xaa, 0xbb, 1, 2, 3, 4}
+	sr := bits.NewFixedSliceReader(data)
+	obu, err := parseObuSR(sr)
+	if err != nil {
+		t.Fatalf("parseObuSR: %v", err)
+	}
+	if obu.Type != ObuTypeCodecConfig {
+		t.Errorf("Type = %v, want CodecConfig", obu.Type)
+	}
+}
+
+func TestParseObuSRNoPayload(t *testing.T) {
+	// header with declared obuSize but no remaining bytes
+	data := []byte{0x00, 0x05}
+	sr := bits.NewFixedSliceReader(data)
+	if _, err := parseObuSR(sr); err == nil {
+		t.Error("expected error for missing payload")
+	}
+}
+
+func TestReadObuReturnsNilForFrame(t *testing.T) {
+	// Audio frame OBU types (>= ObuTypeParameterBlock=3, < ObuTypeSequenceHeader=31)
+	// type=3 (ParameterBlock) -> ReadObu should return nil obu, nil err
+	// byte: 00011 0 0 0 = 0x18
+	data := []byte{0x18, 0x01, 0xff}
+	r := NewObuReader(data, 100)
+	obu, err := r.ReadObu()
+	if err != nil {
+		t.Fatalf("ReadObu: %v", err)
+	}
+	if obu != nil {
+		t.Errorf("expected nil obu for non-descriptor type, got %+v", obu)
+	}
+}
+
 func TestToChannelLayoutScalable(t *testing.T) {
 	cl := scalableChannelLayouts[1] // Stereo
 	out := cl.toChannelLayout()
@@ -483,6 +568,263 @@ func TestToChannelLayoutAmbisonics(t *testing.T) {
 	out2 := cl.toChannelLayout()
 	if got := out2.ChannelMap["0"]; got != "ACN0" {
 		t.Errorf("ChannelMap[0] = %q, want ACN0", got)
+	}
+}
+
+// opusDescriptors is the same sample IA Sequence Data used in the iacb
+// integration tests in mp4/iamf_test.go: an IA Sequence Header followed by
+// a Codec Config OBU (Opus), an Audio Element OBU (channel layout) and a
+// Mix Presentation OBU.
+const opusDescriptors = "" +
+	"f80669616d6601010014004f707573c007fffc010201380000bb800000000829" +
+	"ac02200010000102030405060708090a0b0c0d0e0f0000101000010203040506" +
+	"0708090a0b0c0d0e0f080bad0200000110002010010110772a01656e2d757300" +
+	"44656661756c74204d69782050726573656e746174696f6e000102ac02334f41" +
+	"20617564696f20656c656d656e74004000e70780f702800000ad027374657265" +
+	"6f20617564696f20656c656d656e74004000e30780f702800000e60780f70280" +
+	"0000028000ebe5ff85c00080008000"
+
+func TestReadDescriptorsFullStream(t *testing.T) {
+	data, err := hex.DecodeString(opusDescriptors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := NewObuReader(data, len(data))
+	var seenTypes []ObuType
+	for {
+		obu, err := r.ReadObu()
+		if err != nil {
+			t.Fatalf("ReadObu: %v", err)
+		}
+		if obu == nil {
+			break
+		}
+		seenTypes = append(seenTypes, obu.Type)
+		if _, err := obu.ReadDescriptors(&r); err != nil {
+			t.Fatalf("ReadDescriptors(%s): %v", obu.Type, err)
+		}
+	}
+	want := []ObuType{
+		ObuTypeSequenceHeader,
+		ObuTypeCodecConfig,
+		ObuTypeAudioElement,
+		ObuTypeAudioElement,
+		ObuTypeMixPresentation,
+	}
+	if len(seenTypes) != len(want) {
+		t.Fatalf("got types %v, want %v", seenTypes, want)
+	}
+	for i, ty := range want {
+		if seenTypes[i] != ty {
+			t.Errorf("seenTypes[%d] = %v, want %v", i, seenTypes[i], ty)
+		}
+	}
+
+	ctx := r.Context()
+	if ctx.NumCodecConfigs != 1 {
+		t.Errorf("NumCodecConfigs = %d, want 1", ctx.NumCodecConfigs)
+	}
+	if ctx.NumAudioElements != 2 {
+		t.Errorf("NumAudioElements = %d, want 2", ctx.NumAudioElements)
+	}
+	if ctx.NumMixPresentations != 1 {
+		t.Errorf("NumMixPresentations = %d, want 1", ctx.NumMixPresentations)
+	}
+
+	// Render Info output - exercises ctx.Info, obu.Info, channel-layout
+	// description formatting and various enum String() methods.
+	var sb strings.Builder
+	err = ctx.Info(func(level int, format string, p ...interface{}) {
+		sb.WriteString(strings.Repeat("  ", level))
+		sb.WriteString(format)
+		sb.WriteString("\n")
+	})
+	if err != nil {
+		t.Fatalf("Info: %v", err)
+	}
+	if sb.Len() == 0 {
+		t.Error("Info produced no output")
+	}
+}
+
+// makeCodecConfigPayload builds a Codec Config OBU payload (without OBU header)
+// for the given codec ID and codec-specific config bytes.
+func makeCodecConfigPayload(codecConfigID uint64, codecID string, numSamples uint64,
+	rollDistance int16, codecConfig []byte) []byte {
+	sw := bits.NewFixedSliceWriter(64 + len(codecConfig))
+	WriteLeb128(sw, codecConfigID)
+	sw.WriteBytes([]byte(codecID))
+	WriteLeb128(sw, numSamples)
+	sw.WriteUint16(uint16(rollDistance))
+	sw.WriteBytes(codecConfig)
+	return sw.Bytes()
+}
+
+func TestCodecConfigObuPcm(t *testing.T) {
+	// PCM: sample_format=1 (LE), bits=16, sample_rate=48000, roll_distance=0
+	pcmConfig := []byte{0x01, 16, 0x00, 0x00, 0xbb, 0x80}
+	payload := makeCodecConfigPayload(1, "ipcm", 960, 0, pcmConfig)
+	ctx := &IamfContext{}
+	if err := codecConfigObu(bits.NewFixedSliceReader(payload), ctx); err != nil {
+		t.Fatalf("codecConfigObu(pcm): %v", err)
+	}
+	if ctx.NumCodecConfigs != 1 {
+		t.Fatalf("NumCodecConfigs = %d, want 1", ctx.NumCodecConfigs)
+	}
+	cc := ctx.CodecConfigs[0]
+	if cc.CodecID != "pcm_s16le" {
+		t.Errorf("CodecID = %q, want pcm_s16le", cc.CodecID)
+	}
+	if cc.SampleRate != 48000 {
+		t.Errorf("SampleRate = %d, want 48000", cc.SampleRate)
+	}
+}
+
+func TestCodecConfigObuFlac(t *testing.T) {
+	// FLAC: 4-byte metadata header + 18-byte STREAMINFO, roll_distance must be 0
+	flacConfig := make([]byte, 4+18)
+	// Place 0x0BB800 at extradata offset 0 for sample_rate 48000 (per the parser's
+	// current behavior — it reads sample_rate from the start of extradata)
+	flacConfig[4] = 0x0B
+	flacConfig[5] = 0xB8
+	flacConfig[6] = 0x00
+	payload := makeCodecConfigPayload(2, "fLaC", 4096, 0, flacConfig)
+	ctx := &IamfContext{}
+	if err := codecConfigObu(bits.NewFixedSliceReader(payload), ctx); err != nil {
+		t.Fatalf("codecConfigObu(flac): %v", err)
+	}
+	if ctx.CodecConfigs[0].CodecID != "flac" {
+		t.Errorf("CodecID = %q, want flac", ctx.CodecConfigs[0].CodecID)
+	}
+}
+
+func TestCodecConfigObuAac(t *testing.T) {
+	aacConfig := aacDescriptor(0x02, []byte{0x11, 0x90})
+	payload := makeCodecConfigPayload(3, "mp4a", 1024, -1, aacConfig)
+	ctx := &IamfContext{}
+	if err := codecConfigObu(bits.NewFixedSliceReader(payload), ctx); err != nil {
+		t.Fatalf("codecConfigObu(aac): %v", err)
+	}
+	if ctx.CodecConfigs[0].CodecID != "aac" {
+		t.Errorf("CodecID = %q, want aac", ctx.CodecConfigs[0].CodecID)
+	}
+}
+
+func TestCodecConfigObuUnknownCodec(t *testing.T) {
+	// Unknown 4cc should map to "none" with no codec-specific parsing
+	payload := makeCodecConfigPayload(4, "xxxx", 480, 0, nil)
+	ctx := &IamfContext{}
+	if err := codecConfigObu(bits.NewFixedSliceReader(payload), ctx); err != nil {
+		t.Fatalf("codecConfigObu(unknown): %v", err)
+	}
+	if ctx.CodecConfigs[0].CodecID != "none" {
+		t.Errorf("CodecID = %q, want none", ctx.CodecConfigs[0].CodecID)
+	}
+}
+
+func TestCodecConfigObuDuplicateID(t *testing.T) {
+	payload := makeCodecConfigPayload(7, "xxxx", 480, 0, nil)
+	ctx := &IamfContext{
+		CodecConfigs:    []*IamfCodecConfig{{CodecConfigID: 7}},
+		NumCodecConfigs: 1,
+	}
+	if err := codecConfigObu(bits.NewFixedSliceReader(payload), ctx); err == nil {
+		t.Error("expected duplicate codec config id error")
+	}
+}
+
+func TestCodecConfigObuZeroSamples(t *testing.T) {
+	// numSamples == 0 must fail
+	payload := makeCodecConfigPayload(8, "xxxx", 0, 0, nil)
+	ctx := &IamfContext{}
+	if err := codecConfigObu(bits.NewFixedSliceReader(payload), ctx); err == nil {
+		t.Error("expected zero sample count error")
+	}
+}
+
+func TestAudioElementObuSceneAmbisonics(t *testing.T) {
+	ctx := &IamfContext{
+		CodecConfigs:    []*IamfCodecConfig{{CodecConfigID: 1, CodecID: "pcm"}},
+		NumCodecConfigs: 1,
+	}
+	// audioElementID=1, type=Scene (1<<5=0x20), codecConfigID=1,
+	// numSubstreams=4, substream IDs 0..3, numParameters=0,
+	// ambisonics mode=0 (Mono), outputChannelCount=4, substreamCount=4,
+	// channel map 0,1,2,3
+	payload := []byte{
+		0x01,                   // audioElementID
+		0x20,                   // type = Scene
+		0x01,                   // codecConfigID
+		0x04,                   // numSubstreams
+		0x00, 0x01, 0x02, 0x03, // substream IDs
+		0x00,       // numParameters
+		0x00,       // ambisonics mode = Mono
+		0x04, 0x04, // outputChannelCount, substreamCount
+		0x00, 0x01, 0x02, 0x03, // channel map
+	}
+	if err := audioElementObu(bits.NewFixedSliceReader(payload), ctx); err != nil {
+		t.Fatalf("audioElementObu: %v", err)
+	}
+	if ctx.NumAudioElements != 1 {
+		t.Errorf("NumAudioElements = %d, want 1", ctx.NumAudioElements)
+	}
+	ae := ctx.AudioElements[0]
+	if ae.Element.AudioElementType != AudioElementTypeScene {
+		t.Errorf("AudioElementType = %v, want Scene", ae.Element.AudioElementType)
+	}
+	if len(ae.Element.Layers) != 1 {
+		t.Fatalf("Layers count = %d, want 1", len(ae.Element.Layers))
+	}
+	if ae.Element.Layers[0].AmbisonicsMode != AmbisonicsModeMono {
+		t.Errorf("AmbisonicsMode = %v, want Mono", ae.Element.Layers[0].AmbisonicsMode)
+	}
+}
+
+func TestAudioElementObuSceneAmbisonicsProjection(t *testing.T) {
+	ctx := &IamfContext{
+		CodecConfigs:    []*IamfCodecConfig{{CodecConfigID: 1, CodecID: "pcm"}},
+		NumCodecConfigs: 1,
+	}
+	// First-order ambisonics with projection mode: 4 output channels,
+	// 4 substreams, 0 coupled substream count, demixing matrix = 4*4*2 bytes
+	demixing := make([]byte, 4*4*2)
+	payload := append([]byte{
+		0x02,                   // audioElementID
+		0x20,                   // type = Scene
+		0x01,                   // codecConfigID
+		0x04,                   // numSubstreams
+		0x00, 0x01, 0x02, 0x03, // substream IDs
+		0x00,       // numParameters
+		0x01,       // ambisonics mode = Projection
+		0x04, 0x04, // outputChannelCount, substreamCount
+		0x00, // coupledSubstreamCount
+	}, demixing...)
+	if err := audioElementObu(bits.NewFixedSliceReader(payload), ctx); err != nil {
+		t.Fatalf("audioElementObu: %v", err)
+	}
+	if ctx.AudioElements[0].Element.Layers[0].AmbisonicsMode != AmbisonicsModeProjection {
+		t.Errorf("AmbisonicsMode = %v, want Projection",
+			ctx.AudioElements[0].Element.Layers[0].AmbisonicsMode)
+	}
+}
+
+func TestAudioElementObuDuplicateID(t *testing.T) {
+	ctx := &IamfContext{
+		AudioElements:    []*IamfAudioElement{{AudioElementID: 5}},
+		NumAudioElements: 1,
+	}
+	payload := []byte{0x05, 0x00, 0x01}
+	if err := audioElementObu(bits.NewFixedSliceReader(payload), ctx); err == nil {
+		t.Error("expected duplicate audio element ID error")
+	}
+}
+
+func TestAudioElementObuMissingCodecConfig(t *testing.T) {
+	ctx := &IamfContext{}
+	// references codecConfigID=9 which is not in ctx
+	payload := []byte{0x01, 0x00, 0x09, 0x01, 0x00}
+	if err := audioElementObu(bits.NewFixedSliceReader(payload), ctx); err == nil {
+		t.Error("expected missing codec config error")
 	}
 }
 
