@@ -88,7 +88,7 @@ func (s *StsdBox) AddChild(box Box) {
 	case "Opus":
 		s.Opus = box.(*AudioSampleEntryBox)
 	case "iamf":
-    	s.Iamf = box.(*AudioSampleEntryBox)		
+		s.Iamf = box.(*AudioSampleEntryBox)
 	case "mha1", "mha2", "mhm1", "mhm2":
 		s.MhXX = box.(*AudioSampleEntryBox)
 	case "enca":
