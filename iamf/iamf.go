@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrInvalidLeb = errors.New("Invalid Leb128")
+	ErrInvalidLeb = errors.New("invalid Leb128")
 )
 
 // ReadLeb128 reads an unsigned Leb128 (Little Endian Base 128) encoded integer
@@ -57,8 +57,4 @@ func Leb128Size(value uint64) int {
 		value >>= 7
 	}
 	return size
-}
-
-func GetCodecString(descriptorData []byte) (string, error) {
-	return "", nil
 }

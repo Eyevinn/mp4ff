@@ -73,7 +73,7 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 	case "dOps":
 		a.Dops = child.(*DopsBox)
 	case "iacb":
-    	a.Iacb = child.(*IacbBox)		
+		a.Iacb = child.(*IacbBox)
 	case "mhaC":
 		a.MhaC = child.(*MhaCBox)
 	case "btrt":

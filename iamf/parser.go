@@ -163,10 +163,11 @@ var scalableChannelLayouts = []channelLayout{
 
 func expanded(index int, channels int, mask channelMask) channelLayout {
 	return channelLayout{
-		Channels: channels,
-		Order:    coExpanded,
-		Mask:     mask,
-		Map:      nil,
+		TableIndex: index,
+		Channels:   channels,
+		Order:      coExpanded,
+		Mask:       mask,
+		Map:        nil,
 	}
 }
 
@@ -371,7 +372,7 @@ const (
 func OpusDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 	left := sr.NrRemainingBytes()
 	if left < 11 || codecConfig.AudioRollDistance >= 0 {
-		return errors.New("Invalid opus decoder config")
+		return errors.New("invalid opus decoder config")
 	}
 
 	extradata := make([]byte, left+8)
@@ -412,7 +413,7 @@ func mp4ReadDescr(sr bits.SliceReader) (uint8, error) {
 // AACDecoderConfig parses AAC decoder configuration
 func AacDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 	if codecConfig.AudioRollDistance >= 0 {
-		return errors.New("Invalid aac decoder config")
+		return errors.New("invalid aac decoder config")
 	}
 
 	tag, err := mp4ReadDescr(sr)
@@ -420,7 +421,7 @@ func AacDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 		return err
 	}
 	if tag != 0x03 { // MP4DecConfigDescrTag
-		return errors.New("Invalid mp4 descriptor tag")
+		return errors.New("invalid mp4 descriptor tag")
 	}
 
 	objectTypeID := sr.ReadUint8()
@@ -468,9 +469,9 @@ func AacDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 	codecConfig.ExtradataSize = int32(len(extradata))
 
 	buf := bytes.NewBuffer(extradata)
-	aac, err := aac.DecodeAudioSpecificConfig(buf)
-	if err != nil {
-		codecConfig.SampleRate = int32(aac.SamplingFrequency)
+	asc, err := aac.DecodeAudioSpecificConfig(buf)
+	if err == nil && asc != nil {
+		codecConfig.SampleRate = int32(asc.SamplingFrequency)
 	}
 
 	return nil
@@ -632,7 +633,7 @@ func codecConfigObu(sr bits.SliceReader, ctx *IamfContext) error {
 }
 
 // scalableChannelLayoutConfig parses scalable channel layout configuration
-func scalableChannelLayoutConfig(sr bits.SliceReader, ctx *IamfContext, audioElement *IamfAudioElement) error {
+func scalableChannelLayoutConfig(sr bits.SliceReader, audioElement *IamfAudioElement) error {
 	uNumLayers := sr.ReadUint8() >> 5
 
 	numLayers := int(uNumLayers)
@@ -825,7 +826,8 @@ func ambisonicsConfig(sr bits.SliceReader, audioElement *IamfAudioElement) error
 }
 
 // paramParse parses parameter definitions
-func paramParse(sr bits.SliceReader, ctx *IamfContext, paramType ParamDefinitionType, audioElement *IamfAudioElement) (*ParamDefinition, error) {
+func paramParse(sr bits.SliceReader, ctx *IamfContext, paramType ParamDefinitionType,
+	audioElement *IamfAudioElement) (*ParamDefinition, error) {
 	parameterID, err := ReadLeb128(sr)
 	if err != nil {
 		return nil, err
@@ -1070,7 +1072,7 @@ func audioElementObu(sr bits.SliceReader, ctx *IamfContext) error {
 
 	switch audioElementType {
 	case AudioElementTypeChannel:
-		if err := scalableChannelLayoutConfig(sr, ctx, audioElement); err != nil {
+		if err := scalableChannelLayoutConfig(sr, audioElement); err != nil {
 			return err
 		}
 	case AudioElementTypeScene:
@@ -1405,7 +1407,7 @@ func (r *ObuReader) SkipPayload(obu *ObuInfo) {
 }
 
 func (r ObuReader) Context() *IamfContext {
-	return r.Context()
+	return r.ctx
 }
 
 // ReadDescriptors reads and parses IAMF descriptors
