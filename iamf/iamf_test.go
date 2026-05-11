@@ -828,6 +828,121 @@ func TestAudioElementObuMissingCodecConfig(t *testing.T) {
 	}
 }
 
+func TestAudioElementObuUnknownType(t *testing.T) {
+	ctx := &IamfContext{
+		CodecConfigs:    []*IamfCodecConfig{{CodecConfigID: 1}},
+		NumCodecConfigs: 1,
+	}
+	// type byte 0x60 -> upper 3 bits = 011 = 3, which is > AudioElementTypeScene
+	payload := []byte{0x01, 0x60, 0x01}
+	if err := audioElementObu(bits.NewFixedSliceReader(payload), ctx); err == nil {
+		t.Error("expected unknown audio element type error")
+	}
+}
+
+func TestParamParseDemixing(t *testing.T) {
+	ctx := &IamfContext{}
+	ae := &IamfAudioElement{}
+	// parameterID=1, parameterRate=48000, mode=0 (1 bit, top), duration=480,
+	// constantSubblockDuration=480 (numSubblocks=1).
+	// Then 1 demixing subblock = 2 bytes:
+	//   byte 0: dmixp_mode (top 3 bits)
+	//   byte 1: default_w (top 4 bits)
+	// 48000 leb128: 0x80, 0xf7, 0x02
+	// 480 leb128: 0xe0, 0x03
+	// dmixp_mode=2 -> 010_00000 = 0x40
+	// default_w=5 -> 0101_0000 = 0x50
+	payload := []byte{
+		0x01,             // parameterID
+		0x80, 0xf7, 0x02, // parameterRate=48000
+		0x00,       // mode
+		0xe0, 0x03, // duration=480
+		0xe0, 0x03, // constantSubblockDuration=480
+		0x40, 0x50, // dmixp_mode=2, default_w=5
+	}
+	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionDemixing, ae)
+	if err != nil {
+		t.Fatalf("paramParse(demixing): %v", err)
+	}
+	if pd.ParameterID != 1 {
+		t.Errorf("ParameterID = %d, want 1", pd.ParameterID)
+	}
+	if pd.Duration != 480 {
+		t.Errorf("Duration = %d, want 480", pd.Duration)
+	}
+	if pd.NumSubblocks != 1 {
+		t.Errorf("NumSubblocks = %d, want 1", pd.NumSubblocks)
+	}
+	if ae.Element.DefaultW != 5 {
+		t.Errorf("DefaultW = %d, want 5", ae.Element.DefaultW)
+	}
+}
+
+func TestParamParseReconGain(t *testing.T) {
+	ctx := &IamfContext{}
+	payload := []byte{
+		0x02,             // parameterID
+		0x80, 0xf7, 0x02, // parameterRate=48000
+		0x00,       // mode
+		0xe0, 0x03, // duration=480
+		0xe0, 0x03, // constantSubblockDuration=480
+	}
+	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionReconGain, nil)
+	if err != nil {
+		t.Fatalf("paramParse(recon): %v", err)
+	}
+	if pd.Type != ParamDefinitionReconGain {
+		t.Errorf("Type = %v, want ReconGain", pd.Type)
+	}
+}
+
+func TestParamParseVariableSubblocks(t *testing.T) {
+	ctx := &IamfContext{}
+	// mode=0, duration=600, constantSubblockDuration=0 -> numSubblocks read, then per
+	// subblock the duration is read.
+	// numSubblocks=2, then 2 subblock durations: 200, 400
+	payload := []byte{
+		0x03,             // parameterID
+		0x80, 0xf7, 0x02, // parameterRate=48000
+		0x00,       // mode
+		0xd8, 0x04, // duration=600
+		0x00,       // constantSubblockDuration=0
+		0x02,       // numSubblocks=2
+		0xc8, 0x01, // subblock 0 duration=200
+		0x90, 0x03, // subblock 1 duration=400
+	}
+	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionMixGain, nil)
+	if err != nil {
+		t.Fatalf("paramParse(variable): %v", err)
+	}
+	if pd.NumSubblocks != 2 {
+		t.Errorf("NumSubblocks = %d, want 2", pd.NumSubblocks)
+	}
+}
+
+func TestParamParseDuplicateReuse(t *testing.T) {
+	ctx := &IamfContext{
+		ParamDefinitions: []*IamfParamDefinition{
+			{Param: ParamDefinition{ParameterID: 7}},
+		},
+		NumParamDefinitions: 1,
+	}
+	// parameterID matches existing - should reuse without growing
+	payload := []byte{
+		0x07,             // parameterID matches
+		0x80, 0xf7, 0x02, // parameterRate=48000
+		0x00,       // mode
+		0xe0, 0x03, // duration
+		0xe0, 0x03, // constantSubblockDuration
+	}
+	if _, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionReconGain, nil); err != nil {
+		t.Fatalf("paramParse(reuse): %v", err)
+	}
+	if ctx.NumParamDefinitions != 1 {
+		t.Errorf("NumParamDefinitions = %d, want 1", ctx.NumParamDefinitions)
+	}
+}
+
 func TestToChannelLayoutCustom(t *testing.T) {
 	m := map[int]int{0: 0, 1: 1}
 	cl := channelLayout{
