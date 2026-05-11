@@ -565,6 +565,34 @@ func (d DecryptInfo) findTrackInfo(trackID uint32) DecryptTrackInfo {
 	return DecryptTrackInfo{}
 }
 
+// normalizePiffScheme rewrites a PIFF-style sinf so it looks like cenc/cbcs to
+// the rest of the decryption pipeline. Per PIFF 1.1 §5.3.3, the PIFF
+// TrackEncryptionBox (UUID 8974dbce-7be7-4c51-84f9-7148f9882554) carries
+// default_AlgorithmID, default_IV_size and default_KID. AlgorithmID values are
+// listed in PIFF 1.1 §5.3.2: 1=AES 128-bit CTR (equivalent to cenc),
+// 2=AES 128-bit CBC (equivalent to cbcs).
+func normalizePiffScheme(sinf *SinfBox) error {
+	if sinf == nil || sinf.Schi == nil || sinf.Schi.Tenc == nil {
+		return fmt.Errorf("piff scheme without piff tenc uuid")
+	}
+	var algorithmID uint32
+	for _, c := range sinf.Schi.Children {
+		if u, ok := c.(*UUIDBox); ok && u.SubType() == "piff-tenc" {
+			algorithmID = u.PiffTenc.AlgorithmID
+			break
+		}
+	}
+	switch algorithmID {
+	case 1:
+		sinf.Schm.SchemeType = "cenc"
+	case 2:
+		sinf.Schm.SchemeType = "cbcs"
+	default:
+		return fmt.Errorf("piff unsupported algorithmID %d", algorithmID)
+	}
+	return nil
+}
+
 // DecryptInit modifies init segment in place and returns decryption info and a clean init segment.
 func DecryptInit(init *InitSegment) (DecryptInfo, error) {
 	moov := init.Moov
@@ -598,6 +626,12 @@ func DecryptInit(init *InitSegment) (DecryptInfo, error) {
 				schemeType = sinf.Schm.SchemeType
 			default:
 				continue
+			}
+			if schemeType == "piff" {
+				if err := normalizePiffScheme(sinf); err != nil {
+					return di, err
+				}
+				schemeType = sinf.Schm.SchemeType
 			}
 			di.TrackInfos = append(di.TrackInfos, DecryptTrackInfo{
 				TrackID: trackID,

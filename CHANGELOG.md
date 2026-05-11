@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SencBox.IsParsedByGuess()` to check if senc was parsed by heuristic
 - Support for IAMF (Immersive Audio Model and Formats) `iamf` sample entry and
   `iacb` configuration box, including parsing of IAMF OBU headers for info dumping
+- Support for the legacy PIFF protection scheme (`schm.scheme_type = 'piff'`)
+  with PIFF TrackEncryption UUID box `8974dbce-7be7-4c51-84f9-7148f9882554`.
+  AlgorithmID 1/2 are mapped to cenc/cbcs respectively (issue #496)
 
 ### Fixed
 

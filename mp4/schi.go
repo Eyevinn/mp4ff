@@ -17,8 +17,30 @@ func (b *SchiBox) AddChild(child Box) {
 	switch box := child.(type) {
 	case *TencBox:
 		b.Tenc = box
+	case *UUIDBox:
+		// PIFF TrackEncryptionBox carries the same per-track info as tenc
+		if box.SubType() == "piff-tenc" && b.Tenc == nil {
+			b.Tenc = piffTencToTenc(box.PiffTenc)
+		}
 	}
 	b.Children = append(b.Children, child)
+}
+
+// piffTencToTenc synthesizes a TencBox from PIFF TrackEncryption data
+// (PIFF 1.1 §5.3.3) so the rest of the decryption pipeline can treat piff
+// like cenc/cbcs.
+func piffTencToTenc(p *PiffTencData) *TencBox {
+	if p == nil {
+		return nil
+	}
+	tenc := &TencBox{
+		DefaultPerSampleIVSize: p.IVSize,
+		DefaultKID:             p.KID,
+	}
+	if p.AlgorithmID != 0 {
+		tenc.DefaultIsProtected = 1
+	}
+	return tenc
 }
 
 // DecodeSchi - box-specific decode

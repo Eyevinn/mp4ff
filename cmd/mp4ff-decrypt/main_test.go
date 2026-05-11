@@ -175,6 +175,12 @@ func TestDecodeFiles(t *testing.T) {
 			expectedOutFile: "testdata/PIFF/video/complseg-1.0001_dec.mp4",
 			keyHexOrBase64:  "602a9289bfb9b1995b75ac63f123fc86",
 		},
+		{
+			desc:            "PIFF scheme WMA audio",
+			inFile:          "testdata/PIFF/wma_piff_scheme/audio.mp4",
+			expectedOutFile: "testdata/PIFF/wma_piff_scheme/audio_dec.mp4",
+			keyHexOrBase64:  "0b17cd8bfc86557341c77bbc6e4fe9a3",
+		},
 	}
 	tmpDir := t.TempDir()
 	for nr, c := range testCases {
