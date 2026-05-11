@@ -47,8 +47,11 @@ const (
 	// UUIDTfrf - MSS tfrf UUID [MS-SSTR 2.2.4.5]
 	UUIDTfrf = "d4807ef2-ca39-4695-8e54-26cb9e46a79f"
 
-	// UUIDPiffSenc - PIFF UUID for Sample Encryption Box (PIFF 1.1 spec)
+	// UUIDPiffSenc - PIFF UUID for Sample Encryption Box (PIFF 1.1 §5.3.2)
 	UUIDPiffSenc = "a2394f52-5a9b-4f14-a244-6c427c648df4"
+
+	// UUIDPiffTenc - PIFF UUID for Track Encryption Box (PIFF 1.1 §5.3.3)
+	UUIDPiffTenc = "8974dbce-7be7-4c51-84f9-7148f9882554"
 
 	// UUIDSphericalVideoV1 - Spherical Video V1 UUID
 	UUIDSphericalVideoV1 = "ffcc8263-f855-4a93-8814-587a02521fdd"
@@ -103,6 +106,7 @@ var (
 	uuidTfxd             UUID = mustCreateUUID(UUIDTfxd)
 	uuidTfrf             UUID = mustCreateUUID(UUIDTfrf)
 	uuidPiffSenc         UUID = mustCreateUUID(UUIDPiffSenc)
+	uuidPiffTenc         UUID = mustCreateUUID(UUIDPiffTenc)
 	uuidSphericalVideoV1 UUID = mustCreateUUID(UUIDSphericalVideoV1)
 )
 
@@ -113,6 +117,7 @@ type UUIDBox struct {
 	Tfxd           *TfxdData
 	Tfrf           *TfrfData
 	Senc           *SencBox
+	PiffTenc       *PiffTencData
 	SphericalV1    *SphericalVideoV1Data
 	StartPos       uint64
 	UnknownPayload []byte
@@ -156,6 +161,51 @@ type SphericalVideoV1Data struct {
 	XMLData string
 }
 
+// PiffTencData - PIFF TrackEncryptionBox payload (after the FullBox header
+// and UUID). Defined in PIFF 1.1 §5.3.3 as:
+//
+//	unsigned int(24) default_AlgorithmID;
+//	unsigned int(8)  default_IV_size;
+//	unsigned int(8)[16] default_KID;
+//
+// AlgorithmID values (PIFF 1.1 §5.3.2): 0=Not Encrypted, 1=AES 128-bit CTR
+// (equivalent to cenc), 2=AES 128-bit CBC (equivalent to cbcs).
+type PiffTencData struct {
+	Version     byte
+	Flags       uint32
+	AlgorithmID uint32 // 24 bits on the wire
+	IVSize      byte
+	KID         UUID
+}
+
+func (p *PiffTencData) size() uint64 {
+	return 4 + 3 + 1 + 16
+}
+
+func decodePiffTenc(s bits.SliceReader) (*PiffTencData, error) {
+	versionAndFlags := s.ReadUint32()
+	p := &PiffTencData{
+		Version: byte(versionAndFlags >> 24),
+		Flags:   versionAndFlags & flagsMask,
+	}
+	algoHi := uint32(s.ReadUint8())
+	algoLo := uint32(s.ReadUint16())
+	p.AlgorithmID = algoHi<<16 | algoLo
+	p.IVSize = s.ReadUint8()
+	p.KID = UUID(s.ReadBytes(16))
+	return p, s.AccError()
+}
+
+func (p *PiffTencData) encode(sw bits.SliceWriter) error {
+	versionAndFlags := (uint32(p.Version) << 24) + p.Flags
+	sw.WriteUint32(versionAndFlags)
+	sw.WriteUint8(byte(p.AlgorithmID >> 16))
+	sw.WriteUint16(uint16(p.AlgorithmID & 0xffff))
+	sw.WriteUint8(p.IVSize)
+	sw.WriteBytes(p.KID)
+	return sw.AccError()
+}
+
 // DecodeUUIDBox - decode a UUID box including tfxd or tfrf
 func DecodeUUIDBox(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
@@ -186,8 +236,19 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 		}
 		b.Tfrf = tfrf
 	case UUIDPiffSenc:
-		if hdr.Size < 16 {
-			return nil, fmt.Errorf("uuid box size too small: %d < 16", hdr.Size)
+		if hdr.Size < 16+8 {
+			return nil, fmt.Errorf("uuid box size too small: %d < %d", hdr.Size, 16+8)
+		}
+		// PIFF 1.1 §5.3.2: SampleEncryptionBox flag 0x1 ("Override TrackEncryptionBox
+		// parameters") prepends 24 bytes (AlgorithmID(24)+IV_size(8)+KID(128)) before
+		// sample_count, which the generic SencBox decoder doesn't expect. Reject
+		// explicitly to avoid silent misparse.
+		var head [4]byte
+		if err := sr.LookAhead(0, head[:]); err != nil {
+			return nil, fmt.Errorf("failed to peek piff senc flags: %w", err)
+		}
+		if head[3]&0x1 != 0 {
+			return nil, fmt.Errorf("piff senc override flag (0x1) not supported")
 		}
 		// This is like a SencBox except that there is no size and type. Offset and sizes must be slightly adjusted.
 		subHdr := BoxHeader{"senc", hdr.Size - 16, 8}
@@ -196,6 +257,15 @@ func DecodeUUIDBoxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, 
 			return nil, fmt.Errorf("failed to decode senc in UUID: %w", err)
 		}
 		b.Senc = box.(*SencBox)
+	case UUIDPiffTenc:
+		if hdr.Size < 8+16+24 {
+			return nil, fmt.Errorf("piff tenc uuid box size too small: %d < %d", hdr.Size, 8+16+24)
+		}
+		piffTenc, err := decodePiffTenc(sr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode piff tenc in UUID: %w", err)
+		}
+		b.PiffTenc = piffTenc
 	case UUIDSphericalVideoV1:
 		if hdr.Size < 8+16 {
 			return nil, fmt.Errorf("uuid box size too small: %d < 24", hdr.Size)
@@ -227,6 +297,8 @@ func (b *UUIDBox) Size() uint64 {
 		size += b.Tfrf.size()
 	case u.Equal(uuidPiffSenc):
 		size += b.Senc.Size() - 8 // -8 because no header
+	case u.Equal(uuidPiffTenc):
+		size += b.PiffTenc.size()
 	case u.Equal(uuidSphericalVideoV1):
 		size += uint64(len(b.SphericalV1.XMLData))
 	default:
@@ -260,6 +332,8 @@ func (b *UUIDBox) EncodeSW(sw bits.SliceWriter) error {
 		err = b.Tfrf.encode(sw)
 	case u.Equal(uuidPiffSenc):
 		err = b.Senc.EncodeSWNoHdr(sw)
+	case u.Equal(uuidPiffTenc):
+		err = b.PiffTenc.encode(sw)
 	case u.Equal(uuidSphericalVideoV1):
 		sw.WriteBytes([]byte(b.SphericalV1.XMLData))
 	default:
@@ -280,6 +354,8 @@ func (b *UUIDBox) SubType() string {
 		return "tfrf"
 	case u.Equal(uuidPiffSenc):
 		return "senc"
+	case u.Equal(uuidPiffTenc):
+		return "piff-tenc"
 	case u.Equal(uuidSphericalVideoV1):
 		return "spherical-v1"
 	default:
@@ -389,6 +465,10 @@ func (b *UUIDBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 			if err != nil {
 				return fmt.Errorf("piff senc: %w", err)
 			}
+		case "piff-tenc":
+			bd.write(" - algorithmID: %d", b.PiffTenc.AlgorithmID)
+			bd.write(" - ivSize: %d", b.PiffTenc.IVSize)
+			bd.write(" - kid: %s", b.PiffTenc.KID)
 		case "spherical-v1":
 			if b.SphericalV1 != nil {
 				bd.write(" - xmlDataLength: %d", len(b.SphericalV1.XMLData))

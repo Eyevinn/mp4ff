@@ -23,6 +23,12 @@ func TestUUIDVariants(t *testing.T) {
 		{
 			"unknown", "0000002c757569646e1d9b0542d544e680e2141daff757b201000000000105c649bda4000000000000054600",
 		},
+		{
+			// PIFF TrackEncryption UUID: 8974dbce-7be7-4c51-84f9-7148f9882554
+			// version+flags=0, AlgorithmID=1 (AES-CTR), IV_size=8, KID=c5c9...cbd7
+			"piff-tenc", "00000030757569648974dbce7be74c5184f97148f9882554" +
+				"0000000000000108c5c971897e674646949e0cd4dd92cbd7",
+		},
 	}
 
 	for _, ti := range testInputs {
@@ -56,6 +62,33 @@ func TestUUIDVariants(t *testing.T) {
 			}
 			t.Errorf("%s: Non-matching in and out binaries", ti.expectedSubType)
 		}
+	}
+}
+
+func TestPiffSencOverrideFlagRejected(t *testing.T) {
+	// PIFF 1.1 §5.3.2: flag 0x1 ("Override TrackEncryptionBox parameters")
+	// prepends a 24-byte AlgorithmID+IV_size+KID block. We currently reject
+	// such senc boxes rather than silently misparse them.
+	// header(8) + uuid(16) + flags(4)=0x00000001 + AlgoID(3)=0x000001 +
+	// IV_size(1)=8 + KID(16) + sample_count(4)=0 = 52 bytes (0x34)
+	raw, _ := hex.DecodeString(
+		"00000034" + "75756964" + // size=52, type='uuid'
+			"a2394f525a9b4f14a2446c427c648df4" + // UUIDPiffSenc
+			"00000001" + // version+flags=0x1 (override)
+			"000001" + "08" + // AlgorithmID=1, IV_size=8
+			"c5c971897e674646949e0cd4dd92cbd7" + // KID
+			"00000000") // sample_count=0
+	inbuf := bytes.NewBuffer(raw)
+	hdr, err := mp4.DecodeHeader(inbuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = mp4.DecodeUUIDBox(hdr, 0, inbuf)
+	if err == nil {
+		t.Fatal("expected error for PIFF senc with override flag, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("override")) {
+		t.Errorf("error %q does not mention override", err)
 	}
 }
 
