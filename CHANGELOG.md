@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-05-12
+
 ### Added
 
 - KID-aware decryption key selection in mp4ff-decrypt via repeated `--key kid:key` flags (PR #490)
@@ -804,7 +806,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.51.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.52.0...HEAD
+[0.52.0]: https://github.com/Eyevinn/mp4ff/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/Eyevinn/mp4ff/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/Eyevinn/mp4ff/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/Eyevinn/mp4ff/compare/v0.48.0...v0.49.0
