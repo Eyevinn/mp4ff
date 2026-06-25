@@ -115,3 +115,56 @@ func TestFixedSliceWriter(t *testing.T) {
 		}
 	})
 }
+
+func TestFixedSliceWriterExpGolomb(t *testing.T) {
+	cases := []struct {
+		n    uint
+		bits string
+	}{
+		{0, "1"},
+		{1, "010"},
+		{2, "011"},
+		{3, "00100"},
+		{14, "0001111"},
+		{15, "000010000"},
+		{30, "000011111"},
+	}
+	for _, c := range cases {
+		sw := bits.NewFixedSliceWriter(8)
+		sw.WriteExpGolomb(c.n)
+		// Add a trailing 1-bit and byte-align, then read the value back.
+		sw.WriteFlag(true)
+		sw.FlushBits()
+		r := bits.NewReader(bytes.NewReader(sw.Bytes()))
+		got := r.ReadExpGolomb()
+		if got != c.n {
+			t.Errorf("roundtrip ExpGolomb %d got %d (bits %s)", c.n, got, c.bits)
+		}
+	}
+}
+
+// TestFixedSliceWriterGolombRoundTrip checks that FixedSliceWriter and Reader agree for ue(v) and se(v).
+func TestFixedSliceWriterGolombRoundTrip(t *testing.T) {
+	unsigned := []uint{0, 1, 2, 3, 14, 15, 30, 255, 65535}
+	for _, v := range unsigned {
+		sw := bits.NewFixedSliceWriter(16)
+		sw.WriteExpGolomb(v)
+		sw.WriteFlag(true)
+		sw.FlushBits()
+		r := bits.NewReader(bytes.NewReader(sw.Bytes()))
+		if got := r.ReadExpGolomb(); got != v {
+			t.Errorf("ue(v) roundtrip %d got %d", v, got)
+		}
+	}
+	signed := []int{0, 1, -1, 2, -2, 16383, -16384}
+	for _, v := range signed {
+		sw := bits.NewFixedSliceWriter(16)
+		sw.WriteSignedGolomb(v)
+		sw.WriteFlag(true)
+		sw.FlushBits()
+		r := bits.NewReader(bytes.NewReader(sw.Bytes()))
+		if got := r.ReadSignedGolomb(); got != v {
+			t.Errorf("se(v) roundtrip %d got %d", v, got)
+		}
+	}
+}

@@ -482,6 +482,8 @@ func DecodeSEIMessage(sd *SEIData, codec Codec) (SEIMessage, error) {
 			return DecodeUserDataRegisteredSEI(sd)
 		case SEIUserDataUnregisteredType:
 			return DecodeUserDataUnregisteredSEI(sd)
+		case SEIRecoveryPointType:
+			return DecodeRecoveryPointAvcSEI(sd)
 		default:
 			return DecodeGeneralSEI(sd), nil
 		}
@@ -491,6 +493,8 @@ func DecodeSEIMessage(sd *SEIData, codec Codec) (SEIMessage, error) {
 			return DecodeUserDataRegisteredSEI(sd)
 		case SEIUserDataUnregisteredType:
 			return DecodeUserDataUnregisteredSEI(sd)
+		case SEIRecoveryPointType:
+			return DecodeRecoveryPointHevcSEI(sd)
 		case SEITimeCodeType:
 			return DecodeTimeCodeSEI(sd)
 		case SEIMasteringDisplayColourVolumeType:
