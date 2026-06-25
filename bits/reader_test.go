@@ -296,3 +296,57 @@ func TestByteAlign(t *testing.T) {
 		}
 	})
 }
+
+func TestReaderExpGolomb(t *testing.T) {
+	cases := []struct {
+		input  byte
+		wanted uint
+	}{
+		{0b10000000, 0},
+		{0b01000000, 1},
+		{0b01100000, 2},
+		{0b00010000, 7},
+		{0b00010010, 8},
+		{0b00011110, 14},
+	}
+	for _, c := range cases {
+		r := bits.NewReader(bytes.NewReader([]byte{c.input}))
+		got := r.ReadExpGolomb()
+		if r.AccError() != nil {
+			t.Errorf("unexpected error: %v", r.AccError())
+		}
+		if got != c.wanted {
+			t.Errorf("ReadExpGolomb(%08b)=%d, want %d", c.input, got, c.wanted)
+		}
+	}
+	// Reading beyond available data sets an accumulated error.
+	r := bits.NewReader(bytes.NewReader([]byte{0x00}))
+	_ = r.ReadExpGolomb()
+	if r.AccError() == nil {
+		t.Error("expected accumulated error when reading past end")
+	}
+}
+
+func TestReaderSignedGolomb(t *testing.T) {
+	cases := []struct {
+		input  byte
+		wanted int
+	}{
+		{0b10000000, 0},
+		{0b01000000, 1},
+		{0b01100000, -1},
+		{0b00010000, 4},
+		{0b00010010, -4},
+		{0b00011110, -7},
+	}
+	for _, c := range cases {
+		r := bits.NewReader(bytes.NewReader([]byte{c.input}))
+		got := r.ReadSignedGolomb()
+		if r.AccError() != nil {
+			t.Errorf("unexpected error: %v", r.AccError())
+		}
+		if got != c.wanted {
+			t.Errorf("ReadSignedGolomb(%08b)=%d, want %d", c.input, got, c.wanted)
+		}
+	}
+}

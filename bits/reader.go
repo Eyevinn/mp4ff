@@ -75,6 +75,45 @@ func (r *Reader) ReadFlag() bool {
 	return bit == 1
 }
 
+// ReadExpGolomb reads one unsigned exponential Golomb code ue(v). Returns 0 if error now or previously.
+func (r *Reader) ReadExpGolomb() uint {
+	if r.err != nil {
+		return 0
+	}
+	leadingZeroBits := 0
+	for {
+		b := r.Read(1)
+		if r.err != nil {
+			return 0
+		}
+		if b == 1 {
+			break
+		}
+		leadingZeroBits++
+	}
+	res := uint(1<<leadingZeroBits) - 1
+	endBits := r.Read(leadingZeroBits)
+	if r.err != nil {
+		return 0
+	}
+	return res + endBits
+}
+
+// ReadSignedGolomb reads one signed exponential Golomb code se(v). Returns 0 if error now or previously.
+func (r *Reader) ReadSignedGolomb() int {
+	if r.err != nil {
+		return 0
+	}
+	unsignedGolomb := r.ReadExpGolomb()
+	if r.err != nil {
+		return 0
+	}
+	if unsignedGolomb%2 == 1 {
+		return int((unsignedGolomb + 1) / 2)
+	}
+	return -int(unsignedGolomb / 2)
+}
+
 // ReadRemainingBytes reads remaining bytes if byte-aligned. Returns nil if error now or previously.
 func (r *Reader) ReadRemainingBytes() []byte {
 	if r.err != nil {

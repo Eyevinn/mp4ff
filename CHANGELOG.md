@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Parsing and writing of the recovery point SEI message (type 6) for both AVC
+  (`RecoveryPointAvcSEI`, ISO/IEC 14496-10 D.1.8) and HEVC (`RecoveryPointHevcSEI`,
+  ISO/IEC 23008-2 D.2.8)
+- Exponential Golomb support on the bit-level types used by the sei package:
+  `ReadExpGolomb`/`ReadSignedGolomb` on `bits.Reader` and
+  `WriteExpGolomb`/`WriteSignedGolomb` on `bits.FixedSliceWriter`
+
 ## [0.52.0] - 2026-05-12
 
 ### Added

@@ -228,6 +228,34 @@ func (sw *FixedSliceWriter) WriteBits(bits uint, n int) {
 	sw.v &= Mask(8)
 }
 
+// WriteExpGolomb writes an unsigned exponential Golomb code ue(v).
+func (sw *FixedSliceWriter) WriteExpGolomb(n uint) {
+	if sw.accError != nil {
+		return
+	}
+	leadingZeroBits := 0
+	v := n + 1
+	for v > 1 {
+		v >>= 1
+		leadingZeroBits++
+	}
+	sw.WriteBits(n+1, 2*leadingZeroBits+1)
+}
+
+// WriteSignedGolomb writes a signed exponential Golomb code se(v).
+func (sw *FixedSliceWriter) WriteSignedGolomb(n int) {
+	if sw.accError != nil {
+		return
+	}
+	var codeNum uint
+	if n <= 0 {
+		codeNum = uint(-2 * n)
+	} else {
+		codeNum = uint(2*n - 1)
+	}
+	sw.WriteExpGolomb(codeNum)
+}
+
 // WriteFlag writes a flag as 1 bit.
 func (sw *FixedSliceWriter) WriteFlag(f bool) {
 	bit := uint(0)
