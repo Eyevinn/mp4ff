@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Parsing of the HEVC multilayer/multiview VPS extension (`vps_extension()`,
+  ISO/IEC 23008-2 Annex F.7.3.2.1.1) used by MV-HEVC and SHVC, exposed as an
+  optional `hevc.VPS.Extension` (`*VPSExtension`) with scalability mask,
+  per-layer dimension/dependency info, layer profile-tier-levels, output layer
+  sets and `rep_format()` resolutions, plus `VPS.GetNumLayers`,
+  `IsMultiLayer`, `GetNumViews` and `ScalabilityMaskBits` helpers
+- L-HEVC (`lhvC`) decoder configuration record support in the hevc package:
+  `DecConfRec.DecodeLHEVCDecConfRec`, `EncodeLHEVC`, `EncodeLHEVCSW` and
+  `LHEVCSize` (ISO/IEC 14496-15 Ed. 7 Sec. 9.4.3)
 - `SampleAccessor.ReadMdatData` for bulk reading of the raw mdat payload of a
   fragment in a single read, intended for streaming with lazy mdat decoding
 - HDR metadata boxes `ClliBox` (Content Light Level, `clli`, ISO/IEC 14496-12

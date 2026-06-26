@@ -134,3 +134,71 @@ func TestDecodeConfRec(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestLHEVCDecConfRecRoundTrip(t *testing.T) {
+	// L-HEVC (lhvC) record carries no profile/tier/level or chroma/bit-depth fields,
+	// only the fields below plus NALU arrays. Build one, encode, decode, compare.
+	vps, _ := hex.DecodeString("40010c11ffff016000000300900000030000030078959815bf7820")
+	lhvcSPS, _ := hex.DecodeString("42010101600000030090000003000003007ba003c08010e5ad")
+	in := DecConfRec{
+		ConfigurationVersion:      1,
+		MinSpatialSegmentationIDC: 0,
+		ParallellismType:          0,
+		NumTemporalLayers:         1,
+		TemporalIDNested:          1,
+		LengthSizeMinusOne:        3,
+		NaluArrays: []NaluArray{
+			NewNaluArray(true, NALU_VPS, [][]byte{vps}),
+			NewNaluArray(true, NALU_SPS, [][]byte{lhvcSPS}),
+		},
+	}
+
+	out := bytes.Buffer{}
+	if err := in.EncodeLHEVC(&out); err != nil {
+		t.Fatal(err)
+	}
+	if uint64(out.Len()) != in.LHEVCSize() {
+		t.Errorf("encoded %d bytes, LHEVCSize() reported %d", out.Len(), in.LHEVCSize())
+	}
+
+	got, err := DecodeLHEVCDecConfRec(out.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ConfigurationVersion != in.ConfigurationVersion {
+		t.Errorf("ConfigurationVersion = %d, want %d", got.ConfigurationVersion, in.ConfigurationVersion)
+	}
+	if got.MinSpatialSegmentationIDC != in.MinSpatialSegmentationIDC {
+		t.Errorf("MinSpatialSegmentationIDC = %d, want %d", got.MinSpatialSegmentationIDC, in.MinSpatialSegmentationIDC)
+	}
+	if got.ParallellismType != in.ParallellismType {
+		t.Errorf("ParallellismType = %d, want %d", got.ParallellismType, in.ParallellismType)
+	}
+	if got.NumTemporalLayers != in.NumTemporalLayers {
+		t.Errorf("NumTemporalLayers = %d, want %d", got.NumTemporalLayers, in.NumTemporalLayers)
+	}
+	if got.TemporalIDNested != in.TemporalIDNested {
+		t.Errorf("TemporalIDNested = %d, want %d", got.TemporalIDNested, in.TemporalIDNested)
+	}
+	if got.LengthSizeMinusOne != in.LengthSizeMinusOne {
+		t.Errorf("LengthSizeMinusOne = %d, want %d", got.LengthSizeMinusOne, in.LengthSizeMinusOne)
+	}
+	if len(got.NaluArrays) != len(in.NaluArrays) {
+		t.Fatalf("got %d NALU arrays, want %d", len(got.NaluArrays), len(in.NaluArrays))
+	}
+	for i := range in.NaluArrays {
+		if got.NaluArrays[i].NaluType() != in.NaluArrays[i].NaluType() {
+			t.Errorf("array %d type = %s, want %s", i, got.NaluArrays[i].NaluType(), in.NaluArrays[i].NaluType())
+		}
+		if !bytes.Equal(got.NaluArrays[i].Nalus[0], in.NaluArrays[i].Nalus[0]) {
+			t.Errorf("array %d NALU bytes differ after round-trip", i)
+		}
+	}
+
+	// Versions other than 1 must be rejected.
+	bad := append([]byte{}, out.Bytes()...)
+	bad[0] = 2
+	if _, err := DecodeLHEVCDecConfRec(bad); err == nil {
+		t.Error("expected error for unknown configurationVersion")
+	}
+}

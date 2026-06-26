@@ -174,6 +174,89 @@ func TestVPSParser(t *testing.T) {
 	}
 }
 
+func TestVPSMultiLayerExtension(t *testing.T) {
+	// MV-HEVC VPS with vps_extension() from a reference MV-HEVC mp4 (GPAC output).
+	vpsHex := "40010c11ffff016000000300900000030000030078959815bf7820001828b2e0c040000013f100000300000f11a0f0008714010a566e90"
+	data, err := hex.DecodeString(vpsHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vps, err := ParseVPSNALUnit(data)
+	if err != nil {
+		t.Fatalf("Error parsing VPS: %v", err)
+	}
+	if vps.VpsID != 0 {
+		t.Errorf("VpsID = %d, want 0", vps.VpsID)
+	}
+	if vps.MaxLayersMinus1 != 1 {
+		t.Errorf("MaxLayersMinus1 = %d, want 1", vps.MaxLayersMinus1)
+	}
+	if got := vps.GetNumLayers(); got != 2 {
+		t.Errorf("GetNumLayers() = %d, want 2", got)
+	}
+	if !vps.IsMultiLayer() {
+		t.Error("expected IsMultiLayer() to be true")
+	}
+	if vps.Extension == nil {
+		t.Fatal("expected non-nil VPS extension")
+	}
+	if got := vps.GetNumViews(); got != 2 {
+		t.Errorf("GetNumViews() = %d, want 2", got)
+	}
+	if got := vps.ScalabilityMaskBits(); got != 0x0002 {
+		t.Errorf("ScalabilityMaskBits() = 0x%04x, want 0x0002", got)
+	}
+	if vps.Extension.NumProfileTierLevel < 3 {
+		t.Errorf("NumProfileTierLevel = %d, want >= 3", vps.Extension.NumProfileTierLevel)
+	}
+	if vps.Extension.NumOutputLayerSets != 2 {
+		t.Errorf("NumOutputLayerSets = %d, want 2", vps.Extension.NumOutputLayerSets)
+	}
+	if vps.Extension.NumRepFormats != 1 {
+		t.Fatalf("NumRepFormats = %d, want 1", vps.Extension.NumRepFormats)
+	}
+	rf := vps.Extension.RepFormats[0]
+	if rf.PicWidthLumaSamples != 1920 || rf.PicHeightLumaSamples != 1080 {
+		t.Errorf("RepFormat resolution = %dx%d, want 1920x1080",
+			rf.PicWidthLumaSamples, rf.PicHeightLumaSamples)
+	}
+	// Layer 1 (dependent view) must reference layer 0 (base view).
+	if !vps.Extension.DirectDependencyFlag[1][0] {
+		t.Error("expected layer 1 to directly depend on layer 0")
+	}
+	if vps.Extension.NumDirectRefLayers[1] != 1 {
+		t.Errorf("NumDirectRefLayers[1] = %d, want 1", vps.Extension.NumDirectRefLayers[1])
+	}
+}
+
+func TestVPSSingleLayerNoExtension(t *testing.T) {
+	// Standard single-layer HEVC VPS (no vps_extension()).
+	vpsHex := "40010c01ffff022000000300b0000003000003007b18b024"
+	data, err := hex.DecodeString(vpsHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vps, err := ParseVPSNALUnit(data)
+	if err != nil {
+		t.Fatalf("Error parsing VPS: %v", err)
+	}
+	if vps.MaxLayersMinus1 != 0 {
+		t.Errorf("MaxLayersMinus1 = %d, want 0", vps.MaxLayersMinus1)
+	}
+	if vps.IsMultiLayer() {
+		t.Error("expected IsMultiLayer() to be false for single-layer VPS")
+	}
+	if vps.Extension != nil {
+		t.Error("expected nil VPS extension for single-layer VPS")
+	}
+	if got := vps.GetNumViews(); got != 1 {
+		t.Errorf("GetNumViews() = %d, want 1", got)
+	}
+	if got := vps.ScalabilityMaskBits(); got != 0 {
+		t.Errorf("ScalabilityMaskBits() = 0x%04x, want 0", got)
+	}
+}
+
 func TestVPSParseError(t *testing.T) {
 	// SPS NALU type instead of VPS
 	spsHex := "42010101600000030090000003000003007ba003c080109640"
