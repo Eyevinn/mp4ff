@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `LhvCBox` for the L-HEVC configuration box (`lhvC`, ISO/IEC 14496-15 Ed. 7
+  Sec. 9.5.3.1), carrying the L-HEVC decoder configuration record for the
+  enhancement layers of a layered HEVC (MV-HEVC/SHVC) stream, with a
+  `CreateLhvCFromNalus` constructor and a `VisualSampleEntryBox.LhvC` child
+  reference
 - Parsing of the HEVC multilayer/multiview VPS extension (`vps_extension()`,
   ISO/IEC 23008-2 Annex F.7.3.2.1.1) used by MV-HEVC and SHVC, exposed as an
   optional `hevc.VPS.Extension` (`*VPSExtension`) with scalability mask,
