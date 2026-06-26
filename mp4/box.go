@@ -82,6 +82,7 @@ func init() {
 		"hint":    DecodeTrefType,
 		"hvc1":    DecodeVisualSampleEntry,
 		"hvcC":    DecodeHvcC,
+		"lhvC":    DecodeLhvC,
 		"iacb":    DecodeIacb,
 		"iamf":    DecodeAudioSampleEntry,
 		"iden":    DecodeIden,
