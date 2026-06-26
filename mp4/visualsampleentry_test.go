@@ -61,6 +61,29 @@ func TestVisualSampleEntryBoxVP9(t *testing.T) {
 	}
 }
 
+func TestVisualSampleEntryBoxHDRMetadata(t *testing.T) {
+	hvc1 := mp4.CreateVisualSampleEntryBox("hvc1", 3840, 2160, nil)
+	mdcv := mp4.CreateMdcvBox(
+		[3]uint16{13250, 7500, 34000},
+		[3]uint16{34500, 3000, 16000},
+		15635, 16450,
+		10000000, 50,
+	)
+	clli := mp4.CreateClliBox(1000, 400)
+	hvc1.AddChild(mdcv)
+	hvc1.AddChild(clli)
+
+	boxDiffAfterEncodeAndDecode(t, hvc1)
+
+	decoded := boxAfterEncodeAndDecode(t, hvc1).(*mp4.VisualSampleEntryBox)
+	if decoded.Mdcv == nil {
+		t.Fatal("expected decoded mdcv child")
+	}
+	if decoded.Clli == nil {
+		t.Fatal("expected decoded clli child")
+	}
+}
+
 func TestAvc1WithTrailingBytes(t *testing.T) {
 	minfWithTrailingAvc1Bytes, err := os.ReadFile("testdata/minf_with_trailing_avc1_bytes.bin")
 	if err != nil {
