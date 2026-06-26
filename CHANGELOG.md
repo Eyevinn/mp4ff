@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SampleAccessor.ReadMdatData` for bulk reading of the raw mdat payload of a
+  fragment in a single read, intended for streaming with lazy mdat decoding
 - HDR metadata boxes `ClliBox` (Content Light Level, `clli`, ISO/IEC 14496-12
   Sec. 12.1.6) and `MdcvBox` (Mastering Display Colour Volume, `mdcv`, ISO/IEC
   14496-12 Sec. 12.1.7), including `VisualSampleEntryBox.Clli` and `.Mdcv`

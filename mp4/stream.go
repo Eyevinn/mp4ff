@@ -137,6 +137,7 @@ type SampleAccessor interface {
 	GetSample(trackID uint32, sampleNr uint32) (*FullSample, error)
 	GetSampleRange(trackID uint32, startSampleNr, endSampleNr uint32) ([]FullSample, error)
 	GetSamples(trackID uint32) ([]FullSample, error)
+	ReadMdatData(dst []byte) (int, error)
 }
 
 // StreamOption configures streaming behavior.
@@ -393,6 +394,22 @@ func (fsa *fragmentSampleAccessor) GetSamples(trackID uint32) ([]FullSample, err
 	}
 
 	return samples, nil
+}
+
+// ReadMdatData reads the raw mdat payload of the fragment into dst in a single read.
+// The caller must provide a dst slice of at least mdat.GetLazyDataSize() bytes.
+// It is intended for bulk access to the media data when using lazy mdat decoding,
+// as an alternative to extracting samples one by one.
+func (fsa *fragmentSampleAccessor) ReadMdatData(dst []byte) (int, error) {
+	mdat := fsa.fragment.Mdat
+	if mdat == nil {
+		return 0, fmt.Errorf("fragment has no mdat box")
+	}
+	start := int64(mdat.PayloadAbsoluteOffset())
+	if _, err := fsa.boxSeekReader.Seek(start, io.SeekStart); err != nil {
+		return 0, fmt.Errorf("seek to mdat payload: %w", err)
+	}
+	return io.ReadFull(fsa.boxSeekReader, dst)
 }
 
 // ProcessFragments reads and processes fragments from the stream until EOF.

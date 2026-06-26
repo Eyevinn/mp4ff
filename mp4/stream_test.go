@@ -84,6 +84,66 @@ func TestProcessFragmentsWithCallback(t *testing.T) {
 	t.Logf("Processed %d fragments with %d total samples", fragmentCount, sampleCount)
 }
 
+func TestStreamReadMdatData(t *testing.T) {
+	testFile := "testdata/v300_multiple_segments.mp4"
+	if _, err := os.Stat(testFile); os.IsNotExist(err) {
+		t.Skip("Test file not found, skipping")
+	}
+
+	data, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+
+	fragmentCount := 0
+	reader := bytes.NewReader(data)
+	sf, err := mp4.InitDecodeStream(reader,
+		mp4.WithFragmentCallback(func(f *mp4.Fragment, sa mp4.SampleAccessor) error {
+			fragmentCount++
+			if f.Mdat == nil {
+				t.Fatal("fragment mdat is nil")
+			}
+
+			// Concatenate the per-sample data for the (single) track.
+			trackID := f.Moof.Trafs[0].Tfhd.TrackID
+			samples, err := sa.GetSamples(trackID)
+			if err != nil {
+				t.Fatalf("GetSamples failed: %v", err)
+			}
+			var concatenated []byte
+			for i := range samples {
+				concatenated = append(concatenated, samples[i].Data...)
+			}
+
+			// Bulk-read the whole mdat payload and compare.
+			size := f.Mdat.GetLazyDataSize()
+			dst := make([]byte, size)
+			n, err := sa.ReadMdatData(dst)
+			if err != nil {
+				t.Fatalf("ReadMdatData failed: %v", err)
+			}
+			if uint64(n) != size {
+				t.Errorf("ReadMdatData read %d bytes, want %d", n, size)
+			}
+			if !bytes.Equal(dst, concatenated) {
+				t.Errorf("ReadMdatData payload (%d bytes) does not match concatenated samples (%d bytes)",
+					len(dst), len(concatenated))
+			}
+			return nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("DecodeStream failed: %v", err)
+	}
+
+	if err := sf.ProcessFragments(); err != nil {
+		t.Fatalf("ProcessFragments failed: %v", err)
+	}
+	if fragmentCount == 0 {
+		t.Error("No fragments processed")
+	}
+}
+
 func TestStreamFileSlidingWindow(t *testing.T) {
 	testFile := "testdata/v300_multiple_segments.mp4"
 	if _, err := os.Stat(testFile); os.IsNotExist(err) {
