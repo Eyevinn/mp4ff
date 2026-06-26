@@ -20,6 +20,7 @@ type VisualSampleEntryBox struct {
 	CompressorName     string
 	AvcC               *AvcCBox
 	HvcC               *HvcCBox
+	DoViConfig         *DoViConfigurationBox
 	Av1C               *Av1CBox
 	Av3c               *Av3cBox
 	VvcC               *VvcCBox
@@ -70,6 +71,8 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.AvcC = box
 	case *HvcCBox:
 		b.HvcC = box
+	case *DoViConfigurationBox:
+		b.DoViConfig = box
 	case *Av1CBox:
 		b.Av1C = box
 	case *Av3cBox:
