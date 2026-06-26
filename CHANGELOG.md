@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - L-HEVC (`lhvC`) decoder configuration record support in the hevc package:
   `DecConfRec.DecodeLHEVCDecConfRec`, `EncodeLHEVC`, `EncodeLHEVCSW` and
   `LHEVCSize` (ISO/IEC 14496-15 Ed. 7 Sec. 9.4.3)
+- `OinfSampleGroupEntry` for the Operating Points Information sample group
+  (`oinf`, ISO/IEC 14496-15 Ed. 7 Sec. 9.6.2) and `LinfSampleGroupEntry` for
+  the Layer Information sample group (`linf`, Sec. 4.15), used by layered HEVC
+  (MV-HEVC/SHVC)
 - `SampleAccessor.ReadMdatData` for bulk reading of the raw mdat payload of a
   fragment in a single read, intended for streaming with lazy mdat decoding
 - HDR metadata boxes `ClliBox` (Content Light Level, `clli`, ISO/IEC 14496-12
