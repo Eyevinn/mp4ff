@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Sec. 12.1.6) and `MdcvBox` (Mastering Display Colour Volume, `mdcv`, ISO/IEC
   14496-12 Sec. 12.1.7), including `VisualSampleEntryBox.Clli` and `.Mdcv`
   child references
+- Support for Dolby Vision HEVC sample entries `dvh1` and `dvhe`: box decoding,
+  `StsdBox.HvcX` mapping, `TrakBox.SetHEVCDescriptor` (dvh1 like hvc1, dvhe like
+  hev1), and CENC/CBCS encryption via `InitProtect`/`ExtractInitProtectData`
+- `DoViConfigurationBox` for the Dolby Vision Configuration Box (`dvcC` for
+  dv_profile <= 7, `dvvC` for 8-9, `dvwC` for >= 10), carrying the
+  DOVIDecoderConfigurationRecord, with a `VisualSampleEntryBox.DoViConfig`
+  child reference
 - Parsing and writing of the recovery point SEI message (type 6) for both AVC
   (`RecoveryPointAvcSEI`, ISO/IEC 14496-10 D.1.8) and HEVC (`RecoveryPointHevcSEI`,
   ISO/IEC 23008-2 D.2.8)
