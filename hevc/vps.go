@@ -491,8 +491,12 @@ func parseVPSExtension(vps *VPS, ext *VPSExtension, r *bits.EBSPReader) error {
 		}
 
 		if i == 0 {
-			// output_layer_flag[0][0] is inferred to 1; no bits are read for OLS 0.
+			// OLS 0 is layer set 0, which contains only the base layer. No bits are
+			// read for it, but its derived state is still defined (F-12/F-13): the
+			// single base layer is the inferred output layer and is necessary.
 			ext.OutputLayerFlag[0][0] = true
+			ext.NecessaryLayersFlag[0][0] = true
+			ext.NumNecessaryLayers[0] = 1
 			if vps.BaseLayerInternalFlag && vps.MaxLayersMinus1 > 0 {
 				ext.ProfileTierLevelIdx[0][0] = 1
 			}
