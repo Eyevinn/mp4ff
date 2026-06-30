@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`oinf`, ISO/IEC 14496-15 Ed. 7 Sec. 9.6.2) and `LinfSampleGroupEntry` for
   the Layer Information sample group (`linf`, Sec. 4.15), used by layered HEVC
   (MV-HEVC/SHVC)
+- `BuildOinfFromVPS` and `BuildLinfFromVPS` to derive the `oinf` and `linf`
+  sample group entries for a layered HEVC track from a parsed multilayer
+  `hevc.VPS`
 - `LbliSampleGroupEntry` for the L-HEVC external base layer sample group
   (`lbli`, LhvcExternalBaseLayerInfo, ISO/IEC 14496-15 Ed. 7 Sec. 9.6.1),
   used by L-HEVC tracks that predict from an external base layer in a
