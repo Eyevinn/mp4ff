@@ -33,6 +33,7 @@ func init() {
 		"alst": DecodeAlstSampleGroupEntry,
 		"oinf": DecodeOinfSampleGroupEntry,
 		"linf": DecodeLinfSampleGroupEntry,
+		"lbli": DecodeLbliSampleGroupEntry,
 	}
 }
 
