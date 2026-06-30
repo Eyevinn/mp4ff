@@ -34,6 +34,8 @@ type VisualSampleEntryBox struct {
 	Mdcv               *MdcvBox
 	SmDm               *SmDmBox
 	CoLL               *CoLLBox
+	Vexu               *VexuBox
+	Hfov               *HfovBox
 	Children           []Box
 	TrailingBytes      []byte
 }
@@ -100,6 +102,10 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.SmDm = box
 	case *CoLLBox:
 		b.CoLL = box
+	case *VexuBox:
+		b.Vexu = box
+	case *HfovBox:
+		b.Hfov = box
 	}
 	b.Children = append(b.Children, child)
 }
