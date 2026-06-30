@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`oinf`, ISO/IEC 14496-15 Ed. 7 Sec. 9.6.2) and `LinfSampleGroupEntry` for
   the Layer Information sample group (`linf`, Sec. 4.15), used by layered HEVC
   (MV-HEVC/SHVC)
+- `LbliSampleGroupEntry` for the L-HEVC external base layer sample group
+  (`lbli`, LhvcExternalBaseLayerInfo, ISO/IEC 14496-15 Ed. 7 Sec. 9.6.1),
+  used by L-HEVC tracks that predict from an external base layer in a
+  separate track
 - `SampleAccessor.ReadMdatData` for bulk reading of the raw mdat payload of a
   fragment in a single read, intended for streaming with lazy mdat decoding
 - HDR metadata boxes `ClliBox` (Content Light Level, `clli`, ISO/IEC 14496-12
