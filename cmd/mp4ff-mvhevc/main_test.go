@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,6 +122,96 @@ func TestAddMp4AndInfo(t *testing.T) {
 	stbl := parsed.Moov.Trak.Mdia.Minf.Stbl
 	if stbl.Ctts == nil {
 		t.Error("expected ctts (composition offsets) to be carried over from the source")
+	}
+}
+
+// writeSyntheticMVHEVC writes a minimal synthetic MV-HEVC Annex B stream to a
+// temp file: a real stereo VPS (with vps_extension), base- and enhancement-layer
+// parameter sets, and two access units of structurally-valid slice NALUs with
+// placeholder payloads. mp4ff manipulates boxes only and never decodes slice
+// data, so the placeholder slices are sufficient to exercise the muxer.
+func writeSyntheticMVHEVC(t *testing.T) string {
+	t.Helper()
+	nalus := []string{
+		// VPS, stereo (layer 0)
+		"40010c11ffff016000000300900000030000030078959815bf7820" +
+			"001828b2e0c040000013f100000300000f11a0f0008714010a566e90",
+		// base SPS (layer 0)
+		"420101016000000300900000030000030078a00502016965959a4932bc" +
+			"05a80808082000000300200000030321",
+		"4401c172b46240",               // base PPS (layer 0)
+		"42090e85924cae6a020202028180", // enhancement SPS (layer 1)
+		"440948572b062a0140",           // enhancement PPS (layer 1)
+		"26018001020304",               // AU1 base IDR slice (layer 0, first_slice_segment_in_pic_flag=1)
+		"02098001020304",               // AU1 enhancement slice (layer 1)
+		"02018001020304",               // AU2 base trailing slice (layer 0, first_slice=1)
+		"02098005060708",               // AU2 enhancement slice (layer 1)
+	}
+	var buf bytes.Buffer
+	for _, h := range nalus {
+		b, err := hex.DecodeString(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf.Write([]byte{0, 0, 0, 1}) // Annex B start code
+		buf.Write(b)
+	}
+	path := filepath.Join(t.TempDir(), "stereo.hevc")
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// TestAddMultiLayerAndInfo exercises the full multilayer path: muxing a stereo
+// MV-HEVC stream produces lhvC + oinf + linf, which info reads back.
+func TestAddMultiLayerAndInfo(t *testing.T) {
+	in := writeSyntheticMVHEVC(t)
+	out := filepath.Join(t.TempDir(), "stereo.mp4")
+
+	var buf bytes.Buffer
+	if err := run([]string{appName, "add", "-fps", "30", in, out}, &buf); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if !strings.Contains(buf.String(), "layers=2 views=2 multiLayer=true") {
+		t.Errorf("expected multilayer VPS, got:\n%s", buf.String())
+	}
+
+	buf.Reset()
+	if err := run([]string{appName, "info", out}, &buf); err != nil {
+		t.Fatalf("info: %v", err)
+	}
+	got := buf.String()
+	for _, want := range []string{
+		"lhvC (enhancement layer config):",
+		"oinf (Operating Points Information):",
+		"ScalabilityMask: 0x0002",
+		"ProfileTierLevels: 3",
+		"OperatingPoints: 2",
+		"OP[0]: olsIdx=0 maxTid=0 layers=1", // base-layer operating point (VPS OLS-0 fix)
+		"layer[0]: ptlIdx=1 layerId=0 output=true",
+		"layer[1]: ptlIdx=2 layerId=1 output=true", // layer_id keyed on nuh_layer_id
+		"Dep[1]: layerId=1 dependsOn=[0] dimIds=[1]",
+		"linf (Layer Information):",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("info missing %q, got:\n%s", want, got)
+		}
+	}
+
+	// The generated sample entry must carry an lhvC enhancement-layer config.
+	ofd, err := os.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ofd.Close()
+	parsed, err := mp4.DecodeFile(ofd)
+	if err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	vse, ok := parsed.Moov.Trak.Mdia.Minf.Stbl.Stsd.Children[0].(*mp4.VisualSampleEntryBox)
+	if !ok || vse.LhvC == nil {
+		t.Error("expected an hvc1 sample entry with an lhvC box")
 	}
 }
 
