@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Apple spatial/stereo video metadata boxes in the Video Extended Usage box
+  (`vexu`) family: `VexuBox`, `EyesBox` (`eyes`), `CamsBox` (`cams`),
+  `ProjBox` (`proj`), `StriBox` (`stri`), `HeroBox` (`hero`), `BlinBox`
+  (`blin`), `PrjiBox` (`prji`) and `HfovBox` (`hfov`), with a `CreateVexuBox`
+  helper and `VisualSampleEntryBox.Vexu`/`.Hfov` child references (Apple
+  "QuickTime and ISO Base Media File Formats and Spatial and Immersive Media")
 - `LhvCBox` for the L-HEVC configuration box (`lhvC`, ISO/IEC 14496-15 Ed. 7
   Sec. 9.5.3.1), carrying the L-HEVC decoder configuration record for the
   enhancement layers of a layered HEVC (MV-HEVC/SHVC) stream, with a
