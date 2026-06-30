@@ -227,6 +227,17 @@ func TestVPSMultiLayerExtension(t *testing.T) {
 	if vps.Extension.NumDirectRefLayers[1] != 1 {
 		t.Errorf("NumDirectRefLayers[1] = %d, want 1", vps.Extension.NumDirectRefLayers[1])
 	}
+	// OLS 0 is the base layer set: its single layer is output and necessary.
+	if vps.Extension.NumNecessaryLayers[0] != 1 {
+		t.Errorf("NumNecessaryLayers[0] = %d, want 1", vps.Extension.NumNecessaryLayers[0])
+	}
+	if !vps.Extension.OutputLayerFlag[0][0] || !vps.Extension.NecessaryLayersFlag[0][0] {
+		t.Error("expected OLS 0 base layer to be output and necessary")
+	}
+	// OLS 1 contains both layers as necessary (stereo, both views output).
+	if vps.Extension.NumNecessaryLayers[1] != 2 {
+		t.Errorf("NumNecessaryLayers[1] = %d, want 2", vps.Extension.NumNecessaryLayers[1])
+	}
 }
 
 func TestVPSSingleLayerNoExtension(t *testing.T) {
