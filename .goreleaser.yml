@@ -64,6 +64,15 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 
+  - id: mp4ff-mvhevc
+    main: ./cmd/mp4ff-mvhevc
+    binary: mp4ff-mvhevc
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
 archives:
   - formats: [tar.gz]
     format_overrides:
