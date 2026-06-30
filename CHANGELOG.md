@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `mp4ff-mvhevc` command line tool with `info` and `add` subcommands to inspect
+  MV-HEVC (Multi-View HEVC) files and to mux HEVC (Annex B or mp4) into a
+  single-track MV-HEVC mp4 with `hvcC`/`lhvC`, `oinf`/`linf` sample groups and
+  optional Apple spatial-video (`vexu`/`hfov`) metadata
 - `TrgrBox` for the Track Group Box (`trgr`, ISO/IEC 14496-12 Sec. 8.3.4) and a
   generic `TrackGroupTypeBox` for its children (registered for the standard
   `msrc` and `ster` track group types), with a `CreateTrackGroupTypeBox` helper

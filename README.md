@@ -26,6 +26,7 @@ Some useful command line tools are available in [cmd](cmd) directory.
 5. [mp4ff-crop](cmd/mp4ff-crop) crops a **progressive** mp4 file to a specified duration
 6. [mp4ff-encrypt](cmd/mp4ff-encrypt) encrypts a fragmented file using cenc or cbcs Common Encryption scheme
 7. [mp4ff-decrypt](cmd/mp4ff-decrypt) decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
+8. [mp4ff-mvhevc](cmd/mp4ff-mvhevc) inspects MV-HEVC (Multi-View HEVC) files and muxes HEVC (Annex B or mp4) into an MV-HEVC mp4
 
 You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
 
