@@ -810,13 +810,13 @@ func parseSPSSccExtension(r *bits.EBSPReader, ChromaFormatIDC,
 			}
 			ext.PalettePredictorInitializer = make([][]uint, numComps)
 			// Fill luma
-			for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1; i++ {
+			for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1 && r.AccError() == nil; i++ {
 				ext.PalettePredictorInitializer[0] =
 					append(ext.PalettePredictorInitializer[0], r.Read(int(BitDepthLumaMinus8+8)))
 			}
 			// Fill chroma if any
 			for comp := 1; comp < numComps; comp++ {
-				for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1; i++ {
+				for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1 && r.AccError() == nil; i++ {
 					ext.PalettePredictorInitializer[comp] =
 						append(ext.PalettePredictorInitializer[comp], r.Read(int(BitDepthChromaMinus8+8)))
 				}
