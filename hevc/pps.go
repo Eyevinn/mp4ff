@@ -227,10 +227,10 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 		pps.NumTileRowsMinus1 = r.ReadExpGolomb()
 		pps.UniformSpacingFlag = r.ReadFlag()
 		if !pps.UniformSpacingFlag {
-			for i := uint(0); i < pps.NumTileColumnsMinus1; i++ {
+			for i := uint(0); i < pps.NumTileColumnsMinus1 && r.AccError() == nil; i++ {
 				pps.ColumnWidthMinus1 = append(pps.ColumnWidthMinus1, r.ReadExpGolomb())
 			}
-			for i := uint(0); i < pps.NumTileRowsMinus1; i++ {
+			for i := uint(0); i < pps.NumTileRowsMinus1 && r.AccError() == nil; i++ {
 				pps.RowHeightMinus1 = append(pps.RowHeightMinus1, r.ReadExpGolomb())
 			}
 		}
@@ -333,7 +333,7 @@ func parseRangeExtension(r *bits.EBSPReader, transformSkipEnabled bool) (*RangeE
 	if ext.ChromaQpOffsetListEnabledFlag {
 		ext.DiffCuChromaQpOffsetDepth = r.ReadExpGolomb()
 		ext.ChromaQpOffsetListLenMinus1 = r.ReadExpGolomb()
-		for i := uint(0); i <= ext.ChromaQpOffsetListLenMinus1; i++ {
+		for i := uint(0); i <= ext.ChromaQpOffsetListLenMinus1 && r.AccError() == nil; i++ {
 			// values shall be in the range of −12 to +12, inclusive
 			ext.CbQpOffsetList = append(ext.CbQpOffsetList, int8(r.ReadSignedGolomb()))
 			ext.CrQpOffsetList = append(ext.CrQpOffsetList, int8(r.ReadSignedGolomb()))
@@ -357,8 +357,10 @@ func parseMultilayerExtension(r *bits.EBSPReader) (*MultilayerExtension, error) 
 		ext.ScalingListRefLayerId = uint8(r.Read(6))
 	}
 	ext.NumRefLocOffsets = r.ReadExpGolomb()
-	ext.RefLocOffsets = make(map[uint8]RefLocOffset, int(ext.NumRefLocOffsets))
-	for i := uint(0); i < ext.NumRefLocOffsets; i++ {
+	// Do not pre-size the map from the bitstream-derived count: a malformed huge
+	// count would attempt an enormous allocation. Let the map grow as needed.
+	ext.RefLocOffsets = make(map[uint8]RefLocOffset)
+	for i := uint(0); i < ext.NumRefLocOffsets && r.AccError() == nil; i++ {
 		ext.RefLocOffsetLayerIds = append(ext.RefLocOffsetLayerIds, uint8(r.Read(6)))
 
 		off := RefLocOffset{}
@@ -408,7 +410,7 @@ func parseColourMappingTable(r *bits.EBSPReader) (*ColourMappingTable, error) {
 	cm := &ColourMappingTable{}
 	// value shall be in the range of 0 to 61, inclusive
 	cm.NumCmRefLayersMinus1 = uint8(r.ReadExpGolomb())
-	for i := uint8(0); i <= cm.NumCmRefLayersMinus1; i++ {
+	for i := uint8(0); i <= cm.NumCmRefLayersMinus1 && r.AccError() == nil; i++ {
 		cm.RefLayerId = append(cm.RefLayerId, uint8(r.Read(6)))
 	}
 	cm.OctantDepth = uint8(r.Read(2))
@@ -470,7 +472,7 @@ func parseColourMappingOctants(r *bits.EBSPReader, octantDepth uint, partNumY ui
 		}
 	} else {
 		octs = make(map[string][4]Octant, partNumY)
-		for i := uint(0); i < partNumY; i++ {
+		for i := uint(0); i < partNumY && r.AccError() == nil; i++ {
 			// A map is used instead of the 5-dimensional array in the standard pseudo-code
 			// Key represent [ idxShiftY ][ idxCb ][ idxCr ] with idxShiftY variable part
 			key := makeKeyOctant(idxY+(i<<(octantDepth-inpDepth)), idxCb, idxCr)
@@ -525,13 +527,13 @@ func parseSccExtension(r *bits.EBSPReader) (*SccExtension, error) {
 			}
 			ext.PalettePredictorInitializer = make([][]uint, numComps)
 			// Fill luma
-			for i := uint(0); i < ext.NumPalettePredictorInitializers; i++ {
+			for i := uint(0); i < ext.NumPalettePredictorInitializers && r.AccError() == nil; i++ {
 				ext.PalettePredictorInitializer[0] =
 					append(ext.PalettePredictorInitializer[0], r.Read(int(ext.LumaBitDepthEntryMinus8+8)))
 			}
 			// Fill chroma if any
 			for comp := 1; comp < numComps; comp++ {
-				for i := uint(0); i < ext.NumPalettePredictorInitializers; i++ {
+				for i := uint(0); i < ext.NumPalettePredictorInitializers && r.AccError() == nil; i++ {
 					ext.PalettePredictorInitializer[comp] =
 						append(ext.PalettePredictorInitializer[comp], r.Read(int(ext.ChromaBitDepthEntryMinus8+8)))
 				}
@@ -599,7 +601,7 @@ func parseDeltaDlt(r *bits.EBSPReader, BitDepthForDepthLayers int) (*DeltaDlt, e
 		}
 		dd.DeltaDltVal0 = r.Read(BitDepthForDepthLayers)
 		if dd.MaxDiff > (dd.MinDiffMinus1 + 1) {
-			for k := uint(1); k < dd.NumValDeltaDlt; k++ {
+			for k := uint(1); k < dd.NumValDeltaDlt && r.AccError() == nil; k++ {
 				// variable minDiff is set equal to ( min_diff_minus1 + 1 )
 				// length of delta_val_diff_minus_min[ k ] syntax element is Ceil( Log2( max_diff − minDiff + 1 ) ) bits
 				dd.DeltaValDiffMinusMin =
