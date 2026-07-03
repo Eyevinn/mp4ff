@@ -395,3 +395,61 @@ func TestBadSencData(t *testing.T) {
 		})
 	}
 }
+
+func TestAddSamplesMixedSubSamples(t *testing.T) {
+	// Once any sample has subsamples, the box-level senc_use_subsamples
+	// flag is set and every sample record carries a subsample count on
+	// the wire, including samples without subsamples.
+	senc := mp4.CreateSencBox()
+	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234567")}))
+	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234568"),
+		SubSamples: []mp4.SubSamplePattern{{BytesOfClearData: 10, BytesOfProtectedData: 1000}}}))
+	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234569")}))
+
+	// fullbox header (12) + sampleCount (4) + 3 * (IV (8) + count (2)) + 1 * 6
+	wantedSize := uint64(12 + 4 + 3*(8+2) + 6)
+	if senc.Size() != wantedSize {
+		t.Errorf("got size %d, expected %d", senc.Size(), wantedSize)
+	}
+	var buf bytes.Buffer
+	err := senc.Encode(&buf)
+	assertNoError(t, err)
+	firstEnc := buf.Bytes()
+
+	boxDec, err := mp4.DecodeBox(0, bytes.NewBuffer(firstEnc))
+	assertNoError(t, err)
+	decSenc := boxDec.(*mp4.SencBox)
+	if decSenc.ReadButNotParsed() {
+		assertNoError(t, decSenc.ParseReadBox(8, nil))
+	}
+	if len(decSenc.SubSamples) != 3 {
+		t.Fatalf("got %d subsample entries, expected 3", len(decSenc.SubSamples))
+	}
+	for i, wantedCount := range []int{0, 1, 0} {
+		if len(decSenc.SubSamples[i]) != wantedCount {
+			t.Errorf("sample %d: got %d subsamples, expected %d", i, len(decSenc.SubSamples[i]), wantedCount)
+		}
+	}
+	var buf2 bytes.Buffer
+	assertNoError(t, decSenc.Encode(&buf2))
+	if !bytes.Equal(firstEnc, buf2.Bytes()) {
+		t.Error("re-encoded mixed-subsample senc differs from first encoding")
+	}
+}
+
+func TestSencEncodeInconsistentSubSamples(t *testing.T) {
+	// A directly-constructed box with the subsample flag set but fewer
+	// subsample entries than samples must fail encoding, not panic.
+	senc := mp4.SencBox{
+		Version:     0,
+		Flags:       mp4.UseSubSampleEncryption,
+		SampleCount: 2,
+		SubSamples: [][]mp4.SubSamplePattern{
+			{{BytesOfClearData: 10, BytesOfProtectedData: 1000}},
+		},
+	}
+	sw := bits.NewFixedSliceWriter(int(senc.Size()))
+	if err := senc.EncodeSW(sw); err == nil {
+		t.Error("expected error for subsample flag with missing entries")
+	}
+}
