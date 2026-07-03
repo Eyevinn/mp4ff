@@ -65,6 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ReadExpGolomb`/`ReadSignedGolomb` on `bits.Reader` and
   `WriteExpGolomb`/`WriteSignedGolomb` on `bits.FixedSliceWriter`
 
+### Changed
+
+- Minimum Go version bumped from 1.17 to 1.19. Fuzz tests require native
+  fuzzing (`testing.F`, Go 1.18), and Go 1.19 fixes fuzz-corpus CRLF handling
+  so the seed corpus loads on Windows CI
+
 ## [0.52.0] - 2026-05-12
 
 ### Added
