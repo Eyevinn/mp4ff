@@ -134,6 +134,8 @@ func runInfo(args []string, w io.Writer) error {
 			for _, child := range trak.Trgr.Children {
 				if tgt, ok := child.(*mp4.TrackGroupTypeBox); ok {
 					fmt.Fprintf(w, "    %s: trackGroupID=%d\n", tgt.Type(), tgt.TrackGroupID)
+				} else {
+					fmt.Fprintf(w, "    %s: (unregistered track group type)\n", child.Type())
 				}
 			}
 		}
@@ -177,6 +179,12 @@ func printSampleEntry(w io.Writer, vse *mp4.VisualSampleEntryBox) {
 				fmt.Fprintf(w, "      %s\n", hex.EncodeToString(nalu))
 			}
 		}
+	}
+
+	if dovi := vse.DoViConfig; dovi != nil {
+		fmt.Fprintf(w, "  %s (Dolby Vision): version=%d.%d profile=%d level=%d rpu=%t el=%t bl=%t compatID=%d\n",
+			dovi.Type(), dovi.DVVersionMajor, dovi.DVVersionMinor, dovi.DVProfile, dovi.DVLevel,
+			dovi.RPUPresentFlag, dovi.ELPresentFlag, dovi.BLPresentFlag, dovi.DVBLSignalCompatibilityID)
 	}
 
 	if vse.Vexu != nil {
