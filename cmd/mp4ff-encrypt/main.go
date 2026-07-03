@@ -47,7 +47,7 @@ func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
 	fs.StringVar(&opts.initFile, "init", "", "Path to init file with encryption info (scheme, kid, pssh)")
 	fs.StringVar(&opts.kidStr, "kid", "", "key id (32 hex or 24 base64 chars). Required if initFilePath empty")
 	fs.StringVar(&opts.keyStr, "key", "", "Required: key (32 hex or 24 base64 chars)")
-	fs.StringVar(&opts.ivHex, "iv", "", "Required: iv (16 or 32 hex chars)")
+	fs.StringVar(&opts.ivHex, "iv", "", "Required: iv (16 or 32 hex chars; 16 gives CMAF-conformant 8-byte cenc IVs)")
 	fs.StringVar(&opts.scheme, "scheme", "cenc", "cenc or cbcs. Required if initFilePath empty")
 	fs.StringVar(&opts.psshFile, "pssh", "", "file with one or more pssh box(es) in binary format. Will be added at end of moov box")
 	fs.BoolVar(&opts.version, "version", false, "Get mp4ff version")

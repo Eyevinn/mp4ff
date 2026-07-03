@@ -63,26 +63,40 @@ func NewSaizBox(capacity int) *SaizBox {
 	}
 }
 
-// AddSampleInfo adds a sampleinfo info based on parameters provided.
-// If no length field, don't update the sample field (typically audio cbcs)
-func (b *SaizBox) AddSampleInfo(iv []byte, subsamplePatterns []SubSamplePattern) {
+// AddSampleInfo adds the auxiliary information size for one sample.
+// A zero total size (no IV and no subsamples, as for cbcs full-sample
+// encryption with a constant IV) means the sample has no auxiliary
+// information and no entry is recorded. Uniform sizes are stored in
+// DefaultSampleInfoSize; when a differing size arrives, the box switches
+// to per-sample sizes. Within one fragment, either all samples or no
+// samples should carry subsample patterns, matching the box-level
+// senc_use_subsamples flag of the corresponding senc box.
+func (b *SaizBox) AddSampleInfo(iv []byte, subsamplePatterns []SubSamplePattern) error {
 	size := len(iv)
 	if len(subsamplePatterns) > 0 {
 		size += 2 + len(subsamplePatterns)*6
-		b.SampleInfo = append(b.SampleInfo, byte(size))
-	} else if size > 0 {
-		switch b.DefaultSampleInfoSize {
-		case 0:
-			b.DefaultSampleInfoSize = byte(size)
-		default:
-			if byte(size) != b.DefaultSampleInfoSize {
-				panic("inconsistent sample info size")
-			}
+	}
+	if size == 0 {
+		return nil
+	}
+	if size > 255 {
+		return fmt.Errorf("saiz: sample info size %d does not fit in 8 bits", size)
+	}
+	switch {
+	case b.SampleCount == 0:
+		b.DefaultSampleInfoSize = byte(size)
+	case b.DefaultSampleInfoSize != 0 && byte(size) != b.DefaultSampleInfoSize:
+		// Sizes are no longer uniform: switch to per-sample sizes.
+		for i := uint32(0); i < b.SampleCount; i++ {
+			b.SampleInfo = append(b.SampleInfo, b.DefaultSampleInfoSize)
 		}
+		b.DefaultSampleInfoSize = 0
 	}
-	if size > 0 {
-		b.SampleCount++
+	if b.DefaultSampleInfoSize == 0 {
+		b.SampleInfo = append(b.SampleInfo, byte(size))
 	}
+	b.SampleCount++
+	return nil
 }
 
 // Type - return box type
