@@ -43,9 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   optional Apple spatial-video (`vexu`/`hfov`) metadata
 - `TrgrBox` for the Track Group Box (`trgr`, ISO/IEC 14496-12 Sec. 8.3.4) and a
   generic `TrackGroupTypeBox` for its children (registered for the standard
-  `msrc` and `ster` track group types), with a `CreateTrackGroupTypeBox` helper
-  and a `TrakBox.Trgr` reference. Type-specific data after `track_group_id`
-  (e.g. the `ster` `left_view_flag`) is preserved for round-tripping
+  `msrc` and `ster` track group types, and `cstg` — the complete subset track
+  grouping for L-HEVC, ISO/IEC 14496-15 Sec. 9.5.1), with a
+  `CreateTrackGroupTypeBox` helper and a `TrakBox.Trgr` reference.
+  Type-specific data after `track_group_id` (e.g. the `ster` `left_view_flag`)
+  is preserved for round-tripping
 - Apple spatial/stereo video metadata boxes in the Video Extended Usage box
   (`vexu`) family: `VexuBox`, `EyesBox` (`eyes`), `CamsBox` (`cams`),
   `ProjBox` (`proj`), `StriBox` (`stri`), `HeroBox` (`hero`), `BlinBox`

@@ -312,7 +312,7 @@ func TestInfoDoViAndTrgr(t *testing.T) {
 	}
 
 	// Attach a dvvC box (Dolby Vision profile 20 is used for MV-HEVC) and a
-	// trgr with one registered (ster) and one unregistered track group type.
+	// trgr with registered (ster, cstg) and unregistered track group types.
 	ofd, err := os.Open(out)
 	if err != nil {
 		t.Fatal(err)
@@ -326,7 +326,8 @@ func TestInfoDoViAndTrgr(t *testing.T) {
 	vse.AddChild(mp4.CreateDoViConfigurationBox(1, 0, 20, 6, true, false, true, 0))
 	trgr := &mp4.TrgrBox{}
 	trgr.AddChild(mp4.CreateTrackGroupTypeBox("ster", 1))
-	trgr.AddChild(mp4.CreateUnknownBox("cstg", 16, []byte{0, 0, 0, 0, 0, 0, 3, 233}))
+	trgr.AddChild(mp4.CreateTrackGroupTypeBox("cstg", 1001))
+	trgr.AddChild(mp4.CreateUnknownBox("zzzz", 16, []byte{0, 0, 0, 0, 0, 0, 3, 233}))
 	parsed.Moov.Trak.AddChild(trgr)
 	out2 := filepath.Join(t.TempDir(), "stereo_dovi.mp4")
 	ofd2, err := os.Create(out2)
@@ -348,7 +349,8 @@ func TestInfoDoViAndTrgr(t *testing.T) {
 		"dvwC (Dolby Vision): version=1.0 profile=20 level=6 rpu=true el=false bl=true compatID=0",
 		"trgr (Track Group):",
 		"ster: trackGroupID=1",
-		"cstg: (unregistered track group type)",
+		"cstg: trackGroupID=1001",
+		"zzzz: (unregistered track group type)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("info missing %q, got:\n%s", want, got)
