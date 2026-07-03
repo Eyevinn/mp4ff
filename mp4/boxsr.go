@@ -35,6 +35,7 @@ func init() {
 		"CoLL":    DecodeCoLLSR,
 		"colr":    DecodeColrSR,
 		"cslg":    DecodeCslgSR,
+		"cstg":    DecodeTrackGroupTypeSR,
 		"ctim":    DecodeCtimSR,
 		"ctts":    DecodeCttsSR,
 		"dac3":    DecodeDac3SR,

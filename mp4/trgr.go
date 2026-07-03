@@ -75,10 +75,12 @@ func (b *TrgrBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 }
 
 // TrackGroupTypeBox - a track group type box inside trgr, ISO/IEC 14496-12
-// Sec. 8.3.4. The box type is the track_group_type (e.g. 'msrc', 'ster'). Tracks
-// containing a TrackGroupTypeBox of the same type and TrackGroupID belong to the
-// same group. Any type-specific data after track_group_id (such as the
-// StereoVideoGroupBox 'ster' left_view_flag) is preserved in Payload.
+// Sec. 8.3.4. The box type is the track_group_type: 'msrc', 'ster' (14496-12)
+// or 'cstg' (complete subset track grouping for L-HEVC, ISO/IEC 14496-15
+// Sec. 9.5.1). Tracks containing a TrackGroupTypeBox of the same type and
+// TrackGroupID belong to the same group. Any type-specific data after
+// track_group_id (such as the StereoVideoGroupBox 'ster' left_view_flag) is
+// preserved in Payload.
 type TrackGroupTypeBox struct {
 	Version      byte
 	Flags        uint32

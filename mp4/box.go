@@ -44,6 +44,7 @@ func init() {
 		"CoLL":    DecodeCoLL,
 		"colr":    DecodeColr,
 		"cslg":    DecodeCslg,
+		"cstg":    DecodeTrackGroupType,
 		"ctim":    DecodeCtim,
 		"ctts":    DecodeCtts,
 		"dac3":    DecodeDac3,

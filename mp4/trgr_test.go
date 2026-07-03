@@ -21,6 +21,14 @@ func TestTrackGroupTypeBox(t *testing.T) {
 		t.Errorf("ster Size() = %d, want 20", ster.Size())
 	}
 	boxDiffAfterEncodeAndDecode(t, ster)
+
+	// cstg (complete subset track grouping, ISO/IEC 14496-15 Sec. 9.5.1) has no
+	// type-specific payload. GPAC writes it with track_group_id 1000 + track ID.
+	cstg := mp4.CreateTrackGroupTypeBox("cstg", 1001)
+	if cstg.Type() != "cstg" {
+		t.Errorf("Type() = %q, want cstg", cstg.Type())
+	}
+	boxDiffAfterEncodeAndDecode(t, cstg)
 }
 
 func TestTrgr(t *testing.T) {
