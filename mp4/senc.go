@@ -78,8 +78,17 @@ func (s *SencBox) AddSample(sample SencSample) error {
 	}
 
 	if len(sample.SubSamples) > 0 {
+		// Backfill empty entries for any earlier samples without
+		// subsamples so that SubSamples stays aligned with the sample
+		// index. Every sample carries a subsample count on the wire
+		// once the flag is set.
+		for uint32(len(s.SubSamples)) < s.SampleCount {
+			s.SubSamples = append(s.SubSamples, nil)
+		}
 		s.SubSamples = append(s.SubSamples, sample.SubSamples)
 		s.Flags |= UseSubSampleEncryption
+	} else if len(s.SubSamples) > 0 {
+		s.SubSamples = append(s.SubSamples, nil)
 	}
 	s.SampleCount++
 	return nil
@@ -335,7 +344,10 @@ func (s *SencBox) calcSize() uint64 {
 	for i := uint32(0); i < s.SampleCount; i++ {
 		totalSize += perSampleIVSize
 		if s.Flags&UseSubSampleEncryption != 0 {
-			totalSize += 2 + 6*uint64(len(s.SubSamples[i]))
+			totalSize += 2
+			if i < uint32(len(s.SubSamples)) {
+				totalSize += 6 * uint64(len(s.SubSamples[i]))
+			}
 		}
 	}
 	return totalSize
@@ -375,6 +387,13 @@ func (s *SencBox) EncodeSWNoHdr(sw bits.SliceWriter) error {
 		return sw.AccError()
 	}
 	perSampleIVSize := s.GetPerSampleIVSize()
+	if perSampleIVSize > 0 && len(s.IVs) != int(s.SampleCount) {
+		return fmt.Errorf("senc: %d IVs do not match sample count %d", len(s.IVs), s.SampleCount)
+	}
+	if s.Flags&UseSubSampleEncryption != 0 && len(s.SubSamples) != int(s.SampleCount) {
+		return fmt.Errorf("senc: subsample encryption flag set but %d of %d samples have subsample entries",
+			len(s.SubSamples), s.SampleCount)
+	}
 	for i := 0; i < int(s.SampleCount); i++ {
 		if perSampleIVSize > 0 {
 			sw.WriteBytes(s.IVs[i])

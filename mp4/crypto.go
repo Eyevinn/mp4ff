@@ -77,6 +77,12 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 	if clearEnd > clearStart {
 		ssps = AppendProtectRange(ssps, clearEnd-clearStart, 0)
 	}
+	if len(ssps) == 0 {
+		// Degenerate sample (e.g. only a NALU length field): mark all
+		// bytes clear so every video sample carries a subsample entry,
+		// keeping senc and saiz consistent within the fragment.
+		ssps = AppendProtectRange(ssps, uint32(length), 0)
+	}
 	return ssps, nil
 }
 
@@ -132,6 +138,12 @@ func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.P
 	}
 	if clearEnd > clearStart {
 		ssps = AppendProtectRange(ssps, clearEnd-clearStart, 0)
+	}
+	if len(ssps) == 0 {
+		// Degenerate sample (e.g. only a NALU length field): mark all
+		// bytes clear so every video sample carries a subsample entry,
+		// keeping senc and saiz consistent within the fragment.
+		ssps = AppendProtectRange(ssps, uint32(length), 0)
 	}
 	return ssps, nil
 }
@@ -302,8 +314,9 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 		return nil, fmt.Errorf("only one stsd child supported")
 	}
 
+	inputIVSize := len(iv)
 	if len(iv) == 8 {
-		// Convert to 16 bytes
+		// Convert to 16 bytes for use as cbcs constant IV
 		iv8 := iv
 		iv = make([]byte, 16)
 		copy(iv, iv8)
@@ -348,7 +361,20 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 	schi := SchiBox{}
 	switch scheme {
 	case "cenc":
-		ipd.Tenc = &TencBox{Version: 0, DefaultIsProtected: 1, DefaultPerSampleIVSize: 16, DefaultKID: kid}
+		// The per-sample IV size follows the provided iv. CMAF
+		// (ISO/IEC 23000-19 Section 8.2.3.1) requires 8-byte IVs for
+		// the cenc scheme, so an 8-byte iv is the conformant choice;
+		// 16-byte IVs are kept for backwards compatibility.
+		var perSampleIVSize byte
+		switch inputIVSize {
+		case 8:
+			perSampleIVSize = 8
+		case 16:
+			perSampleIVSize = 16
+		default:
+			return nil, fmt.Errorf("cenc iv must be 8 or 16 bytes, got %d", inputIVSize)
+		}
+		ipd.Tenc = &TencBox{Version: 0, DefaultIsProtected: 1, DefaultPerSampleIVSize: perSampleIVSize, DefaultKID: kid}
 		sinf.AddChild(&SchmBox{SchemeType: "cenc", SchemeVersion: 65536})
 	case "cbcs":
 		switch mediaType {
@@ -458,14 +484,24 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte,
 	if ipd == nil {
 		return nil, fmt.Errorf("no protection data")
 	}
-	if len(iv) == 8 {
-		// Convert to 16 bytes
-		iv8 := iv
-		iv = make([]byte, 16)
-		copy(iv, iv8)
-	}
-	if len(iv) != 16 {
-		return nil, fmt.Errorf("iv must be 16 bytes")
+	// cenc with 8-byte per-sample IVs (the size CMAF requires): the 8-byte
+	// IV is the high half of the 16-byte CTR counter, the low half starts
+	// at zero for each sample, and the IV increments by one per sample.
+	iv8Mode := ipd.Scheme == "cenc" && ipd.Tenc != nil && ipd.Tenc.DefaultPerSampleIVSize == 8
+	if iv8Mode {
+		if len(iv) != 8 {
+			return nil, fmt.Errorf("cenc with 8-byte per-sample IVs needs an 8-byte iv, got %d bytes", len(iv))
+		}
+	} else {
+		if len(iv) == 8 {
+			// Convert to 16 bytes
+			iv8 := iv
+			iv = make([]byte, 16)
+			copy(iv, iv8)
+		}
+		if len(iv) != 16 {
+			return nil, fmt.Errorf("iv must be 16 bytes")
+		}
 	}
 	if len(f.Moof.Trafs) != 1 {
 		return nil, fmt.Errorf("only one traf supported")
@@ -502,25 +538,52 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte,
 		}
 		switch ipd.Scheme {
 		case "cenc":
-			err = CryptSampleCenc(sample, key, iv, subsamplePatterns)
+			ctrIV := iv
+			if iv8Mode {
+				ctrIV = make([]byte, 16)
+				copy(ctrIV, iv)
+			}
+			err = CryptSampleCenc(sample, key, ctrIV, subsamplePatterns)
 			if err != nil {
 				return nil, fmt.Errorf("crypt sample cenc: %w", err)
 			}
-			// Store IVs in the senc box and update depending on blocks of encrypted data
-			_ = senc.AddSample(SencSample{IV: iv, SubSamples: subsamplePatterns})
-			saiz.AddSampleInfo(iv, subsamplePatterns)
-			iv = incrementIV(iv, subsamplePatterns, len(sample))
+			// Store IVs in the senc box and advance the IV for the next sample
+			if err := senc.AddSample(SencSample{IV: iv, SubSamples: subsamplePatterns}); err != nil {
+				return nil, fmt.Errorf("senc add sample: %w", err)
+			}
+			if err := saiz.AddSampleInfo(iv, subsamplePatterns); err != nil {
+				return nil, fmt.Errorf("saiz add sample info: %w", err)
+			}
+			if iv8Mode {
+				nextIV := make([]byte, 8)
+				copy(nextIV, iv)
+				incrementIVInPlace(nextIV, 1)
+				iv = nextIV
+			} else {
+				iv = incrementIV(iv, subsamplePatterns, len(sample))
+			}
 		case "cbcs":
 			err = EncryptSampleCbcs(sample, key, iv, subsamplePatterns, ipd.Tenc)
 			if err != nil {
 				return nil, fmt.Errorf("crypt sample cbcs: %w", err)
 			}
-			// iv is constant and not sent t senc
-			_ = senc.AddSample(SencSample{IV: nil, SubSamples: subsamplePatterns})
-			saiz.AddSampleInfo(nil, subsamplePatterns)
+			// iv is constant and not sent to senc
+			if err := senc.AddSample(SencSample{IV: nil, SubSamples: subsamplePatterns}); err != nil {
+				return nil, fmt.Errorf("senc add sample: %w", err)
+			}
+			if err := saiz.AddSampleInfo(nil, subsamplePatterns); err != nil {
+				return nil, fmt.Errorf("saiz add sample info: %w", err)
+			}
 		default:
 			return nil, fmt.Errorf("unknown scheme %s", ipd.Scheme)
 		}
+	}
+	if len(senc.IVs) == 0 && len(senc.SubSamples) == 0 {
+		// No sample auxiliary information (full-sample encryption with a
+		// constant IV): CMAF (ISO/IEC 23000-19 Section 8.2.2.1) recommends
+		// omitting the senc, saiz, and saio boxes.
+		_ = f.Moof.Traf.RemoveEncryptionBoxes()
+		return iv, nil
 	}
 	moof := f.Moof
 	offset := uint64(8)
@@ -742,19 +805,24 @@ func DecryptFragmentWithKeys(frag *Fragment, di DecryptInfo, key []byte, keysByK
 			if schemeType != "cenc" && schemeType != "cbcs" {
 				return fmt.Errorf("scheme type %s not supported", schemeType)
 			}
+			tenc := ti.Sinf.Schi.Tenc
 			hasSenc, isParsed := traf.ContainsSencBox()
 			if !hasSenc {
-				return fmt.Errorf("no senc box in traf")
+				// A missing senc is fine for full-sample encryption with a
+				// constant IV (no sample auxiliary information); CMAF
+				// (ISO/IEC 23000-19 Section 8.2.2.1) recommends omitting
+				// senc, saiz, and saio in that case.
+				if tenc == nil || tenc.DefaultPerSampleIVSize != 0 || len(tenc.DefaultConstantIV) == 0 {
+					return fmt.Errorf("no senc box in traf")
+				}
 			}
-			if !isParsed {
+			if hasSenc && !isParsed {
 				defaultPerSampleIVSize := ti.Sinf.Schi.Tenc.DefaultPerSampleIVSize
 				err := traf.ParseReadSenc(defaultPerSampleIVSize, moof.StartPos)
 				if err != nil {
 					return fmt.Errorf("parseReadSenc: %w", err)
 				}
 			}
-
-			tenc := ti.Sinf.Schi.Tenc
 			trackKey, err := getTrackKey(ti, key, keysByKID, strictKIDMode)
 			if err != nil {
 				return err
@@ -764,9 +832,10 @@ func DecryptFragmentWithKeys(frag *Fragment, di DecryptInfo, key []byte, keysByK
 				return err
 			}
 			var senc *SencBox
-			if traf.Senc != nil {
+			switch {
+			case traf.Senc != nil:
 				senc = traf.Senc
-			} else {
+			case traf.UUIDSenc != nil:
 				senc = traf.UUIDSenc.Senc
 			}
 
@@ -804,7 +873,7 @@ func decryptSamplesInPlace(schemeType string, samples []FullSample, key []byte, 
 	}
 
 	for i := range samples {
-		if len(senc.IVs) == len(samples) {
+		if senc != nil && len(senc.IVs) == len(samples) {
 			if len(senc.IVs[i]) < 16 {
 				for i := 0; i < 16; i++ {
 					iv[i] = 0
@@ -817,7 +886,7 @@ func decryptSamplesInPlace(schemeType string, samples []FullSample, key []byte, 
 		}
 
 		var subSamplePatterns []SubSamplePattern
-		if len(senc.SubSamples) != 0 {
+		if senc != nil && len(senc.SubSamples) != 0 {
 			subSamplePatterns = senc.SubSamples[i]
 		}
 		switch schemeType {

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- cenc encryption with an 8-byte input IV is now CMAF-conformant
+  (ISO/IEC 23000-19 Sec. 8.2.3.1): `InitProtect` sets
+  `tenc.DefaultPerSampleIVSize` to 8, `EncryptFragment` writes 8-byte
+  per-sample IVs to `senc` and increments the IV by one per sample
+  (ISO/IEC 23001-7 Sec. 9.2), and the returned chaining IV is 8 bytes.
+  A 16-byte input IV keeps the previous 16-byte behavior
+- `EncryptFragment` omits the `senc`, `saiz`, and `saio` boxes when a
+  fragment has no sample auxiliary information (full-sample encryption
+  with a constant IV, e.g. cbcs audio), as CMAF Sec. 8.2.2.1 recommends
+- `SaizBox.AddSampleInfo` now returns an error (sample-info sizes above
+  255 do not fit the 8-bit `sample_info_size`) instead of panicking on
+  inconsistent sizes, collapses uniform sizes into
+  `default_sample_info_size`, and switches to per-sample sizes when a
+  differing size arrives
+
+### Fixed
+
+- `DecryptFragment` no longer fails on fragments without a `senc` box
+  when the track uses full-sample encryption with a constant IV
+- `SencBox` keeps its subsample entries aligned with the sample index, so
+  a fragment mixing samples with and without subsamples encodes a zero
+  subsample count instead of panicking, and `saiz` sizes match the
+  `senc` layout
+- `GetAVCProtectRanges` and `GetHEVCProtectRanges` return an all-clear
+  subsample entry for a degenerate sample instead of an empty list
+
 ### Added
 
 - `TrgrBox` for the Track Group Box (`trgr`, ISO/IEC 14496-12 Sec. 8.3.4) and a

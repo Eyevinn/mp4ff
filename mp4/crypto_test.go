@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -643,4 +644,131 @@ func TestDecryptSegmentWithKeys(t *testing.T) {
 			t.Error("segment not equal after fallback decrypt")
 		}
 	})
+}
+
+// TestEncryptFragmentCenc8ByteIV verifies the CMAF-conformant cenc mode:
+// an 8-byte input IV gives tenc.DefaultPerSampleIVSize = 8, 8-byte
+// per-sample IVs in senc, and an IV that increments by one per sample
+// (ISO/IEC 23001-7 Section 9.2, ISO/IEC 23000-19 Section 8.2.3.1).
+func TestEncryptFragmentCenc8ByteIV(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("7766554433221100")
+	kidUUID, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+
+	ifh, err := os.Open("testdata/init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initSeg, err := mp4.DecodeFile(ifh)
+	ifh.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ipd, err := mp4.InitProtect(initSeg.Init, key, iv, "cenc", kidUUID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ipd.Tenc.DefaultPerSampleIVSize != 8 {
+		t.Errorf("got DefaultPerSampleIVSize %d, expected 8", ipd.Tenc.DefaultPerSampleIVSize)
+	}
+
+	rawSeg, err := os.ReadFile("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg, err := mp4.DecodeFile(bytes.NewBuffer(rawSeg))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag := seg.Segments[0].Fragments[0]
+	nextIV, err := mp4.EncryptFragment(frag, key, iv, ipd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	senc := frag.Moof.Traf.Senc
+	if senc == nil || len(senc.IVs) == 0 {
+		t.Fatal("missing senc IVs after encryption")
+	}
+	prev := binary.BigEndian.Uint64(iv)
+	for i, sIV := range senc.IVs {
+		if len(sIV) != 8 {
+			t.Fatalf("sample %d: got %d-byte IV, expected 8", i, len(sIV))
+		}
+		wanted := prev + uint64(i)
+		if got := binary.BigEndian.Uint64(sIV); got != wanted {
+			t.Errorf("sample %d: got IV %#x, expected %#x", i, got, wanted)
+		}
+	}
+	if len(nextIV) != 8 {
+		t.Fatalf("got %d-byte next IV, expected 8", len(nextIV))
+	}
+	wantedNext := prev + uint64(len(senc.IVs))
+	if got := binary.BigEndian.Uint64(nextIV); got != wantedNext {
+		t.Errorf("got next IV %#x, expected %#x", got, wantedNext)
+	}
+}
+
+// TestProtectRangesDegenerateSample verifies that a degenerate video
+// sample (only a NALU length field) still yields one all-clear subsample
+// entry, so that senc and saiz stay consistent within the fragment.
+func TestProtectRangesDegenerateSample(t *testing.T) {
+	sample := []byte{0, 0, 0, 0}
+	for _, tc := range []string{"avc", "hevc"} {
+		var ssps []mp4.SubSamplePattern
+		var err error
+		switch tc {
+		case "avc":
+			ssps, err = mp4.GetAVCProtectRanges(nil, nil, sample, "cenc")
+		case "hevc":
+			ssps, err = mp4.GetHEVCProtectRanges(nil, nil, sample, "cenc")
+		}
+		if err != nil {
+			t.Fatalf("%s: %v", tc, err)
+		}
+		if len(ssps) != 1 || ssps[0].BytesOfClearData != 4 || ssps[0].BytesOfProtectedData != 0 {
+			t.Errorf("%s: got %+v, expected one all-clear range of 4 bytes", tc, ssps)
+		}
+	}
+}
+
+// TestEncryptFragmentNoAuxInfoOmitsBoxes verifies that full-sample
+// encryption with a constant IV (cbcs audio) omits the senc, saiz, and
+// saio boxes, as CMAF (ISO/IEC 23000-19 Section 8.2.2.1) recommends, and
+// that such fragments still decrypt.
+func TestEncryptFragmentNoAuxInfoOmitsBoxes(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+	kidUUID, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+
+	ifh, err := os.Open("testdata/aac_init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initSeg, err := mp4.DecodeFile(ifh)
+	ifh.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ipd, err := mp4.InitProtect(initSeg.Init, key, iv, "cbcs", kidUUID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawSeg, err := os.ReadFile("testdata/aac_1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg, err := mp4.DecodeFile(bytes.NewBuffer(rawSeg))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag := seg.Segments[0].Fragments[0]
+	_, err = mp4.EncryptFragment(frag, key, iv, ipd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	traf := frag.Moof.Traf
+	if traf.Senc != nil || traf.Saiz != nil || traf.Saio != nil {
+		t.Errorf("expected senc, saiz, and saio to be omitted, got senc=%v saiz=%v saio=%v",
+			traf.Senc != nil, traf.Saiz != nil, traf.Saio != nil)
+	}
 }
