@@ -1,5 +1,6 @@
 Video av1 track ID=1
 AV1 sequence header: 352x288, profile 0, level 0, tier 0, 8-bit
+SequenceHeaderOBU payload 1 len 11B: 00000004457e3e7dfcc060
 {
   "SeqProfile": 0,
   "StillPicture": false,

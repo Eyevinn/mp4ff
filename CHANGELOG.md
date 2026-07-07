@@ -19,11 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Sec. 5.5), plus a `CodecConfRec.SequenceHeader` accessor that parses the
   sequence header OBU carried in an av1C record's `configOBUs`
 - AV1 RFC 6381 codecs parameter string generation: `CodecConfRec.CodecString`
-  (mandatory `av01.P.LLT.DD` part) and `SequenceHeader.CodecString` (full form
-  including the color-configuration suffix), per the AV1 Codec ISO Media File
-  Format Binding
+  (mandatory `av01.P.LLT.DD` part), `SequenceHeader.CodecString` (full form
+  including the color-configuration suffix), and an `av1.CodecString` function
+  mirroring `avc.CodecString`/`hevc.CodecString`, per the AV1 Codec ISO Media
+  File Format Binding
 - `mp4ff-pslister` now parses the av1C configuration record of `av01` tracks in
-  mp4 files and prints the sequence header and codecs parameter
+  mp4 files and prints the sequence header (summary and OBU payload hex) and
+  codecs parameter
 - Enriched `av1C` box `Info` output with the codecs parameter string, coded
   resolution and color configuration
 
