@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enriched `av1C` box `Info` output with the codecs parameter string, coded
   resolution and color configuration
 
+### Fixed
+
+- Panic in `hevc.ParseSPSNALUnit` on malformed input where cpb_cnt_minus1 in
+  the sub-layer HRD parameters is 255 (found by fuzzing)
+
 ## [0.53.0] - 2026-07-07
 
 ### Added
