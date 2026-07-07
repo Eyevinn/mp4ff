@@ -78,6 +78,21 @@ func DecodeAV1CodecConfRec(data []byte) (CodecConfRec, error) {
 	return av1drc, nil
 }
 
+// SequenceHeader parses and returns the Sequence Header OBU carried in ConfigOBUs.
+// It returns an error if no Sequence Header OBU is present.
+func (a *CodecConfRec) SequenceHeader() (*SequenceHeader, error) {
+	obus, err := SplitOBUs(a.ConfigOBUs)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range obus {
+		if o.Header.Type == OBUSequenceHeader {
+			return ParseSequenceHeader(o.Payload)
+		}
+	}
+	return nil, fmt.Errorf("av1: no sequence header OBU in configOBUs")
+}
+
 // Size - total size in bytes
 func (a *CodecConfRec) Size() uint64 {
 	return uint64(4 + len(a.ConfigOBUs))
