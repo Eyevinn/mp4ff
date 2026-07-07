@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- AV1 OBU (Open Bitstream Unit) parsing in the `av1` package: `OBUType`,
+  `ParseOBUHeader`, `ReadLEB128` and `SplitOBUs` to split an av1C configuration
+  record, coded sample, or temporal unit into its OBUs (AV1 bitstream spec
+  Sec. 5.3)
+- AV1 sequence header parsing: `av1.ParseSequenceHeader` and a `SequenceHeader`
+  type exposing sequence profile, level, tier, coded resolution
+  (`Width`/`Height`), bit depth and color configuration (AV1 bitstream spec
+  Sec. 5.5), plus a `CodecConfRec.SequenceHeader` accessor that parses the
+  sequence header OBU carried in an av1C record's `configOBUs`
+- AV1 RFC 6381 codecs parameter string generation: `CodecConfRec.CodecString`
+  (mandatory `av01.P.LLT.DD` part) and `SequenceHeader.CodecString` (full form
+  including the color-configuration suffix), per the AV1 Codec ISO Media File
+  Format Binding
+- `mp4ff-pslister` now parses the av1C configuration record of `av01` tracks in
+  mp4 files and prints the sequence header and codecs parameter
+- Enriched `av1C` box `Info` output with the codecs parameter string, coded
+  resolution and color configuration
+
 ## [0.53.0] - 2026-07-07
 
 ### Added

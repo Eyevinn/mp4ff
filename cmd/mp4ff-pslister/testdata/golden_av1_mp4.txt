@@ -1,0 +1,2 @@
+AV1 sequence header: 352x288, profile 0, level 0, tier 0, 8-bit
+Codecs parameter (av01): av01.0.00M.08.0.110.02.02.02.0

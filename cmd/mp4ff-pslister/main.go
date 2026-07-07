@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Eyevinn/mp4ff/av1"
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/hevc"
 	"github.com/Eyevinn/mp4ff/internal"
@@ -20,7 +21,8 @@ const (
 	appName = "mp4ff-pslister"
 )
 
-var usg = `%s lists parameter sets for AVC/H.264 or HEVC/H.265 from mp4 sample description, bytestream, or hex input.
+var usg = `%s lists parameter sets for AVC/H.264, HEVC/H.265, or AV1 from mp4 sample description, bytestream, or hex input.
+For AV1, the av1C configuration record in an mp4 file is parsed (sequence header + codecs parameter).
 
 It prints them as hex and in verbose mode it also prints details in JSON format.
 Usage of %s:
@@ -271,6 +273,8 @@ func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint3
 				codec = "avc"
 			} else if stsd.HvcX != nil {
 				codec = "hevc"
+			} else if stsd.Av01 != nil {
+				codec = "av1"
 			} else {
 				continue
 			}
@@ -279,6 +283,12 @@ func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint3
 				fmt.Fprintf(w, "Video %s track ID=%d\n", codec, trackID)
 			}
 			switch codec {
+			case "av1":
+				if stsd.Av01.Av1C == nil {
+					return trackID, codec, false, fmt.Errorf("no av1C box in av01 sample entry")
+				}
+				err := printAv1PS(w, &stsd.Av01.Av1C.CodecConfRec, verbose)
+				return trackID, codec, true, err
 			case "avc":
 				spsNalus := stsd.AvcX.AvcC.SPSnalus
 				ppsNalus := stsd.AvcX.AvcC.PPSnalus
@@ -387,6 +397,23 @@ func printHevcPS(w io.Writer, vpsNalus, spsNalus, ppsNalus [][]byte, verbose boo
 		sps, _ := hevc.ParseSPSNALUnit(spsNalus[0])
 		fmt.Fprintf(w, "Codecs parameter (assuming hvc1) from SPS id %d: %s\n", sps.SpsID, hevc.CodecString("hvc1", sps))
 	}
+	return nil
+}
+
+func printAv1PS(w io.Writer, crr *av1.CodecConfRec, verbose bool) error {
+	sh, err := crr.SequenceHeader()
+	if err != nil {
+		fmt.Fprintf(w, "Could not parse AV1 sequence header: %s\n", err)
+		fmt.Fprintf(w, "Codecs parameter (av01): %s\n", crr.CodecString("av01"))
+		return nil
+	}
+	fmt.Fprintf(w, "AV1 sequence header: %dx%d, profile %d, level %d, tier %d, %d-bit\n",
+		sh.Width(), sh.Height(), sh.SeqProfile, sh.SeqLevelIdx0, sh.SeqTier0, sh.BitDepth)
+	if verbose {
+		jsonSH, _ := json.MarshalIndent(sh, "", "  ")
+		fmt.Fprintf(w, "%s\n", string(jsonSH))
+	}
+	fmt.Fprintf(w, "Codecs parameter (av01): %s\n", sh.CodecString("av01"))
 	return nil
 }
 

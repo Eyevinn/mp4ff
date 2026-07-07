@@ -1,0 +1,26 @@
+Video av1 track ID=1
+AV1 sequence header: 352x288, profile 0, level 0, tier 0, 8-bit
+{
+  "SeqProfile": 0,
+  "StillPicture": false,
+  "ReducedStillPictureHeader": false,
+  "SeqLevelIdx0": 0,
+  "SeqTier0": 0,
+  "MaxFrameWidthMinus1": 351,
+  "MaxFrameHeightMinus1": 287,
+  "BitDepth": 8,
+  "MonoChrome": false,
+  "ColorPrimaries": 2,
+  "TransferCharacteristics": 2,
+  "MatrixCoefficients": 2,
+  "ColorRange": false,
+  "SubsamplingX": 1,
+  "SubsamplingY": 1,
+  "ChromaSamplePosition": 0,
+  "TimingInfoPresent": false,
+  "NumUnitsInDisplayTick": 0,
+  "TimeScale": 0,
+  "EqualPictureInterval": false,
+  "NumTicksPerPictureMinus1": 0
+}
+Codecs parameter (av01): av01.0.00M.08.0.110.02.02.02.0

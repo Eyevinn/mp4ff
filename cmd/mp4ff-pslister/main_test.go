@@ -46,6 +46,10 @@ func TestCommandLines(t *testing.T) {
 			goldenOut: "testdata/golden_hevc_vps_sps_pps.txt", expectedErr: false},
 		{desc: "hevc annexb", args: []string{appName, "-c", "hevc", "-i", "testdata/hevc.265"},
 			goldenOut: "testdata/golden_hevc_265.txt", expectedErr: false},
+		{desc: "av1mp4", args: []string{appName, "-i", "../../mp4/testdata/av1_init.mp4"},
+			goldenOut: "testdata/golden_av1_mp4.txt", expectedErr: false},
+		{desc: "av1mp4 verbose", args: []string{appName, "-v", "-i", "../../mp4/testdata/av1_init.mp4"},
+			goldenOut: "testdata/golden_av1_mp4_verbose.txt", expectedErr: false},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
