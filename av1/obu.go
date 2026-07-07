@@ -138,12 +138,13 @@ func SplitOBUs(data []byte) ([]OBU, error) {
 				return nil, fmt.Errorf("OBU %d size: %w", len(obus), err)
 			}
 			pos += n
+			// Compare before converting to int, which may be 32-bit.
+			if size > uint64(len(data)-pos) {
+				return nil, fmt.Errorf("OBU %d: payload length %d exceeds remaining data", len(obus), size)
+			}
 			payloadLen = int(size)
 		} else {
 			payloadLen = len(data) - pos
-		}
-		if pos+payloadLen > len(data) {
-			return nil, fmt.Errorf("OBU %d: payload length %d exceeds remaining data", len(obus), payloadLen)
 		}
 		obus = append(obus, OBU{Header: hdr, Payload: data[pos : pos+payloadLen]})
 		pos += payloadLen

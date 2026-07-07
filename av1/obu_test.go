@@ -149,6 +149,10 @@ func TestSplitOBUsErrors(t *testing.T) {
 	if _, err := SplitOBUs([]byte{0x0a, 0x05, 0xaa}); err == nil {
 		t.Error("expected error for payload exceeding data")
 	}
+	// obu_size of 2^32, which would wrap negative in a 32-bit int
+	if _, err := SplitOBUs([]byte{0x0a, 0x80, 0x80, 0x80, 0x80, 0x10}); err == nil {
+		t.Error("expected error for huge obu_size")
+	}
 }
 
 // TestSplitOBUsFateVectors parses every AV1 IVF test vector found in the directory
