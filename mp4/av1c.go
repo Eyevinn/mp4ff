@@ -62,6 +62,7 @@ func (b *Av1CBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - box-specific Info
 func (b *Av1CBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
+	bd.write(" - codecString: %s", b.CodecString("av01"))
 	bd.write(" - SeqProfile: %d", b.SeqProfile)
 	bd.write(" - SeqLevelIdx0: %d", b.SeqLevelIdx0)
 	bd.write(" - SeqTier0: %d", b.SeqTier0)
@@ -73,6 +74,16 @@ func (b *Av1CBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - ChromaSamplePosition: %d", b.ChromaSamplePosition)
 	if b.InitialPresentationDelayPresent == 1 {
 		bd.write(" - InitialPresentationDelayMinusOne: %d", b.InitialPresentationDelayMinusOne)
+	}
+	if sh, err := b.SequenceHeader(); err == nil {
+		bd.write(" - width: %d", sh.Width())
+		bd.write(" - height: %d", sh.Height())
+		bd.write(" - bitDepth: %d", sh.BitDepth)
+		bd.write(" - colorPrimaries: %d", sh.ColorPrimaries)
+		bd.write(" - transferCharacteristics: %d", sh.TransferCharacteristics)
+		bd.write(" - matrixCoefficients: %d", sh.MatrixCoefficients)
+		bd.write(" - fullRange: %t", sh.ColorRange)
+		bd.write(" - fullCodecString: %s", sh.CodecString("av01"))
 	}
 	bd.write("   - ConfigOBUs: %s", hex.EncodeToString(b.ConfigOBUs))
 	return bd.err
