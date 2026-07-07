@@ -102,6 +102,8 @@ func TestEncryptDecrypt(t *testing.T) {
 	videoAVCSeg := "testdata/1.m4s"
 	videoHEVCInit := "testdata/hvc1_init.mp4"
 	videoHEVCSeg := "testdata/hvc1_seg_1.m4s"
+	videoAV1Init := "testdata/av1_multitile_init.mp4"
+	videoAV1Seg := "testdata/av1_multitile_seg.m4s"
 	audioInit := "testdata/aac_init.mp4"
 	audioSeg := "testdata/aac_1.m4s"
 	keyHex := "00112233445566778899aabbccddeeff"
@@ -135,6 +137,9 @@ func TestEncryptDecrypt(t *testing.T) {
 		{desc: "video HEVC cenc iv8", init: videoHEVCInit, seg: videoHEVCSeg, scheme: "cenc", iv: ivHex8},
 		{desc: "video HEVC cbcs iv8", init: videoHEVCInit, seg: videoHEVCSeg, scheme: "cbcs", iv: ivHex8},
 		{desc: "video HEVC cbcs iv16", init: videoHEVCInit, seg: videoHEVCSeg, scheme: "cbcs", iv: ivHex16},
+		{desc: "video AV1 cenc iv8", init: videoAV1Init, seg: videoAV1Seg, scheme: "cenc", iv: ivHex8},
+		{desc: "video AV1 cenc iv16", init: videoAV1Init, seg: videoAV1Seg, scheme: "cenc", iv: ivHex16},
+		{desc: "video AV1 cbcs iv8", init: videoAV1Init, seg: videoAV1Seg, scheme: "cbcs", iv: ivHex8},
 		{desc: "audio AAC cbcs iv16", init: audioInit, seg: audioSeg, scheme: "cbcs", iv: ivHex16, hasPssh: true},
 	}
 	for _, c := range testCases {

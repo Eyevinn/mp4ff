@@ -61,6 +61,11 @@ type SequenceHeader struct {
 	EnableRefFrameMvs                 bool
 	SeqForceScreenContentTools        byte // 0, 1, or SELECT_SCREEN_CONTENT_TOOLS (2)
 	SeqForceIntegerMV                 byte // 0, 1, or SELECT_INTEGER_MV (2)
+	EnableWarpedMotion                bool
+	EnableCdef                        bool
+	EnableRestoration                 bool
+	FilmGrainParamsPresent            bool
+	SeparateUVDeltaQ                  bool
 	DecoderModelInfoPresent           bool
 	BufferRemovalTimeLengthMinus1     byte
 	FramePresentationTimeLengthMinus1 byte
@@ -170,7 +175,7 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 	if !s.ReducedStillPictureHeader {
 		_ = r.Read(1) // enable_interintra_compound
 		_ = r.Read(1) // enable_masked_compound
-		_ = r.Read(1) // enable_warped_motion
+		s.EnableWarpedMotion = r.ReadFlag()
 		_ = r.Read(1) // enable_dual_filter
 		s.EnableOrderHint = r.ReadFlag()
 		if s.EnableOrderHint {
@@ -197,11 +202,11 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 	}
 
 	s.EnableSuperres = r.ReadFlag()
-	_ = r.Read(1) // enable_cdef
-	_ = r.Read(1) // enable_restoration
+	s.EnableCdef = r.ReadFlag()
+	s.EnableRestoration = r.ReadFlag()
 
 	s.parseColorConfig(r)
-	// film_grain_params_present f(1) follows but is not needed here.
+	s.FilmGrainParamsPresent = r.ReadFlag()
 
 	if err := r.AccError(); err != nil {
 		return nil, fmt.Errorf("av1 seqhdr: %w", err)
@@ -281,7 +286,7 @@ func (s *SequenceHeader) parseColorConfig(r *bits.Reader) {
 		}
 	}
 
-	_ = r.Read(1) // separate_uv_delta_q
+	s.SeparateUVDeltaQ = r.ReadFlag()
 }
 
 // readUVLC reads a variable length unsigned integer uvlc() (spec 4.10.3).

@@ -51,3 +51,13 @@ func FuzzParseFrameHeader(f *testing.F) {
 		_, _ = dec.ParseFrameHeader(0, 0, data)
 	})
 }
+
+func FuzzGetTileRanges(f *testing.F) {
+	seq, _ := ParseSequenceHeader([]byte{0x00, 0x00, 0x00, 0x04, 0x45, 0x7e, 0x3e, 0x7d, 0xfc, 0xc0, 0x60})
+	seed, _ := hex.DecodeString("12000a0b00000004457e3e7dfcc060320110")
+	f.Add(seed)
+	f.Fuzz(func(t *testing.T, data []byte) {
+		dec, _ := NewFrameHeaderDecoder(seq)
+		_, _ = dec.GetTileRanges(data)
+	})
+}

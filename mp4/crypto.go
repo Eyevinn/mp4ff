@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/Eyevinn/mp4ff/av1"
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/hevc"
 )
@@ -144,6 +145,56 @@ func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.P
 		// bytes clear so every video sample carries a subsample entry,
 		// keeping senc and saiz consistent within the fragment.
 		ssps = AppendProtectRange(ssps, uint32(length), 0)
+	}
+	return ssps, nil
+}
+
+// GetAV1ProtectRanges computes common-encryption protection ranges for an AV1 sample,
+// following the AV1 Codec ISO Media File Format Binding: only the tile data (decode_tile)
+// of Frame and Tile Group OBUs is protected, while OBU headers, sequence/frame headers,
+// tile-group headers and tile-size fields are left clear.
+//
+// For cenc, each tile's protected bytes are the leading complete 16-byte blocks and the
+// trailing partial block is left clear (matching shaka-packager); tiles smaller than 16
+// bytes are left entirely clear. For cbcs, the whole tile is protected and the pattern
+// cipher skips the final partial block.
+//
+// dec must be fed samples in decode order because inter frames may inherit their size from
+// reference frames; getAV1ProtFunc creates one decoder per track for this reason.
+func GetAV1ProtectRanges(dec *av1.FrameHeaderDecoder, sample []byte, scheme string) ([]SubSamplePattern, error) {
+	if scheme != "cenc" && scheme != "cbcs" {
+		return nil, fmt.Errorf("unknown protect scheme %s", scheme)
+	}
+	tiles, err := dec.GetTileRanges(sample)
+	if err != nil {
+		return nil, fmt.Errorf("av1 tile ranges: %w", err)
+	}
+	// Accumulate clear bytes and emit a (clear, protected) subsample per tile, aligning the
+	// protected data to whole 16-byte blocks for cenc as shaka-packager's SubsampleOrganizer does.
+	var ssps []SubSamplePattern
+	clearAccum := 0
+	prevEnd := 0
+	for _, t := range tiles {
+		cipher := t.Length
+		clearAtEnd := 0
+		if scheme == "cenc" {
+			clearAtEnd = cipher % 16
+			cipher -= clearAtEnd
+		}
+		clearAccum += t.Offset - prevEnd // OBU/frame/tile-group headers and tile-size fields
+		if cipher == 0 {
+			clearAccum += clearAtEnd // tile too small to encrypt: keep it clear
+		} else {
+			ssps = AppendProtectRange(ssps, uint32(clearAccum), uint32(cipher))
+			clearAccum = clearAtEnd
+		}
+		prevEnd = t.Offset + t.Length
+	}
+	clearAccum += len(sample) - prevEnd
+	if clearAccum > 0 || len(ssps) == 0 {
+		// A trailing clear range, or an all-clear sample (so every video sample carries a
+		// subsample entry, keeping senc and saiz consistent).
+		ssps = AppendProtectRange(ssps, uint32(clearAccum), 0)
 	}
 	return ssps, nil
 }
@@ -344,6 +395,11 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 			if err != nil {
 				return nil, fmt.Errorf("get hevc protect func: %w", err)
 			}
+		case "av01":
+			ipd.ProtFunc, err = getAV1ProtFunc(se.Av1C)
+			if err != nil {
+				return nil, fmt.Errorf("get av1 protect func: %w", err)
+			}
 		default:
 			return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
 		}
@@ -461,6 +517,22 @@ func getHEVCPSMaps(arrays []hevc.NaluArray) (map[uint32]*hevc.SPS, map[uint32]*h
 		}
 	}
 	return spsMap, ppsMap, nil
+}
+
+func getAV1ProtFunc(av1C *Av1CBox) (ProtectionRangeFunc, error) {
+	seqHdr, err := av1C.SequenceHeader()
+	if err != nil {
+		return nil, fmt.Errorf("av1 sequence header: %w", err)
+	}
+	dec, err := av1.NewFrameHeaderDecoder(seqHdr)
+	if err != nil {
+		return nil, err
+	}
+	// The decoder is captured so that reference-frame sizes accumulate across the samples
+	// of the track, which are encrypted in decode order.
+	return func(sample []byte, scheme string) ([]SubSamplePattern, error) {
+		return GetAV1ProtectRanges(dec, sample, scheme)
+	}, nil
 }
 
 func getHEVCProtFunc(hvcC *HvcCBox) (ProtectionRangeFunc, error) {
@@ -930,6 +1002,11 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 				ipd.ProtFunc, err = getHEVCProtFunc(box.HvcC)
 				if err != nil {
 					return nil, fmt.Errorf("get HEVC protect func: %w", err)
+				}
+			case "av01":
+				ipd.ProtFunc, err = getAV1ProtFunc(box.Av1C)
+				if err != nil {
+					return nil, fmt.Errorf("get AV1 protect func: %w", err)
 				}
 			default:
 				return nil, fmt.Errorf("unsupported video codec descriptor %s", frma.DataFormat)

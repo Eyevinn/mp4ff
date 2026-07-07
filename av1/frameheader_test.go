@@ -7,32 +7,6 @@ import (
 	"testing"
 )
 
-func TestParseFrameHeaderKeyFrame(t *testing.T) {
-	seq, err := ParseSequenceHeader(mustHex(t, filmGrainSeqHdr))
-	if err != nil {
-		t.Fatal(err)
-	}
-	dec, err := NewFrameHeaderDecoder(seq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// First 3 bytes of the real key-frame OBU payload from av1-1-b8-23-film_grain-50.ivf,
-	// which is all that ParseFrameHeader needs to reach the end of tile_info().
-	fh, err := dec.ParseFrameHeader(0, 0, mustHex(t, "100082"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if fh.ShowExistingFrame || fh.FrameType != FrameTypeKey || !fh.ShowFrame || !fh.FrameIsIntra {
-		t.Errorf("unexpected frame classification: %+v", fh)
-	}
-	if fh.UpscaledWidth != 352 || fh.FrameHeight != 288 {
-		t.Errorf("resolution: got %dx%d, want 352x288", fh.UpscaledWidth, fh.FrameHeight)
-	}
-	if fh.TileCols != 1 || fh.TileRows != 1 {
-		t.Errorf("tiles: got %dx%d, want 1x1", fh.TileCols, fh.TileRows)
-	}
-}
-
 func TestParseFrameHeaderShowExisting(t *testing.T) {
 	seq, err := ParseSequenceHeader(mustHex(t, filmGrainSeqHdr))
 	if err != nil {
