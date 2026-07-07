@@ -79,15 +79,6 @@ archives:
       - goos: windows
         formats: [zip]
 
-homebrew_casks:
-  - name: mp4ff
-    homepage: https://github.com/Eyevinn/mp4ff
-    description: "Tools for parsing and manipulating MP4/ISOBMFF files"
-    repository:
-      owner: Eyevinn
-      name: homebrew-tap
-      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-
 nfpms:
   - package_name: mp4ff
     homepage: https://github.com/Eyevinn/mp4ff
