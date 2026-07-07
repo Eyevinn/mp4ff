@@ -58,6 +58,13 @@ func (s *SequenceHeader) CodecString(sampleEntry string) string {
 		boolToDigit(s.ColorRange))
 }
 
+// CodecString - sub-parameter for MIME type "codecs" parameter like av01.0.04M.10
+// where av01 is sampleEntry. Convenience function mirroring avc.CodecString and
+// hevc.CodecString; see SequenceHeader.CodecString for details.
+func CodecString(sampleEntry string, sh *SequenceHeader) string {
+	return sh.CodecString(sampleEntry)
+}
+
 func boolToDigit(b bool) int {
 	if b {
 		return 1

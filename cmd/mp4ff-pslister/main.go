@@ -401,7 +401,11 @@ func printHevcPS(w io.Writer, vpsNalus, spsNalus, ppsNalus [][]byte, verbose boo
 }
 
 func printAv1PS(w io.Writer, crr *av1.CodecConfRec, verbose bool) error {
-	sh, err := crr.SequenceHeader()
+	shPayload, err := seqHdrPayload(crr.ConfigOBUs)
+	var sh *av1.SequenceHeader
+	if err == nil {
+		sh, err = av1.ParseSequenceHeader(shPayload)
+	}
 	if err != nil {
 		fmt.Fprintf(w, "Could not parse AV1 sequence header: %s\n", err)
 		fmt.Fprintf(w, "Codecs parameter (av01): %s\n", crr.CodecString("av01"))
@@ -409,12 +413,23 @@ func printAv1PS(w io.Writer, crr *av1.CodecConfRec, verbose bool) error {
 	}
 	fmt.Fprintf(w, "AV1 sequence header: %dx%d, profile %d, level %d, tier %d, %d-bit\n",
 		sh.Width(), sh.Height(), sh.SeqProfile, sh.SeqLevelIdx0, sh.SeqTier0, sh.BitDepth)
-	if verbose {
-		jsonSH, _ := json.MarshalIndent(sh, "", "  ")
-		fmt.Fprintf(w, "%s\n", string(jsonSH))
-	}
-	fmt.Fprintf(w, "Codecs parameter (av01): %s\n", sh.CodecString("av01"))
+	printPS(w, "SequenceHeaderOBU payload", 1, shPayload, sh, verbose)
+	fmt.Fprintf(w, "Codecs parameter (av01): %s\n", av1.CodecString("av01", sh))
 	return nil
+}
+
+// seqHdrPayload returns the payload of the sequence header OBU in configOBUs.
+func seqHdrPayload(configOBUs []byte) ([]byte, error) {
+	obus, err := av1.SplitOBUs(configOBUs)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range obus {
+		if o.Header.Type == av1.OBUSequenceHeader {
+			return o.Payload, nil
+		}
+	}
+	return nil, fmt.Errorf("no sequence header OBU in configOBUs")
 }
 
 func printPS(w io.Writer, name string, nr int, ps []byte, psInfo interface{}, verbose bool) {

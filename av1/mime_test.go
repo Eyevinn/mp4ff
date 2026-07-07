@@ -78,6 +78,9 @@ func TestSequenceHeaderCodecString(t *testing.T) {
 			if got := c.sh.CodecString("av01"); got != c.want {
 				t.Errorf("got %s, want %s", got, c.want)
 			}
+			if got := CodecString("av01", &c.sh); got != c.want {
+				t.Errorf("CodecString function: got %s, want %s", got, c.want)
+			}
 		})
 	}
 }
