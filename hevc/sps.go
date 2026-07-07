@@ -624,8 +624,10 @@ func parseHrdParameters(r *bits.EBSPReader,
 
 func parseSubLayerHrdParameters(r *bits.EBSPReader,
 	cpbCntMinus1 uint8, subPicHrdParamsPresentFlag bool) []SubLayerHrdParameters {
-	slhp := make([]SubLayerHrdParameters, cpbCntMinus1+1)
-	for i := uint8(0); i <= cpbCntMinus1; i++ {
+	// Count in int so that an invalid cpb_cnt_minus1 of 255 does not wrap to zero.
+	nrCpbs := int(cpbCntMinus1) + 1
+	slhp := make([]SubLayerHrdParameters, nrCpbs)
+	for i := 0; i < nrCpbs; i++ {
 		// values shall be in the range of 0 to 2^32 − 2, inclusive
 		slhp[i].BitRateValueMinus1 = uint32(r.ReadExpGolomb())
 		slhp[i].CpbSizeValueMinus1 = uint32(r.ReadExpGolomb())
