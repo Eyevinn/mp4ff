@@ -10,6 +10,7 @@ import (
 // AV1 constants used in sequence_header_obu() (spec 3 and 6.4.2).
 const (
 	selectScreenContentTools = 2
+	selectIntegerMV          = 2
 
 	cpBT709       = 1  // CP_BT_709
 	tcSRGB        = 13 // TC_SRGB
@@ -47,6 +48,24 @@ type SequenceHeader struct {
 	TimeScale                uint32
 	EqualPictureInterval     bool
 	NumTicksPerPictureMinus1 uint64
+	// Fields needed for frame-header parsing (see FrameHeaderDecoder).
+	FrameIDNumbersPresent             bool
+	DeltaFrameIDLengthMinus2          byte
+	AdditionalFrameIDLengthMinus1     byte
+	FrameWidthBitsMinus1              byte
+	FrameHeightBitsMinus1             byte
+	Use128x128Superblock              bool
+	EnableSuperres                    bool
+	EnableOrderHint                   bool
+	OrderHintBits                     byte // 0 when order hints are disabled
+	EnableRefFrameMvs                 bool
+	SeqForceScreenContentTools        byte // 0, 1, or SELECT_SCREEN_CONTENT_TOOLS (2)
+	SeqForceIntegerMV                 byte // 0, 1, or SELECT_INTEGER_MV (2)
+	DecoderModelInfoPresent           bool
+	BufferRemovalTimeLengthMinus1     byte
+	FramePresentationTimeLengthMinus1 byte
+	OperatingPointIdc                 []uint16
+	DecoderModelPresentForOp          []bool
 }
 
 // Width returns the maximum frame width in pixels.
@@ -74,6 +93,10 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 	if s.ReducedStillPictureHeader {
 		s.SeqLevelIdx0 = byte(r.Read(5))
 		s.SeqTier0 = 0
+		s.OperatingPointIdc = []uint16{0}
+		s.DecoderModelPresentForOp = []bool{false}
+		s.SeqForceScreenContentTools = selectScreenContentTools
+		s.SeqForceIntegerMV = selectIntegerMV
 	} else {
 		s.TimingInfoPresent = r.ReadFlag()
 		if s.TimingInfoPresent {
@@ -85,18 +108,21 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 				s.NumTicksPerPictureMinus1 = readUVLC(r)
 			}
 			decoderModelInfoPresent = r.ReadFlag()
+			s.DecoderModelInfoPresent = decoderModelInfoPresent
 			if decoderModelInfoPresent {
 				// decoder_model_info()
 				bufferDelayLengthMinus1 = r.Read(5)
 				_ = r.Read(32) // num_units_in_decoding_tick
-				_ = r.Read(5)  // buffer_removal_time_length_minus_1
-				_ = r.Read(5)  // frame_presentation_time_length_minus_1
+				s.BufferRemovalTimeLengthMinus1 = byte(r.Read(5))
+				s.FramePresentationTimeLengthMinus1 = byte(r.Read(5))
 			}
 		}
 		initialDisplayDelayPresent := r.ReadFlag()
 		operatingPointsCntMinus1 := int(r.Read(5))
+		s.OperatingPointIdc = make([]uint16, operatingPointsCntMinus1+1)
+		s.DecoderModelPresentForOp = make([]bool, operatingPointsCntMinus1+1)
 		for i := 0; i <= operatingPointsCntMinus1; i++ {
-			_ = r.Read(12) // operating_point_idc[i]
+			s.OperatingPointIdc[i] = uint16(r.Read(12))
 			seqLevelIdx := byte(r.Read(5))
 			var seqTier byte
 			if seqLevelIdx > 7 {
@@ -108,6 +134,7 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 			}
 			if decoderModelInfoPresent {
 				if r.ReadFlag() { // decoder_model_present_for_this_op[i]
+					s.DecoderModelPresentForOp[i] = true
 					// operating_parameters_info(i)
 					n := int(bufferDelayLengthMinus1) + 1
 					_ = r.Read(n) // decoder_buffer_delay[op]
@@ -123,21 +150,20 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 		}
 	}
 
-	frameWidthBitsMinus1 := int(r.Read(4))
-	frameHeightBitsMinus1 := int(r.Read(4))
-	s.MaxFrameWidthMinus1 = uint32(r.Read(frameWidthBitsMinus1 + 1))
-	s.MaxFrameHeightMinus1 = uint32(r.Read(frameHeightBitsMinus1 + 1))
+	s.FrameWidthBitsMinus1 = byte(r.Read(4))
+	s.FrameHeightBitsMinus1 = byte(r.Read(4))
+	s.MaxFrameWidthMinus1 = uint32(r.Read(int(s.FrameWidthBitsMinus1) + 1))
+	s.MaxFrameHeightMinus1 = uint32(r.Read(int(s.FrameHeightBitsMinus1) + 1))
 
-	frameIDNumbersPresent := false
 	if !s.ReducedStillPictureHeader {
-		frameIDNumbersPresent = r.ReadFlag()
+		s.FrameIDNumbersPresent = r.ReadFlag()
 	}
-	if frameIDNumbersPresent {
-		_ = r.Read(4) // delta_frame_id_length_minus_2
-		_ = r.Read(3) // additional_frame_id_length_minus_1
+	if s.FrameIDNumbersPresent {
+		s.DeltaFrameIDLengthMinus2 = byte(r.Read(4))
+		s.AdditionalFrameIDLengthMinus1 = byte(r.Read(3))
 	}
 
-	_ = r.Read(1) // use_128x128_superblock
+	s.Use128x128Superblock = r.ReadFlag()
 	_ = r.Read(1) // enable_filter_intra
 	_ = r.Read(1) // enable_intra_edge_filter
 
@@ -146,28 +172,31 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 		_ = r.Read(1) // enable_masked_compound
 		_ = r.Read(1) // enable_warped_motion
 		_ = r.Read(1) // enable_dual_filter
-		enableOrderHint := r.ReadFlag()
-		if enableOrderHint {
+		s.EnableOrderHint = r.ReadFlag()
+		if s.EnableOrderHint {
 			_ = r.Read(1) // enable_jnt_comp
-			_ = r.Read(1) // enable_ref_frame_mvs
+			s.EnableRefFrameMvs = r.ReadFlag()
 		}
-		var seqForceScreenContentTools uint
 		if r.ReadFlag() { // seq_choose_screen_content_tools
-			seqForceScreenContentTools = selectScreenContentTools
+			s.SeqForceScreenContentTools = selectScreenContentTools
 		} else {
-			seqForceScreenContentTools = r.Read(1)
+			s.SeqForceScreenContentTools = byte(r.Read(1))
 		}
-		if seqForceScreenContentTools > 0 {
-			if !r.ReadFlag() { // seq_choose_integer_mv
-				_ = r.Read(1) // seq_force_integer_mv
+		if s.SeqForceScreenContentTools > 0 {
+			if r.ReadFlag() { // seq_choose_integer_mv
+				s.SeqForceIntegerMV = selectIntegerMV
+			} else {
+				s.SeqForceIntegerMV = byte(r.Read(1))
 			}
+		} else {
+			s.SeqForceIntegerMV = selectIntegerMV
 		}
-		if enableOrderHint {
-			_ = r.Read(3) // order_hint_bits_minus_1
+		if s.EnableOrderHint {
+			s.OrderHintBits = byte(r.Read(3)) + 1
 		}
 	}
 
-	_ = r.Read(1) // enable_superres
+	s.EnableSuperres = r.ReadFlag()
 	_ = r.Read(1) // enable_cdef
 	_ = r.Read(1) // enable_restoration
 

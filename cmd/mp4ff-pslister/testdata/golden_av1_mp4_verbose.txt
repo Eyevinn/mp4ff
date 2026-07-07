@@ -22,6 +22,27 @@ SequenceHeaderOBU payload 1 len 11B: 00000004457e3e7dfcc060
   "NumUnitsInDisplayTick": 0,
   "TimeScale": 0,
   "EqualPictureInterval": false,
-  "NumTicksPerPictureMinus1": 0
+  "NumTicksPerPictureMinus1": 0,
+  "FrameIDNumbersPresent": false,
+  "DeltaFrameIDLengthMinus2": 0,
+  "AdditionalFrameIDLengthMinus1": 0,
+  "FrameWidthBitsMinus1": 8,
+  "FrameHeightBitsMinus1": 8,
+  "Use128x128Superblock": false,
+  "EnableSuperres": false,
+  "EnableOrderHint": true,
+  "OrderHintBits": 7,
+  "EnableRefFrameMvs": true,
+  "SeqForceScreenContentTools": 2,
+  "SeqForceIntegerMV": 2,
+  "DecoderModelInfoPresent": false,
+  "BufferRemovalTimeLengthMinus1": 0,
+  "FramePresentationTimeLengthMinus1": 0,
+  "OperatingPointIdc": [
+    0
+  ],
+  "DecoderModelPresentForOp": [
+    false
+  ]
 }
 Codecs parameter (av01): av01.0.00M.08.0.110.02.02.02.0
