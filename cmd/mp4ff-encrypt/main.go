@@ -19,7 +19,7 @@ const (
 var usg = `%s encrypts a fragmented mp4 file using Common Encryption with cenc or cbcs scheme.
 A combined fragmented file with init segment and media segment(s) will be encrypted.
 For a pure media segment, an init segment with encryption information is needed.
-For video, only AVC with avc1 and HEVC with hvc1 sample entries are currently supported.
+For video, AVC (avc1), HEVC (hvc1) and AV1 (av01) sample entries are currently supported.
 For audio, all supported audio codecs should work.
 
 Usage of %s:

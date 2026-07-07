@@ -31,12 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AV1 frame classification and random-access detection: `av1.FrameType`,
   `av1.ParseFrameHeaderStart` and `av1.IsRAPSample` to identify key frames and
   the random-access points needed for segmenting (AV1 bitstream spec Sec. 5.9.2)
-- AV1 frame-header parsing through `tile_info()`: `av1.FrameHeaderDecoder` and
-  `av1.FrameHeader`, decoding per-frame resolution (including superres and
-  reference-inherited sizes for inter frames), render size and tile layout,
-  with the reference-frame state kept across a sequence in decode order (AV1
-  bitstream spec Sec. 5.9). Additional sequence-header fields needed for frame
-  parsing are now populated on `SequenceHeader`
+- AV1 frame-header parsing: `av1.FrameHeaderDecoder` and `av1.FrameHeader`,
+  decoding the full uncompressed frame header — per-frame resolution (including
+  superres and reference-inherited sizes for inter frames), render size and tile
+  layout — with the reference-frame state kept across a sequence in decode order
+  (AV1 bitstream spec Sec. 5.9). Additional sequence-header fields needed for
+  frame parsing are now populated on `SequenceHeader`
+- AV1 tile-data location: `av1.FrameHeaderDecoder.GetTileRanges` returns the byte
+  ranges of tile data (decode_tile) across the Frame and Tile Group OBUs of a
+  sample; verified byte-exact against shaka-packager's AV1 parser test vector
+- AV1 common encryption: `mp4.GetAV1ProtectRanges` computes cenc/cbcs protection
+  ranges per the AV1 Codec ISO Media File Format Binding (only tile data is
+  protected; OBU/frame/tile-group headers and tile-size fields stay clear), and
+  `mp4ff-encrypt`/`mp4ff-decrypt` now support `av01` tracks
 
 ### Fixed
 
