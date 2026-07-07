@@ -263,9 +263,9 @@ func readUVLC(r *bits.Reader) uint64 {
 			return 0
 		}
 		leadingZeros++
-		if leadingZeros >= 32 {
-			return (1 << 32) - 1
-		}
+	}
+	if leadingZeros >= 32 {
+		return (1 << 32) - 1
 	}
 	value := uint64(r.Read(leadingZeros))
 	return value + (1 << uint(leadingZeros)) - 1

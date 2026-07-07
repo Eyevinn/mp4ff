@@ -1,11 +1,14 @@
 package av1
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // Real sequence header OBU payload from AOM fate-suite av1-1-b8-23-film_grain-50.ivf.
@@ -78,6 +81,23 @@ func TestParseSequenceHeaderErrors(t *testing.T) {
 	// A single byte cannot hold a full sequence header; parsing must run off the end.
 	if _, err := ParseSequenceHeader([]byte{0x00}); err == nil {
 		t.Error("expected error for truncated payload")
+	}
+}
+
+func TestReadUVLC(t *testing.T) {
+	// 0b0110_0000: one leading zero, done bit, then value bit 1 -> 1 + (1<<1) - 1 = 2
+	r := bits.NewReader(bytes.NewReader([]byte{0x60}))
+	if got := readUVLC(r); got != 2 {
+		t.Errorf("readUVLC: got %d, want 2", got)
+	}
+	// 32 leading zeros followed by the done bit clamp to 2^32-1 with the whole
+	// zero run and done bit consumed, so the next bit read is the trailing 1.
+	r = bits.NewReader(bytes.NewReader([]byte{0, 0, 0, 0, 0xc0}))
+	if got := readUVLC(r); got != 1<<32-1 {
+		t.Errorf("readUVLC: got %d, want 2^32-1", got)
+	}
+	if !r.ReadFlag() {
+		t.Error("readUVLC left the reader misaligned after the done bit")
 	}
 }
 
