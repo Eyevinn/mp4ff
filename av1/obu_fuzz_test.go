@@ -41,3 +41,13 @@ func FuzzIsRAPSample(f *testing.F) {
 		_, _ = IsRAPSample(data, nil)
 	})
 }
+
+func FuzzParseFrameHeader(f *testing.F) {
+	seq, _ := ParseSequenceHeader([]byte{0x00, 0x00, 0x00, 0x04, 0x45, 0x7e, 0x3e, 0x7d, 0xfc, 0xc0, 0x60})
+	dec, _ := NewFrameHeaderDecoder(seq)
+	f.Add([]byte{0x10, 0x00, 0x82})
+	f.Add([]byte{0x80})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = dec.ParseFrameHeader(0, 0, data)
+	})
+}
