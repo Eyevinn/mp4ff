@@ -24,3 +24,20 @@ func FuzzParseSequenceHeader(f *testing.F) {
 		_, _ = ParseSequenceHeader(data)
 	})
 }
+
+func FuzzParseFrameHeaderStart(f *testing.F) {
+	sh := &SequenceHeader{}
+	f.Add([]byte{0x10})
+	f.Add([]byte{0x80})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = ParseFrameHeaderStart(data, sh)
+	})
+}
+
+func FuzzIsRAPSample(f *testing.F) {
+	seed, _ := hex.DecodeString("12000a0b00000004457e3e7dfcc060320110")
+	f.Add(seed)
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = IsRAPSample(data, nil)
+	})
+}
