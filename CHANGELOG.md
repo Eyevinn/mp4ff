@@ -9,41 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- AV1 OBU (Open Bitstream Unit) parsing in the `av1` package: `OBUType`,
-  `ParseOBUHeader`, `ReadLEB128` and `SplitOBUs` to split an av1C configuration
-  record, coded sample, or temporal unit into its OBUs (AV1 bitstream spec
-  Sec. 5.3)
-- AV1 sequence header parsing: `av1.ParseSequenceHeader` and a `SequenceHeader`
-  type exposing sequence profile, level, tier, coded resolution
-  (`Width`/`Height`), bit depth and color configuration (AV1 bitstream spec
-  Sec. 5.5), plus a `CodecConfRec.SequenceHeader` accessor that parses the
-  sequence header OBU carried in an av1C record's `configOBUs`
-- AV1 RFC 6381 codecs parameter string generation: `CodecConfRec.CodecString`
-  (mandatory `av01.P.LLT.DD` part), `SequenceHeader.CodecString` (full form
-  including the color-configuration suffix), and an `av1.CodecString` function
-  mirroring `avc.CodecString`/`hevc.CodecString`, per the AV1 Codec ISO Media
-  File Format Binding
-- `mp4ff-pslister` now parses the av1C configuration record of `av01` tracks in
-  mp4 files and prints the sequence header (summary and OBU payload hex) and
-  codecs parameter
-- Enriched `av1C` box `Info` output with the codecs parameter string, coded
-  resolution and color configuration
-- AV1 frame classification and random-access detection: `av1.FrameType`,
-  `av1.ParseFrameHeaderStart` and `av1.IsRAPSample` to identify key frames and
-  the random-access points needed for segmenting (AV1 bitstream spec Sec. 5.9.2)
-- AV1 frame-header parsing: `av1.FrameHeaderDecoder` and `av1.FrameHeader`,
-  decoding the full uncompressed frame header — per-frame resolution (including
-  superres and reference-inherited sizes for inter frames), render size and tile
-  layout — with the reference-frame state kept across a sequence in decode order
-  (AV1 bitstream spec Sec. 5.9). Additional sequence-header fields needed for
-  frame parsing are now populated on `SequenceHeader`
-- AV1 tile-data location: `av1.FrameHeaderDecoder.GetTileRanges` returns the byte
-  ranges of tile data (decode_tile) across the Frame and Tile Group OBUs of a
-  sample; verified byte-exact against shaka-packager's AV1 parser test vector
-- AV1 common encryption: `mp4.GetAV1ProtectRanges` computes cenc/cbcs protection
-  ranges per the AV1 Codec ISO Media File Format Binding (only tile data is
-  protected; OBU/frame/tile-group headers and tile-size fields stay clear), and
-  `mp4ff-encrypt`/`mp4ff-decrypt` now support `av01` tracks
+- AV1 bitstream parsing in the `av1` package: OBU splitting (`SplitOBUs`,
+  `ParseOBUHeader`, `ReadLEB128`), sequence headers (`ParseSequenceHeader`,
+  `SequenceHeader`, `CodecConfRec.SequenceHeader`), frame-header decoding
+  (`FrameHeaderDecoder`, `FrameHeader`) with per-frame resolution and tile layout,
+  random-access detection (`FrameType`, `ParseFrameHeaderStart`, `IsRAPSample`) and
+  tile-data location (`GetTileRanges`, verified byte-exact against shaka-packager)
+- AV1 RFC 6381 codecs string: `CodecConfRec.CodecString`, `SequenceHeader.CodecString`
+  and `av1.CodecString`; the `av1C` box `Info` and `mp4ff-pslister` now show the
+  sequence header, coded resolution, color configuration and codecs string for `av01`
+- AV1 common encryption (cenc/cbcs): `mp4.GetAV1ProtectRanges` protects only tile data
+  (OBU/frame/tile-group headers and tile-size fields stay clear) per the AV1 ISOBMFF
+  binding; `mp4ff-encrypt`/`mp4ff-decrypt` support `av01` tracks
+- `EncryptFragments` and `FragmentEncryptor` (from `InitProtectData.NewFragmentEncryptor`)
+  encrypt a decode sequence with a fresh per-sequence sample protector; `InitProtectData` is
+  immutable and safe to share across goroutines
 
 ### Fixed
 

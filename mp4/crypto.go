@@ -345,12 +345,29 @@ func incrementIVInPlace(iv []byte, nrSteps int) {
 	}
 }
 
-type ProtectionRangeFunc func(sample []byte, scheme string) ([]SubSamplePattern, error)
+// sampleProtector computes the common-encryption protection ranges for each sample of one
+// continuous decode sequence, fed in decode order. It may hold mutable state - AV1 accumulates
+// reference-frame sizes across samples - so a protector must be used by a single goroutine and
+// must not be reused across sequences. Obtain a fresh one per encryption run via
+// InitProtectData.newProtector (see FragmentEncryptor).
+type sampleProtector interface {
+	protectRanges(sample []byte, scheme string) ([]SubSamplePattern, error)
+}
+
+// sampleProtectorFactory creates a fresh sampleProtector. It is immutable and safe to call
+// concurrently; every returned protector is single-use.
+type sampleProtectorFactory func() (sampleProtector, error)
+
+// InitProtectData carries the immutable information needed to encrypt the fragments of a track
+// once InitProtect (or ExtractInitProtectData) has prepared the init segment. It is safe to
+// share between goroutines: all mutable, decode-order state lives in the FragmentEncryptor (and
+// its sampleProtector) created for each encryption run, not here.
 type InitProtectData struct {
-	Tenc     *TencBox
-	ProtFunc ProtectionRangeFunc
-	Trex     *TrexBox
-	Scheme   string
+	Tenc   *TencBox
+	Trex   *TrexBox
+	Scheme string
+	// newProtector builds a fresh, single-use sampleProtector for one decode sequence.
+	newProtector sampleProtectorFactory
 }
 
 // InitProtect modifies the init segment to add protection information and return what is needed to encrypt fragments.
@@ -386,19 +403,19 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 		se.AddChild(&sinf)
 		switch veType {
 		case "avc1", "avc3":
-			ipd.ProtFunc, err = getAVCProtFunc(se.AvcC)
+			ipd.newProtector, err = newAVCProtectorFactory(se.AvcC)
 			if err != nil {
-				return nil, fmt.Errorf("get avc protect func: %w", err)
+				return nil, fmt.Errorf("get avc protector: %w", err)
 			}
 		case "hvc1", "hev1", "dvh1", "dvhe":
-			ipd.ProtFunc, err = getHEVCProtFunc(se.HvcC)
+			ipd.newProtector, err = newHEVCProtectorFactory(se.HvcC)
 			if err != nil {
-				return nil, fmt.Errorf("get hevc protect func: %w", err)
+				return nil, fmt.Errorf("get hevc protector: %w", err)
 			}
 		case "av01":
-			ipd.ProtFunc, err = getAV1ProtFunc(se.Av1C)
+			ipd.newProtector, err = newAV1ProtectorFactory(se.Av1C)
 			if err != nil {
-				return nil, fmt.Errorf("get av1 protect func: %w", err)
+				return nil, fmt.Errorf("get av1 protector: %w", err)
 			}
 		default:
 			return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
@@ -410,7 +427,7 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 		frma := FrmaBox{DataFormat: aeType}
 		sinf.AddChild(&frma)
 		se.AddChild(&sinf)
-		ipd.ProtFunc = getAudioProtectRanges
+		ipd.newProtector = audioProtectorFactory
 	default:
 		return nil, fmt.Errorf("sample entry type %s should not be encrypted", se.Type())
 	}
@@ -475,14 +492,33 @@ func getAVCPSMaps(spss [][]byte, ppss [][]byte) (map[uint32]*avc.SPS, map[uint32
 	return spsMap, ppsMap, nil
 }
 
-func getAVCProtFunc(avcC *AvcCBox) (ProtectionRangeFunc, error) {
+// funcProtector adapts a stateless protection-range function to the sampleProtector interface.
+// It carries no mutable state, so a single instance is safe to reuse and share.
+type funcProtector func(sample []byte, scheme string) ([]SubSamplePattern, error)
+
+func (f funcProtector) protectRanges(sample []byte, scheme string) ([]SubSamplePattern, error) {
+	return f(sample, scheme)
+}
+
+// statelessFactory returns a factory that always hands back the same stateless protector.
+func statelessFactory(p sampleProtector) sampleProtectorFactory {
+	return func() (sampleProtector, error) { return p, nil }
+}
+
+// audioProtectorFactory protects full audio samples; it is stateless and codec-independent.
+var audioProtectorFactory = statelessFactory(funcProtector(getAudioProtectRanges))
+
+func newAVCProtectorFactory(avcC *AvcCBox) (sampleProtectorFactory, error) {
 	spsMap, ppsMap, err := getAVCPSMaps(avcC.SPSnalus, avcC.PPSnalus)
 	if err != nil {
 		return nil, fmt.Errorf("get avc ps maps: %w", err)
 	}
-	return func(sample []byte, scheme string) ([]SubSamplePattern, error) {
+	// AVC subsample ranges are computed per sample from immutable parameter sets, so the
+	// protector is stateless and can be shared across sequences and goroutines.
+	p := funcProtector(func(sample []byte, scheme string) ([]SubSamplePattern, error) {
 		return GetAVCProtectRanges(spsMap, ppsMap, sample, scheme)
-	}, nil
+	})
+	return statelessFactory(p), nil
 }
 
 func getHEVCPSMaps(arrays []hevc.NaluArray) (map[uint32]*hevc.SPS, map[uint32]*hevc.PPS, error) {
@@ -519,46 +555,72 @@ func getHEVCPSMaps(arrays []hevc.NaluArray) (map[uint32]*hevc.SPS, map[uint32]*h
 	return spsMap, ppsMap, nil
 }
 
-func getAV1ProtFunc(av1C *Av1CBox) (ProtectionRangeFunc, error) {
+func newHEVCProtectorFactory(hvcC *HvcCBox) (sampleProtectorFactory, error) {
+	spsMap, ppsMap, err := getHEVCPSMaps(hvcC.NaluArrays)
+	if err != nil {
+		return nil, fmt.Errorf("get hevc ps maps: %w", err)
+	}
+	// Like AVC, HEVC ranges come from immutable parameter sets - parse them once and share a
+	// single stateless protector (previously they were re-parsed for every sample).
+	p := funcProtector(func(sample []byte, scheme string) ([]SubSamplePattern, error) {
+		return GetHEVCProtectRanges(spsMap, ppsMap, sample, scheme)
+	})
+	return statelessFactory(p), nil
+}
+
+// av1Protector holds the mutable AV1 frame-header decoder for one decode sequence. Its
+// reference-frame state accumulates across the samples of the sequence (in decode order),
+// so it must not be shared between goroutines or reused across sequences.
+type av1Protector struct {
+	dec *av1.FrameHeaderDecoder
+}
+
+func (p *av1Protector) protectRanges(sample []byte, scheme string) ([]SubSamplePattern, error) {
+	return GetAV1ProtectRanges(p.dec, sample, scheme)
+}
+
+func newAV1ProtectorFactory(av1C *Av1CBox) (sampleProtectorFactory, error) {
 	seqHdr, err := av1C.SequenceHeader()
 	if err != nil {
 		return nil, fmt.Errorf("av1 sequence header: %w", err)
 	}
-	dec, err := av1.NewFrameHeaderDecoder(seqHdr)
-	if err != nil {
+	// Validate the sequence header up front so InitProtect fails fast. The header is immutable
+	// and shared, but each sequence gets its own decoder so reference-frame state never leaks
+	// between segments or concurrent encryption runs.
+	if _, err := av1.NewFrameHeaderDecoder(seqHdr); err != nil {
 		return nil, err
 	}
-	// The decoder is captured so that reference-frame sizes accumulate across the samples
-	// of the track, which are encrypted in decode order.
-	return func(sample []byte, scheme string) ([]SubSamplePattern, error) {
-		return GetAV1ProtectRanges(dec, sample, scheme)
-	}, nil
-}
-
-func getHEVCProtFunc(hvcC *HvcCBox) (ProtectionRangeFunc, error) {
-	return func(sample []byte, scheme string) ([]SubSamplePattern, error) {
-		spsMap, ppsMap, err := getHEVCPSMaps(hvcC.NaluArrays)
+	return func() (sampleProtector, error) {
+		dec, err := av1.NewFrameHeaderDecoder(seqHdr)
 		if err != nil {
-			return nil, fmt.Errorf("get hevc ps maps: %w", err)
+			return nil, err
 		}
-		return GetHEVCProtectRanges(spsMap, ppsMap, sample, scheme)
+		return &av1Protector{dec: dec}, nil
 	}, nil
-
 }
 
-// EncryptFragment encrypts a fragment in place and returns the next IV to use
-// for the following fragment. For cenc, the returned IV is the input IV
-// incremented by the number of encrypted AES blocks in the fragment, so that
-// callers processing multiple fragments with the same key can chain calls and
-// avoid IV reuse. For cbcs the IV is constant and the returned slice is a
-// copy of the input IV.
-func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte, error) {
+// FragmentEncryptor encrypts the fragments of one continuous decode sequence (a CMAF segment, or
+// any independently decodable run that begins at a random-access point). It owns the mutable,
+// decode-order state - most importantly the AV1 reference-frame decoder - so it must be used by a
+// single goroutine, and only for the fragments of one sequence, fed in decode order. Create a new
+// FragmentEncryptor for each sequence and for each concurrent request.
+type FragmentEncryptor struct {
+	ipd     *InitProtectData
+	key     []byte
+	iv      []byte
+	iv8Mode bool
+	prot    sampleProtector
+}
+
+// NewFragmentEncryptor validates the key/iv against the scheme and builds a fresh sample protector
+// for one decode sequence. The iv is copied, so the caller may reuse its buffer afterwards.
+func (ipd *InitProtectData) NewFragmentEncryptor(key, iv []byte) (*FragmentEncryptor, error) {
 	if ipd == nil {
 		return nil, fmt.Errorf("no protection data")
 	}
-	// cenc with 8-byte per-sample IVs (the size CMAF requires): the 8-byte
-	// IV is the high half of the 16-byte CTR counter, the low half starts
-	// at zero for each sample, and the IV increments by one per sample.
+	// cenc with 8-byte per-sample IVs (the size CMAF requires): the 8-byte IV is the high half of
+	// the 16-byte CTR counter, the low half starts at zero for each sample, and the IV increments
+	// by one per sample.
 	iv8Mode := ipd.Scheme == "cenc" && ipd.Tenc != nil && ipd.Tenc.DefaultPerSampleIVSize == 8
 	if iv8Mode {
 		if len(iv) != 8 {
@@ -575,12 +637,35 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte,
 			return nil, fmt.Errorf("iv must be 16 bytes")
 		}
 	}
+	if ipd.newProtector == nil {
+		return nil, fmt.Errorf("no sample protector for scheme %s", ipd.Scheme)
+	}
+	prot, err := ipd.newProtector()
+	if err != nil {
+		return nil, fmt.Errorf("new sample protector: %w", err)
+	}
+	ivCopy := make([]byte, len(iv))
+	copy(ivCopy, iv)
+	return &FragmentEncryptor{ipd: ipd, key: key, iv: ivCopy, iv8Mode: iv8Mode, prot: prot}, nil
+}
+
+// IV returns the next initialization vector. For cenc it advances as fragments are encrypted, so
+// it can be chained into the next sequence; for cbcs it is the constant IV.
+func (e *FragmentEncryptor) IV() []byte {
+	return e.iv
+}
+
+// EncryptFragment encrypts one fragment in place and advances the internal IV. Call it once per
+// fragment of the sequence, in decode order.
+func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
+	ipd := e.ipd
+	iv := e.iv
 	if len(f.Moof.Trafs) != 1 {
-		return nil, fmt.Errorf("only one traf supported")
+		return fmt.Errorf("only one traf supported")
 	}
 	traf := f.Moof.Traf
 	if len(traf.Truns) != 1 {
-		return nil, fmt.Errorf("only one trun supported")
+		return fmt.Errorf("only one trun supported")
 	}
 	nrSamples := int(f.Moof.Traf.Trun.SampleCount())
 	saiz := NewSaizBox(nrSamples)
@@ -594,39 +679,38 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte,
 	case "cbcs":
 		senc = NewSencBox(0, nrSamples)
 	default:
-		return nil, fmt.Errorf("unknown scheme %s", ipd.Scheme)
+		return fmt.Errorf("unknown scheme %s", ipd.Scheme)
 	}
 	_ = traf.AddChild(senc)
 	fss, err := f.GetFullSamples(ipd.Trex)
 	if err != nil {
-		return nil, fmt.Errorf("get full samples: %w", err)
+		return fmt.Errorf("get full samples: %w", err)
 	}
 
 	for _, fs := range fss {
 		sample := fs.Data
-		subsamplePatterns, err := ipd.ProtFunc(sample, ipd.Scheme)
+		subsamplePatterns, err := e.prot.protectRanges(sample, ipd.Scheme)
 		if err != nil {
-			return nil, fmt.Errorf("get protect ranges: %w", err)
+			return fmt.Errorf("get protect ranges: %w", err)
 		}
 		switch ipd.Scheme {
 		case "cenc":
 			ctrIV := iv
-			if iv8Mode {
+			if e.iv8Mode {
 				ctrIV = make([]byte, 16)
 				copy(ctrIV, iv)
 			}
-			err = CryptSampleCenc(sample, key, ctrIV, subsamplePatterns)
-			if err != nil {
-				return nil, fmt.Errorf("crypt sample cenc: %w", err)
+			if err := CryptSampleCenc(sample, e.key, ctrIV, subsamplePatterns); err != nil {
+				return fmt.Errorf("crypt sample cenc: %w", err)
 			}
 			// Store IVs in the senc box and advance the IV for the next sample
 			if err := senc.AddSample(SencSample{IV: iv, SubSamples: subsamplePatterns}); err != nil {
-				return nil, fmt.Errorf("senc add sample: %w", err)
+				return fmt.Errorf("senc add sample: %w", err)
 			}
 			if err := saiz.AddSampleInfo(iv, subsamplePatterns); err != nil {
-				return nil, fmt.Errorf("saiz add sample info: %w", err)
+				return fmt.Errorf("saiz add sample info: %w", err)
 			}
-			if iv8Mode {
+			if e.iv8Mode {
 				nextIV := make([]byte, 8)
 				copy(nextIV, iv)
 				incrementIVInPlace(nextIV, 1)
@@ -635,27 +719,26 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte,
 				iv = incrementIV(iv, subsamplePatterns, len(sample))
 			}
 		case "cbcs":
-			err = EncryptSampleCbcs(sample, key, iv, subsamplePatterns, ipd.Tenc)
-			if err != nil {
-				return nil, fmt.Errorf("crypt sample cbcs: %w", err)
+			if err := EncryptSampleCbcs(sample, e.key, iv, subsamplePatterns, ipd.Tenc); err != nil {
+				return fmt.Errorf("crypt sample cbcs: %w", err)
 			}
 			// iv is constant and not sent to senc
 			if err := senc.AddSample(SencSample{IV: nil, SubSamples: subsamplePatterns}); err != nil {
-				return nil, fmt.Errorf("senc add sample: %w", err)
+				return fmt.Errorf("senc add sample: %w", err)
 			}
 			if err := saiz.AddSampleInfo(nil, subsamplePatterns); err != nil {
-				return nil, fmt.Errorf("saiz add sample info: %w", err)
+				return fmt.Errorf("saiz add sample info: %w", err)
 			}
 		default:
-			return nil, fmt.Errorf("unknown scheme %s", ipd.Scheme)
+			return fmt.Errorf("unknown scheme %s", ipd.Scheme)
 		}
 	}
+	e.iv = iv
 	if len(senc.IVs) == 0 && len(senc.SubSamples) == 0 {
-		// No sample auxiliary information (full-sample encryption with a
-		// constant IV): CMAF (ISO/IEC 23000-19 Section 8.2.2.1) recommends
-		// omitting the senc, saiz, and saio boxes.
+		// No sample auxiliary information (full-sample encryption with a constant IV): CMAF
+		// (ISO/IEC 23000-19 Section 8.2.2.1) recommends omitting the senc, saiz, and saio boxes.
 		_ = f.Moof.Traf.RemoveEncryptionBoxes()
-		return iv, nil
+		return nil
 	}
 	moof := f.Moof
 	offset := uint64(8)
@@ -676,7 +759,32 @@ func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte,
 		break
 	}
 	saio.Offset[0] = int64(sencDataOffset)
-	return iv, nil
+	return nil
+}
+
+// EncryptFragments encrypts the fragments of one continuous decode sequence in place, in decode
+// order, sharing a single sample protector, and returns the next IV. The fragments must form one
+// decodable run starting at a random-access point. This is the correct entry point for AV1, whose
+// protection ranges depend on reference-frame state that spans the sequence's fragments.
+func EncryptFragments(frags []*Fragment, key, iv []byte, ipd *InitProtectData) ([]byte, error) {
+	enc, err := ipd.NewFragmentEncryptor(key, iv)
+	if err != nil {
+		return nil, err
+	}
+	for i, f := range frags {
+		if err := enc.EncryptFragment(f); err != nil {
+			return nil, fmt.Errorf("fragment %d: %w", i, err)
+		}
+	}
+	return enc.IV(), nil
+}
+
+// EncryptFragment encrypts a single self-contained fragment (a one-fragment decode sequence that
+// begins at a random-access point) in place and returns the next IV, which can be chained into the
+// next call. For a multi-fragment decode sequence use EncryptFragments (or a FragmentEncryptor) so
+// that AV1 reference-frame state is carried across the fragments rather than reset for each one.
+func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte, error) {
+	return EncryptFragments([]*Fragment{f}, key, iv, ipd)
 }
 
 type DecryptInfo struct {
@@ -994,26 +1102,26 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 			frma := sinf.Frma
 			switch frma.DataFormat {
 			case "avc1":
-				ipd.ProtFunc, err = getAVCProtFunc(box.AvcC)
+				ipd.newProtector, err = newAVCProtectorFactory(box.AvcC)
 				if err != nil {
-					return nil, fmt.Errorf("get AVC protect func: %w", err)
+					return nil, fmt.Errorf("get AVC protector: %w", err)
 				}
 			case "hvc1", "dvh1", "dvhe":
-				ipd.ProtFunc, err = getHEVCProtFunc(box.HvcC)
+				ipd.newProtector, err = newHEVCProtectorFactory(box.HvcC)
 				if err != nil {
-					return nil, fmt.Errorf("get HEVC protect func: %w", err)
+					return nil, fmt.Errorf("get HEVC protector: %w", err)
 				}
 			case "av01":
-				ipd.ProtFunc, err = getAV1ProtFunc(box.Av1C)
+				ipd.newProtector, err = newAV1ProtectorFactory(box.Av1C)
 				if err != nil {
-					return nil, fmt.Errorf("get AV1 protect func: %w", err)
+					return nil, fmt.Errorf("get AV1 protector: %w", err)
 				}
 			default:
 				return nil, fmt.Errorf("unsupported video codec descriptor %s", frma.DataFormat)
 			}
 		case *AudioSampleEntryBox:
 			sinf = box.Sinf
-			ipd.ProtFunc = getAudioProtectRanges
+			ipd.newProtector = audioProtectorFactory
 		default:
 			continue
 		}
