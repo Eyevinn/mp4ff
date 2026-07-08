@@ -193,13 +193,20 @@ func encryptFile(ifh io.Reader, ofh io.Writer, initSeg *mp4.InitSegment,
 		}
 	}
 
+	// Each media segment is an independently decodable sequence (it starts at a random-access
+	// point), so encrypt its fragments with one FragmentEncryptor. This keeps AV1 reference-frame
+	// state consistent across a segment's fragments while chaining the IV across segments.
 	for _, s := range inFile.Segments {
+		enc, err := ipd.NewFragmentEncryptor(key, iv)
+		if err != nil {
+			return fmt.Errorf("new fragment encryptor: %w", err)
+		}
 		for _, f := range s.Fragments {
-			iv, err = mp4.EncryptFragment(f, key, iv, ipd)
-			if err != nil {
+			if err := enc.EncryptFragment(f); err != nil {
 				return fmt.Errorf("encrypt fragment: %w", err)
 			}
 		}
+		iv = enc.IV()
 	}
 	return inFile.Encode(ofh)
 }
