@@ -16,6 +16,7 @@ import (
 	"github.com/Eyevinn/mp4ff/av1"
 	"github.com/Eyevinn/mp4ff/ivf"
 	"github.com/Eyevinn/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/vp8"
 	"github.com/Eyevinn/mp4ff/vp9"
 )
 
@@ -76,8 +77,11 @@ func run(inPath, outPath string) error {
 		init, isKey, err = setupAV1(rd.Header, frames)
 	case ivf.CodecVP9:
 		init, isKey, err = setupVP9(rd.Header, frames)
+	case ivf.CodecVP8:
+		init, isKey, err = setupVP8(rd.Header, frames)
 	default:
-		return fmt.Errorf("unsupported IVF codec %q (supported: %s, %s)", rd.Header.FourCC, ivf.CodecAV1, ivf.CodecVP9)
+		return fmt.Errorf("unsupported IVF codec %q (supported: %s, %s, %s)",
+			rd.Header.FourCC, ivf.CodecAV1, ivf.CodecVP9, ivf.CodecVP8)
 	}
 	if err != nil {
 		return err
@@ -146,6 +150,38 @@ func setupVP9(hdr ivf.FileHeader, frames []ivf.Frame) (*mp4.InitSegment, keyFram
 		return nil, nil, err
 	}
 	return init, vp9.IsKeyFrame, nil
+}
+
+// setupVP8 builds the init segment for a VP8 track from the first key frame's header. VP8 is
+// always profile 0, 8-bit, 4:2:0, and carries no CICP colour info in-band, so the colour fields
+// are left unspecified (2) and the level undefined (0), matching ffmpeg's VP8 vpcC output.
+func setupVP8(hdr ivf.FileHeader, frames []ivf.Frame) (*mp4.InitSegment, keyFrameFunc, error) {
+	h, err := vp8.ParseFrameHeader(frames[0].Data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse first VP8 frame header: %w", err)
+	}
+	if !h.KeyFrame {
+		return nil, nil, fmt.Errorf("first VP8 frame is not a key frame")
+	}
+	vpcC := &mp4.VppCBox{
+		Version:                 1,
+		Profile:                 0,
+		Level:                   0,
+		BitDepth:                8,
+		ChromaSubsampling:       1, // 4:2:0 colocated
+		VideoFullRangeFlag:      0,
+		ColourPrimaries:         2, // unspecified
+		TransferCharacteristics: 2,
+		MatrixCoefficients:      2,
+	}
+	width, height := frameSize(hdr, h.Width, h.Height)
+
+	init := mp4.CreateEmptyInit()
+	trak := init.AddEmptyTrack(hdr.Rate, "video", "und")
+	if err := trak.SetVPxDescriptor("vp08", vpcC, width, height); err != nil {
+		return nil, nil, err
+	}
+	return init, vp8.IsKeyFrame, nil
 }
 
 // writeFragmentedMP4 writes the init segment followed by one fragment per closed GOP (a run of

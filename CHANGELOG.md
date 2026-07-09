@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `vp9` package parsing the VP9 uncompressed frame header (key-frame/random-access detection,
   color configuration and picture size) with vpcC level computation, plus
   `mp4.TrakBox.SetVPxDescriptor` to build vp08/vp09 sample entries from a vpcC box
+- `vp8` package parsing the VP8 frame tag and key-frame header (key-frame detection and picture
+  size); `ivf-to-mp4` now also muxes VP8 IVF into fragmented MP4
 
 ### Fixed
 

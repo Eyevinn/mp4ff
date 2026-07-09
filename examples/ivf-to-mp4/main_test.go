@@ -19,6 +19,7 @@ func TestIVFToMP4(t *testing.T) {
 	}{
 		{"av1", "testdata/av1.ivf", "av01"},
 		{"vp9", "testdata/vp9.ivf", "vp09"},
+		{"vp8", "testdata/vp8.ivf", "vp08"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -75,12 +76,12 @@ func assertConfigBox(t *testing.T, stsd *mp4.StsdBox, sampleEntry string) {
 		if _, err := stsd.Av01.Av1C.SequenceHeader(); err != nil {
 			t.Fatalf("av1C sequence header does not parse: %v", err)
 		}
-	case "vp09":
+	case "vp08", "vp09":
 		if stsd.VpXX == nil || stsd.VpXX.VppC == nil {
-			t.Fatal("no vp09/vpcC")
+			t.Fatalf("no %s/vpcC", sampleEntry)
 		}
-		if stsd.VpXX.Type() != "vp09" {
-			t.Errorf("sample entry type = %s, want vp09", stsd.VpXX.Type())
+		if stsd.VpXX.Type() != sampleEntry {
+			t.Errorf("sample entry type = %s, want %s", stsd.VpXX.Type(), sampleEntry)
 		}
 	default:
 		t.Fatalf("unhandled sample entry %q", sampleEntry)
