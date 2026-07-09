@@ -78,6 +78,33 @@ func DecodeAV1CodecConfRec(data []byte) (CodecConfRec, error) {
 	return av1drc, nil
 }
 
+// CodecConfRecFromSequenceHeader builds an AV1CodecConfigurationRecord (av1C) from a parsed
+// sequence header and the configOBUs to embed. configOBUs must contain the sequence header OBU
+// (with obu_has_size_field set, e.g. via OBU.Encode) and may include following metadata OBUs, per
+// the AV1 Codec ISO Media File Format Binding.
+func CodecConfRecFromSequenceHeader(sh *SequenceHeader, configOBUs []byte) CodecConfRec {
+	ccr := CodecConfRec{
+		Version:              1,
+		SeqProfile:           sh.SeqProfile,
+		SeqLevelIdx0:         sh.SeqLevelIdx0,
+		SeqTier0:             sh.SeqTier0,
+		ChromaSubsamplingX:   sh.SubsamplingX,
+		ChromaSubsamplingY:   sh.SubsamplingY,
+		ChromaSamplePosition: sh.ChromaSamplePosition,
+		ConfigOBUs:           configOBUs,
+	}
+	if sh.BitDepth > 8 {
+		ccr.HighBitdepth = 1
+	}
+	if sh.BitDepth == 12 {
+		ccr.TwelveBit = 1
+	}
+	if sh.MonoChrome {
+		ccr.MonoChrome = 1
+	}
+	return ccr
+}
+
 // SequenceHeader parses and returns the Sequence Header OBU carried in ConfigOBUs.
 // It returns an error if no Sequence Header OBU is present.
 func (a *CodecConfRec) SequenceHeader() (*SequenceHeader, error) {
