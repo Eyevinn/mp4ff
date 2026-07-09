@@ -92,6 +92,7 @@ The examples and their functions are:
 4. [multitrack](examples/multitrack) parses a fragmented file with multiple tracks
 5. [combine-segs](examples/combine-segs) combines single-track init and media segments into multi-track segments
 6. [add-sidx](examples/add-sidx) adds a top-level sidx box describing the segments of a fragmented files.
+7. [ivf-to-mp4](examples/ivf-to-mp4) muxes an AV1 IVF bitstream into a fragmented mp4 (one fragment per GOP)
 
 ## Packages
 
@@ -105,10 +106,12 @@ The top-level packages in the mp4ff module are
 4. [vvc](vvc) provides structures and functions for dealing with VVC video and its packaging.
 5. [sei](sei) provides support for handling  Supplementary Enhancement Information (SEI) such as timestamps
    for AVC and HEVC video.
-6. [av1](av1) provides basic support for AV1 video packaging
+6. [av1](av1) provides support for AV1 video packaging, including OBU and sequence/frame-header
+   parsing, tile-range extraction and the av1C configuration record.
 7. [aac](aac) provides support for AAC audio. This includes handling ADTS headers which is common
    for AAC inside MPEG-2 TS streams.
-8. [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
+8. [ivf](ivf) reads and writes the IVF container used for raw VP8/VP9/AV1 bitstreams.
+9. [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
 
 ## Structure and usage
 

@@ -116,6 +116,53 @@ type OBU struct {
 	Payload []byte // OBU payload, excluding the header and any obu_size field
 }
 
+// Size returns the number of bytes Encode would write.
+func (o OBU) Size() int {
+	return o.Header.HeaderSize + leb128Len(uint64(len(o.Payload))) + len(o.Payload)
+}
+
+// Encode serialises the OBU with obu_has_size_field set, i.e. header byte(s), an obu_size LEB128
+// and the payload. This is the form used in the low-overhead bitstream format and in an av1C
+// configOBUs field. It is the inverse of SplitOBUs (which drops the size field).
+func (o OBU) Encode() []byte {
+	b := make([]byte, 0, o.Size())
+	h := byte(o.Header.Type)<<3 | 0x02 // obu_has_size_field = 1
+	if o.Header.ExtensionFlag {
+		h |= 0x04
+	}
+	b = append(b, h)
+	if o.Header.ExtensionFlag {
+		b = append(b, o.Header.TemporalID<<5|o.Header.SpatialID<<3)
+	}
+	b = appendLEB128(b, uint64(len(o.Payload)))
+	return append(b, o.Payload...)
+}
+
+// appendLEB128 appends v as an unsigned LEB128 value (AV1 spec 4.10.5).
+func appendLEB128(b []byte, v uint64) []byte {
+	for {
+		c := byte(v & 0x7f)
+		v >>= 7
+		if v != 0 {
+			c |= 0x80
+		}
+		b = append(b, c)
+		if v == 0 {
+			return b
+		}
+	}
+}
+
+// leb128Len returns the number of bytes needed to encode v as unsigned LEB128.
+func leb128Len(v uint64) int {
+	n := 1
+	for v >= 0x80 {
+		v >>= 7
+		n++
+	}
+	return n
+}
+
 // SplitOBUs splits a byte slice into OBUs. The input can be an av1C configOBUs
 // field, a coded sample, or a full temporal unit.
 //

@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `EncryptFragments` and `FragmentEncryptor` (from `InitProtectData.NewFragmentEncryptor`)
   encrypt a decode sequence with a fresh per-sequence sample protector; `InitProtectData` is
   immutable and safe to share across goroutines
+- `ivf` package to read and write the IVF container used for raw VP8/VP9/AV1 bitstreams (the
+  VPx/AV1 counterpart of Annex B), and an `ivf-to-mp4` example that muxes an AV1 IVF into a
+  fragmented MP4. Supported by `av1.OBU.Encode`/`Size`, `av1.CodecConfRecFromSequenceHeader` and
+  `mp4.TrakBox.SetAV1Descriptor`
 
 ### Fixed
 

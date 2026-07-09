@@ -238,6 +238,24 @@ func (t *TrakBox) SetHEVCDescriptor(sampleDescriptorType string, vpsNALUs, spsNA
 	return nil
 }
 
+// SetAV1Descriptor sets an AV1 (av01) SampleDescriptor from an av1C configuration box and the
+// coded picture size. Unlike AVC/HEVC, the size is not derivable from the config box alone, so it
+// is passed in (e.g. from the sequence header or the container).
+func (t *TrakBox) SetAV1Descriptor(sampleDescriptorType string, av1C *Av1CBox, width, height uint16) error {
+	if sampleDescriptorType != "av01" {
+		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
+	}
+	if av1C == nil {
+		return fmt.Errorf("no av1C box")
+	}
+	t.Tkhd.Width = Fixed32(uint32(width) << 16)   // This is display width
+	t.Tkhd.Height = Fixed32(uint32(height) << 16) // This is display height
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	av1x := CreateVisualSampleEntryBox(sampleDescriptorType, width, height, av1C)
+	stsd.AddChild(av1x)
+	return nil
+}
+
 // GetMediaType - should return video or audio (at present)
 func (s *InitSegment) GetMediaType() string {
 	switch s.Moov.Trak.Mdia.Hdlr.HandlerType {
