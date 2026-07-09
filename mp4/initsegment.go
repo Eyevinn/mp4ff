@@ -256,6 +256,24 @@ func (t *TrakBox) SetAV1Descriptor(sampleDescriptorType string, av1C *Av1CBox, w
 	return nil
 }
 
+// SetVPxDescriptor sets a VP8 (vp08) or VP9 (vp09) SampleDescriptor from a vpcC configuration box
+// and the coded picture size. The vpcC fields (profile, level, bit depth, chroma subsampling,
+// colour information) are derived from the bitstream by the vp8/vp9 packages.
+func (t *TrakBox) SetVPxDescriptor(sampleDescriptorType string, vpcC *VppCBox, width, height uint16) error {
+	if sampleDescriptorType != "vp08" && sampleDescriptorType != "vp09" {
+		return fmt.Errorf("sampleDescriptorType %s not allowed", sampleDescriptorType)
+	}
+	if vpcC == nil {
+		return fmt.Errorf("no vpcC box")
+	}
+	t.Tkhd.Width = Fixed32(uint32(width) << 16)   // This is display width
+	t.Tkhd.Height = Fixed32(uint32(height) << 16) // This is display height
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	vpx := CreateVisualSampleEntryBox(sampleDescriptorType, width, height, vpcC)
+	stsd.AddChild(vpx)
+	return nil
+}
+
 // GetMediaType - should return video or audio (at present)
 func (s *InitSegment) GetMediaType() string {
 	switch s.Moov.Trak.Mdia.Hdlr.HandlerType {
