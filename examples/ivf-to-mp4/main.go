@@ -1,8 +1,8 @@
-// ivf-to-mp4 muxes an AV1 IVF file into a fragmented MP4 (one fragment per closed GOP).
+// ivf-to-mp4 muxes an AV1 or VP9 IVF file into a fragmented MP4 (one fragment per closed GOP).
 //
-// It reads the raw AV1 bitstream produced by encoders like aomenc, SVT-AV1 or ffmpeg's IVF
-// muxer, builds an av1C configuration record from the sequence header, and writes a fragmented
-// MP4 with an av01 track. The result can be segmented further with the segmenter example.
+// It reads the raw bitstream produced by encoders like aomenc, SVT-AV1, vpxenc or ffmpeg's IVF
+// muxer, builds the codec configuration record (av1C or vpcC) from the bitstream, and writes a
+// fragmented MP4. The result can be segmented further with the segmenter example.
 //
 //	ivf-to-mp4 input.ivf output.mp4
 package main
@@ -16,6 +16,7 @@ import (
 	"github.com/Eyevinn/mp4ff/av1"
 	"github.com/Eyevinn/mp4ff/ivf"
 	"github.com/Eyevinn/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/vp9"
 )
 
 func main() {
@@ -29,6 +30,9 @@ func main() {
 	}
 }
 
+// keyFrameFunc reports whether a coded frame is a random-access point (sync sample).
+type keyFrameFunc func(sample []byte) (bool, error)
+
 func run(inPath, outPath string) error {
 	in, err := os.Open(inPath)
 	if err != nil {
@@ -39,9 +43,6 @@ func run(inPath, outPath string) error {
 	rd, err := ivf.NewReader(in)
 	if err != nil {
 		return err
-	}
-	if rd.Header.FourCC != ivf.CodecAV1 {
-		return fmt.Errorf("only AV1 (%s) is supported, got %q", ivf.CodecAV1, rd.Header.FourCC)
 	}
 	if rd.Header.Rate == 0 {
 		return fmt.Errorf("ivf header has zero frame-rate (Rate)")
@@ -66,49 +67,104 @@ func run(inPath, outPath string) error {
 		return fmt.Errorf("no frames in %s", inPath)
 	}
 
-	// The sequence header lives in the first temporal unit; use it for av1C and RAP detection.
-	seqOBU, err := findOBU(frames[0].Data, av1.OBUSequenceHeader)
+	var (
+		init  *mp4.InitSegment
+		isKey keyFrameFunc
+	)
+	switch rd.Header.FourCC {
+	case ivf.CodecAV1:
+		init, isKey, err = setupAV1(rd.Header, frames)
+	case ivf.CodecVP9:
+		init, isKey, err = setupVP9(rd.Header, frames)
+	default:
+		return fmt.Errorf("unsupported IVF codec %q (supported: %s, %s)", rd.Header.FourCC, ivf.CodecAV1, ivf.CodecVP9)
+	}
 	if err != nil {
-		return fmt.Errorf("locate sequence header: %w", err)
-	}
-	sh, err := av1.ParseSequenceHeader(seqOBU.Payload)
-	if err != nil {
-		return fmt.Errorf("parse sequence header: %w", err)
-	}
-	av1C := &mp4.Av1CBox{
-		CodecConfRec: av1.CodecConfRecFromSequenceHeader(sh, seqOBU.Encode()),
-	}
-
-	width := rd.Header.Width
-	height := rd.Header.Height
-	if width == 0 || height == 0 {
-		width, height = uint16(sh.Width()), uint16(sh.Height())
-	}
-
-	init := mp4.CreateEmptyInit()
-	trak := init.AddEmptyTrack(rd.Header.Rate, "video", "und")
-	if err := trak.SetAV1Descriptor("av01", av1C, width, height); err != nil {
 		return err
 	}
-	trackID := trak.Tkhd.TrackID
 
 	out, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
+	return writeFragmentedMP4(out, init, frames, scale, isKey)
+}
+
+// setupAV1 builds the init segment for an AV1 track from the sequence header in the first frame.
+func setupAV1(hdr ivf.FileHeader, frames []ivf.Frame) (*mp4.InitSegment, keyFrameFunc, error) {
+	seqOBU, err := findOBU(frames[0].Data, av1.OBUSequenceHeader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("locate sequence header: %w", err)
+	}
+	sh, err := av1.ParseSequenceHeader(seqOBU.Payload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse sequence header: %w", err)
+	}
+	av1C := &mp4.Av1CBox{CodecConfRec: av1.CodecConfRecFromSequenceHeader(sh, seqOBU.Encode())}
+	width, height := frameSize(hdr, uint16(sh.Width()), uint16(sh.Height()))
+
+	init := mp4.CreateEmptyInit()
+	trak := init.AddEmptyTrack(hdr.Rate, "video", "und")
+	if err := trak.SetAV1Descriptor("av01", av1C, width, height); err != nil {
+		return nil, nil, err
+	}
+	isKey := func(sample []byte) (bool, error) { return av1.IsRAPSample(sample, sh) }
+	return init, isKey, nil
+}
+
+// setupVP9 builds the init segment for a VP9 track from the first key frame's header.
+func setupVP9(hdr ivf.FileHeader, frames []ivf.Frame) (*mp4.InitSegment, keyFrameFunc, error) {
+	h, err := vp9.ParseFrameHeader(frames[0].Data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse first VP9 frame header: %w", err)
+	}
+	if !h.KeyFrame {
+		return nil, nil, fmt.Errorf("first VP9 frame is not a key frame")
+	}
+	prim, trc, mtx := h.CICP()
+	scale := hdr.Scale
+	if scale == 0 {
+		scale = 1
+	}
+	vpcC := &mp4.VppCBox{
+		Version:                 1,
+		Profile:                 h.Profile,
+		Level:                   vp9.Level(h.Width, h.Height, float64(hdr.Rate)/float64(scale)),
+		BitDepth:                h.BitDepth,
+		ChromaSubsampling:       h.VpcCChromaSubsampling(),
+		VideoFullRangeFlag:      boolToByte(h.ColorRange),
+		ColourPrimaries:         prim,
+		TransferCharacteristics: trc,
+		MatrixCoefficients:      mtx,
+	}
+	width, height := frameSize(hdr, uint16(h.Width), uint16(h.Height))
+
+	init := mp4.CreateEmptyInit()
+	trak := init.AddEmptyTrack(hdr.Rate, "video", "und")
+	if err := trak.SetVPxDescriptor("vp09", vpcC, width, height); err != nil {
+		return nil, nil, err
+	}
+	return init, vp9.IsKeyFrame, nil
+}
+
+// writeFragmentedMP4 writes the init segment followed by one fragment per closed GOP (a run of
+// samples starting at a random-access point). The mdhd timescale is the IVF Rate, so one IVF
+// timestamp tick equals Scale mdhd ticks.
+func writeFragmentedMP4(out io.Writer, init *mp4.InitSegment, frames []ivf.Frame, scale uint64, isKey keyFrameFunc) error {
 	if err := init.Encode(out); err != nil {
 		return fmt.Errorf("encode init: %w", err)
 	}
+	trackID := init.Moov.Trak.Tkhd.TrackID
 
-	// Per-frame sync flag, decode time and duration (mdhd timescale == Rate, so a tick is Scale).
 	n := len(frames)
-	isKey := make([]bool, n)
+	key := make([]bool, n)
 	for i := range frames {
-		isKey[i], err = av1.IsRAPSample(frames[i].Data, sh)
+		k, err := isKey(frames[i].Data)
 		if err != nil {
-			return fmt.Errorf("frame %d RAP detection: %w", i, err)
+			return fmt.Errorf("frame %d key-frame detection: %w", i, err)
 		}
+		key[i] = k
 	}
 	dur := func(i int) uint32 {
 		if i+1 < n {
@@ -120,7 +176,6 @@ func run(inPath, outPath string) error {
 		return uint32(scale)
 	}
 
-	// One fragment per closed GOP (a run of samples starting at a random-access point).
 	var seqNr uint32
 	for i := 0; i < n; {
 		seqNr++
@@ -129,11 +184,11 @@ func run(inPath, outPath string) error {
 			return fmt.Errorf("create fragment: %w", err)
 		}
 		for ; i < n; i++ {
-			if i > 0 && isKey[i] && frag.Moof.Traf.Trun.SampleCount() > 0 {
-				break // next GOP
+			if key[i] && frag.Moof.Traf.Trun.SampleCount() > 0 {
+				break // start of the next GOP
 			}
 			flags := mp4.SetNonSyncSampleFlags(0)
-			if isKey[i] {
+			if key[i] {
 				flags = mp4.SetSyncSampleFlags(0)
 			}
 			frag.AddFullSample(mp4.FullSample{
@@ -147,6 +202,23 @@ func run(inPath, outPath string) error {
 		}
 	}
 	return nil
+}
+
+// frameSize returns the container size, falling back to the bitstream size when the IVF header
+// does not carry it.
+func frameSize(hdr ivf.FileHeader, bsWidth, bsHeight uint16) (uint16, uint16) {
+	w, h := hdr.Width, hdr.Height
+	if w == 0 || h == 0 {
+		return bsWidth, bsHeight
+	}
+	return w, h
+}
+
+func boolToByte(b bool) byte {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // findOBU returns the first OBU of the given type in a temporal unit.
