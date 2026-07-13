@@ -27,13 +27,36 @@ Some useful command line tools are available in [cmd](cmd) directory.
 7. [mp4ff-decrypt](cmd/mp4ff-decrypt) decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
 8. [mp4ff-mvhevc](cmd/mp4ff-mvhevc) inspects MV-HEVC (Multi-View HEVC) files and muxes HEVC (Annex B or mp4) into an MV-HEVC mp4
 
-You can install these tools by going to their respective directory and run `go install .` or directly from the repo with
+## Installing the command line tools
+
+All tools are built for macOS, Linux and Windows (amd64 and arm64) on every
+[release](https://github.com/Eyevinn/mp4ff/releases).
+
+### Homebrew (macOS and Linux)
+
+    brew install mp4ff
+
+### Go
+
+Install a tool directly from the repo (repeat for each tool you want), or run
+`go install .` from the tool's directory under [cmd](cmd):
 
     go install github.com/Eyevinn/mp4ff/cmd/mp4ff-info@latest
     go install github.com/Eyevinn/mp4ff/cmd/mp4ff-encrypt@latest
-    ...
 
-for each individual tool.
+### Linux packages (Debian/Ubuntu, Fedora/RHEL, Alpine)
+
+Each release attaches `.deb`, `.rpm` and `.apk` packages (all tools in a single
+`mp4ff` package) as well as plain `.tar.gz` archives. Download the one matching
+your system from the [releases page](https://github.com/Eyevinn/mp4ff/releases)
+and install it:
+
+    sudo apt install ./mp4ff_<version>_linux_amd64.deb              # Debian/Ubuntu
+    sudo rpm -i mp4ff_<version>_linux_amd64.rpm                     # Fedora/RHEL
+    sudo apk add --allow-untrusted mp4ff_<version>_linux_amd64.apk  # Alpine
+
+For any other distribution, download the `.tar.gz` archive and copy the
+binaries into a directory on your `PATH`.
 
 ## Codec support
 
