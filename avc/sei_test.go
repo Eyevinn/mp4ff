@@ -9,6 +9,20 @@ import (
 	"github.com/Eyevinn/mp4ff/sei"
 )
 
+func TestParseSEINaluTruncatedType4(t *testing.T) {
+	// A NAL unit carrying a type-4 (T.35) SEI whose payload is shorter than the
+	// 8-byte T.35 header must return an error, not panic.
+	nalu, err := avc.CreateSEINalu([]sei.SEIMessage{
+		sei.NewSEIData(sei.SEIUserDataRegisteredITUtT35Type, []byte{0xb5, 0x00, 0x31}),
+	})
+	if err != nil {
+		t.Fatalf("CreateSEINalu failed: %v", err)
+	}
+	if _, err := avc.ParseSEINalu(nalu, nil); err == nil {
+		t.Error("expected error parsing truncated type-4 SEI NAL unit, got nil")
+	}
+}
+
 func TestCreateSEINaluRoundTrip(t *testing.T) {
 	testCases := []struct {
 		desc string

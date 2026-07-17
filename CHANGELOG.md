@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Panic in `hevc.ParseSEINalu` and `avc.ParseSEINalu` on NAL units shorter than
   the codec's NAL unit header (e.g. an empty or single-byte HEVC SEI NALU);
   such input now returns `ErrNotSEINalu`
+- `sei.DecodeUserDataRegisteredSEI` and `sei.ParseCEA608` no longer panic on a
+  short/truncated type-4 (user_data_registered_itu_t_t35) SEI payload; they return
+  an error that propagates through `avc`/`hevc.ParseSEINalu`
 
 ## [0.54.0] - 2026-07-13
 
