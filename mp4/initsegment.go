@@ -274,6 +274,24 @@ func (t *TrakBox) SetVPxDescriptor(sampleDescriptorType string, vpcC *VppCBox, w
 	return nil
 }
 
+// SetMJpegDescriptor sets a motion JPEG (mjpg) SampleDescriptor as defined for
+// JPEG image sequences in ISO/IEC 23008-12 Annex H.
+// Each sample shall be a complete JPEG image, except if jpegPrefix is non-nil.
+// In that case, a jpgC box is included, and the concatenation of jpegPrefix
+// with each sample data shall be a complete JPEG image.
+func (t *TrakBox) SetMJpegDescriptor(width, height uint16, jpegPrefix []byte) error {
+	t.Tkhd.Width = Fixed32(uint32(width) << 16)   // This is display width
+	t.Tkhd.Height = Fixed32(uint32(height) << 16) // This is display height
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	var jpgC Box
+	if jpegPrefix != nil {
+		jpgC = &JpgCBox{JpegPrefix: jpegPrefix}
+	}
+	mjpg := CreateVisualSampleEntryBox("mjpg", width, height, jpgC)
+	stsd.AddChild(mjpg)
+	return nil
+}
+
 // GetMediaType - should return video or audio (at present)
 func (s *InitSegment) GetMediaType() string {
 	switch s.Moov.Trak.Mdia.Hdlr.HandlerType {

@@ -32,6 +32,12 @@ type StsdBox struct {
 	Encv *VisualSampleEntryBox
 	// VpXX is a pointer to a box with name vp08 or vp09 (VP8 or VP9 video)
 	VpXX *VisualSampleEntryBox
+	// Mjpg is a pointer to a box with name mjpg (motion JPEG image sequence, ISO/IEC 23008-12)
+	Mjpg *VisualSampleEntryBox
+	// Mp4v is a pointer to a box with name mp4v (MPEG-4 Visual or JPEG signalled via esds)
+	Mp4v *VisualSampleEntryBox
+	// Jpeg is a pointer to a box with name jpeg (QuickTime JPEG video)
+	Jpeg *VisualSampleEntryBox
 	// Mp4a is a pointer to a box with name mp4a
 	Mp4a *AudioSampleEntryBox
 	// AC3 is a pointer to a box with name ac-3
@@ -77,6 +83,12 @@ func (s *StsdBox) AddChild(box Box) {
 		s.Av01 = box.(*VisualSampleEntryBox)
 	case "vp08", "vp09":
 		s.VpXX = box.(*VisualSampleEntryBox)
+	case "mjpg":
+		s.Mjpg = box.(*VisualSampleEntryBox)
+	case "mp4v":
+		s.Mp4v = box.(*VisualSampleEntryBox)
+	case "jpeg":
+		s.Jpeg = box.(*VisualSampleEntryBox)
 	case "avs3":
 		s.Avs3 = box.(*VisualSampleEntryBox)
 	case "mp4a":
