@@ -1,6 +1,7 @@
 package mp4_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -69,6 +70,13 @@ func TestCreateInitSegments(t *testing.T) {
 		t.Errorf("got %s, wanted audio", init.GetMediaType())
 	}
 
+	init, err = createVideoMJpegInitSegment()
+	if err != nil {
+		t.Error(err)
+	}
+	if init.GetMediaType() != "video" {
+		t.Errorf("got %s, wanted video", init.GetMediaType())
+	}
 	init, err = createAudioAC3InitSegment()
 	if err != nil {
 		t.Error(err)
@@ -142,6 +150,45 @@ func createVideoHEVCInitSegment() (*mp4.InitSegment, error) {
 	height := trak.Mdia.Minf.Stbl.Stsd.HvcX.Height
 	if width != 960 || height != 540 {
 		return nil, fmt.Errorf("got %dx%d instead of 960x540", width, height)
+	}
+	return init, nil
+}
+
+func createVideoMJpegInitSegment() (*mp4.InitSegment, error) {
+	videoTimescale := uint32(24000)
+	init := mp4.CreateEmptyInit()
+	init.AddEmptyTrack(videoTimescale, "video", "und")
+	trak := init.Moov.Trak
+	err := trak.SetMJpegDescriptor(400, 226, nil)
+	if err != nil {
+		return nil, err
+	}
+	stsd := trak.Mdia.Minf.Stbl.Stsd
+	if stsd.Mjpg == nil {
+		return nil, fmt.Errorf("no mjpg sample entry")
+	}
+	if stsd.Mjpg.JpgC != nil {
+		return nil, fmt.Errorf("got jpgC box, but no jpegPrefix was given")
+	}
+	width := stsd.Mjpg.Width
+	height := stsd.Mjpg.Height
+	if width != 400 || height != 226 {
+		return nil, fmt.Errorf("got %dx%d instead of 400x226", width, height)
+	}
+	jpegPrefix := []byte{0xff, 0xd8, 0xff, 0xdb}
+	init = mp4.CreateEmptyInit()
+	init.AddEmptyTrack(videoTimescale, "video", "und")
+	trak = init.Moov.Trak
+	err = trak.SetMJpegDescriptor(400, 226, jpegPrefix)
+	if err != nil {
+		return nil, err
+	}
+	jpgC := trak.Mdia.Minf.Stbl.Stsd.Mjpg.JpgC
+	if jpgC == nil {
+		return nil, fmt.Errorf("no jpgC box although jpegPrefix was given")
+	}
+	if !bytes.Equal(jpgC.JpegPrefix, jpegPrefix) {
+		return nil, fmt.Errorf("got jpegPrefix %v instead of %v", jpgC.JpegPrefix, jpegPrefix)
 	}
 	return init, nil
 }

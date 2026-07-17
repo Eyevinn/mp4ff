@@ -102,6 +102,40 @@ func TestStsdVP9(t *testing.T) {
 	}
 }
 
+func TestStsdMjpg(t *testing.T) {
+	// stsd box with an mjpg sample entry from an Apple example stream
+	// (produced by Apple mediafilesegmenter, includes colr, fiel, and pasp children).
+	hexData := "" +
+		"00000093737473640000000000000001000000836d6a70670000000000000001000000000000" +
+		"00000000000000000000019000e2004800000048000000000000000100000000000000000000" +
+		"000000000000000000000000000000000000000000000018ffff00000013636f6c726e636c78" +
+		"000100010001000000000a6669656c010000000010706173700000000100000001"
+
+	binData, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cmpAfterDecodeEncodeBox(t, binData)
+	// Check that mjpg pointer is set
+	stsd := decodeStsdBox(t, binData)
+	if stsd.Mjpg == nil {
+		t.Fatal("Expected mjpg box pointer, got nil")
+	}
+	mjpg := stsd.Mjpg
+	if mjpg.Width != 400 || mjpg.Height != 226 {
+		t.Errorf("got %dx%d instead of 400x226", mjpg.Width, mjpg.Height)
+	}
+	if mjpg.Fiel == nil {
+		t.Error("Expected fiel box pointer, got nil")
+	} else if mjpg.Fiel.FieldCount != 1 || mjpg.Fiel.FieldOrdering != 0 {
+		t.Errorf("got fieldCount=%d fieldOrdering=%d, expected 1 and 0", mjpg.Fiel.FieldCount, mjpg.Fiel.FieldOrdering)
+	}
+	if mjpg.Pasp == nil {
+		t.Error("Expected pasp box pointer, got nil")
+	}
+}
+
 func TestStsdAC4(t *testing.T) {
 	data, err := os.ReadFile("testdata/stsd_ac4.bin")
 	if err != nil {
