@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Panic in `hevc.ParseSEINalu` and `avc.ParseSEINalu` on NAL units shorter than
+  the codec's NAL unit header (e.g. an empty or single-byte HEVC SEI NALU);
+  such input now returns `ErrNotSEINalu`
+
 ## [0.54.0] - 2026-07-13
 
 ### Added
