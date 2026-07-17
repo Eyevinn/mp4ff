@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `avc.CreateSEINalu` and `hevc.CreateSEINalu` to build a full SEI NAL unit (codec
+  NAL header + EBSP payload) from `sei.SEIMessage` values; the encode-side inverse of
+  `ParseSEINalu`
+
 ### Fixed
 
 - Panic in `hevc.ParseSEINalu` and `avc.ParseSEINalu` on NAL units shorter than
