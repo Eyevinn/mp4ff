@@ -8,6 +8,9 @@ import (
 
 // DecodeUserDataRegisteredSEI decodes a SEI message of type 4.
 func DecodeUserDataRegisteredSEI(sd *SEIData) (SEIMessage, error) {
+	if len(sd.payload) < 8 {
+		return nil, fmt.Errorf("SEI type 4 (user_data_registered_itu_t_t35) payload too short: %d bytes", len(sd.payload))
+	}
 	itutData := ITUData{
 		CountryCode:      sd.payload[0],
 		ProviderCode:     binary.BigEndian.Uint16(sd.payload[1:3]),
@@ -116,6 +119,9 @@ func (s *CEA608sei) Payload() []byte {
 // ParseCEA608 parsers the the fields of data from CEA-708 encapsulation.
 // This is specified in Section 4.3 of ANSI/CTA-708-E R-2018.
 func ParseCEA608(payload []byte) ([]byte, []byte, error) {
+	if len(payload) == 0 {
+		return nil, nil, fmt.Errorf("empty cc_data payload")
+	}
 	pos := 0
 	ccCount := payload[pos] & 0x1f
 	pos += 2 // Advance 1 and skip reserved byte
