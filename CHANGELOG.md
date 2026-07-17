@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Motion JPEG support: `mjpg` sample entry (JPEG image sequences, ISO/IEC 23008-12 Annex H)
+  with the `jpgC` (JPEGConfigurationBox) and `fiel` (field handling) boxes.
+  `mp4.TrakBox.SetMJpegDescriptor` creates an mjpg sample entry with an optional jpgC JPEG prefix
+- Decode support for the legacy motion JPEG sample entries `mp4v` (with esds JPEG object type,
+  ISO/IEC 14496-14) and `jpeg` (QuickTime), and `Esds` child access in `VisualSampleEntryBox`
+
 ## [0.54.0] - 2026-07-13
 
 ### Added

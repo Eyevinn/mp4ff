@@ -71,6 +71,7 @@ codec-specific boxes. The codecs and their boxes are
 | Video | AVS3 | avs3 | av3c | btrt, pasp, colr |
 | Video | VP8/VP9 | vp08, vp09 | vpcC | btrt, pasp, colr |
 | Video | VVC/H.266 | vvc1, vvi1 | vvcC | btrt, pasp, colr |
+| Video | Motion JPEG | mjpg, jpeg, mp4v | jpgC, esds | btrt, pasp, colr, fiel |
 | Video | Encrypted | encv | sinf | btrt |
 | Audio | AAC | mp4a | esds | btrt |
 | Audio | AC-3 | ac-3 | dac3 | btrt |

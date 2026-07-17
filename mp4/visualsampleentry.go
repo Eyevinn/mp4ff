@@ -26,6 +26,9 @@ type VisualSampleEntryBox struct {
 	Av3c               *Av3cBox
 	VvcC               *VvcCBox
 	VppC               *VppCBox
+	JpgC               *JpgCBox
+	Fiel               *FielBox
+	Esds               *EsdsBox
 	Btrt               *BtrtBox
 	Clap               *ClapBox
 	Pasp               *PaspBox
@@ -86,6 +89,12 @@ func (b *VisualSampleEntryBox) AddChild(child Box) {
 		b.VvcC = box
 	case *VppCBox:
 		b.VppC = box
+	case *JpgCBox:
+		b.JpgC = box
+	case *FielBox:
+		b.Fiel = box
+	case *EsdsBox:
+		b.Esds = box
 	case *BtrtBox:
 		b.Btrt = box
 	case *ClapBox:
