@@ -12,6 +12,21 @@ var (
 	ErrNotSEINalu = errors.New("not an SEI NAL unit")
 )
 
+// CreateSEINalu creates a prefix SEI NAL unit (header + EBSP payload) from SEI messages.
+// It is the inverse of ParseSEINalu.
+func CreateSEINalu(msgs []sei.SEIMessage) ([]byte, error) {
+	buf := bytes.Buffer{}
+	// HEVC NAL unit header (2 bytes):
+	// forbidden_zero_bit(1)=0 | nal_unit_type(6)=NALU_SEI_PREFIX(39) | nuh_layer_id(6)=0 | nuh_temporal_id_plus1(3)=1.
+	// First byte = NALU_SEI_PREFIX << 1 = 0x4e, second byte = 0x01.
+	buf.WriteByte(byte(NALU_SEI_PREFIX) << 1)
+	buf.WriteByte(0x01)
+	if err := sei.WriteSEIMessages(&buf, msgs); err != nil {
+		return nil, fmt.Errorf("writing SEI messages: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
 // ParseSEINalu - parse SEI NAL unit (incl header) and return messages given SPS.
 // Returns sei.ErrRbspTrailingBitsMissing if the NALU is missing the trailing bits.
 func ParseSEINalu(nalu []byte, sps *SPS) ([]sei.SEIMessage, error) {
