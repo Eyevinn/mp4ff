@@ -15,6 +15,9 @@ var (
 // ParseSEINalu - parse SEI NAL unit (incl header) and return messages given SPS.
 // Returns sei.ErrRbspTrailingBitsMissing if the NALU is missing the trailing bits.
 func ParseSEINalu(nalu []byte, sps *SPS) ([]sei.SEIMessage, error) {
+	if len(nalu) < 1 { // AVC NAL unit header is 1 byte
+		return nil, ErrNotSEINalu
+	}
 	if GetNaluType(nalu[0]) != NALU_SEI {
 		return nil, ErrNotSEINalu
 	}

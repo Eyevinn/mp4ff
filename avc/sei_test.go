@@ -64,3 +64,14 @@ func TestSEIParsing(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSEINaluShortInput(t *testing.T) {
+	// An empty NAL unit must not panic on the nalu[0] access.
+	msgs, err := avc.ParseSEINalu(nil, nil)
+	if err != avc.ErrNotSEINalu {
+		t.Errorf("expected ErrNotSEINalu, got %v", err)
+	}
+	if msgs != nil {
+		t.Errorf("expected nil messages, got %v", msgs)
+	}
+}

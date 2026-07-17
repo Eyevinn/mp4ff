@@ -67,3 +67,26 @@ func TestSEIParsing(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSEINaluShortInput(t *testing.T) {
+	// A NAL unit shorter than the 2-byte HEVC header must not panic.
+	cases := []struct {
+		desc string
+		nalu []byte
+	}{
+		{"nil", nil},
+		{"empty", []byte{}},
+		{"one byte SEI prefix type", []byte{0x4e}}, // GetNaluType(0x4e) == NALU_SEI_PREFIX
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			msgs, err := ParseSEINalu(c.nalu, nil)
+			if err != ErrNotSEINalu {
+				t.Errorf("expected ErrNotSEINalu, got %v", err)
+			}
+			if msgs != nil {
+				t.Errorf("expected nil messages, got %v", msgs)
+			}
+		})
+	}
+}
