@@ -1,11 +1,65 @@
 package hevc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/sei"
 )
+
+func TestCreateSEINaluRoundTrip(t *testing.T) {
+	testCases := []struct {
+		desc string
+		msgs []sei.SEIMessage
+	}{
+		{
+			desc: "single registered ITU-T T.35 message",
+			msgs: []sei.SEIMessage{
+				sei.NewSEIData(sei.SEIUserDataRegisteredITUtT35Type, []byte{0xb5, 0x00, 0x31, 0x11, 0x22, 0x33, 0x44, 0x55}),
+			},
+		},
+		{
+			desc: "single unregistered message",
+			msgs: []sei.SEIMessage{
+				sei.NewSEIData(sei.SEIUserDataUnregisteredType, []byte("0123456789abcdef")),
+			},
+		},
+		{
+			desc: "multiple messages in one NAL unit",
+			msgs: []sei.SEIMessage{
+				sei.NewSEIData(sei.SEIUserDataRegisteredITUtT35Type, []byte{0xb5, 0x00, 0x31, 0x11, 0x22, 0x33, 0x44, 0x55}),
+				sei.NewSEIData(sei.SEIUserDataUnregisteredType, []byte("0123456789abcdef")),
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			nalu, err := CreateSEINalu(tc.msgs)
+			if err != nil {
+				t.Fatalf("CreateSEINalu failed: %v", err)
+			}
+			if GetNaluType(nalu[0]) != NALU_SEI_PREFIX {
+				t.Errorf("expected NAL unit type %d, got %d", NALU_SEI_PREFIX, GetNaluType(nalu[0]))
+			}
+			msgs, err := ParseSEINalu(nalu, nil)
+			if err != nil {
+				t.Fatalf("ParseSEINalu failed: %v", err)
+			}
+			if len(msgs) != len(tc.msgs) {
+				t.Fatalf("expected %d messages, got %d", len(tc.msgs), len(msgs))
+			}
+			for i, msg := range msgs {
+				if msg.Type() != tc.msgs[i].Type() {
+					t.Errorf("message %d: expected type %d, got %d", i, tc.msgs[i].Type(), msg.Type())
+				}
+				if !bytes.Equal(msg.Payload(), tc.msgs[i].Payload()) {
+					t.Errorf("message %d: expected payload %x, got %x", i, tc.msgs[i].Payload(), msg.Payload())
+				}
+			}
+		})
+	}
+}
 
 func TestSEIParsing(t *testing.T) {
 	testCases := []struct {
@@ -63,6 +117,29 @@ func TestSEIParsing(t *testing.T) {
 						t.Errorf("Expected framefield %+v, got %+v", tc.expectedFrameField, gotFrameField)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestParseSEINaluShortInput(t *testing.T) {
+	// A NAL unit shorter than the 2-byte HEVC header must not panic.
+	cases := []struct {
+		desc string
+		nalu []byte
+	}{
+		{"nil", nil},
+		{"empty", []byte{}},
+		{"one byte SEI prefix type", []byte{0x4e}}, // GetNaluType(0x4e) == NALU_SEI_PREFIX
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			msgs, err := ParseSEINalu(c.nalu, nil)
+			if err != ErrNotSEINalu {
+				t.Errorf("expected ErrNotSEINalu, got %v", err)
+			}
+			if msgs != nil {
+				t.Errorf("expected nil messages, got %v", msgs)
 			}
 		})
 	}
