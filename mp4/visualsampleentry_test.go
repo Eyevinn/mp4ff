@@ -84,6 +84,30 @@ func TestVisualSampleEntryBoxHDRMetadata(t *testing.T) {
 	}
 }
 
+func TestVisualSampleEntryBoxMJpeg(t *testing.T) {
+	// mjpg sample entry with a jpgC box (ISO/IEC 23008-12 Annex H)
+	jpgC := &mp4.JpgCBox{JpegPrefix: []byte{0xff, 0xd8, 0xff, 0xdb}}
+	mjpg := mp4.CreateVisualSampleEntryBox("mjpg", 400, 226, jpgC)
+	boxDiffAfterEncodeAndDecode(t, mjpg)
+	decoded := boxAfterEncodeAndDecode(t, mjpg).(*mp4.VisualSampleEntryBox)
+	if decoded.JpgC == nil {
+		t.Error("expected decoded jpgC child")
+	}
+
+	// mp4v sample entry with an esds box (ISO/IEC 14496-14)
+	esds := mp4.CreateEsdsBox([]byte{0x11, 0x90})
+	mp4v := mp4.CreateVisualSampleEntryBox("mp4v", 640, 360, esds)
+	boxDiffAfterEncodeAndDecode(t, mp4v)
+	decoded = boxAfterEncodeAndDecode(t, mp4v).(*mp4.VisualSampleEntryBox)
+	if decoded.Esds == nil {
+		t.Error("expected decoded esds child")
+	}
+
+	// jpeg sample entry (QuickTime) without children
+	jpeg := mp4.NewVisualSampleEntryBox("jpeg")
+	boxDiffAfterEncodeAndDecode(t, jpeg)
+}
+
 func TestAvc1WithTrailingBytes(t *testing.T) {
 	minfWithTrailingAvc1Bytes, err := os.ReadFile("testdata/minf_with_trailing_avc1_bytes.bin")
 	if err != nil {
