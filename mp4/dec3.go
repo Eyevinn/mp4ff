@@ -44,12 +44,13 @@ var EC3ChannelLocationBits = []string{
 	"LFE2", //MSB
 }
 
-// Dec3Box - AC3SpecificBox from ETSI TS 102 366 V1.4.1 F.4 (2017)
+// Dec3Box - EC3SpecificBox from ETSI TS 102 366 V1.4.1 F.6 (2017), extended by ETSI TS 103 420 C.3 (2018)
 type Dec3Box struct {
-	DataRate  uint16
-	NumIndSub uint16
-	EC3Subs   []EC3Sub
-	Reserved  []byte
+	DataRate      uint16
+	NumIndSub     uint16
+	EC3Subs       []EC3Sub
+	JOCComplexity uint8
+	Reserved      []byte
 }
 
 // EC3Sub - Enhanced AC-3 substream information
@@ -109,7 +110,13 @@ func decodeDec3FromData(data []byte) (Box, error) {
 		}
 		b.EC3Subs = append(b.EC3Subs, es)
 	}
-	b.Reserved = br.ReadRemainingBytes()
+	remaining := br.ReadRemainingBytes()
+	if len(remaining) >= 2 && remaining[0]&0x01 == 1 {
+		b.JOCComplexity = remaining[1]
+		b.Reserved = remaining[2:]
+	} else {
+		b.Reserved = remaining
+	}
 	return &b, br.AccError()
 }
 
@@ -126,6 +133,9 @@ func (b *Dec3Box) Size() uint64 {
 		if es.NumDepSub > 0 {
 			size += 1
 		}
+	}
+	if b.JOCComplexity > 0 {
+		size += 2
 	}
 	size += len(b.Reserved)
 	return uint64(size)
@@ -166,6 +176,9 @@ func (b *Dec3Box) EncodeSW(sw bits.SliceWriter) error {
 			sw.WriteBits(0, 1) // Reserved 0d
 		}
 	}
+	if b.JOCComplexity > 0 {
+		sw.WriteBytes([]byte{0x01, b.JOCComplexity})
+	}
 	if len(b.Reserved) > 0 {
 		sw.WriteBytes(b.Reserved)
 	}
@@ -179,6 +192,9 @@ func (b *Dec3Box) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - sampleRateCode=%d => sampleRate=%d", fscod, AC3SampleRates[fscod])
 	nrChannels, chanmap := b.ChannelInfo()
 	bd.write(" - nrChannels=%d, chanmap=%04x", nrChannels, chanmap)
+	if b.JOCComplexity > 0 {
+		bd.write(" - JOC complexity=%d", b.JOCComplexity)
+	}
 	bd.write(" - nrSubstreams=%d", len(b.EC3Subs))
 	for i, es := range b.EC3Subs {
 		bd.write("   - %d fscod=%d bsid=%d asvc=%d bsmod=%d acmod=%d lfeon=%d num_dep_sub=%d chan_loc=%x",
