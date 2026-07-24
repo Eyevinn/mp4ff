@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Dec3Box.JOCComplexity` from the JOC (Joint Object Coding) extension of the `dec3` box
+  (ETSI TS 103 420 C.3) to detect Dolby Atmos in E-AC-3 tracks
 - `avc.CreateSEINalu` and `hevc.CreateSEINalu` to build a full SEI NAL unit (codec
   NAL header + EBSP payload) from `sei.SEIMessage` values; the encode-side inverse of
   `ParseSEINalu`
