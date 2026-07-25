@@ -1,6 +1,7 @@
 package mp4_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"os"
 	"testing"
@@ -139,5 +140,44 @@ func TestAvc1WithAvcCTrailingBytes(t *testing.T) {
 	}
 	if len(decoded.TrailingBytes) != 0 {
 		t.Errorf("sample entry should have no trailing bytes, got %d", len(decoded.TrailingBytes))
+	}
+}
+
+func TestAvc1WithTooLongCompressorNameLength(t *testing.T) {
+	sps1, err := hex.DecodeString(sps1nalu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pps1, err := hex.DecodeString(pps1nalu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	avcC, err := mp4.CreateAvcC([][]byte{sps1}, [][]byte{pps1}, true /* includePS */)
+	if err != nil {
+		t.Fatal(err)
+	}
+	avc1 := mp4.CreateVisualSampleEntryBox("avc1", 1280, 720, avcC)
+	btrt := &mp4.BtrtBox{BufferSizeDB: 1536, MaxBitrate: 2000000, AvgBitrate: 1500000}
+	avc1.AddChild(btrt)
+	var buf bytes.Buffer
+	if err := avc1.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	data := buf.Bytes()
+	data[50] = 0xc8 // compressorname length byte (box-relative offset 50)
+
+	box, err := mp4.DecodeBox(0, bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("decoding with an oversized compressor name length: %v", err)
+	}
+	decoded := box.(*mp4.VisualSampleEntryBox)
+	if len(decoded.CompressorName) != 31 {
+		t.Errorf("expected compressor name clamped to 31 bytes, got %d", len(decoded.CompressorName))
+	}
+	if decoded.AvcC == nil {
+		t.Fatal("expected decoded avcC child")
+	}
+	if decoded.Btrt == nil {
+		t.Fatal("expected decoded btrt child")
 	}
 }
