@@ -17,6 +17,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tkhd: the transformation matrix is parsed into `TkhdBox.Matrix` and preserved
   on encode, so rotation metadata survives round trips; a zero-value `Matrix`
   still encodes as the unity matrix. New helper `mp4.UnityMatrix()`
+- AV1 metadata OBUs in the `av1` package, in reusable layers: `MetadataOBU`
+  (`metadata_type` + payload) with `ParseMetadataOBU`, `ParseMetadataOBUFromOBU`,
+  `Encode` and `Size`, handling the mandatory `trailing_bits` and the reverse scan
+  for the last non-zero payload byte (AV1 spec 6.7.1), and `MetadataType` constants
+  for HDR CLL/MDCV, scalability, ITU-T T.35 and timecode. A payload that is not
+  byte-aligned shares its last byte with `trailing_bits`; `PayloadHasTrailingBits`
+  marks it so that `Encode` does not add a second `trailing_one_bit`
+- `av1.ITUTT35` for the `metadata_itu_t_t35` body (country code, its `0xff`
+  extension byte, and payload) with `ParseITUTT35`, `Encode`, `Size` and
+  `MetadataOBU`; it carries CTA-608 captions as well as HDR10+
+- CTA-608 closed captions in AV1: `av1.CreateCTA608MetadataOBU` builds a complete
+  caption metadata OBU from a `cc_data()` structure and `av1.ExtractCTA608` reads the
+  field 1 and field 2 byte pairs back from the OBUs of a temporal unit, plus
+  `ITUTT35.ITUData` and `ITUTT35.CTA608CCData`. The payload is identical to the
+  AVC/HEVC SEI one, so only the envelope differs between the codecs
+- `sei.CreateCTA608SEIMessage` builds a CTA-608 `user_data_registered_itu_t_t35`
+  (type 4) SEI message from a `cc_data()` structure, the encode-side counterpart of
+  `sei.ExtractCTA608sei`. Wrap it with `avc.CreateSEINalu` or `hevc.CreateSEINalu`.
+  Supporting helpers: `sei.CTA608ITUData`, `sei.CreateCTA608Payload`,
+  `sei.ITUData.Encode` and `sei.ITUDataSize`
+
+### Changed
+
+- CEA-608 is renamed to its current designation CTA-608 in the `sei` API:
+  `sei.CEA608sei`, `sei.ParseCEA608`, `sei.ExtractCEA608sei` and
+  `sei.ITUData.IsCEA608` become `sei.CTA608sei`, `sei.ParseCTA608`,
+  `sei.ExtractCTA608sei` and `sei.ITUData.IsCTA608`. This is a breaking change; the
+  old names are gone
 
 ### Fixed
 
@@ -27,9 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Panic in `hevc.ParseSEINalu` and `avc.ParseSEINalu` on NAL units shorter than
   the codec's NAL unit header (e.g. an empty or single-byte HEVC SEI NALU);
   such input now returns `ErrNotSEINalu`
-- `sei.DecodeUserDataRegisteredSEI` and `sei.ParseCEA608` no longer panic on a
-  short/truncated type-4 (user_data_registered_itu_t_t35) SEI payload; they return
-  an error that propagates through `avc`/`hevc.ParseSEINalu`
+- `sei.DecodeUserDataRegisteredSEI`, `sei.ExtractCTA608sei` and `sei.ParseCTA608` no
+  longer panic on a short/truncated type-4 (user_data_registered_itu_t_t35) SEI
+  payload; they return an error that propagates through `avc`/`hevc.ParseSEINalu`
 
 ## [0.54.0] - 2026-07-13
 
