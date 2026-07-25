@@ -280,7 +280,7 @@ func TestTimeCodeSEI(t *testing.T) {
 const (
 	// The following examples are without NAL Unit header
 	sei0Hex      = "0007810f1c0050744080"
-	seiCEA608Hex = "0434b500314741393403cefffc9420fc94aefc9162fce56efc67bafc91b9" +
+	seiCTA608Hex = "0434b500314741393403cefffc9420fc94aefc9162fce56efc67bafc91b9" +
 		"fcb0b0fcbab0fcb0bafcb031fcbab0fcb080fc942cfc942f80"
 	seiAVCMulti             = "0001c001061b0509b8000080"
 	seiAVCPicTiming         = "010f00011a00000300090c2e268a000003004080"
@@ -334,8 +334,8 @@ func TestParseSEI(t *testing.T) {
 			sei.ErrRbspTrailingBitsMissing,
 		},
 		{"Type 0", sei.AVC, sei0Hex, nil, []uint{0}, []string{`SEIBufferingPeriodType (0), size=7, "810f1c00507440"`}, nil},
-		{"CEA-608", sei.AVC, seiCEA608Hex, nil, []uint{4},
-			[]string{`SEI type 4 CEA-608, size=52, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`}, nil},
+		{"CTA-608", sei.AVC, seiCTA608Hex, nil, []uint{4},
+			[]string{`SEI type 4 CTA-608, size=52, field1: "942094ae9162e56e67ba91b9b0b0bab0b0bab031bab0b080942c942f", field2: ""`}, nil},
 		{"HEVC multi", sei.HEVC, seiHEVCMulti, nil, []uint{0, 1, 136},
 			[]string{
 				`SEIBufferingPeriodType (0), size=10, "80000000403dc017a690"`,
