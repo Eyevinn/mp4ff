@@ -28,6 +28,7 @@ type DecConfRec struct {
 	NumSPSExt            byte
 	NoTrailingInfo       bool // To handle strange cases where trailing info is missing
 	SkipBytes            int
+	TrailingBytes        []byte // Unknown bytes after the trailing info, preserved on encode
 }
 
 // CreateAVCDecConfRec - extract information from sps and insert sps, pps if includePS set
@@ -161,6 +162,9 @@ func DecodeAVCDecConfRec(data []byte) (DecConfRec, error) {
 		if adcr.NumSPSExt != 0 {
 			return adcr, ErrCannotParseAVCExtension
 		}
+		if pos+4 < len(data) {
+			adcr.TrailingBytes = data[pos+4:]
+		}
 	}
 
 	return adcr, nil
@@ -184,6 +188,7 @@ func (a *DecConfRec) Size() uint64 {
 		}
 	}
 	totalSize += a.SkipBytes
+	totalSize += len(a.TrailingBytes)
 	return uint64(totalSize)
 }
 
@@ -230,13 +235,14 @@ func (a *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
 	default: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
 		if a.NoTrailingInfo { // Strange content, but consistent with Size()
 			sw.WriteZeroBytes(a.SkipBytes)
-			return sw.AccError()
+			break
 		}
 		sw.WriteUint8(0xfc | a.ChromaFormat)
 		sw.WriteUint8(0xf8 | a.BitDepthLumaMinus1)
 		sw.WriteUint8(0xf8 | a.BitDepthChromaMinus1)
 		sw.WriteUint8(a.NumSPSExt)
 	}
+	sw.WriteBytes(a.TrailingBytes)
 
 	return sw.AccError()
 }

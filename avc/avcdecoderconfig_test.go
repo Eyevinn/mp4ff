@@ -165,3 +165,44 @@ func TestAvcDecoderConfigRecordProfile244(t *testing.T) {
 			hex.EncodeToString(enc.Bytes()), hex.EncodeToString(byteData))
 	}
 }
+
+func TestAvcDecoderConfigRecordTrailingBytes(t *testing.T) {
+	// Extra bytes after the trailing info as written by some muxers
+	cases := []struct {
+		name     string
+		trailing string
+	}{
+		{"single zero byte", "00"},
+		{"encoder options blob", hex.EncodeToString([]byte("x264 - options: cabac=1 ref=2"))},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			byteData, _ := hex.DecodeString(avcDecoderConfigRecord + c.trailing)
+			trailing, _ := hex.DecodeString(c.trailing)
+
+			got, err := DecodeAVCDecConfRec(byteData)
+			if err != nil {
+				t.Fatalf("Error parsing AVCDecoderConfigurationRecord: %v", err)
+			}
+			if !bytes.Equal(got.TrailingBytes, trailing) {
+				t.Errorf("TrailingBytes = %x, want %x", got.TrailingBytes, trailing)
+			}
+			if got.NoTrailingInfo {
+				t.Error("NoTrailingInfo set although trailing info was parsed")
+			}
+			if got.Size() != uint64(len(byteData)) {
+				t.Errorf("Size() = %d, but the record is %d bytes", got.Size(), len(byteData))
+			}
+
+			enc := bytes.Buffer{}
+			err = got.Encode(&enc)
+			if err != nil {
+				t.Fatalf("Error encoding AVCDecoderConfigurationRecord: %v", err)
+			}
+			if !bytes.Equal(enc.Bytes(), byteData) {
+				t.Errorf("encoded record differs from input:\n got %s\nwant %s",
+					hex.EncodeToString(enc.Bytes()), hex.EncodeToString(byteData))
+			}
+		})
+	}
+}

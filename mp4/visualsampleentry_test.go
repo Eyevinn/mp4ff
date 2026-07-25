@@ -105,3 +105,39 @@ func TestAvc1WithTrailingBytes(t *testing.T) {
 	}
 	boxDiffAfterEncodeAndDecode(t, avc1)
 }
+
+func TestAvc1WithAvcCTrailingBytes(t *testing.T) {
+	// High-profile SPS so that the avcC carries trailing info followed by an extra byte
+	sps1, err := hex.DecodeString("6764001eacd940a02ff9610000030001000003003c8f162d96")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pps1, err := hex.DecodeString("68ebecb22c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	avcC, err := mp4.CreateAvcC([][]byte{sps1}, [][]byte{pps1}, true /* includePS */)
+	if err != nil {
+		t.Fatal(err)
+	}
+	avcC.TrailingBytes = []byte{0}
+	avc1 := mp4.CreateVisualSampleEntryBox("avc1", 1280, 720, avcC)
+	btrt := &mp4.BtrtBox{BufferSizeDB: 1536, MaxBitrate: 2000000, AvgBitrate: 1500000}
+	avc1.AddChild(btrt)
+
+	boxDiffAfterEncodeAndDecode(t, avc1)
+
+	decoded := boxAfterEncodeAndDecode(t, avc1).(*mp4.VisualSampleEntryBox)
+	if decoded.AvcC == nil {
+		t.Fatal("expected decoded avcC child")
+	}
+	if len(decoded.AvcC.TrailingBytes) != 1 {
+		t.Errorf("expected 1 trailing byte in avcC, got %d", len(decoded.AvcC.TrailingBytes))
+	}
+	if decoded.Btrt == nil {
+		t.Fatal("expected decoded btrt child after the avcC")
+	}
+	if len(decoded.TrailingBytes) != 0 {
+		t.Errorf("sample entry should have no trailing bytes, got %d", len(decoded.TrailingBytes))
+	}
+}
