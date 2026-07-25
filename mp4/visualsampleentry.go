@@ -142,7 +142,8 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	b.FrameCount = sr.ReadUint16() // Should be 1
 	compressorNameLength := sr.ReadUint8()
 	if compressorNameLength > 31 {
-		return nil, fmt.Errorf("too long compressor name length")
+		// Invalid, but occurs. Clamp like ffmpeg does. The field is 32 bytes in any case.
+		compressorNameLength = 31
 	}
 	b.CompressorName = sr.ReadFixedLengthString(int(compressorNameLength))
 	sr.SkipBytes(int(31 - compressorNameLength))

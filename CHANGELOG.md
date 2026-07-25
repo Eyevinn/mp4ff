@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   66/77/88, symmetric with `Size()` and decode (e.g. profile 244)
 - unknown bytes after the avcC trailing info are preserved through decode/encode
   in the new `DecConfRec.TrailingBytes` field instead of being dropped
+- visual sample entries with a too long compressor name length byte are decoded
+  by clamping the length to 31 like ffmpeg does, instead of failing
 - Panic in `hevc.ParseSEINalu` and `avc.ParseSEINalu` on NAL units shorter than
   the codec's NAL unit header (e.g. an empty or single-byte HEVC SEI NALU);
   such input now returns `ErrNotSEINalu`
