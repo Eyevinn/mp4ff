@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `avc.CreateSEINalu` and `hevc.CreateSEINalu` to build a full SEI NAL unit (codec
   NAL header + EBSP payload) from `sei.SEIMessage` values; the encode-side inverse of
   `ParseSEINalu`
+- tkhd: the transformation matrix is parsed into `TkhdBox.Matrix` and preserved
+  on encode, so rotation metadata survives round trips; a zero-value `Matrix`
+  still encodes as the unity matrix. New helper `mp4.UnityMatrix()`
 
 ### Fixed
 

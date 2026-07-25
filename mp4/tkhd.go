@@ -24,7 +24,15 @@ type TkhdBox struct {
 	Layer            int16
 	AlternateGroup   int16 // should be int16
 	Volume           Fixed16
-	Width, Height    Fixed32
+	// Matrix - transformation matrix {a, b, u, c, d, v, x, y, w} (16.16 fixed point, u/v/w 2.30).
+	// The zero value is encoded as the unity matrix.
+	Matrix        [9]int32
+	Width, Height Fixed32
+}
+
+// UnityMatrix - the identity transformation matrix according to ISO/IEC 14496-12 Section 6.2.2
+func UnityMatrix() [9]int32 {
+	return [9]int32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000}
 }
 
 // CreateTkhd - create tkhd box with common settings
@@ -33,6 +41,7 @@ func CreateTkhd() *TkhdBox {
 		Version: 0,
 		Flags:   0x000007,      // Enabled, inMovie, inPreview set
 		TrackID: DefaultTrakID, // Typically just have one track
+		Matrix:  UnityMatrix(),
 	}
 }
 
@@ -75,7 +84,9 @@ func DecodeTkhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	t.AlternateGroup = sr.ReadInt16()
 	t.Volume = Fixed16(sr.ReadInt16())
 	sr.SkipBytes(2)
-	sr.SkipBytes(36) // 3x3 matrixdata
+	for i := range t.Matrix {
+		t.Matrix[i] = sr.ReadInt32()
+	}
 	t.Width = Fixed32(sr.ReadUint32())
 	t.Height = Fixed32(sr.ReadUint32())
 
@@ -131,8 +142,14 @@ func (b *TkhdBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteInt16(b.Layer)
 	sw.WriteInt16(b.AlternateGroup)
 	sw.WriteUint16(uint16(b.Volume))
-	sw.WriteZeroBytes(2)  // Reserved
-	sw.WriteUnityMatrix() // unity matrix according to 8.3.2.2
+	sw.WriteZeroBytes(2) // Reserved
+	matrix := b.Matrix
+	if matrix == ([9]int32{}) {
+		matrix = UnityMatrix() // for backwards compatibility, according to 8.3.2.2
+	}
+	for _, v := range matrix {
+		sw.WriteInt32(v)
+	}
 	sw.WriteUint32(uint32(b.Width))
 	sw.WriteUint32(uint32(b.Height))
 
