@@ -77,11 +77,11 @@ func TestGetChannelInfoDec3(t *testing.T) {
 
 func TestDec3JOCComplexity(t *testing.T) {
 	testCases := []struct {
-		name              string
-		hexIn             string
-		wantedJOC         uint8
-		wantedNrChannels  int
-		wantedChannelMap  uint16
+		name             string
+		hexIn            string
+		wantedJOC        uint8
+		wantedNrChannels int
+		wantedChannelMap uint16
 	}{
 		{
 			name:             "5.1 with JOC complexity 16",
