@@ -139,3 +139,29 @@ func TestCreateAVCDecConfRec(t *testing.T) {
 		t.Error("Error creating AVCDecoderConfigurationRecord")
 	}
 }
+
+func TestAvcDecoderConfigRecordProfile244(t *testing.T) {
+	// Same record as in TestAvcDecoderConfigRecord, but with profile 244
+	byteData, _ := hex.DecodeString("01f4001effe100196764001eacd940a02ff9610000030001000003003c8f162d9601000568ebecb22cfdf8f800")
+
+	got, err := DecodeAVCDecConfRec(byteData)
+	if err != nil {
+		t.Error("Error parsing AVCDecoderConfigurationRecord")
+	}
+	if got.AVCProfileIndication != 244 {
+		t.Errorf("got profile %d instead of 244", got.AVCProfileIndication)
+	}
+	if got.Size() != uint64(len(byteData)) {
+		t.Errorf("Size() = %d, but the record is %d bytes", got.Size(), len(byteData))
+	}
+
+	enc := bytes.Buffer{}
+	err = got.Encode(&enc)
+	if err != nil {
+		t.Error("Error encoding AVCDecoderConfigurationRecord")
+	}
+	if !bytes.Equal(enc.Bytes(), byteData) {
+		t.Errorf("encoded record differs from input:\n got %s\nwant %s",
+			hex.EncodeToString(enc.Bytes()), hex.EncodeToString(byteData))
+	}
+}

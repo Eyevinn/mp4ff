@@ -227,7 +227,7 @@ func (a *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
 		if a.NoTrailingInfo {
 			sw.WriteZeroBytes(a.SkipBytes)
 		}
-	case 100, 110, 122, 144: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
+	default: // From ISO/IEC 14496-15 2017 Section 5.3.3.1.2
 		if a.NoTrailingInfo { // Strange content, but consistent with Size()
 			sw.WriteZeroBytes(a.SkipBytes)
 			return sw.AccError()
@@ -236,8 +236,6 @@ func (a *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
 		sw.WriteUint8(0xf8 | a.BitDepthLumaMinus1)
 		sw.WriteUint8(0xf8 | a.BitDepthChromaMinus1)
 		sw.WriteUint8(a.NumSPSExt)
-	default:
-		//Nothing more to write
 	}
 
 	return sw.AccError()
