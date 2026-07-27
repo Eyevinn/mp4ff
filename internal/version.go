@@ -15,7 +15,9 @@ var (
 func GetVersion() string {
 	seconds, _ := strconv.Atoi(commitDate)
 	if commitDate != "" {
-		t := time.Unix(int64(seconds), 0)
+		// UTC so that the reported date is the same everywhere. In a local time zone,
+		// a commit made near midnight UTC would be reported as the neighbouring day.
+		t := time.Unix(int64(seconds), 0).UTC()
 		return fmt.Sprintf("%s, date: %s", commitVersion, t.Format("2006-01-02"))
 	}
 	return commitVersion

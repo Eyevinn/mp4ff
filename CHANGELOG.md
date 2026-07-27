@@ -65,6 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sei.DecodeUserDataRegisteredSEI`, `sei.ExtractCTA608sei` and `sei.ParseCTA608` no
   longer panic on a short/truncated type-4 (user_data_registered_itu_t_t35) SEI
   payload; they return an error that propagates through `avc`/`hevc.ParseSEINalu`
+- the build date in the `--version` output of the command line tools is rendered in
+  UTC, so that a commit made close to midnight is no longer reported as the
+  neighbouring day for users west of UTC
 
 ## [0.54.0] - 2026-07-13
 
