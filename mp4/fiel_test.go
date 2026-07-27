@@ -7,9 +7,15 @@ import (
 )
 
 func TestFiel(t *testing.T) {
-	fiel := &mp4.FielBox{
+	progressive := &mp4.FielBox{
 		FieldCount:    1,
 		FieldOrdering: 0,
 	}
-	boxDiffAfterEncodeAndDecode(t, fiel)
+	boxDiffAfterEncodeAndDecode(t, progressive)
+
+	interlaced := &mp4.FielBox{
+		FieldCount:    2,
+		FieldOrdering: 14,
+	}
+	boxDiffAfterEncodeAndDecode(t, interlaced)
 }

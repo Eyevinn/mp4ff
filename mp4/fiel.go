@@ -7,10 +7,21 @@ import (
 )
 
 // FielBox - Field/frame information box (fiel)
-// Defined in QuickTime File Format as video sample description extension.
+// Defined in QuickTime File Format as video sample description extension,
+// with interpretation details in Technical Note TN2162 [tn2162].
 // Used in mjpg sample entries produced by Apple mediafilesegmenter.
+//
+// [tn2162]: https://developer.apple.com/library/archive/technotes/tn2162/_index.html
 type FielBox struct {
-	FieldCount    byte // 1 = progressive, 2 = interlaced
+	// FieldCount is 1 for progressive scan and 2 for 2:1 interlaced video
+	FieldCount byte
+	// FieldOrdering describes which field is temporally first and how the two
+	// fields of an interlaced frame are laid out in the buffer:
+	//	0 = unknown ordering (required when FieldCount is 1)
+	//	1 = top field first, fields stored separately in temporal order
+	//	6 = bottom field first, fields stored separately in temporal order
+	//	9 = top field first, field lines woven together in spatial order
+	//	14 = bottom field first, field lines woven together in spatial order
 	FieldOrdering byte
 }
 
@@ -67,6 +78,38 @@ func (b *FielBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box-specific information
 func (b *FielBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
-	bd.write(" - fieldCount: %d, fieldOrdering: %d", b.FieldCount, b.FieldOrdering)
+	bd.write(" - fieldCount: %d (%s), fieldOrdering: %d (%s)",
+		b.FieldCount, fieldCountDescription(b.FieldCount),
+		b.FieldOrdering, fieldOrderingDescription(b.FieldOrdering))
 	return bd.err
+}
+
+// fieldCountDescription - verbal interpretation of fieldCount
+func fieldCountDescription(fieldCount byte) string {
+	switch fieldCount {
+	case 1:
+		return "progressive"
+	case 2:
+		return "interlaced"
+	default:
+		return "invalid"
+	}
+}
+
+// fieldOrderingDescription - verbal interpretation of fieldOrdering
+func fieldOrderingDescription(fieldOrdering byte) string {
+	switch fieldOrdering {
+	case 0:
+		return "unknown"
+	case 1:
+		return "top field first, fields stored separately"
+	case 6:
+		return "bottom field first, fields stored separately"
+	case 9:
+		return "top field first, fields woven together"
+	case 14:
+		return "bottom field first, fields woven together"
+	default:
+		return "invalid"
+	}
 }
