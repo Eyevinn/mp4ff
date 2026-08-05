@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- QuickTime sound sample description versions 1 and 2 are parsed into
+  `AudioSampleEntryBox.QuickTimeVersion`, `QuickTimeV1`, and `QuickTimeV2`,
+  preserved on encode (along with the QuickTime revision level, vendor, and
+  `CompressionID`), and the child boxes are read at the version-dependent
+  offset. `Info()` reports the effective channel count, sample size, and
+  sample rate from the version 2 struct
+
+### Changed
+
+- audio sample entries whose reserved bytes claim a QuickTime version whose
+  layout does not parse fall back to the plain ISO interpretation, so
+  previously decodable files keep decoding; the overlaid QuickTime bytes
+  (version, revision level, vendor) are now preserved on encode instead of
+  being zeroed
+- `DecodeAudioSampleEntry` now errors on bodies too short for the fixed
+  fields, and encoding errors on inconsistent
+  `QuickTimeVersion`/`QuickTimeV1`/`QuickTimeV2` combinations
+
 ### Fixed
 
 - `MdatBox.HeaderSize` accounts for large lazy payloads, so trun data
