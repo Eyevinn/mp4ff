@@ -54,6 +54,20 @@ func TestDecodeDescriptor(t *testing.T) {
 	}
 }
 
+func TestDecoderConfigStreamTypeAccessors(t *testing.T) {
+	dd := mp4.DecoderConfigDescriptor{StreamType: 0x15} // 0x5 << 2 + 0x01 (audioType + reserved)
+	if dd.StreamTypeValue() != 5 {
+		t.Errorf("got streamType %d, wanted 5", dd.StreamTypeValue())
+	}
+	if dd.UpStream() {
+		t.Error("upStream flag must not be set for 0x15")
+	}
+	dd.StreamType = 0x4<<2 | 0x02 | 0x01 // visual, upStream set
+	if dd.StreamTypeValue() != 4 || !dd.UpStream() {
+		t.Errorf("got streamType %d upStream %t, wanted 4 true", dd.StreamTypeValue(), dd.UpStream())
+	}
+}
+
 func TestDescriptorInfo(t *testing.T) {
 	cases := []struct {
 		desc       string
