@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   packed streamType byte, and named constants cover the common stream types
   (ISO/IEC 14496-1 Table 6) and object type indications (mp4ra.org), so
   callers no longer need magic numbers for the esds vocabulary
+- `aac.DecodeAudioSpecificConfigHeader` parses the leading
+  AudioSpecificConfig fields (object type including the 31-escape, base
+  sampling frequency, channel configuration) for every audio object type,
+  not just the AAC-LC and HE-AAC types the full decoder supports
 
 ### Changed
 

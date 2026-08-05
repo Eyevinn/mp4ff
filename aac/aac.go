@@ -73,6 +73,41 @@ var ReverseFrequencies = map[int]byte{
 8-15: Reserved
 */
 
+// AudioSpecificConfigHeader - the leading fields shared by every audio
+// object type in an AudioSpecificConfig (ISO/IEC 14496-3 Table 1.15).
+type AudioSpecificConfigHeader struct {
+	ObjectType           byte
+	ChannelConfiguration byte
+	SamplingFrequency    int
+}
+
+// DecodeAudioSpecificConfigHeader decodes the leading AudioSpecificConfig
+// fields and stops before the object-type-specific payload, so it works for
+// object types that DecodeAudioSpecificConfig does not support. The sampling
+// frequency is the base frequency, without any HE-AAC extension.
+func DecodeAudioSpecificConfigHeader(r io.Reader) (*AudioSpecificConfigHeader, error) {
+	br := bits.NewReader(r)
+	hdr := &AudioSpecificConfigHeader{}
+	objectType := br.Read(5)
+	if objectType == 31 {
+		objectType = 32 + br.Read(6)
+	}
+	hdr.ObjectType = byte(objectType)
+	frequency, ok := getFrequency(br)
+	if !ok {
+		if br.AccError() != nil {
+			return nil, fmt.Errorf("audio specific config too short: %w", br.AccError())
+		}
+		return nil, fmt.Errorf("strange frequency index")
+	}
+	hdr.SamplingFrequency = frequency
+	hdr.ChannelConfiguration = byte(br.Read(4))
+	if br.AccError() != nil {
+		return nil, fmt.Errorf("audio specific config too short: %w", br.AccError())
+	}
+	return hdr, nil
+}
+
 // DecodeAudioSpecificConfig -
 func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
 	br := bits.NewReader(r)
