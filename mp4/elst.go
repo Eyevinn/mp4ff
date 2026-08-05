@@ -23,6 +23,18 @@ type ElstEntry struct {
 	MediaRateFraction int16
 }
 
+// MediaRateFixed32 - the media rate as one signed 16.16 fixed-point number (65536 is the normal rate 1.0).
+// The return type is a plain int32 rather than Fixed32, since Fixed32 is unsigned and the media rate is signed.
+func (e ElstEntry) MediaRateFixed32() int32 {
+	return int32(e.MediaRateInteger)<<16 | int32(uint16(e.MediaRateFraction))
+}
+
+// SetMediaRateFixed32 - set the media rate from a signed 16.16 fixed-point number.
+func (e *ElstEntry) SetMediaRateFixed32(rate int32) {
+	e.MediaRateInteger = int16(rate >> 16)
+	e.MediaRateFraction = int16(uint16(rate))
+}
+
 // DecodeElst - box-specific decode
 func DecodeElst(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
