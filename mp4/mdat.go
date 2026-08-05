@@ -69,21 +69,21 @@ func (m *MdatBox) Type() string {
 	return "mdat"
 }
 
-// Size - return calculated size, depending on largeSize set or not
-func (m *MdatBox) Size() uint64 {
-	dataSize := m.DataLength()
-
+// payloadSize - the mdat payload size, in memory or lazy
+func (m *MdatBox) payloadSize() uint64 {
 	if m.lazyDataSize > 0 {
-		dataSize = m.lazyDataSize
+		return m.lazyDataSize
 	}
-	if dataSize > maxNormalPayloadSize {
+	return m.DataLength()
+}
+
+// Size - return calculated size, depending on largeSize set or not.
+// Sets the LargeSize flag if the payload requires a large header.
+func (m *MdatBox) Size() uint64 {
+	if m.payloadSize() > maxNormalPayloadSize {
 		m.LargeSize = true
 	}
-	size := boxHeaderSize + dataSize
-	if m.LargeSize {
-		size += 8
-	}
-	return size
+	return m.HeaderSize() + m.payloadSize()
 }
 
 // AddSampleData -  a sample data to an mdat box
@@ -163,13 +163,16 @@ func (m *MdatBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// HeaderSize - 8 or 16 (bytes) depending o whether largeSize is used
+// HeaderSize - 8 or 16 (bytes) depending on whether largeSize is used.
+// A large header is reported whenever the (possibly lazy) payload needs one,
+// so the value is right even before Size() or Encode() has flipped the
+// LargeSize flag. The flag is not mutated. This matters for
+// Fragment.SetTrunDataOffsets, which reads the header size before encoding.
 func (m *MdatBox) HeaderSize() uint64 {
-	hSize := boxHeaderSize
-	if m.LargeSize {
-		hSize += largeSizeLen
+	if m.LargeSize || m.payloadSize() > maxNormalPayloadSize {
+		return boxHeaderSize + largeSizeLen
 	}
-	return uint64(hSize)
+	return boxHeaderSize
 }
 
 // PayloadAbsoluteOffset - position of mdat payload start (works after header)

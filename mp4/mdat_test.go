@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"math"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -204,5 +205,28 @@ func TestAddParts(t *testing.T) {
 	}
 	if !bytes.Equal(outBuf.Bytes(), outBufExp.Bytes()) {
 		t.Errorf("expected %v, got %v", outBufExp.Bytes(), outBuf.Bytes())
+	}
+}
+
+func TestMdatHeaderSizeForLargeLazyPayload(t *testing.T) {
+	cases := []struct {
+		lazyDataSize   uint64
+		wantHeaderSize uint64
+	}{
+		{1, 8},
+		{math.MaxUint32 - 8, 8},  // largest payload where size fits 32 bits
+		{math.MaxUint32 - 7, 16}, // one byte more needs the large header
+		{1 << 32, 16},
+	}
+	for _, c := range cases {
+		mdat := &mp4.MdatBox{}
+		mdat.SetLazyDataSize(c.lazyDataSize)
+		// HeaderSize must be right before Size() has flipped the LargeSize flag.
+		if got := mdat.HeaderSize(); got != c.wantHeaderSize {
+			t.Errorf("lazy payload %d: got header size %d, wanted %d", c.lazyDataSize, got, c.wantHeaderSize)
+		}
+		if size := mdat.Size(); size != c.wantHeaderSize+c.lazyDataSize {
+			t.Errorf("lazy payload %d: size %d does not match header size %d", c.lazyDataSize, size, c.wantHeaderSize)
+		}
 	}
 }

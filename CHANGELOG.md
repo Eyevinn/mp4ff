@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `MdatBox.HeaderSize` accounts for large lazy payloads, so trun data
+  offsets are no longer 8 bytes short for fragments above 4 GiB
+
 ## [0.55.0] - 2026-07-27
 
 ### Added
