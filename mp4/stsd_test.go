@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"os"
 	"testing"
@@ -149,6 +150,50 @@ func TestStsdAC4(t *testing.T) {
 	}
 	if stsd.AC4.Type() != "ac-4" {
 		t.Errorf("AC4 type is %s, expected ac-4", stsd.AC4.Type())
+	}
+}
+
+// TestStsdTruncatedLegacyAudioEntryFallsBackToUnknown pins that a registered
+// legacy QuickTime name whose body does not parse as a sound sample
+// description (here a truncated .mp3 entry, which decodes as UnknownBox)
+// still lands in Children without being typed as StsdBox.Mp3, on both
+// decode paths.
+func TestStsdTruncatedLegacyAudioEntryFallsBackToUnknown(t *testing.T) {
+	entry := quickTimeSoundDescriptionBytes(".mp3", 0, nil, nil)[:20]
+	binary.BigEndian.PutUint32(entry[:4], uint32(len(entry)))
+	data := make([]byte, 0, 16+len(entry))
+	data = binary.BigEndian.AppendUint32(data, uint32(16+len(entry)))
+	data = append(data, []byte("stsd")...)
+	data = binary.BigEndian.AppendUint32(data, 0) // version + flags
+	data = binary.BigEndian.AppendUint32(data, 1) // entry count
+	data = append(data, entry...)
+	decodes := []struct {
+		name   string
+		decode func() (mp4.Box, error)
+	}{
+		{"DecodeBox", func() (mp4.Box, error) { return mp4.DecodeBox(0, bytes.NewReader(data)) }},
+		{"DecodeBoxSR", func() (mp4.Box, error) { return mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data)) }},
+	}
+	for _, d := range decodes {
+		t.Run(d.name, func(t *testing.T) {
+			box, err := d.decode()
+			if err != nil {
+				t.Fatal(err)
+			}
+			stsd, ok := box.(*mp4.StsdBox)
+			if !ok {
+				t.Fatalf("Expected StsdBox, got %T", box)
+			}
+			if len(stsd.Children) != 1 {
+				t.Fatalf("Expected one child, got %d", len(stsd.Children))
+			}
+			if _, isUnknown := stsd.Children[0].(*mp4.UnknownBox); !isUnknown {
+				t.Errorf("truncated .mp3 entry decoded as %T, wanted UnknownBox", stsd.Children[0])
+			}
+			if stsd.Mp3 != nil {
+				t.Error("StsdBox.Mp3 is set, wanted nil for an UnknownBox fallback child")
+			}
+		})
 	}
 }
 

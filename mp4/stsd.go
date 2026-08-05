@@ -40,6 +40,12 @@ type StsdBox struct {
 	Jpeg *VisualSampleEntryBox
 	// Mp4a is a pointer to a box with name mp4a
 	Mp4a *AudioSampleEntryBox
+	// Mp3 is a pointer to a box with name .mp3 (QuickTime MP3 audio)
+	Mp3 *AudioSampleEntryBox
+	// QtPcm is a pointer to a box with name lpcm (modern, version 2 style), or
+	// twos/sowt (legacy big/little-endian 16-bit PCM) — QuickTime PCM audio.
+	// Check Type() to tell which one it is.
+	QtPcm *AudioSampleEntryBox
 	// AC3 is a pointer to a box with name ac-3
 	AC3 *AudioSampleEntryBox
 	// EC3 is a pointer to a box with name ec-3
@@ -93,6 +99,16 @@ func (s *StsdBox) AddChild(box Box) {
 		s.Avs3 = box.(*VisualSampleEntryBox)
 	case "mp4a":
 		s.Mp4a = box.(*AudioSampleEntryBox)
+	case ".mp3":
+		// A legacy body that does not parse as a sound sample description
+		// falls back to UnknownBox; it then only lives in Children.
+		if entry, ok := box.(*AudioSampleEntryBox); ok {
+			s.Mp3 = entry
+		}
+	case "lpcm", "twos", "sowt":
+		if entry, ok := box.(*AudioSampleEntryBox); ok {
+			s.QtPcm = entry
+		}
 	case "ac-3":
 		s.AC3 = box.(*AudioSampleEntryBox)
 	case "ec-3":
