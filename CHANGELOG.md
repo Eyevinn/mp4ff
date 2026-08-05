@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CompressionID`), and the child boxes are read at the version-dependent
   offset. `Info()` reports the effective channel count, sample size, and
   sample rate from the version 2 struct
+- `DecoderConfigDescriptor.StreamTypeValue` and `UpStream` decompose the
+  packed streamType byte, and named constants cover the common stream types
+  (ISO/IEC 14496-1 Table 6) and object type indications (mp4ra.org), so
+  callers no longer need magic numbers for the esds vocabulary
 
 ### Changed
 

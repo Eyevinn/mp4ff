@@ -351,6 +351,35 @@ type DecoderConfigDescriptor struct {
 	UnknownData         []byte // Data, probably erroneous, that we don't understand
 }
 
+// Stream types according to ISO/IEC 14496-1 Table 6.
+const (
+	StreamTypeObjectDescriptor byte = 0x01
+	StreamTypeClockReference   byte = 0x02
+	StreamTypeSceneDescription byte = 0x03
+	StreamTypeVisual           byte = 0x04
+	StreamTypeAudio            byte = 0x05
+)
+
+// Object type indications according to mp4ra.org and ISO/IEC 14496-1 Table 5.
+const (
+	ObjectTypeMPEG4Visual byte = 0x20 // Visual ISO/IEC 14496-2
+	ObjectTypeAVC         byte = 0x21 // Visual ISO/IEC 14496-10 (AVC)
+	ObjectTypeHEVC        byte = 0x23 // Visual ISO/IEC 23008-2 (HEVC)
+	ObjectTypeAAC         byte = 0x40 // Audio ISO/IEC 14496-3 (AAC)
+	ObjectTypeMPEG2Audio  byte = 0x69 // Audio ISO/IEC 13818-3
+	ObjectTypeMP3         byte = 0x6b // Audio ISO/IEC 11172-3
+)
+
+// StreamTypeValue - the 6-bit streamType part of the packed StreamType byte.
+func (d *DecoderConfigDescriptor) StreamTypeValue() byte {
+	return d.StreamType >> 2
+}
+
+// UpStream - the upStream bit of the packed StreamType byte.
+func (d *DecoderConfigDescriptor) UpStream() bool {
+	return d.StreamType&0x02 != 0
+}
+
 func exceedsMaxNrBytes(sizeFieldSizeMinus1 byte, size uint64, maxNrBytes int) bool {
 	return 1+uint64(sizeFieldSizeMinus1)+1+size > uint64(maxNrBytes)
 }
@@ -683,8 +712,8 @@ func CreateESDescriptor(decConfig []byte) ESDescriptor {
 	e := ESDescriptor{
 		EsID: 0x01,
 		DecConfigDescriptor: &DecoderConfigDescriptor{
-			ObjectType: 0x40, // Audio ISO/IEC 14496-3,
-			StreamType: 0x15, // 0x5 << 2 + 0x01 (audioType + upstreamFlag + reserved)
+			ObjectType: ObjectTypeAAC,
+			StreamType: StreamTypeAudio<<2 | 0x01, // streamType, upStream=0, reserved=1
 			DecSpecificInfo: &DecSpecificInfoDescriptor{
 				DecConfig: decConfig,
 			},
