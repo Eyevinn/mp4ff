@@ -49,6 +49,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DecodeAudioSampleEntry` now errors on bodies too short for the fixed
   fields, and encoding errors on inconsistent
   `QuickTimeVersion`/`QuickTimeV1`/`QuickTimeV2` combinations
+- The QuickTime audio sample entries `.mp3`, `lpcm`, `twos`, and `sowt`
+  decode as `AudioSampleEntryBox` (reachable as `StsdBox.Mp3` and
+  `StsdBox.QtPcm`) instead of falling through to `UnknownBox`. A body that
+  does not parse as a sound sample description still becomes an
+  `UnknownBox`, so previously decodable files keep decoding; a body that
+  does parse now re-encodes with the same fidelity as `mp4a` (zeroed
+  packet-size bytes, integer sample rate) instead of byte-verbatim. Note
+  that a `.mp3` entry carries no esds; its codec facts live in the sound
+  description fields themselves
 
 ### Fixed
 

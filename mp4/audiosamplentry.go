@@ -286,6 +286,38 @@ func DecodeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReade
 	return decodeAudioSampleEntryFromData(hdr, startPos, data)
 }
 
+// DecodeQuickTimeAudioSampleEntry - decode a legacy QuickTime audio sample
+// entry (.mp3, lpcm, twos, sowt). These names decoded as UnknownBox before
+// they were registered, so a body that does not parse as a sound sample
+// description falls back to UnknownBox instead of failing the file.
+func DecodeQuickTimeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
+	if err != nil {
+		return nil, err
+	}
+	box, err := decodeAudioSampleEntryFromData(hdr, startPos, data)
+	if err != nil {
+		return CreateUnknownBox(hdr.Name, hdr.Size, data), nil
+	}
+	return box, nil
+}
+
+// DecodeQuickTimeAudioSampleEntrySR - decode a legacy QuickTime audio sample
+// entry (.mp3, lpcm, twos, sowt) with UnknownBox fallback.
+func DecodeQuickTimeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	data := sr.ReadBytes(hdr.payloadLen())
+	if sr.AccError() != nil {
+		return nil, sr.AccError()
+	}
+	box, err := decodeAudioSampleEntryFromData(hdr, startPos, data)
+	if err != nil {
+		payload := make([]byte, len(data))
+		copy(payload, data)
+		return CreateUnknownBox(hdr.Name, hdr.Size, payload), nil
+	}
+	return box, nil
+}
+
 // Type - return box type
 func (a *AudioSampleEntryBox) Type() string {
 	return a.name

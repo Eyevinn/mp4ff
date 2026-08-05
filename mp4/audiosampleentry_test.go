@@ -222,6 +222,21 @@ func TestQuickTimeEncodeValidation(t *testing.T) {
 	}
 }
 
+func TestLegacyQuickTimeNamesFallBackToUnknown(t *testing.T) {
+	// Truncated legacy entries decoded as UnknownBox before the names were
+	// registered; they must keep doing so instead of failing the file.
+	data := quickTimeSoundDescriptionBytes(".mp3", 0, nil, nil)[:20]
+	binary.BigEndian.PutUint32(data[:4], uint32(len(data)))
+	cmpAfterDecodeEncodeBox(t, data)
+	box, err := mp4.DecodeBox(0, bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, isUnknown := box.(*mp4.UnknownBox); !isUnknown {
+		t.Errorf("truncated .mp3 entry decoded as %T, wanted UnknownBox", box)
+	}
+}
+
 // TestDirtyReservedBytesKeepDecoding pins the fallback: entries whose
 // reserved bytes carry an unknown version, or claim a QuickTime version the
 // layout does not match, decode with the plain ISO layout like before, and
@@ -306,4 +321,57 @@ func TestQuickTimeLpcmFormatFlags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestQuickTimeAudioSampleEntryNames(t *testing.T) {
+	for _, name := range []string{".mp3", "lpcm", "twos", "sowt"} {
+		t.Run(name, func(t *testing.T) {
+			data := quickTimeSoundDescriptionBytes(name, 0, nil, nil)
+			cmpAfterDecodeEncodeBox(t, data)
+			box, err := mp4.DecodeBox(0, bytes.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			entry, ok := box.(*mp4.AudioSampleEntryBox)
+			if !ok {
+				t.Fatalf("%s decoded as %T, wanted AudioSampleEntryBox", name, box)
+			}
+			if entry.ChannelCount != 2 || entry.SampleSize != 16 || entry.SampleRate != 48000 {
+				t.Errorf("fixed fields not decoded: %+v", entry)
+			}
+			stsd := mp4.NewStsdBox()
+			stsd.AddChild(entry)
+			switch name {
+			case ".mp3":
+				if stsd.Mp3 != entry {
+					t.Error("stsd.Mp3 not set")
+				}
+			default:
+				if stsd.QtPcm != entry {
+					t.Error("stsd.QtPcm not set")
+				}
+			}
+		})
+	}
+
+	// lpcm entries carry a version 2 sound description in practice.
+	t.Run("lpcm version 2", func(t *testing.T) {
+		v2Extension := make([]byte, 0, 36)
+		v2Extension = binary.BigEndian.AppendUint32(v2Extension, 72)
+		v2Extension = binary.BigEndian.AppendUint64(v2Extension, math.Float64bits(44100))
+		for _, val := range []uint32{2, mp4.QuickTimeV2Marker, 16, 0, 4, 1} {
+			v2Extension = binary.BigEndian.AppendUint32(v2Extension, val)
+		}
+		data := quickTimeSoundDescriptionBytes("lpcm", 2, v2Extension, nil)
+		cmpAfterDecodeEncodeBox(t, data)
+		box, err := mp4.DecodeBox(0, bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry := box.(*mp4.AudioSampleEntryBox)
+		q := entry.QuickTimeV2
+		if q == nil || q.AudioSampleRate != 44100 || q.NumAudioChannels != 2 || q.ConstBitsPerChannel != 16 {
+			t.Errorf("quickTimeV2 fields not decoded: %+v", q)
+		}
+	})
 }
