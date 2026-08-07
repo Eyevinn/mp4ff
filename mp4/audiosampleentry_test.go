@@ -257,3 +257,53 @@ func TestDirtyReservedBytesKeepDecoding(t *testing.T) {
 		})
 	}
 }
+
+// TestQuickTimeLpcmFormatFlags pins the defined CoreAudio/QTFF linear-PCM
+// format flag values and the accessors on QuickTimeV2SoundDescription.
+func TestQuickTimeLpcmFormatFlags(t *testing.T) {
+	definedFlags := []struct {
+		name   string
+		flag   uint32
+		wanted uint32
+	}{
+		{"IsFloat", mp4.QuickTimeFormatFlagIsFloat, 0x1},
+		{"IsBigEndian", mp4.QuickTimeFormatFlagIsBigEndian, 0x2},
+		{"IsSignedInteger", mp4.QuickTimeFormatFlagIsSignedInteger, 0x4},
+		{"IsPacked", mp4.QuickTimeFormatFlagIsPacked, 0x8},
+		{"IsAlignedHigh", mp4.QuickTimeFormatFlagIsAlignedHigh, 0x10},
+		{"IsNonInterleaved", mp4.QuickTimeFormatFlagIsNonInterleaved, 0x20},
+		{"IsNonMixable", mp4.QuickTimeFormatFlagIsNonMixable, 0x40},
+	}
+	for _, d := range definedFlags {
+		if d.flag != d.wanted {
+			t.Errorf("QuickTimeFormatFlag%s is %#x, wanted %#x", d.name, d.flag, d.wanted)
+		}
+	}
+	cases := []struct {
+		desc            string
+		flags           uint32
+		isFloat         bool
+		isBigEndian     bool
+		isSignedInteger bool
+	}{
+		{"zero flags", 0, false, false, false},
+		{"packed float32", mp4.QuickTimeFormatFlagIsFloat | mp4.QuickTimeFormatFlagIsPacked,
+			true, false, false},
+		{"big-endian signed int16", mp4.QuickTimeFormatFlagIsBigEndian | mp4.QuickTimeFormatFlagIsSignedInteger,
+			false, true, true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			q := mp4.QuickTimeV2SoundDescription{FormatSpecificFlags: c.flags}
+			if q.IsFloat() != c.isFloat {
+				t.Errorf("IsFloat() is %t, wanted %t", q.IsFloat(), c.isFloat)
+			}
+			if q.IsBigEndian() != c.isBigEndian {
+				t.Errorf("IsBigEndian() is %t, wanted %t", q.IsBigEndian(), c.isBigEndian)
+			}
+			if q.IsSignedInteger() != c.isSignedInteger {
+				t.Errorf("IsSignedInteger() is %t, wanted %t", q.IsSignedInteger(), c.isSignedInteger)
+			}
+		})
+	}
+}
