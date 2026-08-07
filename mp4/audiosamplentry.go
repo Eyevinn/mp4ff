@@ -78,6 +78,34 @@ type QuickTimeV2SoundDescription struct {
 	ConstLPCMFramesPerAudioPacket uint32
 }
 
+// Linear-PCM format flags for QuickTimeV2SoundDescription.FormatSpecificFlags
+// according to the QTFF specification and CoreAudioTypes (kAudioFormatFlag*).
+const (
+	QuickTimeFormatFlagIsFloat          uint32 = 1 << 0 // floating-point, not integer, samples
+	QuickTimeFormatFlagIsBigEndian      uint32 = 1 << 1 // big-endian samples
+	QuickTimeFormatFlagIsSignedInteger  uint32 = 1 << 2 // signed integer samples
+	QuickTimeFormatFlagIsPacked         uint32 = 1 << 3 // sample bits fill their channel bytes
+	QuickTimeFormatFlagIsAlignedHigh    uint32 = 1 << 4 // unpacked sample bits are high-aligned
+	QuickTimeFormatFlagIsNonInterleaved uint32 = 1 << 5 // channels are in separate buffers
+	QuickTimeFormatFlagIsNonMixable     uint32 = 1 << 6 // stream must not be mixed
+)
+
+// IsFloat - whether FormatSpecificFlags marks the samples as floating point.
+// The flags are only meaningful for lpcm-family entries.
+func (q *QuickTimeV2SoundDescription) IsFloat() bool {
+	return q.FormatSpecificFlags&QuickTimeFormatFlagIsFloat != 0
+}
+
+// IsBigEndian - whether FormatSpecificFlags marks the samples as big-endian.
+func (q *QuickTimeV2SoundDescription) IsBigEndian() bool {
+	return q.FormatSpecificFlags&QuickTimeFormatFlagIsBigEndian != 0
+}
+
+// IsSignedInteger - whether FormatSpecificFlags marks the integer samples as signed.
+func (q *QuickTimeV2SoundDescription) IsSignedInteger() bool {
+	return q.FormatSpecificFlags&QuickTimeFormatFlagIsSignedInteger != 0
+}
+
 // NewAudioSampleEntryBox - Create new empty mp4a box
 func NewAudioSampleEntryBox(name string) *AudioSampleEntryBox {
 	return &AudioSampleEntryBox{name: name, DataReferenceIndex: 1}

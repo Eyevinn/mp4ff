@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ElstEntry.MediaRateFixed32` and `SetMediaRateFixed32` combine and split
   the media rate halves as one signed 16.16 fixed-point number, so callers
   no longer need to know the bit layout
+- `QuickTimeFormatFlagIsFloat` and the other CoreAudio/QTFF linear-PCM
+  format flags name the bits of
+  `QuickTimeV2SoundDescription.FormatSpecificFlags`, and the `IsFloat`,
+  `IsBigEndian`, and `IsSignedInteger` accessors read the common ones, so
+  lpcm entries can be interpreted without magic numbers
 
 ### Changed
 
