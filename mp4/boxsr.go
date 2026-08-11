@@ -92,6 +92,7 @@ func init() {
 		"jpeg":    DecodeVisualSampleEntrySR,
 		"jpgC":    DecodeJpgCSR,
 		"kind":    DecodeKindSR,
+		"labl":    DecodeLablSR,
 		"leva":    DecodeLevaSR,
 		"lpcm":    DecodeQuickTimeAudioSampleEntrySR,
 		"ludt":    DecodeLudtSR,

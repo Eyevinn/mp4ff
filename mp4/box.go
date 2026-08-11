@@ -101,6 +101,7 @@ func init() {
 		"jpeg":    DecodeVisualSampleEntry,
 		"jpgC":    DecodeJpgC,
 		"kind":    DecodeKind,
+		"labl":    DecodeLabl,
 		"leva":    DecodeLeva,
 		"lpcm":    DecodeQuickTimeAudioSampleEntry,
 		"ludt":    DecodeLudt,
