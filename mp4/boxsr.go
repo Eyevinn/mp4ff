@@ -188,6 +188,7 @@ func init() {
 		"vttc":    DecodeVttcSR,
 		"vttC":    DecodeVttCSR,
 		"vtte":    DecodeVtteSR,
+		"wave":    DecodeWaveSR,
 		"wvtt":    DecodeWvttSR,
 	}
 }
