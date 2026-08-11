@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `LablBox` for the Label box `labl` (ISO/IEC 14496-12:2026 Section 8.10.5) with
+  the `LablIsGroupLabelFlag` flag mask and an `IsGroupLabel()` accessor, as used
+  for track labels in DASH-IF Ingest
+- `UdtaBox.Labls` with the `labl` children of a user data box, and
+  `UdtaBox.GroupLabl()` to find the group label of a label group
+- `TrakBox.Udta` reference to the user data box of a track
 - QuickTime sound sample description versions 1 and 2 are parsed into
   `AudioSampleEntryBox.QuickTimeVersion`, `QuickTimeV1`, and `QuickTimeV2`,
   preserved on encode (along with the QuickTime revision level, vendor, and

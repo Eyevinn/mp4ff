@@ -10,12 +10,29 @@ import (
 //
 // Contained in : moov, trak, moof, or traf
 type UdtaBox struct {
+	// Labls are the labl children in order. There may be multiple ones, e.g. one per language.
+	Labls    []*LablBox
 	Children []Box
 }
 
 // AddChild - Add a child box
 func (b *UdtaBox) AddChild(box Box) {
+	if labl, ok := box.(*LablBox); ok {
+		b.Labls = append(b.Labls, labl)
+	}
 	b.Children = append(b.Children, box)
+}
+
+// GroupLabl returns the group label of the labl group labelID, or nil if there is none.
+// A group label carries the summary or title of all labels sharing its labelID,
+// e.g. the name to present in a selection menu.
+func (b *UdtaBox) GroupLabl(labelID uint16) *LablBox {
+	for _, labl := range b.Labls {
+		if labl.LabelID == labelID && labl.IsGroupLabel() {
+			return labl
+		}
+	}
+	return nil
 }
 
 // DecodeUdta - box-specific decode
