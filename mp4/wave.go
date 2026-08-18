@@ -17,7 +17,19 @@ type WaveBox struct {
 	Frma     *FrmaBox
 	Esds     *EsdsBox
 	Children []Box
-	RawTail  []byte
+	// RawTail holds the bytes from the first position where a well-formed box
+	// header could not be read to the end of the wave payload. Since the
+	// terminator atom comes last, this is normally either empty or just that
+	// atom, but a malformed atom anywhere in the payload puts everything from
+	// it onwards here, so any boxes after it are not decoded into Children.
+	// Encode writes RawTail verbatim after the children.
+	RawTail []byte
+}
+
+// GetChildren - list of child boxes. Note that the bytes in RawTail are not
+// part of the children, so a generic container encode would drop them.
+func (b *WaveBox) GetChildren() []Box {
+	return b.Children
 }
 
 // AddChild - add a child box
