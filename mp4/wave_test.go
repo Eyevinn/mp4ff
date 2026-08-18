@@ -3,6 +3,7 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/binary"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -60,6 +61,36 @@ func TestWaveBox(t *testing.T) {
 	}
 	if len(wave.Children) != 4 {
 		t.Errorf("got %d children, wanted 4", len(wave.Children))
+	}
+}
+
+func TestWaveBoxIsContainer(t *testing.T) {
+	wave := &mp4.WaveBox{}
+	var container mp4.ContainerBox = wave // wave must satisfy the container interface
+	frma := &mp4.FrmaBox{DataFormat: "mp4a"}
+	wave.AddChild(frma)
+	children := container.GetChildren()
+	if len(children) != 1 || children[0] != frma {
+		t.Errorf("GetChildren gave %v, wanted the single added frma", children)
+	}
+}
+
+func TestWaveBoxTerminatorInInfo(t *testing.T) {
+	terminator := waveChildBytes(string([]byte{0, 0, 0, 0}), nil)
+	box, err := mp4.DecodeBox(0, bytes.NewReader(waveBytes(terminator)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := box.Info(&buf, "all:1", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	info := buf.String()
+	if strings.ContainsRune(info, 0) {
+		t.Errorf("info output has a raw NUL byte in a box type: %q", info)
+	}
+	if !strings.Contains(info, `[\x00\x00\x00\x00]`) {
+		t.Errorf("terminator box type not escaped in info output: %q", info)
 	}
 }
 

@@ -32,10 +32,41 @@ func fixStartingCopyrightChar(boxType string) string {
 	// © is 0xa9 in latin1 (and in Apple boxes/atoms)
 	// In UTF-8 it is two bytes: 0xc2 0xa9
 	bType := []byte(boxType)
-	if bType[0] == 0xa9 {
+	if len(bType) > 0 && bType[0] == 0xa9 {
 		bType = append([]byte{0xc2}, bType...)
 	}
 	return string(bType)
+}
+
+// displayBoxType - make a box type safe to print. Control characters are
+// escaped as \xNN, so that a type such as the four zero bytes of the
+// QuickTime wave terminator atom stays visible in the output.
+func displayBoxType(boxType string) string {
+	boxType = fixStartingCopyrightChar(boxType)
+	nrControlChars := 0
+	for i := 0; i < len(boxType); i++ {
+		if isControlChar(boxType[i]) {
+			nrControlChars++
+		}
+	}
+	if nrControlChars == 0 {
+		return boxType
+	}
+	var sb strings.Builder
+	sb.Grow(len(boxType) + 3*nrControlChars)
+	for i := 0; i < len(boxType); i++ {
+		if c := boxType[i]; isControlChar(c) {
+			fmt.Fprintf(&sb, "\\x%02x", c)
+		} else {
+			sb.WriteByte(c)
+		}
+	}
+	return sb.String()
+}
+
+// isControlChar - C0 control character or DEL
+func isControlChar(c byte) bool {
+	return c < 0x20 || c == 0x7f
 }
 
 // newInfoDumper - make an infoDumper with indent
@@ -45,7 +76,7 @@ func fixStartingCopyrightChar(boxType string) string {
 // set Version to -3 for descriptors
 func newInfoDumper(w io.Writer, indent string, b boxLike, version int, flags uint32) *infoDumper {
 	bd := infoDumper{w, indent, b, nil}
-	utf8BoxType := fixStartingCopyrightChar(b.Type())
+	utf8BoxType := displayBoxType(b.Type())
 	switch {
 	case version >= 0:
 		bd.write("[%s] size=%d version=%d flags=%06x", utf8BoxType, b.Size(), version, flags)

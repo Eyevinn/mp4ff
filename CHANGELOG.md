@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in a wave child of an audio sample entry becomes reachable as `Wave.Esds`.
   Children that are not well-formed boxes (such as the spec-mandated
   terminator atom when written with size zero) are preserved verbatim
+- `WaveBox.GetChildren`, so a wave box satisfies the `ContainerBox` interface
 - `DecoderConfigDescriptor.StreamTypeValue` and `UpStream` decompose the
   packed streamType byte, and named constants cover the common stream types
   (ISO/IEC 14496-1 Table 6) and object type indications (mp4ra.org), so
@@ -30,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Info()` escapes control characters in box types as `\xNN`, so a type such
+  as the four zero bytes of the QuickTime wave terminator atom stays visible
 - audio sample entries whose reserved bytes claim a QuickTime version whose
   layout does not parse fall back to the plain ISO interpretation, so
   previously decodable files keep decoding; the overlaid QuickTime bytes
