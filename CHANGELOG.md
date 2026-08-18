@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `avc.ParseSPSNALUnit` rejects an out-of-range
+  `num_ref_frames_in_pic_order_cnt_cycle` (valid range 0-255) instead of
+  allocating a slice sized from the raw field, which let a tiny malformed SPS
+  NAL unit trigger a multi-gigabyte allocation (found by fuzzing)
 - `MdatBox.HeaderSize` accounts for large lazy payloads, so trun data
   offsets are no longer 8 bytes short for fragments above 4 GiB
 

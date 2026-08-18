@@ -181,6 +181,13 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		sps.OffsetForNonRefPic = reader.ReadExpGolomb()
 		sps.OffsetForTopToBottomField = reader.ReadExpGolomb()
 		numRefFramesInPicOrderCntCycle := reader.ReadExpGolomb()
+		// num_ref_frames_in_pic_order_cnt_cycle shall be in the range of 0 to 255
+		// (ISO/IEC 14496-10 Section 7.4.2.1.1). Guard against a bogus value before
+		// allocating, to avoid gigabytes being reserved from a tiny malformed NAL unit.
+		if numRefFramesInPicOrderCntCycle > 255 {
+			reader.SetError(fmt.Errorf("num_ref_frames_in_pic_order_cnt_cycle %d out of range [0, 255]", numRefFramesInPicOrderCntCycle))
+			return nil, reader.AccError()
+		}
 		sps.RefFramesInPicOrderCntCycle = make([]uint, numRefFramesInPicOrderCntCycle)
 		for i := 0; i < int(numRefFramesInPicOrderCntCycle); i++ {
 			sps.RefFramesInPicOrderCntCycle[i] = reader.ReadExpGolomb()
