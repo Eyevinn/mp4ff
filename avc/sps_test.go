@@ -325,3 +325,20 @@ func TestCodecString(t *testing.T) {
 		t.Errorf("expected codec: %q, got %q", expected, codec)
 	}
 }
+
+// TestSPSParserNumRefFramesInPicOrderCntCycle verifies that an out-of-range
+// num_ref_frames_in_pic_order_cnt_cycle is rejected instead of triggering a
+// multi-gigabyte allocation. The NAL unit below sets pic_order_cnt_type = 1 and
+// encodes a ~1 billion value for num_ref_frames_in_pic_order_cnt_cycle; before
+// the bound check this caused ParseSPSNALUnit to allocate gigabytes from 22
+// bytes of input. Found by fuzzing.
+func TestSPSParserNumRefFramesInPicOrderCntCycle(t *testing.T) {
+	byteData, _ := hex.DecodeString("27303030032527000000024242311f30313030303030")
+	sps, err := avc.ParseSPSNALUnit(byteData, true)
+	if err == nil {
+		t.Error("expected an error for out-of-range num_ref_frames_in_pic_order_cnt_cycle")
+	}
+	if sps != nil {
+		t.Errorf("expected nil SPS on error, got %+v", sps)
+	}
+}
