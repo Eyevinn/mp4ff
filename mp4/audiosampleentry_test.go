@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/aac"
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
@@ -372,6 +373,142 @@ func TestQuickTimeAudioSampleEntryNames(t *testing.T) {
 		q := entry.QuickTimeV2
 		if q == nil || q.AudioSampleRate != 44100 || q.NumAudioChannels != 2 || q.ConstBitsPerChannel != 16 {
 			t.Errorf("quickTimeV2 fields not decoded: %+v", q)
+		}
+	})
+}
+
+func TestNormalizeQuickTime(t *testing.T) {
+	esds := encodedEsdsBytes(t) // AAC-LC, 48000 Hz, 2 channels
+	frma := waveChildBytes("frma", []byte("mp4a"))
+	terminator := waveChildBytes(string([]byte{0, 0, 0, 0}), nil)
+	wave := waveBytes(frma, esds, terminator)
+
+	decodeEntry := func(t *testing.T, data []byte) *mp4.AudioSampleEntryBox {
+		t.Helper()
+		box, err := mp4.DecodeBox(0, bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return box.(*mp4.AudioSampleEntryBox)
+	}
+	encodedBytes := func(t *testing.T, box mp4.Box) []byte {
+		t.Helper()
+		var buf bytes.Buffer
+		if err := box.Encode(&buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.Bytes()
+	}
+	v2Extension := func(sampleRate float64, channels, bitsPerChannel uint32) []byte {
+		ext := make([]byte, 0, 36)
+		ext = binary.BigEndian.AppendUint32(ext, 72)
+		ext = binary.BigEndian.AppendUint64(ext, math.Float64bits(sampleRate))
+		for _, val := range []uint32{channels, mp4.QuickTimeV2Marker, bitsPerChannel, 0, 0, 1024} {
+			ext = binary.BigEndian.AppendUint32(ext, val)
+		}
+		return ext
+	}
+
+	t.Run("version 1 with wave-wrapped esds matches a fresh ISO entry", func(t *testing.T) {
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 1, make([]byte, 16), wave))
+		if !entry.NormalizeQuickTime() {
+			t.Fatal("entry not normalized")
+		}
+		if entry.QuickTimeVersion != 0 || entry.QuickTimeRevisionLevel != 0 || entry.QuickTimeVendor != 0 ||
+			entry.QuickTimeV1 != nil || entry.Wave != nil {
+			t.Errorf("QuickTime shape left after normalization: %+v", entry)
+		}
+		want := mp4.CreateAudioSampleEntryBox("mp4a", 2, 16, 48000, mp4.CreateEsdsBox([]byte{0x11, 0x90}))
+		if !bytes.Equal(encodedBytes(t, entry), encodedBytes(t, want)) {
+			t.Error("normalized entry does not match the freshly created ISO entry")
+		}
+	})
+
+	t.Run("version 2 restores rate and channels", func(t *testing.T) {
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 2, v2Extension(48000, 6, 0), wave))
+		if !entry.NormalizeQuickTime() {
+			t.Fatal("entry not normalized")
+		}
+		if entry.ChannelCount != 6 || entry.SampleRate != 48000 || entry.SampleSize != 16 {
+			t.Errorf("version 2 fields not restored: channels %d, rate %d, size %d",
+				entry.ChannelCount, entry.SampleRate, entry.SampleSize)
+		}
+		if entry.Esds == nil {
+			t.Error("esds not hoisted out of wave")
+		}
+	})
+
+	t.Run("version 2 keeps the declared bits per channel", func(t *testing.T) {
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 2, v2Extension(48000, 2, 24), wave))
+		if !entry.NormalizeQuickTime() {
+			t.Fatal("entry not normalized")
+		}
+		if entry.SampleSize != 24 {
+			t.Errorf("got sample size %d, wanted the declared 24 bits per channel", entry.SampleSize)
+		}
+	})
+
+	t.Run("rate above 65535 Hz leaves the fixed field 0", func(t *testing.T) {
+		esds96k := encodedBytes(t, mp4.CreateEsdsBox([]byte{0x10, 0x10})) // AAC-LC, 96000 Hz, 2 channels
+		wave96k := waveBytes(frma, esds96k, terminator)
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 2, v2Extension(96000, 2, 0), wave96k))
+		if !entry.NormalizeQuickTime() {
+			t.Fatal("entry not normalized")
+		}
+		if entry.SampleRate != 0 || entry.ChannelCount != 2 {
+			t.Errorf("got rate %d and channels %d, wanted the unrepresentable rate left 0",
+				entry.SampleRate, entry.ChannelCount)
+		}
+		hdr, err := aac.DecodeAudioSpecificConfigHeader(
+			bytes.NewReader(entry.Esds.DecConfigDescriptor.DecSpecificInfo.DecConfig))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hdr.SamplingFrequency != 96000 {
+			t.Errorf("the hoisted esds carries %d Hz, wanted the authoritative 96000", hdr.SamplingFrequency)
+		}
+	})
+
+	t.Run("direct esds beats a wave-wrapped esds", func(t *testing.T) {
+		directASC := []byte{0x11, 0x90}
+		waveEsds := waveBytes(frma, encodedBytes(t, mp4.CreateEsdsBox([]byte{0x10, 0x10})), terminator)
+		children := append(encodedBytes(t, mp4.CreateEsdsBox(directASC)), waveEsds...)
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 1, make([]byte, 16), children))
+		if !entry.NormalizeQuickTime() {
+			t.Fatal("entry not normalized")
+		}
+		if len(entry.Children) != 1 {
+			t.Errorf("got %d children, wanted only the kept esds", len(entry.Children))
+		}
+		if got := entry.Esds.DecConfigDescriptor.DecSpecificInfo.DecConfig; !bytes.Equal(got, directASC) {
+			t.Errorf("got decoder config %x, wanted the direct esds to win over the wave-wrapped one", got)
+		}
+	})
+
+	t.Run("version 1 without any esds is left alone", func(t *testing.T) {
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 1, make([]byte, 16), nil))
+		if entry.NormalizeQuickTime() {
+			t.Error("entry without an esds must not be normalized")
+		}
+		if entry.QuickTimeV1 == nil {
+			t.Error("version 1 fields must be preserved")
+		}
+	})
+
+	t.Run("wave without esds is left alone", func(t *testing.T) {
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 0, nil, waveBytes(frma, terminator)))
+		if entry.NormalizeQuickTime() {
+			t.Error("entry without a reachable esds must not be normalized")
+		}
+		if entry.Wave == nil {
+			t.Error("wave box must be preserved")
+		}
+	})
+
+	t.Run("ISO entry is a no-op", func(t *testing.T) {
+		entry := decodeEntry(t, quickTimeSoundDescriptionBytes("mp4a", 0, nil, esds))
+		if entry.NormalizeQuickTime() {
+			t.Error("ISO version 0 entry must not change")
 		}
 	})
 }

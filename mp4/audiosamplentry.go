@@ -491,6 +491,64 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 	return nil
 }
 
+// NormalizeQuickTime rewrites a QuickTime-shaped entry (sound sample
+// description version 1 or 2, or an esds wrapped in a wave box) to the plain
+// ISO version 0 form: the esds becomes a direct child, and the wave box and
+// the QuickTime version, revision level, vendor, and compressionID are
+// dropped. A version 2 entry gets its channel count, sample size, and sample
+// rate restored. It is a no-op (returns false) without a QuickTime shape or
+// a reachable esds.
+func (a *AudioSampleEntryBox) NormalizeQuickTime() bool {
+	if a.QuickTimeVersion == 0 && a.Wave == nil {
+		return false
+	}
+	esds := a.Esds
+	if esds == nil && a.Wave != nil {
+		esds = a.Wave.Esds
+	}
+	if esds == nil {
+		// No esds means the decode parameters live in the version fields or
+		// the wave content itself (e.g. lpcm, ima4); such an entry has no
+		// ISO version 0 form and must keep its QuickTime shape.
+		return false
+	}
+	children := []Box{esds}
+	for _, child := range a.Children {
+		if child.Type() == "esds" || child.Type() == "wave" {
+			continue
+		}
+		children = append(children, child)
+	}
+	if a.QuickTimeV2 != nil {
+		q := a.QuickTimeV2
+		a.ChannelCount = 0
+		if q.NumAudioChannels <= math.MaxUint16 {
+			a.ChannelCount = uint16(q.NumAudioChannels)
+		}
+		a.SampleSize = 16
+		if q.ConstBitsPerChannel > 0 && q.ConstBitsPerChannel <= math.MaxUint16 {
+			a.SampleSize = uint16(q.ConstBitsPerChannel)
+		}
+		// A rate above 65535 Hz does not fit the 16.16 sample rate field and
+		// leaves 0, as ffmpeg writes; the authoritative rate is in the esds
+		// AudioSpecificConfig.
+		a.SampleRate = 0
+		if q.AudioSampleRate > 0 && q.AudioSampleRate <= math.MaxUint16 {
+			a.SampleRate = uint16(q.AudioSampleRate)
+		}
+	}
+	a.QuickTimeVersion = 0
+	a.QuickTimeRevisionLevel = 0
+	a.QuickTimeVendor = 0
+	a.CompressionID = 0
+	a.QuickTimeV1 = nil
+	a.QuickTimeV2 = nil
+	a.Esds = esds
+	a.Wave = nil
+	a.Children = children
+	return true
+}
+
 // RemoveEncryption - remove sinf box and set type to unencrypted type
 func (a *AudioSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
 	if a.name != "enca" {

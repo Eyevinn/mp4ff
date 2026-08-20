@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Children that are not well-formed boxes (such as the spec-mandated
   terminator atom when written with size zero) are preserved verbatim
 - `WaveBox.GetChildren`, so a wave box satisfies the `ContainerBox` interface
+- `AudioSampleEntryBox.NormalizeQuickTime` rewrites a QuickTime-shaped audio
+  sample entry (sound sample description version 1 or 2, or a wave-wrapped
+  esds) to the plain ISO version 0 form with the esds as a direct child
 - `DecoderConfigDescriptor.StreamTypeValue` and `UpStream` decompose the
   packed streamType byte, and named constants cover the common stream types
   (ISO/IEC 14496-1 Table 6) and object type indications (mp4ra.org), so
