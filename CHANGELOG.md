@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `AudioSampleEntryBox.NormalizeQuickTime` rewrites a QuickTime-shaped audio
+  sample entry (sound sample description version 1 or 2, QuickTime residue in
+  the version 0 reserved fields, or a wave-wrapped esds) to the plain ISO
+  version 0 form with the esds as a direct child. Entries without a reachable
+  esds, and wave boxes holding anything besides their recognized decoder-init
+  atoms, are left untouched
+
 ### Changed
 
 - `TrunBox.GetFullSamples` returns an error when the trun-declared sample

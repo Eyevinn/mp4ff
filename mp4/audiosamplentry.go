@@ -491,6 +491,96 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 	return nil
 }
 
+// waveDropSafe reports whether the wave box holds only the decoder-init
+// atoms that normalization knowingly discards — frma, esds, the terminator
+// atom, and the 12-byte QuickTime stub named after the entry — with at most
+// an all-zero RawTail (a size-zero terminator).
+func waveDropSafe(wave *WaveBox, entryName string) bool {
+	for _, child := range wave.Children {
+		switch child.Type() {
+		case "frma", "esds", "\x00\x00\x00\x00":
+		case entryName:
+			if child.Size() > 12 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	for _, b := range wave.RawTail {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// NormalizeQuickTime rewrites a QuickTime-shaped entry (sound sample
+// description version 1 or 2, QuickTime residue in the version 0 reserved
+// fields, or an esds wrapped in a wave box) to the plain ISO version 0 form:
+// the esds becomes a direct child, and the wave box and the QuickTime
+// version, revision level, vendor, and compressionID are dropped. A version
+// 2 entry gets its channel count, sample size, and sample rate restored.
+// It is a no-op (returns false) without a QuickTime shape or a reachable
+// esds, or when the wave box holds anything besides its recognized
+// decoder-init atoms.
+func (a *AudioSampleEntryBox) NormalizeQuickTime() bool {
+	if a.QuickTimeVersion == 0 && a.Wave == nil &&
+		a.QuickTimeRevisionLevel == 0 && a.QuickTimeVendor == 0 && a.CompressionID == 0 {
+		return false
+	}
+	esds := a.Esds
+	if esds == nil && a.Wave != nil {
+		esds = a.Wave.Esds
+	}
+	if esds == nil {
+		// No esds means the decode parameters live in the version fields or
+		// the wave content itself (e.g. lpcm, ima4); such an entry has no
+		// ISO version 0 form and must keep its QuickTime shape.
+		return false
+	}
+	if a.Wave != nil && !waveDropSafe(a.Wave, a.name) {
+		// The wave box holds something beyond the decoder-init atoms that
+		// the esds replaces; dropping it would silently lose that content.
+		return false
+	}
+	children := []Box{esds}
+	for _, child := range a.Children {
+		if child.Type() == "esds" || child.Type() == "wave" {
+			continue
+		}
+		children = append(children, child)
+	}
+	if a.QuickTimeV2 != nil {
+		q := a.QuickTimeV2
+		a.ChannelCount = 0
+		if q.NumAudioChannels <= math.MaxUint16 {
+			a.ChannelCount = uint16(q.NumAudioChannels)
+		}
+		a.SampleSize = 16
+		if q.ConstBitsPerChannel > 0 && q.ConstBitsPerChannel <= math.MaxUint16 {
+			a.SampleSize = uint16(q.ConstBitsPerChannel)
+		}
+		// A rate above 65535 Hz does not fit the 16.16 sample rate field and
+		// leaves 0, as ffmpeg writes; the authoritative rate is in the esds
+		// AudioSpecificConfig.
+		a.SampleRate = 0
+		if q.AudioSampleRate > 0 && q.AudioSampleRate <= math.MaxUint16 {
+			a.SampleRate = uint16(math.Round(q.AudioSampleRate))
+		}
+	}
+	a.QuickTimeVersion = 0
+	a.QuickTimeRevisionLevel = 0
+	a.QuickTimeVendor = 0
+	a.CompressionID = 0
+	a.QuickTimeV1 = nil
+	a.QuickTimeV2 = nil
+	a.Esds = esds
+	a.Wave = nil
+	a.Children = children
+	return true
+}
+
 // RemoveEncryption - remove sinf box and set type to unencrypted type
 func (a *AudioSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
 	if a.name != "enca" {
