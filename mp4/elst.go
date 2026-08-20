@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -80,6 +81,18 @@ func DecodeElstSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		return nil, fmt.Errorf("unknown version for elst")
 	}
 	return b, sr.AccError()
+}
+
+// needs64Bits tells whether some entry only fits the version 1 (64-bit)
+// field widths.
+func (b *ElstBox) needs64Bits() bool {
+	for _, entry := range b.Entries {
+		if entry.SegmentDuration > math.MaxUint32 ||
+			entry.MediaTime > math.MaxInt32 || entry.MediaTime < math.MinInt32 {
+			return true
+		}
+	}
+	return false
 }
 
 // Type - box type

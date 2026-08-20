@@ -29,6 +29,23 @@ func NewTrakBox() *TrakBox {
 	return &TrakBox{}
 }
 
+// insertEdts adds edts right after tkhd, matching the conventional box
+// order, unlike the appending AddChild.
+func (t *TrakBox) insertEdts(edts *EdtsBox) {
+	t.Edts = edts
+	for i, child := range t.Children {
+		if _, ok := child.(*TkhdBox); ok {
+			children := make([]Box, 0, len(t.Children)+1)
+			children = append(children, t.Children[:i+1]...)
+			children = append(children, edts)
+			children = append(children, t.Children[i+1:]...)
+			t.Children = children
+			return
+		}
+	}
+	t.Children = append(t.Children, edts)
+}
+
 // AddChild - Add a child box
 func (t *TrakBox) AddChild(child Box) {
 	switch box := child.(type) {

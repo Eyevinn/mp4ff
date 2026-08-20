@@ -29,6 +29,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   output is byte-identical to adding the samples one by one with
   `AddFullSample`
 
+- `mp4.Defragment` and `mp4.DefragmentTracks` convert a fragmented file to a
+  progressive one: sample tables (stts, ctts, stsc, stsz, stss, stco/co64)
+  are synthesized from the fragment metadata while sample data and sample
+  descriptions are preserved. Every track is rebased so that its first tfdt
+  becomes media time zero, edit-list media times are shifted along, a final
+  edit with zero segment duration (open-ended in a fragmented file, where the
+  movie duration is unknown) is resolved to the remaining media duration so
+  progressive readers do not apply it as a zero-length edit, and a track
+  starting later than the earliest one keeps its presentation alignment
+  through an empty edit; a trivial identity edit list is dropped.
+  Fragment-format brands (dash, cmfc, isml, and friends) are removed from
+  the output ftyp. Encrypted content, unsupported edit lists, zero
+  timescales, truncated byte ranges, and payloads larger than the input
+  file are rejected
+- `mp4ff-defragment` command line tool exposing the defragmentation with
+  optional track selection
+
 ### Changed
 
 - The commands and examples that create their own output file now buffer their

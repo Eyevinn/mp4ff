@@ -26,6 +26,7 @@ Some useful command line tools are available in [cmd](cmd) directory.
 6. [mp4ff-encrypt](cmd/mp4ff-encrypt) encrypts a fragmented file using cenc or cbcs Common Encryption scheme
 7. [mp4ff-decrypt](cmd/mp4ff-decrypt) decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
 8. [mp4ff-mvhevc](cmd/mp4ff-mvhevc) inspects MV-HEVC (Multi-View HEVC) files and muxes HEVC (Annex B or mp4) into an MV-HEVC mp4
+9. [mp4ff-defragment](cmd/mp4ff-defragment) converts a fragmented mp4 file into a progressive mp4 file
 
 ## Installing the command line tools
 
