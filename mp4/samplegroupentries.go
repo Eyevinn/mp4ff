@@ -288,10 +288,15 @@ func DecodeAlstSampleGroupEntry(name string, length uint32, sr bits.SliceReader)
 		entry.SampleOffset[i] = sr.ReadUint32()
 	}
 
-	remaining := int(length-uint32(entry.Size())) / 4
-	if remaining <= 0 {
+	// The optional part is what is left of the entry after the mandatory part.
+	// Compare in uint64 so that a roll_count implying more bytes than
+	// description_length does not underflow into a huge remaining count and a
+	// multi-gigabyte allocation below.
+	mandatorySize := entry.Size()
+	if uint64(length) <= mandatorySize {
 		return entry, sr.AccError()
 	}
+	remaining := int((uint64(length) - mandatorySize) / 4)
 
 	// Optional
 	entry.NumOutputSamples = make([]uint16, remaining)
