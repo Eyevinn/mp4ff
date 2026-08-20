@@ -2,6 +2,7 @@ package hevc
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -278,5 +279,50 @@ func TestVPSParseError(t *testing.T) {
 	_, err = ParseVPSNALUnit(data)
 	if err == nil {
 		t.Error("expected error for non-VPS NALU type")
+	}
+}
+
+// TestVPSOutOfRangeCounts verifies that out-of-range layer-set and HRD counts
+// are rejected up front. Without the bound checks, vps_num_hrd_parameters sizes
+// a slice and drives a loop that allocates HRD parameters per iteration, so a
+// 33-byte NAL unit made ParseVPSNALUnit churn 30 GiB, and a large
+// vps_num_layer_sets_minus1 spun the layer_id_included_flag loop.
+func TestVPSOutOfRangeCounts(t *testing.T) {
+	cases := []struct {
+		name    string
+		hexData string
+		wantErr string
+	}{
+		{
+			name: "vps_num_hrd_parameters too large",
+			// vps_num_layer_sets_minus1 = 0, vps_timing_info_present_flag = 1,
+			// vps_num_hrd_parameters = 1 << 20
+			hexData: "40010c01ffff01ffffffffffffffffffff78f03ffffffffffffffff00000400006",
+			wantErr: "vps_num_hrd_parameters",
+		},
+		{
+			name: "vps_num_layer_sets_minus1 too large",
+			// vps_max_layer_id = 63, vps_num_layer_sets_minus1 = 1 << 20
+			hexData: "40010c01ffff01ffffffffffffffffffff78ffc00002000030",
+			wantErr: "vps_num_layer_sets_minus1",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data, err := hex.DecodeString(c.hexData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			vps, err := ParseVPSNALUnit(data)
+			if err == nil {
+				t.Fatalf("expected an error containing %q", c.wantErr)
+			}
+			if !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("expected an error containing %q, got %q", c.wantErr, err.Error())
+			}
+			if vps != nil {
+				t.Errorf("expected nil VPS on error, got %+v", vps)
+			}
+		})
 	}
 }

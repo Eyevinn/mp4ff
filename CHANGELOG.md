@@ -47,6 +47,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `avc.ParsePPSNALUnit` rejects an out-of-range `num_slice_groups_minus1`
+  (max 7 for any profile) instead of appending one entry per signalled slice
+  group, which let a 7-byte malformed PPS NAL unit allocate over 10 GiB
+- `hevc.ParseVPSNALUnit` rejects an out-of-range `vps_num_hrd_parameters`
+  (max `vps_num_layer_sets_minus1 + 1`) and `vps_num_layer_sets_minus1`
+  (valid range 0-1023), which let a 33-byte malformed VPS NAL unit churn
+  30 GiB of HRD parameter allocations
+- the `alst` sample group entry no longer underflows its count of optional
+  entries when `roll_count` implies more bytes than the signalled
+  `description_length`, which let a 32-byte `sgpd` box allocate over 4 GiB
 - `avc.ParseSPSNALUnit` rejects an out-of-range
   `num_ref_frames_in_pic_order_cnt_cycle` (valid range 0-255) instead of
   allocating a slice sized from the raw field, which let a tiny malformed SPS

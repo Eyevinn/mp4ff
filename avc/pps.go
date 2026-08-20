@@ -45,6 +45,10 @@ var (
 	ErrNotPPS = errors.New("not an PPS NAL unit")
 )
 
+// maxNumSliceGroupsMinus1 is the highest num_slice_groups_minus1 allowed by any
+// AVC profile (ISO/IEC 14496-10 Annex A).
+const maxNumSliceGroupsMinus1 = 7
+
 // ParsePPSNALUnit - Parse AVC PPS NAL unit starting with NAL header
 func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	var err error
@@ -66,6 +70,16 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	pps.EntropyCodingModeFlag = reader.ReadFlag()
 	pps.BottomFieldPicOrderInFramePresentFlag = reader.ReadFlag()
 	pps.NumSliceGroupsMinus1 = reader.ReadExpGolomb()
+	// The allowed range of num_slice_groups_minus1 is specified in Annex A of
+	// ISO/IEC 14496-10. The widest range of any profile (Baseline in A.2.1 and
+	// Extended in A.2.3) is 0 to 7; all other profiles require 0. Guard against a
+	// bogus value before looping, to avoid gigabytes being appended below from a
+	// tiny malformed NAL unit.
+	if pps.NumSliceGroupsMinus1 > maxNumSliceGroupsMinus1 {
+		reader.SetError(fmt.Errorf("num_slice_groups_minus1 %d out of range [0, %d]",
+			pps.NumSliceGroupsMinus1, maxNumSliceGroupsMinus1))
+		return nil, reader.AccError()
+	}
 
 	if pps.NumSliceGroupsMinus1 > 0 {
 		pps.SliceGroupMapType = reader.ReadExpGolomb()

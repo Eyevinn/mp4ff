@@ -12,6 +12,10 @@ import (
 // extension arrays are dimensioned for this bound.
 const maxLayers = 8
 
+// maxNumLayerSetsMinus1 is the highest vps_num_layer_sets_minus1 allowed by
+// ISO/IEC 23008-2 Section 7.4.3.1.
+const maxNumLayerSetsMinus1 = 1023
+
 // VPS is HEVC VPS parameters
 // ISO/IEC 23008-2 (Ed. 5) Sec. 7.3.2.1 page 47 and 7.4.3.1 page 92
 type VPS struct {
@@ -193,6 +197,13 @@ func ParseVPSNALUnit(data []byte) (*VPS, error) {
 
 	vps.MaxLayerID = byte(r.Read(6))
 	vps.NumLayerSetsMinus1 = r.ReadExpGolomb()
+	// vps_num_layer_sets_minus1 shall be in the range of 0 to 1023, inclusive
+	// (ISO/IEC 23008-2 Section 7.4.3.1). Guard before the layer_id_included_flag
+	// loop below, which would otherwise read up to 64 flags per layer set.
+	if vps.NumLayerSetsMinus1 > maxNumLayerSetsMinus1 {
+		return nil, fmt.Errorf("vps_num_layer_sets_minus1 %d out of range [0, %d]",
+			vps.NumLayerSetsMinus1, maxNumLayerSetsMinus1)
+	}
 	// Capture layer set membership for use by the VPS extension (if present).
 	var numLayersInIdList [maxLayers]int
 	var layerSetLayerIdList [maxLayers][maxLayers]byte
@@ -222,6 +233,14 @@ func ParseVPSNALUnit(data []byte) (*VPS, error) {
 			ti.NumTicksPocDiffOneMinus1 = r.ReadExpGolomb()
 		}
 		ti.NumHrdParameters = r.ReadExpGolomb()
+		// vps_num_hrd_parameters shall be in the range of 0 to
+		// vps_num_layer_sets_minus1 + 1, inclusive (ISO/IEC 23008-2 Section 7.4.3.1).
+		// Guard against a bogus value before allocating, to avoid gigabytes being
+		// reserved from a tiny malformed NAL unit.
+		if ti.NumHrdParameters > vps.NumLayerSetsMinus1+1 {
+			return nil, fmt.Errorf("vps_num_hrd_parameters %d out of range [0, %d]",
+				ti.NumHrdParameters, vps.NumLayerSetsMinus1+1)
+		}
 		if ti.NumHrdParameters > 0 {
 			ti.HrdParameters = make([]*HrdParameters, ti.NumHrdParameters)
 			for i := uint(0); i < ti.NumHrdParameters; i++ {
