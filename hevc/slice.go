@@ -111,6 +111,7 @@ type WeightingFactors struct {
 func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) (*SliceHeader, error) {
 	sh := &SliceHeader{
 		CollocatedFromL0Flag: true, // Default according to Section 7.4.7.1
+		PicOutputFlag:        true, // Default according to Section 7.4.7.1
 	}
 
 	buf := bytes.NewBuffer(nalu)
@@ -324,9 +325,12 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		if pps.RangeExtension != nil && pps.RangeExtension.ChromaQpOffsetListEnabledFlag {
 			sh.CuChromaQpOffsetEnabledFlag = r.ReadFlag()
 		}
-		// When slice_deblocking_filter_disabled_flag is not present, it is
-		// inferred to be equal to pps_deblocking_filter_disabled_flag.
+		// When slice_deblocking_filter_disabled_flag, slice_beta_offset_div2 and
+		// slice_tc_offset_div2 are not present, they are inferred to be equal to
+		// the corresponding pps values.
 		sh.DeblockingFilterDisabledFlag = pps.DeblockingFilterDisabledFlag
+		sh.BetaOffsetDiv2 = pps.BetaOffsetDiv2
+		sh.TcOffsetDiv2 = pps.TcOffsetDiv2
 		if pps.DeblockingFilterOverrideEnabledFlag {
 			sh.DeblockingFilterOverrideFlag = r.ReadFlag()
 		}
@@ -338,6 +342,9 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 				sh.TcOffsetDiv2 = int8(r.ReadSignedGolomb())
 			}
 		}
+		// When slice_loop_filter_across_slices_enabled_flag is not present, it is
+		// inferred to be equal to pps_loop_filter_across_slices_enabled_flag.
+		sh.LoopFilterAcrossSlicesEnabledFlag = pps.LoopFilterAcrossSlicesEnabledFlag
 		if pps.LoopFilterAcrossSlicesEnabledFlag &&
 			(sh.SaoLumaFlag || sh.SaoChromaFlag || !sh.DeblockingFilterDisabledFlag) {
 			sh.LoopFilterAcrossSlicesEnabledFlag = r.ReadFlag()
