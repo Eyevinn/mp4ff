@@ -19,6 +19,15 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 
+  - id: mp4ff-defragment
+    main: ./cmd/mp4ff-defragment
+    binary: mp4ff-defragment
+    ldflags:
+      - -X github.com/Eyevinn/mp4ff/internal.commitVersion={{.Tag}}
+      - -X github.com/Eyevinn/mp4ff/internal.commitDate={{.CommitTimestamp}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
   - id: mp4ff-encrypt
     main: ./cmd/mp4ff-encrypt
     binary: mp4ff-encrypt

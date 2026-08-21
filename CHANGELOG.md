@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `mp4.Defragment` and `mp4.DefragmentTracks` convert a fragmented file to a
+  progressive one: sample tables (stts, ctts, stsc, stsz, stss, stco/co64)
+  are synthesized from the fragment metadata while sample data and sample
+  descriptions are preserved. Every track is rebased so that its first tfdt
+  becomes media time zero, edit-list media times are shifted along, and a
+  track starting later than the earliest one keeps its presentation
+  alignment through an empty edit. Encrypted content, overlapping timelines,
+  edits that cannot be shifted exactly, truncated byte ranges, and payload
+  declarations larger than the input file are rejected
+- `mp4ff-defragment` command line tool exposing the defragmentation with
+  optional track selection
 - `LablBox` for the Label box `labl` (ISO/IEC 14496-12:2026 Section 8.10.5) with
   the `LablIsGroupLabelFlag` flag mask and an `IsGroupLabel()` accessor, as used
   for track labels in DASH-IF Ingest
