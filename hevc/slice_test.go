@@ -119,3 +119,60 @@ func TestParseSliceHeader(t *testing.T) {
 		t.Errorf("Got Slice Headers: %+v\n Diff is %v", gotHdr, diff)
 	}
 }
+
+// TestParseSliceHeaderDeblockingDisabledInPPS covers a stream where deblocking
+// is disabled in the PPS and no slice header overrides it. Then
+// slice_deblocking_filter_disabled_flag is absent and inferred from the PPS,
+// which in turn makes slice_loop_filter_across_slices_enabled_flag absent.
+// Reading that flag anyway left the parser mid-byte and failed byte_alignment.
+// The fixture is x265 output at 64x64 with --no-deblock --no-sao, SEI removed.
+func TestParseSliceHeaderDeblockingDisabledInPPS(t *testing.T) {
+	data, err := os.ReadFile("testdata/deblocking_disabled.265")
+	if err != nil {
+		t.Fatal(err)
+	}
+	spsMap := make(map[uint32]*SPS, 1)
+	ppsMap := make(map[uint32]*PPS, 1)
+	nrSliceHeaders := 0
+	for _, nalu := range avc.ExtractNalusFromByteStream(data) {
+		switch GetNaluType(nalu[0]) {
+		case NALU_SPS:
+			sps, err := ParseSPSNALUnit(nalu)
+			if err != nil {
+				t.Fatal(err)
+			}
+			spsMap[uint32(sps.SpsID)] = sps
+		case NALU_PPS:
+			pps, err := ParsePPSNALUnit(nalu, spsMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ppsMap[pps.PicParameterSetID] = pps
+			// The combination that makes the slice header flag absent.
+			if !pps.DeblockingFilterDisabledFlag {
+				t.Fatal("fixture should disable deblocking in the PPS")
+			}
+			if pps.DeblockingFilterOverrideEnabledFlag {
+				t.Fatal("fixture should not enable a slice header override")
+			}
+			if !pps.LoopFilterAcrossSlicesEnabledFlag {
+				t.Fatal("fixture should enable loop filter across slices")
+			}
+		case NALU_IDR_N_LP:
+			sh, err := ParseSliceHeader(nalu, spsMap, ppsMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !sh.DeblockingFilterDisabledFlag {
+				t.Error("slice_deblocking_filter_disabled_flag should be inferred from the PPS")
+			}
+			if sh.LoopFilterAcrossSlicesEnabledFlag {
+				t.Error("slice_loop_filter_across_slices_enabled_flag is not present in this stream")
+			}
+			nrSliceHeaders++
+		}
+	}
+	if nrSliceHeaders != 1 {
+		t.Errorf("got %d slice headers, wanted 1", nrSliceHeaders)
+	}
+}
