@@ -324,6 +324,9 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		if pps.RangeExtension != nil && pps.RangeExtension.ChromaQpOffsetListEnabledFlag {
 			sh.CuChromaQpOffsetEnabledFlag = r.ReadFlag()
 		}
+		// When slice_deblocking_filter_disabled_flag is not present, it is
+		// inferred to be equal to pps_deblocking_filter_disabled_flag.
+		sh.DeblockingFilterDisabledFlag = pps.DeblockingFilterDisabledFlag
 		if pps.DeblockingFilterOverrideEnabledFlag {
 			sh.DeblockingFilterOverrideFlag = r.ReadFlag()
 		}

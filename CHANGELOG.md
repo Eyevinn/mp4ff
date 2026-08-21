@@ -67,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `hevc.ParseSliceHeader` infers `slice_deblocking_filter_disabled_flag` from
+  `pps_deblocking_filter_disabled_flag` when the flag is not present, so a
+  stream with deblocking disabled in the PPS and no slice header override no
+  longer reads a `slice_loop_filter_across_slices_enabled_flag` bit that is not
+  there and fails byte_alignment (x265 `--no-deblock` output)
 - `avc.ParsePPSNALUnit` rejects an out-of-range `num_slice_groups_minus1`
   (max 7 for any profile) instead of appending one entry per signalled slice
   group, which let a 7-byte malformed PPS NAL unit allocate over 10 GiB
