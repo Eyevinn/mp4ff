@@ -53,6 +53,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   time ranges that no surviving later fragment declares again, and
   overlapping files whose fragments use absolute base data offsets are
   rejected
+- `mp4.Defragment` and `mp4.DefragmentTracks` accept hybrid files that carry
+  progressive samples in the moov before the first fragment: the progressive
+  samples come first with their chunk structure preserved (also when stco
+  offsets are not monotone), and the fragment samples are appended.
+  Fragments may supersede progressive samples under the same
+  later-declarer-wins and coverage rules as fragment overlaps, and hostile
+  sample tables are validated before any count-proportional allocation
+- `SttsBox.SampleDurations`, `CttsBox.CompositionTimeOffsets`, and
+  `StssBox.SampleIsSync` expand a whole sample table into one value per
+  sample, validating the entries against the declared sample count
 - `mp4ff-defragment` command line tool exposing the defragmentation with
   optional track selection
 

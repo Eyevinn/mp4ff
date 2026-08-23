@@ -75,6 +75,19 @@ func (b *StssBox) expectedSize(entryCount uint32) uint64 {
 	return uint64(boxHeaderSize + 8 + uint64(entryCount)*4)
 }
 
+// SampleIsSync returns for each of nrSamples samples whether it is a sync
+// sample, validating that no entry lies outside that count.
+func (b *StssBox) SampleIsSync(nrSamples uint32) ([]bool, error) {
+	sync := make([]bool, nrSamples)
+	for _, nr := range b.SampleNumber {
+		if nr < 1 || nr > nrSamples {
+			return nil, fmt.Errorf("stss entry %d outside the %d declared samples", nr, nrSamples)
+		}
+		sync[nr-1] = true
+	}
+	return sync, nil
+}
+
 // IsSyncSample - check if sample (one-based) sampleNr is a sync sample
 func (b *StssBox) IsSyncSample(sampleNr uint32) (isSync bool) {
 	// Based on a binary search algorithm from the Go standard library code.

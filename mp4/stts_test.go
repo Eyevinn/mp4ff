@@ -117,3 +117,26 @@ func TestSttsEmptyBox(t *testing.T) {
 		t.Error("expected error from GetSampleNrAtTime on stts without entries, got none")
 	}
 }
+
+func TestSttsSampleDurations(t *testing.T) {
+	stts := &mp4.SttsBox{
+		SampleCount:     []uint32{2, 1},
+		SampleTimeDelta: []uint32{10, 14},
+	}
+	durs, err := stts.SampleDurations(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []uint32{10, 10, 14}
+	for i := range want {
+		if durs[i] != want[i] {
+			t.Errorf("duration %d is %d, want %d", i, durs[i], want[i])
+		}
+	}
+	if _, err := stts.SampleDurations(2); err == nil {
+		t.Error("entries covering more samples than declared must be an error")
+	}
+	if _, err := stts.SampleDurations(4); err == nil {
+		t.Error("entries covering fewer samples than declared must be an error")
+	}
+}

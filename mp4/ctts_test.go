@@ -78,3 +78,30 @@ func TestGetCompositionTimeOffsetOutsideBox(t *testing.T) {
 		t.Errorf("decoded empty ctts: got cto %d instead of 0", cto)
 	}
 }
+
+func TestCttsCompositionTimeOffsets(t *testing.T) {
+	ctts := &mp4.CttsBox{}
+	if err := ctts.AddSampleCountsAndOffset([]uint32{2, 1}, []int32{100, -200}); err != nil {
+		t.Fatal(err)
+	}
+	offsets, err := ctts.CompositionTimeOffsets(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []int32{100, 100, -200}
+	for i := range want {
+		if offsets[i] != want[i] {
+			t.Errorf("offset %d is %d, want %d", i, offsets[i], want[i])
+		}
+	}
+	if _, err := ctts.CompositionTimeOffsets(2); err == nil {
+		t.Error("entries covering more samples than declared must be an error")
+	}
+	empty := &mp4.CttsBox{}
+	if offsets, err := empty.CompositionTimeOffsets(0); err != nil || len(offsets) != 0 {
+		t.Errorf("empty box with 0 samples gave %v, %v", offsets, err)
+	}
+	if _, err := empty.CompositionTimeOffsets(3); err == nil {
+		t.Error("an empty box covering declared samples must be an error")
+	}
+}
