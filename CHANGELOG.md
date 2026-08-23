@@ -40,7 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starting later than the earliest one keeps its presentation alignment
   through an empty edit; a trivial identity edit list is dropped.
   Fragment-format brands (dash, cmfc, isml, and friends) are removed from
-  the output ftyp. Encrypted content, unsupported edit lists, zero
+  the output ftyp. Per-sample encryption auxiliary information (senc or
+  saiz/saio; constant-IV full-sample encryption without such data passes
+  through losslessly), unsupported edit lists, zero
   timescales, truncated byte ranges, and payloads larger than the input
   file are rejected
 - `mp4.Defragment` and `mp4.DefragmentTracks` resolve overlapping fragments:
@@ -53,6 +55,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   time ranges that no surviving later fragment declares again, and
   overlapping files whose fragments use absolute base data offsets are
   rejected
+- `mp4.Defragment` and `mp4.DefragmentTracks` accept hybrid files that carry
+  progressive samples in the moov before the first fragment: the progressive
+  samples come first with their chunk structure preserved (also when stco
+  offsets are not monotone), and the fragment samples are appended.
+  Fragments may supersede progressive samples under the same
+  later-declarer-wins and coverage rules as fragment overlaps, and hostile
+  sample tables are validated before any count-proportional allocation
+- `SttsBox.SampleDurations`, `CttsBox.CompositionTimeOffsets`, and
+  `StssBox.SampleIsSync` expand a whole sample table into one value per
+  sample, validating the entries against the declared sample count
 - `mp4ff-defragment` command line tool exposing the defragmentation with
   optional track selection
 
