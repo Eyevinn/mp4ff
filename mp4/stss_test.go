@@ -74,3 +74,20 @@ func TestStssNoSamples(t *testing.T) {
 		}
 	}
 }
+
+func TestStssSampleIsSync(t *testing.T) {
+	stss := &mp4.StssBox{SampleNumber: []uint32{1, 3}}
+	sync, err := stss.SampleIsSync(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []bool{true, false, true}
+	for i := range want {
+		if sync[i] != want[i] {
+			t.Errorf("sample %d sync %v, want %v", i+1, sync[i], want[i])
+		}
+	}
+	if _, err := stss.SampleIsSync(2); err == nil {
+		t.Error("an entry outside the declared samples must be an error")
+	}
+}
