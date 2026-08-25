@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `TrunBox.GetFullSamples` returns an error when the trun-declared sample
+  sizes point outside the mdat data (a truncated or corrupt file), instead
+  of panicking with index out of range. Signature change:
+  `GetFullSamples(...) []FullSample` → `GetFullSamples(...) ([]FullSample, error)`.
+  `Fragment.GetFullSamples` (unchanged signature) propagates the error
+
 ### Fixed
 
 - `NewSdtpEntry` packed the `sampleDependedOn` argument into both two-bit
@@ -17,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TrakBox.GetSampleData` indexed its result slice with the absolute sample
   number instead of the offset within the requested interval, panicking with
   index out of range for any interval not starting at sample 1
+- `TrunBox.GetSampleInterval` (and thereby `Fragment.GetSampleInterval`)
+  returns an error instead of panicking when the requested interval points
+  outside the mdat data
 
 ## [0.56.0] - 2026-08-22
 
