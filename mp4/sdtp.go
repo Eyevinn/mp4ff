@@ -26,7 +26,7 @@ type SdtpEntry uint8
 
 // NewSdtpEntry - make new SdtpEntry from 2-bit parameters
 func NewSdtpEntry(isLeading, sampleDependsOn, sampleDependedOn, hasRedundancy uint8) SdtpEntry {
-	return SdtpEntry(isLeading<<6 | sampleDependedOn<<4 | sampleDependedOn<<2 | hasRedundancy)
+	return SdtpEntry(isLeading<<6 | sampleDependsOn<<4 | sampleDependedOn<<2 | hasRedundancy)
 }
 
 // IsLeading (bits 0-1)

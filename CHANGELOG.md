@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `NewSdtpEntry` packed the `sampleDependedOn` argument into both two-bit
+  dependency fields and dropped `sampleDependsOn`, so every entry it built
+  carried a wrong sample_depends_on value. Note that entries built with the
+  broken constructor re-encode byte-identically; only newly constructed
+  entries change
+
 ## [0.56.0] - 2026-08-22
 
 ### Added
