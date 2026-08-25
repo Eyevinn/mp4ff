@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carried a wrong sample_depends_on value. Note that entries built with the
   broken constructor re-encode byte-identically; only newly constructed
   entries change
+- `TrakBox.GetSampleData` indexed its result slice with the absolute sample
+  number instead of the offset within the requested interval, panicking with
+  index out of range for any interval not starting at sample 1
 
 ## [0.56.0] - 2026-08-22
 
