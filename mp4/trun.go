@@ -363,12 +363,18 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 // offsetInMdat is offset in mdat data (data normally starts 8 or 16 bytes after start of mdat box)
 // baseDecodeTime is decodeTime in tfdt in track timescale (timescale in mfhd)
 // To fill missing individual values from tfhd and trex defaults, call trun.AddSampleDefaultValues() before this call
-func (t *TrunBox) GetFullSamples(offsetInMdat uint32, baseDecodeTime uint64, mdat *MdatBox) []FullSample {
+// An error is returned if the sample sizes point outside the mdat data (e.g. a truncated file).
+func (t *TrunBox) GetFullSamples(offsetInMdat uint32, baseDecodeTime uint64, mdat *MdatBox) ([]FullSample, error) {
 	samples := make([]FullSample, 0, t.SampleCount())
 	var accDur uint64 = 0
-	for _, s := range t.Samples {
+	for nr, s := range t.Samples {
 		dTime := baseDecodeTime + accDur
 
+		end := uint64(offsetInMdat) + uint64(s.Size)
+		if end > uint64(len(mdat.Data)) {
+			return nil, fmt.Errorf("sample %d range %d-%d is outside mdat data (size %d)",
+				nr+1, offsetInMdat, end, len(mdat.Data))
+		}
 		newSample := FullSample{
 			Sample:     s,
 			DecodeTime: dTime,
@@ -378,7 +384,7 @@ func (t *TrunBox) GetFullSamples(offsetInMdat uint32, baseDecodeTime uint64, mda
 		accDur += uint64(s.Dur)
 		offsetInMdat += s.Size
 	}
-	return samples
+	return samples, nil
 }
 
 // GetSamples - get all trun sample data
@@ -428,6 +434,11 @@ func (t *TrunBox) GetSampleInterval(startSampleNr, endSampleNr uint32, baseDecod
 	si.OffsetInMdat = offsetInMdat
 	si.Size = size
 	if mdat != nil && !mdat.IsLazy() {
+		end := uint64(si.OffsetInMdat) + uint64(si.Size)
+		if end > uint64(len(mdat.Data)) {
+			return SampleInterval{}, fmt.Errorf("sample interval range %d-%d is outside mdat data (size %d)",
+				si.OffsetInMdat, end, len(mdat.Data))
+		}
 		si.Data = mdat.Data[si.OffsetInMdat : si.OffsetInMdat+si.Size]
 	}
 	return si, nil

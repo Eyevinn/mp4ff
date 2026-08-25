@@ -197,3 +197,35 @@ func TestCommonDuration(t *testing.T) {
 		}
 	}
 }
+
+func TestGetFullSamplesTruncatedMdat(t *testing.T) {
+	trun := mp4.CreateTrun(0)
+	trun.AddSamples([]mp4.Sample{
+		{Flags: mp4.SyncSampleFlags, Dur: 1024, Size: 4},
+		{Flags: mp4.NonSyncSampleFlags, Dur: 1024, Size: 4},
+	})
+	mdat := &mp4.MdatBox{Data: []byte{0, 1, 2, 3, 4, 5}} // 6 bytes, but 8 declared
+
+	if _, err := trun.GetFullSamples(0, 0, mdat); err == nil {
+		t.Error("expected error when sample sizes point outside mdat data, got nil")
+	}
+	if _, err := trun.GetSampleInterval(1, 2, 0, mdat, 0); err == nil {
+		t.Error("expected error when sample interval points outside mdat data, got nil")
+	}
+
+	mdat.Data = []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	samples, err := trun.GetFullSamples(0, 0, mdat)
+	if err != nil {
+		t.Fatalf("unexpected error with complete mdat: %v", err)
+	}
+	if len(samples) != 2 {
+		t.Errorf("expected 2 samples, got %d", len(samples))
+	}
+	si, err := trun.GetSampleInterval(1, 2, 0, mdat, 0)
+	if err != nil {
+		t.Fatalf("unexpected error with complete mdat: %v", err)
+	}
+	if len(si.Data) != 8 {
+		t.Errorf("expected 8 bytes of interval data, got %d", len(si.Data))
+	}
+}

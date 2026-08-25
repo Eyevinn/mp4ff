@@ -185,7 +185,11 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 		} else {
 			offsetInMdat = 0
 		}
-		samples = append(samples, trun.GetFullSamples(uint32(offsetInMdat), baseTime, mdat)...)
+		trunSamples, err := trun.GetFullSamples(uint32(offsetInMdat), baseTime, mdat)
+		if err != nil {
+			return nil, err
+		}
+		samples = append(samples, trunSamples...)
 		baseTime += totalDur // Next trun start after this
 	}
 

@@ -62,3 +62,27 @@ func TestFragmentSampleIntervals(t *testing.T) {
 	}
 	sampleItvl.Reset()
 }
+
+func TestFragmentGetFullSamplesTruncatedMdat(t *testing.T) {
+	frag, err := mp4.CreateFragment(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs := mp4.FullSample{
+		Sample: mp4.Sample{
+			Flags: mp4.SyncSampleFlags,
+			Dur:   1024,
+			Size:  4,
+		},
+		DecodeTime: 0,
+		Data:       []byte{0, 1, 2, 3},
+	}
+	frag.AddFullSample(fs)
+	// Simulate a truncated file: the trun declares more sample bytes
+	// than the mdat carries.
+	frag.Mdat.Data = frag.Mdat.Data[:2]
+
+	if _, err := frag.GetFullSamples(nil); err == nil {
+		t.Error("expected error when mdat is truncated, got nil")
+	}
+}
