@@ -34,6 +34,25 @@ func TestTrakSampleFunctions(t *testing.T) {
 	if len(first2Samples) != 2 {
 		t.Fatalf("expected 2 samples, got %d", len(first2Samples))
 	}
+	// An interval not starting at sample 1 must yield the same samples as
+	// the corresponding tail of a from-the-start interval (this used to
+	// panic on samples[nr-1] indexing past the result slice).
+	first4Samples, err := trak.GetSampleData(1, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	samples2to4, err := trak.GetSampleData(2, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(samples2to4) != 3 {
+		t.Fatalf("expected 3 samples, got %d", len(samples2to4))
+	}
+	for i, s := range samples2to4 {
+		if s != first4Samples[i+1] {
+			t.Errorf("sample %d differs: got %+v, want %+v", i+2, s, first4Samples[i+1])
+		}
+	}
 	ranges, err := trak.GetRangesForSampleInterval(1, 2)
 	if err != nil {
 		t.Fatal(err)
