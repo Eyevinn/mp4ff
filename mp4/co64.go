@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -42,13 +43,15 @@ func DecodeCo64SR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		return nil, fmt.Errorf("co64: expected size %d, got %d", b.expectedSize(nrEntries), hdr.Size)
 	}
 
+	// Bulk-read the table: one slice-reader call for all entries instead
+	// of one per entry, then decode in a tight loop.
+	data := sr.ReadBytes(8 * int(nrEntries))
+	if sr.AccError() != nil {
+		return nil, sr.AccError()
+	}
 	b.ChunkOffset = make([]uint64, nrEntries)
-
-	for i := uint32(0); i < nrEntries; i++ {
-		b.ChunkOffset[i] = sr.ReadUint64()
-		if sr.AccError() != nil {
-			return nil, sr.AccError()
-		}
+	for i := range b.ChunkOffset {
+		b.ChunkOffset[i] = binary.BigEndian.Uint64(data[8*i:])
 	}
 	return b, sr.AccError()
 }
