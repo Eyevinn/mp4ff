@@ -221,7 +221,13 @@ func CryptSampleCenc(sample []byte, key []byte, iv []byte, subSamplePatterns []S
 	if err != nil {
 		return err
 	}
+	return cryptSampleCencBlock(block, sample, iv, subSamplePatterns)
+}
 
+// cryptSampleCencBlock is CryptSampleCenc with an already-expanded AES block,
+// so that a caller encrypting many samples under one key does not pay the
+// key expansion (and its allocation) per sample.
+func cryptSampleCencBlock(block cipher.Block, sample []byte, iv []byte, subSamplePatterns []SubSamplePattern) error {
 	stream := cipher.NewCTR(block, iv)
 	if len(subSamplePatterns) != 0 {
 		var pos uint32 = 0
@@ -259,17 +265,28 @@ func subSampleRange(sampleLen int, pos uint32, nr int, ss SubSamplePattern) (sta
 // DecryptSampleCenc does in-place decryption of cbcs-schema encrypted sample.
 // Each protected byte range is striped with with pattern defined by pattern in tenc.
 func DecryptSampleCbcs(sample []byte, key []byte, iv []byte, subSamplePatterns []SubSamplePattern, tenc *TencBox) error {
-	return cryptSampleCbcs(dirDec, sample, key, iv, subSamplePatterns, tenc)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return err
+	}
+	return cryptSampleCbcs(dirDec, sample, block, iv, subSamplePatterns, tenc)
 }
 
 // EncryptSampleCenc does in-place encryption using cbcs schema.
 // Each protected byte range is striped with with pattern defined by pattern in tenc.
 func EncryptSampleCbcs(sample []byte, key []byte, iv []byte, subSamplePatterns []SubSamplePattern, tenc *TencBox) error {
-	return cryptSampleCbcs(dirEnc, sample, key, iv, subSamplePatterns, tenc)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return err
+	}
+	return cryptSampleCbcs(dirEnc, sample, block, iv, subSamplePatterns, tenc)
 }
 
 // cryptSampleCbcs does either encryption of decryption of a sample using cbcs scheme.
-func cryptSampleCbcs(dir cryptoDir, sample []byte, key []byte, iv []byte, subSamplePatterns []SubSamplePattern, tenc *TencBox) error {
+// The block is the already-expanded AES cipher for the content key, so that a caller
+// crypting many samples (or subsample ranges) under one key expands the key only once.
+func cryptSampleCbcs(dir cryptoDir, sample []byte, block cipher.Block, iv []byte,
+	subSamplePatterns []SubSamplePattern, tenc *TencBox) error {
 	nrInCryptBlock := int(tenc.DefaultCryptByteBlock) * 16
 	nrInSkipBlock := int(tenc.DefaultSkipByteBlock) * 16
 	var pos uint32 = 0
@@ -280,7 +297,7 @@ func cryptSampleCbcs(dir cryptoDir, sample []byte, key []byte, iv []byte, subSam
 				return err
 			}
 			if end > start {
-				err = cbcsCrypt(dir, sample[start:end], key, iv, nrInCryptBlock, nrInSkipBlock)
+				err = cbcsCrypt(dir, sample[start:end], block, iv, nrInCryptBlock, nrInSkipBlock)
 				if err != nil {
 					return err
 				}
@@ -288,7 +305,7 @@ func cryptSampleCbcs(dir cryptoDir, sample []byte, key []byte, iv []byte, subSam
 			pos = end
 		}
 	} else { // Full encryption as used for audio
-		err := cbcsCrypt(dir, sample, key, iv, nrInCryptBlock, nrInSkipBlock)
+		err := cbcsCrypt(dir, sample, block, iv, nrInCryptBlock, nrInSkipBlock)
 		if err != nil {
 			return err
 		}
@@ -298,19 +315,15 @@ func cryptSampleCbcs(dir cryptoDir, sample []byte, key []byte, iv []byte, subSam
 
 // cbcsCrypt does one in-place CBC encryption/decryption. Full if nrInSkipBlock == 0.
 // The normal case is that nrInCryptBlock == 16 and nrInSkipBlock == 144.
-func cbcsCrypt(dir cryptoDir, data []byte, key []byte, iv []byte, nrInCryptBlock, nrInSkipBlock int) error {
+func cbcsCrypt(dir cryptoDir, data []byte, block cipher.Block, iv []byte, nrInCryptBlock, nrInSkipBlock int) error {
 	pos := 0
 	size := len(data) // This is the bytes that we should stripe decrypt
-	aesCbcCrypto, err := aes.NewCipher(key)
-	if err != nil {
-		return err
-	}
 	var cph cipher.BlockMode
 	switch dir {
 	case dirDec:
-		cph = cipher.NewCBCDecrypter(aesCbcCrypto, iv)
+		cph = cipher.NewCBCDecrypter(block, iv)
 	case dirEnc:
-		cph = cipher.NewCBCEncrypter(aesCbcCrypto, iv)
+		cph = cipher.NewCBCEncrypter(block, iv)
 	default:
 		return fmt.Errorf("unknown crypto direction %d", dir)
 	}
@@ -621,7 +634,7 @@ func newAV1ProtectorFactory(av1C *Av1CBox) (sampleProtectorFactory, error) {
 // FragmentEncryptor for each sequence and for each concurrent request.
 type FragmentEncryptor struct {
 	ipd     *InitProtectData
-	key     []byte
+	block   cipher.Block // AES block for the key, expanded once for the whole sequence
 	iv      []byte
 	iv8Mode bool
 	prot    sampleProtector
@@ -659,9 +672,13 @@ func (ipd *InitProtectData) NewFragmentEncryptor(key, iv []byte) (*FragmentEncry
 	if err != nil {
 		return nil, fmt.Errorf("new sample protector: %w", err)
 	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("new aes cipher: %w", err)
+	}
 	ivCopy := make([]byte, len(iv))
 	copy(ivCopy, iv)
-	return &FragmentEncryptor{ipd: ipd, key: key, iv: ivCopy, iv8Mode: iv8Mode, prot: prot}, nil
+	return &FragmentEncryptor{ipd: ipd, block: block, iv: ivCopy, iv8Mode: iv8Mode, prot: prot}, nil
 }
 
 // IV returns the next initialization vector. For cenc it advances as fragments are encrypted, so
@@ -702,6 +719,13 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 		return fmt.Errorf("get full samples: %w", err)
 	}
 
+	var iv16 []byte
+	if e.iv8Mode {
+		// The 16-byte CTR IV for an 8-byte per-sample IV: the high half is the
+		// sample IV, the low half stays zero. NewCTR copies the IV, so one
+		// buffer serves every sample of the fragment.
+		iv16 = make([]byte, 16)
+	}
 	for _, fs := range fss {
 		sample := fs.Data
 		subsamplePatterns, err := e.prot.protectRanges(sample, ipd.Scheme)
@@ -712,10 +736,10 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 		case "cenc":
 			ctrIV := iv
 			if e.iv8Mode {
-				ctrIV = make([]byte, 16)
-				copy(ctrIV, iv)
+				copy(iv16, iv)
+				ctrIV = iv16
 			}
-			if err := CryptSampleCenc(sample, e.key, ctrIV, subsamplePatterns); err != nil {
+			if err := cryptSampleCencBlock(e.block, sample, ctrIV, subsamplePatterns); err != nil {
 				return fmt.Errorf("crypt sample cenc: %w", err)
 			}
 			// Store IVs in the senc box and advance the IV for the next sample
@@ -734,7 +758,7 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 				iv = incrementIV(iv, subsamplePatterns, len(sample))
 			}
 		case "cbcs":
-			if err := EncryptSampleCbcs(sample, e.key, iv, subsamplePatterns, ipd.Tenc); err != nil {
+			if err := cryptSampleCbcs(dirEnc, sample, e.block, iv, subsamplePatterns, ipd.Tenc); err != nil {
 				return fmt.Errorf("crypt sample cbcs: %w", err)
 			}
 			// iv is constant and not sent to senc
@@ -1066,6 +1090,10 @@ func decryptSamplesInPlace(schemeType string, samples []FullSample, key []byte, 
 	if tenc.DefaultConstantIV != nil {
 		copy(iv, tenc.DefaultConstantIV)
 	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return err
+	}
 
 	// Subsample information must cover exactly the samples to decrypt. Using
 	// it for the wrong sample would decrypt the wrong byte ranges, and a senc
@@ -1094,12 +1122,11 @@ func decryptSamplesInPlace(schemeType string, samples []FullSample, key []byte, 
 		}
 		switch schemeType {
 		case "cenc":
-			err := CryptSampleCenc(samples[i].Data, key, iv, subSamplePatterns)
-			if err != nil {
+			if err := cryptSampleCencBlock(block, samples[i].Data, iv, subSamplePatterns); err != nil {
 				return err
 			}
 		case "cbcs":
-			err := DecryptSampleCbcs(samples[i].Data, key, iv, subSamplePatterns, tenc)
+			err := cryptSampleCbcs(dirDec, samples[i].Data, block, iv, subSamplePatterns, tenc)
 			if err != nil {
 				return err
 			}

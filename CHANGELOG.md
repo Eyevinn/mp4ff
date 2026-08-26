@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sample-table decode (`stsz`, `stts`, `ctts`, `stco`, `co64`, `stss`) bulk-reads
   each table with one slice-reader call instead of one call per entry, roughly
   halving moov parse time for long progressive files
+- Fragment encryption and decryption expand the AES key once per run instead
+  of once per sample (cenc) or per protected subsample range (cbcs), making
+  fragment encryption roughly 40% (cenc) / 18% (cbcs) faster. A bad key
+  length is now reported by `NewFragmentEncryptor` instead of by the first
+  sample encryption
 
 ### Fixed
 
