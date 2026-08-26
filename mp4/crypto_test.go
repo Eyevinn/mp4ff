@@ -885,3 +885,22 @@ func TestDecryptFragmentSencSampleCountMismatch(t *testing.T) {
 		t.Error("expected error for senc subsample count mismatch, got nil")
 	}
 }
+
+// TestProtectRangesBadNaluLength checks that a nalu length field that wraps in
+// uint32 is reported instead of slicing outside the sample.
+func TestProtectRangesBadNaluLength(t *testing.T) {
+	samples := map[string][]byte{
+		"length wrapping uint32": {0xff, 0xff, 0xff, 0xff, 0x65, 0, 0, 0},
+		"length beyond sample":   {0, 0, 0x10, 0, 0x65, 0, 0, 0},
+	}
+	for desc, sample := range samples {
+		t.Run(desc, func(t *testing.T) {
+			if _, err := mp4.GetAVCProtectRanges(nil, nil, sample, "cenc"); err == nil {
+				t.Error("GetAVCProtectRanges: expected error, got nil")
+			}
+			if _, err := mp4.GetHEVCProtectRanges(nil, nil, sample, "cenc"); err == nil {
+				t.Error("GetHEVCProtectRanges: expected error, got nil")
+			}
+		})
+	}
+}
