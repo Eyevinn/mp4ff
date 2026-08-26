@@ -224,21 +224,34 @@ func CryptSampleCenc(sample []byte, key []byte, iv []byte, subSamplePatterns []S
 	if len(subSamplePatterns) != 0 {
 		var pos uint32 = 0
 		for j := 0; j < len(subSamplePatterns); j++ {
-			ss := subSamplePatterns[j]
-			nrClear := uint32(ss.BytesOfClearData)
-			if nrClear > 0 {
-				pos += nrClear
+			start, end, err := subSampleRange(len(sample), pos, j, subSamplePatterns[j])
+			if err != nil {
+				return err
 			}
-			nrEnc := ss.BytesOfProtectedData
-			if nrEnc > 0 {
-				stream.XORKeyStream(sample[pos:pos+nrEnc], sample[pos:pos+nrEnc])
-				pos += nrEnc
+			if end > start {
+				stream.XORKeyStream(sample[start:end], sample[start:end])
 			}
+			pos = end
 		}
 	} else {
 		stream.XORKeyStream(sample, sample)
 	}
 	return nil
+}
+
+// subSampleRange returns the protected byte range [start, end) of the
+// subsample pattern nr (zero-based) starting at pos in sample. An error is
+// returned if the pattern reaches outside the sample, since the byte counts
+// come from a senc box that nothing ties to the actual sample sizes.
+func subSampleRange(sampleLen int, pos uint32, nr int, ss SubSamplePattern) (start, end uint32, err error) {
+	// uint64 arithmetic so that big byte counts cannot wrap
+	startPos := uint64(pos) + uint64(ss.BytesOfClearData)
+	endPos := startPos + uint64(ss.BytesOfProtectedData)
+	if endPos > uint64(sampleLen) {
+		return 0, 0, fmt.Errorf("subsample %d range %d-%d is outside sample of size %d",
+			nr+1, startPos, endPos, sampleLen)
+	}
+	return uint32(startPos), uint32(endPos), nil
 }
 
 // DecryptSampleCenc does in-place decryption of cbcs-schema encrypted sample.
@@ -260,17 +273,17 @@ func cryptSampleCbcs(dir cryptoDir, sample []byte, key []byte, iv []byte, subSam
 	var pos uint32 = 0
 	if len(subSamplePatterns) != 0 {
 		for j := 0; j < len(subSamplePatterns); j++ {
-			ss := subSamplePatterns[j]
-			nrClear := uint32(ss.BytesOfClearData)
-			pos += nrClear
-			if ss.BytesOfProtectedData > 0 {
-				err := cbcsCrypt(dir, sample[pos:pos+ss.BytesOfProtectedData], key,
-					iv, nrInCryptBlock, nrInSkipBlock)
+			start, end, err := subSampleRange(len(sample), pos, j, subSamplePatterns[j])
+			if err != nil {
+				return err
+			}
+			if end > start {
+				err = cbcsCrypt(dir, sample[start:end], key, iv, nrInCryptBlock, nrInSkipBlock)
 				if err != nil {
 					return err
 				}
 			}
-			pos += ss.BytesOfProtectedData
+			pos = end
 		}
 	} else { // Full encryption as used for audio
 		err := cbcsCrypt(dir, sample, key, iv, nrInCryptBlock, nrInSkipBlock)
@@ -1050,6 +1063,14 @@ func decryptSamplesInPlace(schemeType string, samples []FullSample, key []byte, 
 	iv := make([]byte, 16)
 	if tenc.DefaultConstantIV != nil {
 		copy(iv, tenc.DefaultConstantIV)
+	}
+
+	// Subsample information must cover exactly the samples to decrypt. Using
+	// it for the wrong sample would decrypt the wrong byte ranges, and a senc
+	// with fewer entries than samples used to panic.
+	if senc != nil && len(senc.SubSamples) != 0 && len(senc.SubSamples) != len(samples) {
+		return fmt.Errorf("senc has subsample information for %d samples, but %d samples to decrypt",
+			len(senc.SubSamples), len(samples))
 	}
 
 	for i := range samples {

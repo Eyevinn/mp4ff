@@ -59,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mp4ff-crop` panicked on a file whose ctts, stts, stsc or stsz does not
   cover all samples of the track, and reported only the last of several
   cropping errors
+- `CryptSampleCenc`, `DecryptSampleCbcs` and `EncryptSampleCbcs` panicked for
+  subsample patterns whose byte counts reach outside the sample. Nothing ties
+  the senc byte counts to the actual sample sizes, and big counts could also
+  wrap in uint32. They now return an error
+- `DecryptFragment` and `DecryptFragmentWithKeys` panicked when the senc box
+  held subsample information for a different number of samples than the trun
+  declares
 
 ## [0.56.0] - 2026-08-22
 

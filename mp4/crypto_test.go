@@ -777,3 +777,111 @@ func TestEncryptFragmentNoAuxInfoOmitsBoxes(t *testing.T) {
 			traf.Senc != nil, traf.Saiz != nil, traf.Saio != nil)
 	}
 }
+
+// TestCryptSampleBadSubSamplePatterns checks that subsample byte counts
+// reaching outside the sample give an error instead of a panic. The counts
+// come from a senc box, which nothing ties to the actual sample sizes.
+func TestCryptSampleBadSubSamplePatterns(t *testing.T) {
+	key := make([]byte, 16)
+	iv := make([]byte, 16)
+	tenc := &mp4.TencBox{DefaultCryptByteBlock: 1, DefaultSkipByteBlock: 9}
+	cases := []struct {
+		desc     string
+		patterns []mp4.SubSamplePattern
+		wantErr  bool
+	}{
+		{
+			desc:     "protected data past end",
+			patterns: []mp4.SubSamplePattern{{BytesOfClearData: 2, BytesOfProtectedData: 1000}},
+			wantErr:  true,
+		},
+		{
+			desc:     "clear data past end",
+			patterns: []mp4.SubSamplePattern{{BytesOfClearData: 1000, BytesOfProtectedData: 1}},
+			wantErr:  true,
+		},
+		{
+			desc:     "byte counts wrapping uint32",
+			patterns: []mp4.SubSamplePattern{{BytesOfClearData: 4, BytesOfProtectedData: 0xfffffffc}},
+			wantErr:  true,
+		},
+		{
+			desc: "second pattern past end",
+			patterns: []mp4.SubSamplePattern{
+				{BytesOfClearData: 2, BytesOfProtectedData: 8},
+				{BytesOfClearData: 0, BytesOfProtectedData: 16},
+			},
+			wantErr: true,
+		},
+		{
+			desc:     "exactly filling the sample",
+			patterns: []mp4.SubSamplePattern{{BytesOfClearData: 2, BytesOfProtectedData: 8}},
+			wantErr:  false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			for _, f := range []struct {
+				name string
+				fn   func(sample []byte) error
+			}{
+				{"CryptSampleCenc", func(s []byte) error { return mp4.CryptSampleCenc(s, key, iv, c.patterns) }},
+				{"DecryptSampleCbcs", func(s []byte) error { return mp4.DecryptSampleCbcs(s, key, iv, c.patterns, tenc) }},
+				{"EncryptSampleCbcs", func(s []byte) error { return mp4.EncryptSampleCbcs(s, key, iv, c.patterns, tenc) }},
+			} {
+				err := f.fn(make([]byte, 10))
+				if c.wantErr && err == nil {
+					t.Errorf("%s: expected error, got nil", f.name)
+				}
+				if !c.wantErr && err != nil {
+					t.Errorf("%s: unexpected error: %s", f.name, err)
+				}
+			}
+		})
+	}
+}
+
+// TestDecryptFragmentSencSampleCountMismatch checks that a senc box with
+// subsample information for a different number of samples than the trun
+// declares gives an error instead of a panic.
+func TestDecryptFragmentSencSampleCountMismatch(t *testing.T) {
+	frag, err := mp4.CreateFragment(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		frag.AddFullSample(mp4.FullSample{
+			Sample:     mp4.Sample{Flags: mp4.SyncSampleFlags, Dur: 1024, Size: 16},
+			DecodeTime: uint64(i * 1024),
+			Data:       make([]byte, 16),
+		})
+	}
+	// senc for one sample only, while the trun has three
+	senc := mp4.CreateSencBox()
+	err = senc.AddSample(mp4.SencSample{
+		IV:         make([]byte, 16),
+		SubSamples: []mp4.SubSamplePattern{{BytesOfClearData: 0, BytesOfProtectedData: 16}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := frag.Moof.Traf.AddChild(senc); err != nil {
+		t.Fatal(err)
+	}
+
+	di := mp4.DecryptInfo{
+		TrackInfos: []mp4.DecryptTrackInfo{{
+			TrackID: 1,
+			Sinf: &mp4.SinfBox{
+				Schm: &mp4.SchmBox{SchemeType: "cenc"},
+				Schi: &mp4.SchiBox{Tenc: &mp4.TencBox{
+					DefaultPerSampleIVSize: 16,
+					DefaultKID:             mp4.UUID(make([]byte, 16)),
+				}},
+			},
+		}},
+	}
+	if err := mp4.DecryptFragment(frag, di, make([]byte, 16)); err == nil {
+		t.Error("expected error for senc subsample count mismatch, got nil")
+	}
+}
