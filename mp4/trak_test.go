@@ -61,3 +61,59 @@ func TestTrakSampleFunctions(t *testing.T) {
 		t.Fatalf("expected 1 range, got %d", len(ranges))
 	}
 }
+
+// TestGetSampleDataShortTables checks that a ctts or sdtp box covering fewer
+// samples than stsz declares does not panic. Nothing in the box definitions
+// ties these tables to the same sample count, so a corrupt file can disagree.
+func TestGetSampleDataShortTables(t *testing.T) {
+	cases := []struct {
+		desc    string
+		corrupt func(stbl *mp4.StblBox)
+	}{
+		{
+			desc: "ctts covering two samples",
+			corrupt: func(stbl *mp4.StblBox) {
+				stbl.Ctts = &mp4.CttsBox{}
+				if err := stbl.Ctts.AddSampleCountsAndOffset([]uint32{2}, []int32{1000}); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			desc: "empty ctts",
+			corrupt: func(stbl *mp4.StblBox) {
+				stbl.Ctts = &mp4.CttsBox{EndSampleNr: []uint32{0}}
+			},
+		},
+		{
+			desc: "sdtp with two entries",
+			corrupt: func(stbl *mp4.StblBox) {
+				stbl.Sdtp = &mp4.SdtpBox{Entries: []mp4.SdtpEntry{
+					mp4.NewSdtpEntry(0, 2, 0, 0), mp4.NewSdtpEntry(0, 2, 0, 0),
+				}}
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			fd, err := os.Open("testdata/bbb_prog_10s.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer fd.Close()
+			f, err := mp4.DecodeFile(fd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trak := f.Moov.Trak
+			c.corrupt(trak.Mdia.Minf.Stbl)
+			samples, err := trak.GetSampleData(1, 10)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if len(samples) != 10 {
+				t.Errorf("got %d samples instead of 10", len(samples))
+			}
+		})
+	}
+}

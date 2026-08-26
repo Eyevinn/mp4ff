@@ -135,9 +135,11 @@ func (b *StszBox) GetNrSamples() uint32 {
 	return uint32(len(b.SampleSize))
 }
 
-// GetSampleSize returns the size (in bytes) of a sample
+// GetSampleSize returns the size (in bytes) of a sample.
+// The sample number i is one-based. SampleUniformSize is returned if i is
+// outside the individual sizes, which is 0 for a box with individual sizes.
 func (b *StszBox) GetSampleSize(i int) uint32 {
-	if i > len(b.SampleSize) { // One-based
+	if i < 1 || i > len(b.SampleSize) { // One-based
 		return b.SampleUniformSize
 	}
 	return b.SampleSize[i-1]
@@ -145,8 +147,8 @@ func (b *StszBox) GetSampleSize(i int) uint32 {
 
 // GetTotalSampleSize - get total size of a range [startNr, endNr] of samples
 func (b *StszBox) GetTotalSampleSize(startNr, endNr uint32) (uint64, error) {
-	if startNr <= 0 || endNr > b.SampleNumber {
-		return 0, fmt.Errorf("startNr or calculated endNr outside range 1-%d", b.SampleNumber)
+	if startNr <= 0 || endNr > b.GetNrSamples() {
+		return 0, fmt.Errorf("startNr or calculated endNr outside range 1-%d", b.GetNrSamples())
 	}
 	if endNr < startNr {
 		return 0, nil

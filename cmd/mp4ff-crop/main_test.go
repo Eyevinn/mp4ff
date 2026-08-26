@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -68,5 +70,39 @@ func TestCroppedFileDuration(t *testing.T) {
 	moovTimescale := decCropped.Moov.Mvhd.Timescale
 	if uint64(cropDur)*uint64(moovTimescale) != moovDur*1000 {
 		t.Errorf("got %d/%dms instead of %dms", moovDur, moovTimescale, cropDur)
+	}
+}
+
+// TestTruncatedCtts checks that a ctts box that does not cover all samples of
+// the track gives an error instead of a panic while cropping.
+func TestTruncatedCtts(t *testing.T) {
+	raw, err := os.ReadFile("../../mp4/testdata/bbb_prog_10s.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Cut the first ctts down to a single entry and pad the rest with a free box.
+	cttsPos := bytes.Index(raw, []byte("ctts"))
+	if cttsPos < 0 {
+		t.Fatal("no ctts box found")
+	}
+	sizePos := cttsPos - 4
+	oldSize := binary.BigEndian.Uint32(raw[sizePos : sizePos+4])
+	const newSize = 8 + 4 + 4 + 8 // header + versionAndFlags + entryCount + one entry
+	if oldSize <= newSize+8 {
+		t.Fatalf("ctts box of size %d is too small to truncate", oldSize)
+	}
+	binary.BigEndian.PutUint32(raw[sizePos:sizePos+4], newSize)
+	binary.BigEndian.PutUint32(raw[cttsPos+8:cttsPos+12], 1) // entryCount
+	freePos := sizePos + newSize
+	binary.BigEndian.PutUint32(raw[freePos:freePos+4], oldSize-newSize)
+	copy(raw[freePos+4:freePos+8], []byte("free"))
+
+	inFile := filepath.Join(t.TempDir(), "short_ctts.mp4")
+	if err := os.WriteFile(inFile, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outFile := filepath.Join(t.TempDir(), "out.mp4")
+	if err := run([]string{appName, "-d", "2", inFile, outFile}, &bytes.Buffer{}); err == nil {
+		t.Error("expected error for ctts not covering all samples, got nil")
 	}
 }

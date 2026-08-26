@@ -33,7 +33,9 @@ func TestSttsCrop(t *testing.T) {
 		}
 		copy(stts.SampleCount, c.sttsIn.SampleCount)
 		copy(stts.SampleTimeDelta, c.sttsIn.SampleTimeDelta)
-		cropStts(&stts, c.lastSampleNr)
+		if err := cropStts(&stts, c.lastSampleNr); err != nil {
+			t.Fatal(err)
+		}
 		if len(stts.SampleCount) != len(c.expectedSampleCounts) {
 			t.Errorf("Expected %d sampleCounts, got %d", len(c.expectedSampleCounts), len(stts.SampleCount))
 		}

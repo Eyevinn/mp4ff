@@ -63,3 +63,30 @@ func TestStszGetTotalSize(t *testing.T) {
 		}
 	}
 }
+
+func TestStszGetSampleSizeOutOfRange(t *testing.T) {
+	individual := &mp4.StszBox{SampleNumber: 2, SampleSize: []uint32{4, 8}}
+	for _, sampleNr := range []int{0, -1, 3, 1000} {
+		if size := individual.GetSampleSize(sampleNr); size != 0 {
+			t.Errorf("sampleNr %d: got size %d instead of 0", sampleNr, size)
+		}
+	}
+	if size := individual.GetSampleSize(2); size != 8 {
+		t.Errorf("sampleNr 2: got size %d instead of 8", size)
+	}
+	uniform := &mp4.StszBox{SampleNumber: 2, SampleUniformSize: 4}
+	if size := uniform.GetSampleSize(0); size != 4 {
+		t.Errorf("uniform sampleNr 0: got size %d instead of 4", size)
+	}
+}
+
+func TestStszGetTotalSampleSizeShortTable(t *testing.T) {
+	// SampleNumber disagrees with the number of individual sizes.
+	stsz := &mp4.StszBox{SampleNumber: 10, SampleSize: []uint32{1, 2}}
+	if _, err := stsz.GetTotalSampleSize(1, 10); err == nil {
+		t.Error("expected error when SampleNumber exceeds the individual sizes, got nil")
+	}
+	if size, err := stsz.GetTotalSampleSize(1, 2); err != nil || size != 3 {
+		t.Errorf("got size %d, err %v; expected 3, nil", size, err)
+	}
+}
