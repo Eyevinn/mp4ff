@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -41,9 +42,15 @@ func DecodeStssSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		return nil, fmt.Errorf("stss: expected size %d, got %d", b.expectedSize(entryCount), hdr.Size)
 	}
 
+	// Bulk-read the table: one slice-reader call for all entries instead
+	// of one per entry, then decode in a tight loop.
+	data := sr.ReadBytes(4 * int(entryCount))
+	if sr.AccError() != nil {
+		return nil, sr.AccError()
+	}
 	b.SampleNumber = make([]uint32, entryCount)
-	for i := 0; i < int(entryCount); i++ {
-		b.SampleNumber[i] = sr.ReadUint32()
+	for i := range b.SampleNumber {
+		b.SampleNumber[i] = binary.BigEndian.Uint32(data[4*i:])
 	}
 	return &b, nil
 }

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StscBox.GetChunk` returns an error instead of panicking for chunk numbers
   that no stsc entry covers. Signature change:
   `GetChunk(chunkNr uint32) Chunk` → `GetChunk(chunkNr uint32) (Chunk, error)`
+- Sample-table decode (`stsz`, `stts`, `ctts`, `stco`, `co64`, `stss`) bulk-reads
+  each table with one slice-reader call instead of one call per entry, roughly
+  halving moov parse time for long progressive files
 
 ### Fixed
 
@@ -77,6 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `avc.ContainsNaluType` (and thereby `avc.IsIDRSample`) lacked the guard
   against samples shorter than 4 bytes that the other scanning functions have,
   so the loop limit underflowed and the first read went outside the sample
+- `DecodeStssSR` and `DecodeSttsSR` returned a zero-filled table and no error
+  when the reader held fewer bytes than the declared entry count; all
+  sample-table decoders now report truncated input as an error, before
+  allocating the table
 
 ## [0.56.0] - 2026-08-22
 
