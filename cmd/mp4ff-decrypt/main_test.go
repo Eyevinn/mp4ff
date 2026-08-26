@@ -387,3 +387,51 @@ func BenchmarkDecodeCenc(b *testing.B) {
 		}
 	}
 }
+
+// TestBadSubSamplePattern checks that a senc box whose subsample byte counts
+// reach outside the sample data gives an error instead of a panic.
+func TestBadSubSamplePattern(t *testing.T) {
+	fd, err := os.Open("../../mp4/testdata/prog_8s_enc_dashinit.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fd.Close()
+	f, err := mp4.DecodeFile(fd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Make the first protected byte range of the first sample far too big.
+	var senc *mp4.SencBox
+	for _, seg := range f.Segments {
+		for _, frag := range seg.Fragments {
+			if s := frag.Moof.Traf.Senc; s != nil && len(s.SubSamples) > 0 {
+				senc = s
+				break
+			}
+		}
+	}
+	if senc == nil {
+		t.Fatal("no senc box with subsample patterns found")
+	}
+	if len(senc.SubSamples[0]) == 0 {
+		t.Fatal("first senc sample has no subsample patterns")
+	}
+	senc.SubSamples[0][0].BytesOfProtectedData = 1 << 28
+
+	inFile := path.Join(t.TempDir(), "bad_senc.mp4")
+	ofd, err := os.Create(inFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Encode(ofd); err != nil {
+		ofd.Close()
+		t.Fatal(err)
+	}
+	ofd.Close()
+
+	outFile := path.Join(t.TempDir(), "out.mp4")
+	args := []string{"mp4ff-decrypt", "-key", "00112233445566778899aabbccddeeff", inFile, outFile}
+	if err := run(args); err == nil {
+		t.Error("expected error for subsample data outside sample, got nil")
+	}
+}
