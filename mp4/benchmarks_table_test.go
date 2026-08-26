@@ -17,11 +17,11 @@ const (
 	benchNrSync    = 5_000
 )
 
-func encodeBoxToBytes(b *testing.B, box mp4.Box) []byte {
-	b.Helper()
+func encodeBoxToBytes(t testing.TB, box mp4.Box) []byte {
+	t.Helper()
 	sw := bits.NewFixedSliceWriter(int(box.Size()))
 	if err := box.EncodeSW(sw); err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 	return sw.Bytes()
 }
