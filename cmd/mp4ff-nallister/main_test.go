@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/avc"
@@ -106,5 +108,33 @@ func MakeByteStream(t *testing.T, inFile, outFile string) {
 	err = os.WriteFile(outFile, byteStream, 0644)
 	if err != nil {
 		t.Fatalf("could not write file %s: %s", outFile, err)
+	}
+}
+
+// TestBadChunkOffsets checks that a progressive file whose chunk offsets point
+// outside the mdat data gives an error instead of a panic.
+func TestBadChunkOffsets(t *testing.T) {
+	raw, err := os.ReadFile("testdata/h264.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Move every chunk offset in the first stco far beyond the end of the file.
+	stcoPos := bytes.Index(raw, []byte("stco"))
+	if stcoPos < 0 {
+		t.Fatal("no stco box found")
+	}
+	entryCount := binary.BigEndian.Uint32(raw[stcoPos+8 : stcoPos+12])
+	for e := 0; e < int(entryCount); e++ {
+		p := stcoPos + 12 + e*4
+		offset := binary.BigEndian.Uint32(raw[p : p+4])
+		binary.BigEndian.PutUint32(raw[p:p+4], offset+1<<28)
+	}
+	badFile := filepath.Join(t.TempDir(), "bad_stco.mp4")
+	if err := os.WriteFile(badFile, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := run([]string{appName, badFile}, &bytes.Buffer{}); err == nil {
+		t.Error("expected error for chunk offsets outside mdat, got nil")
 	}
 }

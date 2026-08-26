@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TrunBox.GetSampleInterval` (and thereby `Fragment.GetSampleInterval`)
   returns an error instead of panicking when the requested interval points
   outside the mdat data
+- `File.CopySampleData` returns an error instead of panicking when a chunk
+  offset or sample size in the sample tables points outside the mdat data.
+  This is the progressive-file counterpart of the fragmented `trun` case
+- `MdatBox.ReadData` and `MdatBox.CopyData` rejected valid ranges ending at
+  the very end of the mdat payload, so reading the last sample (or the full
+  payload) failed with "invalid range provided". They now also reject a start
+  before the mdat payload, which previously underflowed and panicked
+- `mp4ff-nallister`, `mp4ff-pslister` and `mp4ff-subslister` panicked instead
+  of reporting an error on a progressive file with sample tables pointing
+  outside the mdat data
 
 ## [0.56.0] - 2026-08-22
 

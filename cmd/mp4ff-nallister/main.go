@@ -186,7 +186,6 @@ func parseProgressiveMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec strin
 	}
 	nrSamples := stbl.Stsz.SampleNumber
 	mdat := f.Mdat
-	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 
 	for sampleNr := 1; sampleNr <= int(nrSamples); sampleNr++ {
 		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(sampleNr)
@@ -207,8 +206,10 @@ func parseProgressiveMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec strin
 			cto = int64(stbl.Ctts.GetCompositionTimeOffset(uint32(sampleNr)))
 		}
 		// Next find sample bytes as slice in mdat
-		offsetInMdatData := uint64(offset) - mdatPayloadStart
-		sample := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
+		sample, err := mdat.ReadData(offset, int64(size), nil)
+		if err != nil {
+			return fmt.Errorf("sample %d: %w", sampleNr, err)
+		}
 		nalus, err := avc.GetNalusFromSample(sample)
 		if err != nil {
 			return err

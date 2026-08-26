@@ -140,7 +140,6 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 	stbl := tr.inTrak.Mdia.Minf.Stbl
 	samples := make([]mp4.FullSample, 0, endSampleNr-startSampleNr+1)
 	mdat := mp4f.Mdat
-	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
 		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(int(sampleNr))
 		if err != nil {
@@ -162,21 +161,10 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		if stbl.Ctts != nil {
 			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)
 		}
-		var sampleData []byte
 		// Next find bytes as slice in mdat
-		if mdat.GetLazyDataSize() > 0 {
-			_, err := rs.Seek(offset, io.SeekStart)
-			if err != nil {
-				return nil, err
-			}
-			sampleData = make([]byte, size)
-			_, err = io.ReadFull(rs, sampleData)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			offsetInMdatData := uint64(offset) - mdatPayloadStart
-			sampleData = mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
+		sampleData, err := mdat.ReadData(offset, int64(size), rs)
+		if err != nil {
+			return nil, fmt.Errorf("sample %d: %w", sampleNr, err)
 		}
 
 		//presTime := uint64(int64(decTime) + int64(cto))

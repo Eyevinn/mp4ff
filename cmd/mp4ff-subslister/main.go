@@ -135,7 +135,6 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 	stbl := subsTrak.trak.Mdia.Minf.Stbl
 	nrSamples := stbl.Stsz.SampleNumber
 	mdat := f.Mdat
-	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 	for sampleNr := 1; sampleNr <= int(nrSamples); sampleNr++ {
 		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(sampleNr)
 		if err != nil {
@@ -154,8 +153,10 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 		decTime, dur := stbl.Stts.GetDecodeTime(uint32(sampleNr))
 		// Skip checking compositionTimeOffset since not uset for subtitles
 		// Next find sample bytes as slice in mdat
-		offsetInMdatData := uint64(offset) - mdatPayloadStart
-		sample := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
+		sample, err := mdat.ReadData(offset, int64(size), nil)
+		if err != nil {
+			return fmt.Errorf("sample %d: %w", sampleNr, err)
+		}
 		switch subsTrak.variant {
 		case "wvtt":
 			err = printWvttSample(w, sample, sampleNr, int64(decTime), dur)

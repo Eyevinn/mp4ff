@@ -241,9 +241,10 @@ func parseMp4File(w io.Writer, r io.Reader, codec string, verbose bool) error {
 			size := stbl.Stsz.GetSampleSize(1)
 			// Next find bytes as slice in mdat
 			mdat := parsedMp4.Mdat
-			mdatPayloadStart := mdat.PayloadAbsoluteOffset()
-			offsetInMdatData := uint64(offset) - mdatPayloadStart
-			sampleData := mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)]
+			sampleData, err := mdat.ReadData(offset, int64(size), nil)
+			if err != nil {
+				return fmt.Errorf("read sample 1: %w", err)
+			}
 			switch codec {
 			case "avc":
 				spsNalus, ppsNalus := avc.GetParameterSets(sampleData)

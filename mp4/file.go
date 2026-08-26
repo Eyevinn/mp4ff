@@ -623,7 +623,6 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 	if mdat.IsLazy() && rs == nil {
 		return fmt.Errorf("no ReadSeeker for lazy mdat")
 	}
-	mdatPayloadStart := mdat.PayloadAbsoluteOffset()
 
 	if trak.Mdia == nil || trak.Mdia.Minf == nil || trak.Mdia.Minf.Stbl == nil {
 		return fmt.Errorf("trak does not have a complete mdia/minf/stbl structure")
@@ -708,12 +707,11 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 				}
 			}
 		} else {
-			offsetInMdatData := offset - mdatPayloadStart
-			n, err := w.Write(mdat.Data[offsetInMdatData : offsetInMdatData+uint64(size)])
+			n, err := mdat.CopyData(int64(offset), size, rs, w)
 			if err != nil {
-				return err
+				return fmt.Errorf("copyData: %w", err)
 			}
-			if int64(n) != size {
+			if n != size {
 				return fmt.Errorf("copied %d bytes instead of %d", n, size)
 			}
 		}

@@ -503,3 +503,54 @@ func TestUpdateSidxNilMvex(t *testing.T) {
 		t.Error("expected error for nil mvex")
 	}
 }
+
+// TestCopySampleDataCorruptTables checks that chunk offsets or sample sizes
+// pointing outside the mdat data give an error instead of a panic.
+func TestCopySampleDataCorruptTables(t *testing.T) {
+	cases := []struct {
+		desc    string
+		corrupt func(stbl *mp4.StblBox)
+	}{
+		{
+			desc: "chunk offset beyond mdat",
+			corrupt: func(stbl *mp4.StblBox) {
+				for i := range stbl.Stco.ChunkOffset {
+					stbl.Stco.ChunkOffset[i] += 1 << 28
+				}
+			},
+		},
+		{
+			desc: "chunk offset before mdat payload",
+			corrupt: func(stbl *mp4.StblBox) {
+				for i := range stbl.Stco.ChunkOffset {
+					stbl.Stco.ChunkOffset[i] = 0
+				}
+			},
+		},
+		{
+			desc: "sample size beyond mdat",
+			corrupt: func(stbl *mp4.StblBox) {
+				stbl.Stsz.SampleSize[0] = 0xffffffff
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			fd, err := os.Open("testdata/bbb_prog_10s.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer fd.Close()
+			f, err := mp4.DecodeFile(fd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trak := f.Moov.Trak
+			c.corrupt(trak.Mdia.Minf.Stbl)
+			var buf bytes.Buffer
+			if err := f.CopySampleData(&buf, fd, trak, 1, 10, nil); err == nil {
+				t.Error("expected error for corrupt sample tables, got nil")
+			}
+		})
+	}
+}
