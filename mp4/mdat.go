@@ -204,20 +204,7 @@ func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) 
 	}
 
 	// Otherwise, all Mdat data is in memory, either as parts or as one big slice
-	mdatPayloadStart := m.PayloadAbsoluteOffset()
-	offsetInMdatData := uint64(start) - mdatPayloadStart
-	endIndexInMdatData := offsetInMdatData + uint64(size)
-
-	// validate if indexes are valid to avoid panics
-	dataLen := m.DataLength()
-	if offsetInMdatData >= dataLen || endIndexInMdatData >= dataLen {
-		return nil, fmt.Errorf("normal mdat mode - invalid range provided")
-	}
-	if len(m.DataParts) > 0 {
-		return nil, fmt.Errorf("extraction of range from dataParts not yet implemented")
-	}
-	return m.Data[offsetInMdatData : offsetInMdatData+uint64(size)], nil
-
+	return m.dataRange(start, size)
 }
 
 // CopyData - copy data range from mdat to w.
@@ -237,19 +224,33 @@ func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nr
 	}
 
 	// Otherwise, all Mdat data is in memory
-	mdatPayloadStart := m.PayloadAbsoluteOffset()
-	offsetInMdatData := uint64(start) - mdatPayloadStart
-	endIndexInMdatData := offsetInMdatData + uint64(size)
+	data, err := m.dataRange(start, size)
+	if err != nil {
+		return 0, err
+	}
+	n, err := w.Write(data)
+	return int64(n), err
+}
 
-	// validate if indexes are valid to avoid panics
-	dataLen := m.DataLength()
-	if offsetInMdatData >= dataLen || endIndexInMdatData >= dataLen {
-		return 0, fmt.Errorf("normal mdat mode - invalid range provided")
+// dataRange returns the in-memory mdat payload for the absolute file range
+// [start, start+size). An error is returned if the range is not fully inside
+// the mdat payload, so that a bad chunk offset or sample size in a corrupt
+// file results in an error instead of a panic.
+func (m *MdatBox) dataRange(start, size int64) ([]byte, error) {
+	if start < 0 || size < 0 {
+		return nil, fmt.Errorf("negative start %d or size %d", start, size)
 	}
 	if len(m.DataParts) > 0 {
-		return 0, fmt.Errorf("extraction of range from dataParts not yet implemented")
+		return nil, fmt.Errorf("extraction of range from dataParts not yet implemented")
 	}
-	var n int
-	n, err = w.Write(m.Data[offsetInMdatData : offsetInMdatData+uint64(size)])
-	return int64(n), err
+	payloadStart := m.PayloadAbsoluteOffset()
+	if uint64(start) < payloadStart {
+		return nil, fmt.Errorf("start %d is before mdat payload start %d", start, payloadStart)
+	}
+	offset := uint64(start) - payloadStart
+	end := offset + uint64(size) // cannot overflow since both are non-negative int64
+	if dataLen := m.DataLength(); end > dataLen {
+		return nil, fmt.Errorf("range %d-%d is outside mdat data (size %d)", offset, end, dataLen)
+	}
+	return m.Data[offset:end], nil
 }

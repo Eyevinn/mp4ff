@@ -230,3 +230,54 @@ func TestMdatHeaderSizeForLargeLazyPayload(t *testing.T) {
 		}
 	}
 }
+
+func TestMdatDataRangeChecks(t *testing.T) {
+	// Payload of 7 bytes starting 8 bytes into the file.
+	newMdat := func() *mp4.MdatBox {
+		return &mp4.MdatBox{
+			StartPos: 0,
+			Data:     []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+		}
+	}
+	cases := []struct {
+		desc    string
+		start   int64
+		size    int64
+		wantErr bool
+	}{
+		{desc: "full payload", start: 8, size: 7, wantErr: false},
+		{desc: "last byte", start: 14, size: 1, wantErr: false},
+		{desc: "empty range at end", start: 15, size: 0, wantErr: false},
+		{desc: "one byte too far", start: 8, size: 8, wantErr: true},
+		{desc: "start at end with size", start: 15, size: 1, wantErr: true},
+		{desc: "start before payload", start: 0, size: 4, wantErr: true},
+		{desc: "start far beyond payload", start: 1 << 28, size: 4, wantErr: true},
+		{desc: "negative size", start: 8, size: -1, wantErr: true},
+		{desc: "negative start", start: -8, size: 4, wantErr: true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			mdat := newMdat()
+			data, err := mdat.ReadData(c.start, c.size, nil)
+			switch {
+			case c.wantErr && err == nil:
+				t.Errorf("ReadData: expected error, got %v", data)
+			case !c.wantErr && err != nil:
+				t.Errorf("ReadData: unexpected error: %v", err)
+			case !c.wantErr && int64(len(data)) != c.size:
+				t.Errorf("ReadData: got %d bytes instead of %d", len(data), c.size)
+			}
+
+			var buf bytes.Buffer
+			n, err := mdat.CopyData(c.start, c.size, nil, &buf)
+			switch {
+			case c.wantErr && err == nil:
+				t.Errorf("CopyData: expected error, wrote %d bytes", n)
+			case !c.wantErr && err != nil:
+				t.Errorf("CopyData: unexpected error: %v", err)
+			case !c.wantErr && n != c.size:
+				t.Errorf("CopyData: wrote %d bytes instead of %d", n, c.size)
+			}
+		})
+	}
+}
