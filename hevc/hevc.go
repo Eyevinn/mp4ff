@@ -145,6 +145,14 @@ func SplitNalusByLayerID(sample []byte, lengthSize int) map[byte][][]byte {
 	return result
 }
 
+// naluFits reports whether a nalu of naluLength bytes starting at pos fits
+// inside a sample of sampleLength bytes. The length fields come from the
+// sample itself, so they must be checked before use. The arithmetic is done in
+// uint64 so that a length field close to 2^32 cannot wrap.
+func naluFits(pos, naluLength uint32, sampleLength int) bool {
+	return naluLength > 0 && uint64(pos)+uint64(naluLength) <= uint64(sampleLength)
+}
+
 // FindNaluTypes - find list of nalu types in sample
 func FindNaluTypes(sample []byte) []NaluType {
 	naluList := make([]NaluType, 0)
@@ -153,9 +161,12 @@ func FindNaluTypes(sample []byte) []NaluType {
 		return naluList
 	}
 	var pos uint32 = 0
-	for pos < uint32(length-4) {
+	for pos+4 < uint32(length) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
+		if !naluFits(pos, naluLength, length) {
+			break // bad nalu length field: stop scanning
+		}
 		naluType := GetNaluType(sample[pos])
 		naluList = append(naluList, naluType)
 		pos += naluLength
@@ -171,9 +182,12 @@ func FindNaluTypesUpToFirstVideoNalu(sample []byte) []NaluType {
 		return naluList
 	}
 	var pos uint32 = 0
-	for pos < uint32(length-4) {
+	for pos+4 < uint32(length) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
+		if !naluFits(pos, naluLength, length) {
+			break // bad nalu length field: stop scanning
+		}
 		naluType := GetNaluType(sample[pos])
 		naluList = append(naluList, naluType)
 		pos += naluLength
@@ -196,9 +210,12 @@ func ContainsNaluType(sample []byte, specificNaluType NaluType) bool {
 	if length < 4 {
 		return false
 	}
-	for pos < uint32(length-4) {
+	for pos+4 < uint32(length) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
+		if !naluFits(pos, naluLength, length) {
+			break // bad nalu length field: stop scanning
+		}
 		naluType := GetNaluType(sample[pos])
 		if naluType == specificNaluType {
 			return true
@@ -253,9 +270,12 @@ func GetParameterSets(sample []byte) (vps, sps, pps [][]byte) {
 	sampleLength := uint32(len(sample))
 	var pos uint32 = 0
 naluLoop:
-	for pos < sampleLength {
+	for pos+4 < sampleLength {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
+		if !naluFits(pos, naluLength, len(sample)) {
+			break // bad nalu length field: stop scanning
+		}
 		switch naluType := GetNaluType(sample[pos]); {
 		case naluType == NALU_VPS:
 			vps = append(vps, sample[pos:pos+naluLength])

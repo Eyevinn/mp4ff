@@ -35,10 +35,11 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 	var pos uint32 = 0
 	clearStart := uint32(0)
 	clearEnd := uint32(0)
-	for pos < uint32(length-4) {
+	for pos+4 < uint32(length) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
-		if int(pos+naluLength) > len(sample) {
+		// uint64 arithmetic so that a length field close to 2^32 cannot wrap
+		if uint64(pos)+uint64(naluLength) > uint64(len(sample)) {
 			return nil, fmt.Errorf("NALU length fields are bad")
 		}
 		naluType := avc.GetNaluType(sample[pos])
@@ -97,10 +98,11 @@ func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.P
 	var pos uint32 = 0
 	clearStart := uint32(0)
 	clearEnd := uint32(0)
-	for pos < uint32(length-4) {
+	for pos+4 < uint32(length) {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
 		pos += 4
-		if int(pos+naluLength) > len(sample) {
+		// uint64 arithmetic so that a length field close to 2^32 cannot wrap
+		if uint64(pos)+uint64(naluLength) > uint64(len(sample)) {
 			return nil, fmt.Errorf("NALU length fields are bad")
 		}
 		naluType := hevc.GetNaluType(sample[pos])

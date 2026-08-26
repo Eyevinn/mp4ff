@@ -166,8 +166,12 @@ func getStartCodePositions(stream []byte) (scNalus []scNalu, minStartCodeLength 
 func ConvertSampleToByteStream(sample []byte) []byte {
 	sampleLength := uint32(len(sample))
 	var pos uint32 = 0
-	for pos < sampleLength {
+	for pos+4 <= sampleLength {
 		naluLength := binary.BigEndian.Uint32(sample[pos : pos+4])
+		// uint64 arithmetic so that a length field close to 2^32 cannot wrap
+		if uint64(pos)+4+uint64(naluLength) > uint64(sampleLength) {
+			break // bad nalu length field: leave the rest as is
+		}
 		startCode := []byte{0, 0, 0, 1}
 		copy(sample[pos:pos+4], startCode)
 		pos += naluLength + 4

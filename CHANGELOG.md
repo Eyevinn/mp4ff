@@ -66,6 +66,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DecryptFragment` and `DecryptFragmentWithKeys` panicked when the senc box
   held subsample information for a different number of samples than the trun
   declares
+- The nalu scanning functions in the `avc` and `hevc` packages trusted the
+  4-byte nalu length fields of a sample, so a bad length field made them slice
+  outside the sample and panic. A length field close to 2^32 also wrapped when
+  added to the position, which defeated the check in `avc.GetNalusFromSample`
+  and in `GetAVCProtectRanges`/`GetHEVCProtectRanges`. Affected are
+  `FindNaluTypes`, `FindNaluTypesUpToFirstVideoNALU`/`...Nalu`,
+  `ContainsNaluType`, `IsIDRSample`, `IsRAPSample`, `HasParameterSets`,
+  `GetParameterSets`, `GetNalusFromSample` and `ConvertSampleToByteStream`
+- `avc.ContainsNaluType` (and thereby `avc.IsIDRSample`) lacked the guard
+  against samples shorter than 4 bytes that the other scanning functions have,
+  so the loop limit underflowed and the first read went outside the sample
 
 ## [0.56.0] - 2026-08-22
 
