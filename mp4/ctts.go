@@ -127,7 +127,8 @@ func (b *CttsBox) AddSampleCountsAndOffset(counts []uint32, offsets []int32) err
 	return nil
 }
 
-// GetCompositionTimeOffset - composition time offset for (one-based) sampleNr in track timescale
+// GetCompositionTimeOffset - composition time offset for (one-based) sampleNr in track timescale.
+// Returns 0 for a sampleNr beyond the samples covered by this box.
 func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
 	if sampleNr == 0 {
 		// This is bad index input. Should never happen
@@ -143,6 +144,12 @@ func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {
 		} else {
 			j = h
 		}
+	}
+	// Nothing ties the ctts entries to the number of samples in stsz, so a
+	// sampleNr beyond what this box covers (or an empty box) must not index
+	// outside SampleOffset. Such a sample has no offset, which is 0.
+	if i == 0 || i > len(b.SampleOffset) {
+		return 0
 	}
 	return b.SampleOffset[i-1]
 }

@@ -167,7 +167,11 @@ func TestGetChunk(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		gotChunk := stsc.GetChunk(tc.chunkNr)
+		gotChunk, err := stsc.GetChunk(tc.chunkNr)
+		if err != nil {
+			t.Errorf("ChunkNr %d: unexpected error: %s", tc.chunkNr, err)
+			continue
+		}
 		if gotChunk != tc.wantedChunk {
 			t.Errorf("ChunkNr %d: Got %#v instead of %#v", tc.chunkNr, gotChunk, tc.wantedChunk)
 		}
@@ -189,5 +193,74 @@ func TestBadSizeStsc(t *testing.T) {
 	_, err := mp4.DecodeBox(0, buf)
 	if err == nil {
 		t.Error("expected invalid size error")
+	}
+}
+
+// TestStscBadEntries checks that a corrupt stsc box gives errors instead of
+// panicking with index out of range or integer divide by zero. An empty stsc
+// is valid (init segments have one), so the lookups must handle it.
+func TestStscBadEntries(t *testing.T) {
+	cases := []struct {
+		desc string
+		stsc *mp4.StscBox
+	}{
+		{
+			desc: "no entries",
+			stsc: &mp4.StscBox{},
+		},
+		{
+			desc: "samplesPerChunk == 0",
+			stsc: &mp4.StscBox{Entries: []mp4.StscEntry{{FirstChunk: 1, SamplesPerChunk: 0, FirstSampleNr: 1}}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			if _, err := c.stsc.GetContainingChunks(1, 2); err == nil {
+				t.Error("GetContainingChunks: expected error, got nil")
+			}
+			if _, _, err := c.stsc.ChunkNrFromSampleNr(1); err == nil {
+				t.Error("ChunkNrFromSampleNr: expected error, got nil")
+			}
+			if _, err := c.stsc.GetChunk(1); err == nil {
+				t.Error("GetChunk: expected error, got nil")
+			}
+		})
+	}
+}
+
+// TestStscGetChunkBeforeFirstEntry covers a chunkNr below the FirstChunk of the
+// first entry. DecodeStscSR does not require the first entry to start at chunk
+// 1, and the entry search then reports an entryNr outside the entries.
+func TestStscGetChunkBeforeFirstEntry(t *testing.T) {
+	stsc := &mp4.StscBox{Entries: []mp4.StscEntry{{FirstChunk: 5, SamplesPerChunk: 2, FirstSampleNr: 1}}}
+	if _, err := stsc.GetChunk(1); err == nil {
+		t.Error("expected error for chunkNr before first entry, got nil")
+	}
+	if _, err := stsc.GetChunk(5); err != nil {
+		t.Errorf("unexpected error for chunkNr 5: %s", err)
+	}
+}
+
+func TestStscGetChunkZero(t *testing.T) {
+	stsc := &mp4.StscBox{}
+	if err := stsc.AddEntry(1, 2, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stsc.GetChunk(0); err == nil {
+		t.Error("expected error for chunkNr 0, got nil")
+	}
+}
+
+func TestStscGetSampleDescriptionIDOutOfRange(t *testing.T) {
+	stsc := &mp4.StscBox{}
+	for _, e := range []struct{ firstChunk, samplesPerChunk, sdid uint32 }{{1, 2, 1}, {2, 2, 2}} {
+		if err := stsc.AddEntry(e.firstChunk, e.samplesPerChunk, e.sdid); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, chunkNr := range []int{0, -1, 3, 1000} {
+		if sdid := stsc.GetSampleDescriptionID(chunkNr); sdid != 0 {
+			t.Errorf("chunkNr %d: got sampleDescriptionID %d instead of 0", chunkNr, sdid)
+		}
 	}
 }

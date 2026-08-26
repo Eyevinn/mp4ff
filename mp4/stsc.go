@@ -179,10 +179,13 @@ func (b *StscBox) AddEntry(firstChunk, samplesPerChunk, sampleDescriptionID uint
 }
 
 // GetSampleDescriptionID returns the sample description ID from common or individual values for chunk.
-// chunkNr is 1-based.
+// chunkNr is 1-based. Returns 0 (not a valid ID) if chunkNr is out of range.
 func (b *StscBox) GetSampleDescriptionID(chunkNr int) uint32 {
 	if b.singleSampleDescriptionID != 0 {
 		return b.singleSampleDescriptionID
+	}
+	if chunkNr < 1 || chunkNr > len(b.SampleDescriptionID) {
+		return 0
 	}
 	return b.SampleDescriptionID[chunkNr-1]
 }
@@ -196,7 +199,10 @@ func (b *StscBox) SetSingleSampleDescriptionID(sampleDescriptionID uint32) {
 // ChunkNrFromSampleNr - get chunk number from sampleNr (one-based)
 func (b *StscBox) ChunkNrFromSampleNr(sampleNr int) (chunkNr, firstSampleInChunk int, err error) {
 	entryNr := b.FindEntryNrForSampleNr(uint32(sampleNr), 0)
-	entry := b.Entries[entryNr]
+	entry, err := b.entry(entryNr)
+	if err != nil {
+		return 0, 0, fmt.Errorf("sampleNr %d: %w", sampleNr, err)
+	}
 	nrInEntry := (uint32(sampleNr) - entry.FirstSampleNr) / entry.SamplesPerChunk
 	chunkNr = int(entry.FirstChunk + nrInEntry)
 	firstSampleInChunk = int(entry.FirstSampleNr + nrInEntry*entry.SamplesPerChunk)
@@ -221,10 +227,19 @@ func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chun
 	startEntryNr := b.FindEntryNrForSampleNr(startSampleNr, 0)
 	endEntryNr := b.FindEntryNrForSampleNr(endSampleNr, startEntryNr)
 
-	startEntry := b.Entries[startEntryNr]
-	endEntry := b.Entries[endEntryNr]
+	startEntry, err := b.entry(startEntryNr)
+	if err != nil {
+		return nil, fmt.Errorf("startSampleNr %d: %w", startSampleNr, err)
+	}
+	endEntry, err := b.entry(endEntryNr)
+	if err != nil {
+		return nil, fmt.Errorf("endSampleNr %d: %w", endSampleNr, err)
+	}
 	startChunkNr := (startSampleNr-startEntry.FirstSampleNr)/startEntry.SamplesPerChunk + startEntry.FirstChunk
 	endChunkNr := (endSampleNr-endEntry.FirstSampleNr)/endEntry.SamplesPerChunk + endEntry.FirstChunk
+	if endChunkNr < startChunkNr {
+		return nil, fmt.Errorf("stsc entries give decreasing chunk range %d-%d", startChunkNr, endChunkNr)
+	}
 
 	chunks := make([]Chunk, 0, endChunkNr-startChunkNr+1)
 
@@ -244,9 +259,9 @@ func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chun
 }
 
 // GetChunk returns chunk for chunkNr (one-based).
-func (b *StscBox) GetChunk(chunkNr uint32) Chunk {
+func (b *StscBox) GetChunk(chunkNr uint32) (Chunk, error) {
 	if chunkNr == 0 {
-		panic("ChunkNr set to 0 but is one-based")
+		return Chunk{}, fmt.Errorf("chunkNr is 0, but is one-based")
 	}
 	chunk := Chunk{
 		ChunkNr:       chunkNr,
@@ -254,14 +269,33 @@ func (b *StscBox) GetChunk(chunkNr uint32) Chunk {
 		NrSamples:     0,
 	}
 	entryNr := b.findEntryNrForChunkNr(chunkNr)
-	entry := b.Entries[entryNr]
+	entry, err := b.entry(entryNr)
+	if err != nil {
+		return Chunk{}, fmt.Errorf("chunkNr %d: %w", chunkNr, err)
+	}
 	chunk.NrSamples = entry.SamplesPerChunk
 	chunk.StartSampleNr = (chunkNr-entry.FirstChunk)*entry.SamplesPerChunk + entry.FirstSampleNr
-	return chunk
+	return chunk, nil
+}
+
+// entry returns the entry for a 0-based entryNr from one of the find methods.
+// An error is returned if entryNr is outside the entries, which is the case for
+// an empty stsc box or a chunkNr/sampleNr before the first entry, and if the
+// entry has samplesPerChunk == 0, which cannot be used for any lookup.
+func (b *StscBox) entry(entryNr uint32) (StscEntry, error) {
+	if entryNr >= uint32(len(b.Entries)) {
+		return StscEntry{}, fmt.Errorf("no stsc entry found among %d entries", len(b.Entries))
+	}
+	entry := b.Entries[entryNr]
+	if entry.SamplesPerChunk == 0 {
+		return StscEntry{}, fmt.Errorf("stsc entry %d has samplesPerChunk == 0", entryNr+1)
+	}
+	return entry, nil
 }
 
 // findEntryNrForChunkNr returns the entry where chunkNr belongs.
-// The resulting entryNr is 0-based index.
+// The resulting entryNr is 0-based index. It is outside the entries if
+// chunkNr is before the first entry, so use entry() to look it up.
 func (b *StscBox) findEntryNrForChunkNr(chunkNr uint32) uint32 {
 	// The following is essentially the sort.Search() code specialized to this case
 	low, high := 0, len(b.Entries)
@@ -278,7 +312,8 @@ func (b *StscBox) findEntryNrForChunkNr(chunkNr uint32) uint32 {
 }
 
 // FindEntryNrForSampleNr returns the entry where sampleNr belongs. lowEntryIdx is entry index (zero-based).
-// The resulting entryNr is 0-based index.
+// The resulting entryNr is 0-based index. It is outside the entries if
+// sampleNr is before the first entry, so check it before indexing Entries.
 func (b *StscBox) FindEntryNrForSampleNr(sampleNr, lowEntryIdx uint32) uint32 {
 	// The following is essentially the sort.Search() code specialized to this case
 	low, high := lowEntryIdx, uint32(len(b.Entries))

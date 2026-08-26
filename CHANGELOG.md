@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of panicking with index out of range. Signature change:
   `GetFullSamples(...) []FullSample` → `GetFullSamples(...) ([]FullSample, error)`.
   `Fragment.GetFullSamples` (unchanged signature) propagates the error
+- `StscBox.GetChunk` returns an error instead of panicking for chunk numbers
+  that no stsc entry covers. Signature change:
+  `GetChunk(chunkNr uint32) Chunk` → `GetChunk(chunkNr uint32) (Chunk, error)`
 
 ### Fixed
 
@@ -38,6 +41,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mp4ff-nallister`, `mp4ff-pslister` and `mp4ff-subslister` panicked instead
   of reporting an error on a progressive file with sample tables pointing
   outside the mdat data
+- `CttsBox.GetCompositionTimeOffset` panicked for a sample beyond the entries
+  of the box, which a file with a ctts and stsz that disagree on the sample
+  count triggers. Such a sample now gets composition time offset 0
+- `TrakBox.GetSampleData` panicked for an sdtp with fewer entries than the
+  track has samples. The sample flags from a missing sdtp entry are now left
+  at their default
+- `StscBox.GetContainingChunks` and `StscBox.ChunkNrFromSampleNr` panicked
+  with index out of range for an stsc without entries (which is valid, and
+  what init segments have) and divided by zero for an entry with
+  samplesPerChunk == 0. Both now return an error
+- `StscBox.GetSampleDescriptionID` and `StszBox.GetSampleSize` indexed outside
+  their tables for out-of-range chunk and sample numbers
+- `StszBox.GetTotalSampleSize` validated the sample interval against
+  `SampleNumber` but indexed `SampleSize`, so a box where the two disagree
+  panicked
+- `mp4ff-crop` panicked on a file whose ctts, stts, stsc or stsz does not
+  cover all samples of the track, and reported only the last of several
+  cropping errors
 
 ## [0.56.0] - 2026-08-22
 

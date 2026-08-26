@@ -146,8 +146,10 @@ func createSampleFlagsFromProgressiveBoxes(stss *StssBox, sdtp *SdtpBox, sampleN
 			sampleFlags.SampleDependsOn = 2 //2 = does not depend on others (I-picture). May be overridden by sdtp entry
 		}
 	}
-	if sdtp != nil {
-		entry := sdtp.Entries[uint32(sampleNr)-1] // table starts at 0, but sampleNr is one-based
+	// Nothing ties the number of sdtp entries to the number of samples in
+	// stsz, so a short sdtp must not be indexed outside its entries.
+	if sdtp != nil && sampleNr >= 1 && int(sampleNr) <= len(sdtp.Entries) {
+		entry := sdtp.Entries[sampleNr-1] // table starts at 0, but sampleNr is one-based
 		sampleFlags.IsLeading = entry.IsLeading()
 		sampleFlags.SampleDependsOn = entry.SampleDependsOn()
 		sampleFlags.SampleHasRedundancy = entry.SampleHasRedundancy()

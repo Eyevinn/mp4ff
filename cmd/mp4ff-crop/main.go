@@ -247,7 +247,10 @@ func findTrakEnds(traks []*mp4.TrakBox, endTime, endTimescale uint64) (map[uint3
 		if err != nil {
 			return nil, err
 		}
-		chunk := stsc.GetChunk(uint32(chunkNr))
+		chunk, err := stsc.GetChunk(uint32(chunkNr))
+		if err != nil {
+			return nil, fmt.Errorf("stsc GetChunk: %w", err)
+		}
 		to.lastChunk = chunk
 	}
 	return tos, nil
@@ -292,7 +295,10 @@ func fillTrakOutsAndByteRanges(traks []*mp4.TrakBox, tos map[uint32]*trakOut, by
 			currentOutOffset = firstOffset
 		}
 		to := tos[trakIDMin]
-		chunk := stblMin.Stsc.GetChunk(to.nextInChunkNr)
+		chunk, err := stblMin.Stsc.GetChunk(to.nextInChunkNr)
+		if err != nil {
+			return 0, fmt.Errorf("stsc GetChunk: %w", err)
+		}
 		lastSampleInChunk := chunk.StartSampleNr + chunk.NrSamples - 1
 		sampleNrStart := chunk.StartSampleNr
 		sampleNrEnd := minUint32(lastSampleInChunk, to.lastSampleNr)
@@ -407,15 +413,15 @@ func cropStblChildren(traks []*mp4.TrakBox, trakOuts map[uint32]*trakOut) (err e
 		for _, ch := range stbl.Children {
 			switch ch.Type() {
 			case "stts":
-				cropStts(ch.(*mp4.SttsBox), to.lastSampleNr)
+				err = cropStts(ch.(*mp4.SttsBox), to.lastSampleNr)
 			case "stss":
 				cropStss(ch.(*mp4.StssBox), to.lastSampleNr)
 			case "ctts":
-				cropCtts(ch.(*mp4.CttsBox), to.lastSampleNr)
+				err = cropCtts(ch.(*mp4.CttsBox), to.lastSampleNr)
 			case "stsc":
 				err = cropStsc(ch.(*mp4.StscBox), to.lastSampleNr)
 			case "stsz":
-				cropStsz(ch.(*mp4.StszBox), to.lastSampleNr)
+				err = cropStsz(ch.(*mp4.StszBox), to.lastSampleNr)
 			case "sdtp":
 				cropSdtp(ch.(*mp4.SdtpBox), to.lastSampleNr)
 			case "stco":
@@ -423,12 +429,18 @@ func cropStblChildren(traks []*mp4.TrakBox, trakOuts map[uint32]*trakOut) (err e
 			case "co64":
 				updateCo64(ch.(*mp4.Co64Box), to.chunkOffsets)
 			}
+			if err != nil {
+				return fmt.Errorf("track %d %s: %w", trakID, ch.Type(), err)
+			}
 		}
 	}
-	return err
+	return nil
 }
 
-func cropStts(b *mp4.SttsBox, lastSampleNr uint32) {
+func cropStts(b *mp4.SttsBox, lastSampleNr uint32) error {
+	if len(b.SampleCount) == 0 {
+		return fmt.Errorf("no stts entries")
+	}
 	var countedSamples uint32 = 0
 	lastEntry := -1
 	for i := 0; i < len(b.SampleCount); i++ {
@@ -447,6 +459,7 @@ func cropStts(b *mp4.SttsBox, lastSampleNr uint32) {
 
 	b.SampleCount = b.SampleCount[:lastEntry+1]
 	b.SampleTimeDelta = b.SampleTimeDelta[:lastEntry+1]
+	return nil
 }
 
 func cropStss(b *mp4.StssBox, lastSampleNr uint32) {
@@ -461,17 +474,27 @@ func cropStss(b *mp4.StssBox, lastSampleNr uint32) {
 	b.SampleNumber = b.SampleNumber[:nrEntriesToKeep]
 }
 
-func cropCtts(b *mp4.CttsBox, lastSampleNr uint32) {
+func cropCtts(b *mp4.CttsBox, lastSampleNr uint32) error {
 	lastIdx := sort.Search(len(b.EndSampleNr), func(i int) bool { return b.EndSampleNr[i] >= lastSampleNr })
+	if lastIdx == 0 || lastIdx >= len(b.EndSampleNr) {
+		return fmt.Errorf("ctts does not cover sample %d", lastSampleNr)
+	}
 	// Finally cut down the endSampleNr for this index
 	b.EndSampleNr[lastIdx] = lastSampleNr
 	b.EndSampleNr = b.EndSampleNr[:lastIdx+1]
 	b.SampleOffset = b.SampleOffset[:lastIdx]
+	return nil
 }
 
 func cropStsc(b *mp4.StscBox, lastSampleNr uint32) error {
 	entryIdx := b.FindEntryNrForSampleNr(lastSampleNr, 0)
+	if entryIdx >= uint32(len(b.Entries)) {
+		return fmt.Errorf("no stsc entry for sample %d among %d entries", lastSampleNr, len(b.Entries))
+	}
 	lastEntry := b.Entries[entryIdx]
+	if lastEntry.SamplesPerChunk == 0 {
+		return fmt.Errorf("stsc entry %d has samplesPerChunk == 0", entryIdx+1)
+	}
 	b.Entries = b.Entries[:entryIdx+1]
 	if len(b.SampleDescriptionID) > 0 {
 		b.Entries = b.Entries[:entryIdx+1]
@@ -489,11 +512,15 @@ func cropStsc(b *mp4.StscBox, lastSampleNr uint32) error {
 	return nil
 }
 
-func cropStsz(b *mp4.StszBox, lastSampleNr uint32) {
+func cropStsz(b *mp4.StszBox, lastSampleNr uint32) error {
 	if b.SampleUniformSize == 0 {
+		if int(lastSampleNr) > len(b.SampleSize) {
+			return fmt.Errorf("stsz has %d sizes, but sample %d is needed", len(b.SampleSize), lastSampleNr)
+		}
 		b.SampleSize = b.SampleSize[:lastSampleNr]
 	}
 	b.SampleNumber = lastSampleNr
+	return nil
 }
 
 func cropSdtp(b *mp4.SdtpBox, lastSampleNr uint32) {
