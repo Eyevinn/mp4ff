@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version 0 form with the esds as a direct child. Entries without a reachable
   esds, and wave boxes holding anything besides their recognized decoder-init
   atoms, are left untouched
+- `CloneBox` returns a deep copy of a box (via an encode/decode round trip),
+  so a box tree that shares parts with another structure can be mutated
+  safely — for example handing `InitProtect` (which rewrites the stsd sample
+  entry in place) an init segment built from a cached, shared trak
 
 ### Changed
 
