@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so a box tree that shares parts with another structure can be mutated
   safely — for example handing `InitProtect` (which rewrites the stsd sample
   entry in place) an init segment built from a cached, shared trak
+- `Fragment.AddFullSamples` adds many samples to a fragment at once. Adjacent
+  sample slices (such as the output of `GetFullSamples`) are coalesced into
+  runs that are added as mdat data parts, so the payload is not copied at all
+  and contiguous input becomes a single part; the samples are copied only
+  when the mdat already holds monolithic data. The output is byte-identical
+  to adding the samples one by one with `AddFullSample`
 
 ### Changed
 
