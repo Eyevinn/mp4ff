@@ -209,6 +209,84 @@ func (f *Fragment) AddFullSample(s FullSample) {
 	mdat.AddSampleData(s.Data)
 }
 
+// AddFullSamples adds all samples to the first (and only) trun of a track.
+// The encoded result is byte-identical to calling AddFullSample for each
+// sample, but the sample data is not copied: adjacent sample slices (subslices
+// of one buffer, as GetFullSamples returns) are coalesced into runs and each
+// run is added as an mdat data part, so contiguous input becomes a single part
+// and the payload is written straight from the caller's buffers at encode
+// time. The caller must therefore keep those buffers alive and unmodified
+// until the fragment has been encoded.
+//
+// If the mdat already holds monolithic data (from AddFullSample or SetData),
+// data parts cannot be mixed in, so the samples are instead copied into the
+// mdat data, which is grown once up front. Conversely, once AddFullSamples
+// has added data parts, further samples must be added with AddFullSamples
+// (or AddSampleInterval) rather than AddFullSample, since an mdat with data
+// parts encodes only those.
+func (f *Fragment) AddFullSamples(ss []FullSample) {
+	if len(ss) == 0 {
+		return
+	}
+	trun := f.Moof.Traf.Trun
+	if cap(trun.Samples)-len(trun.Samples) < len(ss) {
+		newSamples := make([]Sample, len(trun.Samples), len(trun.Samples)+len(ss))
+		copy(newSamples, trun.Samples)
+		trun.Samples = newSamples
+	}
+	mdat := f.Mdat
+	if len(mdat.Data) != 0 {
+		// Monolithic mdat: grow it once, then take the ordinary path.
+		totalSize := 0
+		for i := range ss {
+			totalSize += len(ss[i].Data)
+		}
+		if cap(mdat.Data)-len(mdat.Data) < totalSize {
+			newData := make([]byte, len(mdat.Data), len(mdat.Data)+totalSize)
+			copy(newData, mdat.Data)
+			mdat.Data = newData
+		}
+		for i := range ss {
+			f.AddFullSample(ss[i])
+		}
+		return
+	}
+	if trun.SampleCount() == 0 {
+		f.Moof.Traf.Tfdt.SetBaseMediaDecodeTime(ss[0].DecodeTime)
+	}
+	var run []byte
+	for i := range ss {
+		trun.AddSample(ss[i].Sample)
+		d := ss[i].Data
+		switch {
+		case len(d) == 0:
+			// Nothing to add to the mdat for this sample
+		case len(run) == 0:
+			run = d
+		case adjacentSlices(run, d):
+			run = run[:len(run)+len(d)]
+		default:
+			mdat.AddSampleDataPart(run)
+			run = d
+		}
+	}
+	if len(run) > 0 {
+		mdat.AddSampleDataPart(run)
+	}
+}
+
+// adjacentSlices reports whether b starts exactly where a ends in the same
+// backing array, so that a can be extended over b without copying. It needs
+// no unsafe: a subslice of a larger buffer has spare capacity, and the element
+// just past its end is addressable through that capacity. A slice whose
+// capacity was cut short (three-index slicing) is never extended past it.
+func adjacentSlices(a, b []byte) bool {
+	if len(a) == 0 || len(b) == 0 || cap(a)-len(a) < len(b) {
+		return false
+	}
+	return &a[:len(a)+1][len(a)] == &b[0]
+}
+
 // AddFullSampleToTrack - allows for adding samples to any track
 // New trun boxes will be created if latest trun of fragment is not in this track
 func (f *Fragment) AddFullSampleToTrack(s FullSample, trackID uint32) error {
