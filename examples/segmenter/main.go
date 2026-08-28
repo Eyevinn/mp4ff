@@ -106,7 +106,10 @@ func run(args []string, outDir string) error {
 	if err != nil {
 		return fmt.Errorf("error creating segmenter: %w", err)
 	}
-	syncTimescale, segmentStarts := getSegmentStartsFromVideo(parsedMp4, uint32(o.chunkDurMS))
+	syncTimescale, segmentStarts, err := getSegmentStartsFromVideo(parsedMp4, uint32(o.chunkDurMS))
+	if err != nil {
+		return fmt.Errorf("error getting segment starts: %w", err)
+	}
 	fmt.Printf("segment starts in timescale %d: %v\n", syncTimescale, segmentStarts)
 	err = segmenter.SetTargetSegmentation(syncTimescale, segmentStarts)
 	if err != nil {

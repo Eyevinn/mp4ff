@@ -102,7 +102,10 @@ func makeSingleTrackSegmentsLazyWrite(segmenter *Segmenter, parsedMp4 *mp4.File,
 				return err
 			}
 			seg.AddFragment(frag)
-			baseMediaDecodeTime, _ := tr.inTrak.Mdia.Minf.Stbl.Stts.GetDecodeTime(startSampleNr)
+			baseMediaDecodeTime, _, err := tr.inTrak.Mdia.Minf.Stbl.Stts.GetDecodeTime(startSampleNr)
+			if err != nil {
+				return err
+			}
 			for _, sample := range samples {
 				err = frag.AddSampleToTrack(sample, tr.trackID, baseMediaDecodeTime)
 				if err != nil {
@@ -196,7 +199,7 @@ type syncPoint struct {
 	presTime   uint64
 }
 
-func getSegmentStartsFromVideo(parsedMp4 *mp4.File, segDurMS uint32) (timeScale uint32, syncPoints []syncPoint) {
+func getSegmentStartsFromVideo(parsedMp4 *mp4.File, segDurMS uint32) (timeScale uint32, syncPoints []syncPoint, err error) {
 	var refTrak *mp4.TrakBox
 	for _, trak := range parsedMp4.Moov.Traks {
 		hdlrType := trak.Mdia.Hdlr.HandlerType
@@ -216,7 +219,10 @@ func getSegmentStartsFromVideo(parsedMp4 *mp4.File, segDurMS uint32) (timeScale 
 	var segmentStep = uint32(uint64(segDurMS) * uint64(timeScale) / 1000)
 	var nextSegmentStart uint32 = 0
 	for _, sampleNr := range stss.SampleNumber {
-		decodeTime, _ := stts.GetDecodeTime(sampleNr)
+		decodeTime, _, err := stts.GetDecodeTime(sampleNr)
+		if err != nil {
+			return 0, nil, err
+		}
 		presTime := int64(decodeTime)
 		if ctts != nil {
 			presTime += int64(ctts.GetCompositionTimeOffset(sampleNr))
@@ -226,7 +232,7 @@ func getSegmentStartsFromVideo(parsedMp4 *mp4.File, segDurMS uint32) (timeScale 
 			nextSegmentStart += segmentStep
 		}
 	}
-	return timeScale, syncPoints
+	return timeScale, syncPoints, nil
 }
 
 type sampleInterval struct {

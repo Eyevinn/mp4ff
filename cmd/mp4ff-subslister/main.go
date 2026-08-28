@@ -150,7 +150,10 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 			offset += int64(stbl.Stsz.GetSampleSize(sNr))
 		}
 		size := stbl.Stsz.GetSampleSize(sampleNr)
-		decTime, dur := stbl.Stts.GetDecodeTime(uint32(sampleNr))
+		decTime, dur, err := stbl.Stts.GetDecodeTime(uint32(sampleNr))
+		if err != nil {
+			return fmt.Errorf("sample %d: %w", sampleNr, err)
+		}
 		// Skip checking compositionTimeOffset since not uset for subtitles
 		// Next find sample bytes as slice in mdat
 		sample, err := mdat.ReadData(offset, int64(size), nil)

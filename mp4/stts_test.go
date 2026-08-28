@@ -77,19 +77,43 @@ func TestGetDecodeTime(t *testing.T) {
 		sampleNr    uint32
 		expectedDec uint64
 		expectedDur uint32
+		expectError bool
 	}{
-		{1, 0, 1024},
-		{3, 2 * 1024, 1024},
-		{4, 3 * 1024, 1025},
-		{5, 3*1024 + 1025, 1024},
+		{1, 0, 1024, false},
+		{3, 2 * 1024, 1024, false},
+		{4, 3 * 1024, 1025, false},
+		{5, 3*1024 + 1025, 1024, false},
+		{0, 0, 0, true},  // sample numbers are one-based
+		{6, 0, 0, true},  // beyond the 5 samples the entries cover
+		{99, 0, 0, true}, // far beyond the entries
 	}
 	for idx, tc := range testCases {
-		gotDec, gotDur := stts.GetDecodeTime(tc.sampleNr)
+		gotDec, gotDur, err := stts.GetDecodeTime(tc.sampleNr)
+		if tc.expectError {
+			if err == nil {
+				t.Errorf("test case %d: expected error for sampleNr %d, got none", idx, tc.sampleNr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("test case %d: unexpected error for sampleNr %d: %v", idx, tc.sampleNr, err)
+			continue
+		}
 		if gotDec != tc.expectedDec {
 			t.Errorf("test case %d: got dec %d instead of %d for sampleNr %d", idx, gotDec, tc.expectedDec, tc.sampleNr)
 		}
 		if gotDur != tc.expectedDur {
 			t.Errorf("test case %d: got dur %d instead of %d for sampleNr %d", idx, gotDur, tc.expectedDur, tc.sampleNr)
 		}
+	}
+}
+
+func TestSttsEmptyBox(t *testing.T) {
+	stts := mp4.SttsBox{}
+	if _, _, err := stts.GetDecodeTime(1); err == nil {
+		t.Error("expected error from GetDecodeTime on stts without entries, got none")
+	}
+	if _, err := stts.GetSampleNrAtTime(0); err == nil {
+		t.Error("expected error from GetSampleNrAtTime on stts without entries, got none")
 	}
 }
