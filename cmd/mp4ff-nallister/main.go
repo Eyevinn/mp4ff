@@ -200,7 +200,10 @@ func parseProgressiveMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec strin
 			offset += int64(stbl.Stsz.GetSampleSize(sNr))
 		}
 		size := stbl.Stsz.GetSampleSize(sampleNr)
-		decTime, _ := stbl.Stts.GetDecodeTime(uint32(sampleNr))
+		decTime, _, err := stbl.Stts.GetDecodeTime(uint32(sampleNr))
+		if err != nil {
+			return fmt.Errorf("sample %d: %w", sampleNr, err)
+		}
 		var cto int64 = 0
 		if stbl.Ctts != nil {
 			cto = int64(stbl.Ctts.GetCompositionTimeOffset(uint32(sampleNr)))

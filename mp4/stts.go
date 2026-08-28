@@ -97,16 +97,20 @@ func (b *SttsBox) GetTimeCode(sample, timescale uint32) time.Duration {
 	return time.Second * time.Duration(units) / time.Duration(timescale)
 }
 
-// GetDecodeTime - decode time and duration for (one-based) sampleNr in track timescale
-func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
+// GetDecodeTime - decode time and duration for (one-based) sampleNr in track timescale.
+// An error is returned if sampleNr is zero, or if the stts entries cover fewer samples
+// than sampleNr (a file whose stts and stsz disagree on the sample count).
+func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32, err error) {
 	if sampleNr == 0 {
-		// This is bad index input. Should never happen
-		panic("SttsBox.GetDecodeTime called with sampleNr == 0, although one-based")
+		return 0, 0, fmt.Errorf("sampleNr is 0, but sample numbers are one-based")
 	}
 	samplesRemaining := sampleNr - 1
 	decTime = 0
 	i := 0
 	for {
+		if i >= len(b.SampleTimeDelta) {
+			return 0, 0, fmt.Errorf("stts entries cover fewer samples than sampleNr %d", sampleNr)
+		}
 		dur = b.SampleTimeDelta[i]
 		if samplesRemaining >= b.SampleCount[i] {
 			decTime += uint64(b.SampleCount[i]) * uint64(dur)
@@ -119,7 +123,7 @@ func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32) {
 		}
 		i++
 	}
-	return decTime, dur
+	return decTime, dur, nil
 }
 
 // GetDur - get dur for a specific sample
@@ -194,6 +198,9 @@ func (b *SttsBox) GetSampleNrAtTime(sampleStartTime uint64) (sampleNr uint32, er
 	accTime := uint64(0)
 	accNr := uint32(0)
 	nrEntries := len(b.SampleCount)
+	if nrEntries == 0 {
+		return 0, fmt.Errorf("stts box has no entries")
+	}
 	for i := 0; i < nrEntries; i++ {
 		timeDelta := uint64(b.SampleTimeDelta[i])
 		if sampleStartTime < accTime+uint64(b.SampleCount[i])*timeDelta {

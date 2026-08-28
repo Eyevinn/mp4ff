@@ -172,7 +172,10 @@ func findEndTime(moov *mp4.MoovBox, durationMS int) (endTime, endTimescale uint6
 			return 0, 0, fmt.Errorf("did not find any syncframe at or after time")
 		}
 	}
-	lastTime, lastDur := stts.GetDecodeTime(lastSampleNr)
+	lastTime, lastDur, err := stts.GetDecodeTime(lastSampleNr)
+	if err != nil {
+		return 0, 0, err
+	}
 	endTime = lastTime + uint64(lastDur)
 
 	return endTime, endTimescale, nil
@@ -239,7 +242,10 @@ func findTrakEnds(traks []*mp4.TrakBox, endTime, endTimescale uint64) (map[uint3
 		}
 		endSampleNr--
 		to.lastSampleNr = endSampleNr
-		decTime, dur := stts.GetDecodeTime(endSampleNr)
+		decTime, dur, err := stts.GetDecodeTime(endSampleNr)
+		if err != nil {
+			return nil, err
+		}
 		trackEndTime = decTime + uint64(dur)
 		tos[trackID].endTime = trackEndTime
 		stsc := stbl.Stsc

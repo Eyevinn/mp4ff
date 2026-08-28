@@ -156,7 +156,10 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 			offset += int64(stbl.Stsz.GetSampleSize(sNr))
 		}
 		size := stbl.Stsz.GetSampleSize(int(sampleNr))
-		decTime, dur := stbl.Stts.GetDecodeTime(sampleNr)
+		decTime, dur, err := stbl.Stts.GetDecodeTime(sampleNr)
+		if err != nil {
+			return nil, fmt.Errorf("sample %d: %w", sampleNr, err)
+		}
 		var cto int32 = 0
 		if stbl.Ctts != nil {
 			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)

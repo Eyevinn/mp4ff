@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `SttsBox.GetDecodeTime` returns an error instead of panicking with index out
+  of range when the stts entries cover fewer samples than the requested sample
+  number (a file whose stts and stsz disagree), or when called with sampleNr 0.
+  Signature change: `GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32)`
+  → `GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32, err error)`.
+  `SttsBox.GetSampleNrAtTime` returns an error instead of panicking for an
+  stts box without entries
 - `TrunBox.GetFullSamples` returns an error when the trun-declared sample
   sizes point outside the mdat data (a truncated or corrupt file), instead
   of panicking with index out of range. Signature change:
