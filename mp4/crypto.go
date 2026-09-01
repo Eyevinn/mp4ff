@@ -401,7 +401,7 @@ type InitProtectData struct {
 // InitProtect modifies the init segment to add protection information and return what is needed to encrypt fragments.
 // The stsd sample entry is rewritten in place (avc1 -> encv etc.), so if the init segment shares boxes
 // with another structure (for example a trak of a cached progressive file), clone the shared parts
-// first (see CloneBox) or the other structure is silently modified too.
+// first (see [CloneBox]) or the other structure is silently modified too.
 func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, psshBoxes []*PsshBox) (*InitProtectData, error) {
 	ipd := InitProtectData{Scheme: scheme}
 	moov := init.Moov
