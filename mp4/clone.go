@@ -12,8 +12,8 @@ import (
 //
 // The typical use is protecting a shared box tree from functions that modify
 // boxes in place: a caller that builds init segments from a cached moov can
-// hand InitProtect a clone of the shared stsd instead of the original, since
-// InitProtect rewrites the sample entry (avc1 -> encv etc.) in place.
+// hand [InitProtect] a clone of the shared stsd instead of the original, since
+// it rewrites the sample entry (avc1 -> encv etc.) in place.
 //
 // The clone is what a fresh decode of the box would give, so decode-time
 // state is reset: StartPos fields reflect a decode at position 0, and a senc
