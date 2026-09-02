@@ -554,3 +554,37 @@ func TestCopySampleDataCorruptTables(t *testing.T) {
 		})
 	}
 }
+
+// TestWriteToFile checks that WriteToFile produces exactly the bytes that
+// Encode does. A segment exercises the many small boxes of a moof, and a
+// progressive file exercises a large mdat payload. A missing Flush of the
+// write buffer would show up here as a truncated file.
+func TestWriteToFile(t *testing.T) {
+	for _, name := range []string{"1.m4s", "bbb_prog_10s.mp4"} {
+		t.Run(name, func(t *testing.T) {
+			raw, err := os.ReadFile(path.Join("testdata", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			f, err := mp4.DecodeFile(bytes.NewReader(raw))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			if err := f.Encode(&buf); err != nil {
+				t.Fatal(err)
+			}
+			outPath := path.Join(t.TempDir(), name)
+			if err := mp4.WriteToFile(f, outPath); err != nil {
+				t.Fatal(err)
+			}
+			got, err := os.ReadFile(outPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, buf.Bytes()) {
+				t.Errorf("WriteToFile gave %d bytes, Encode gave %d", len(got), len(buf.Bytes()))
+			}
+		})
+	}
+}

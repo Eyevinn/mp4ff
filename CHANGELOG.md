@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `WriteToFile` buffers its output instead of writing straight to the file.
+  The many small boxes of a moof cost one write syscall each without it, while
+  a large mdat payload is unaffected, since a write larger than the buffer goes
+  directly to the file. Output bytes are unchanged
 - `SttsBox.GetDecodeTime` returns an error instead of panicking with index out
   of range when the stts entries cover fewer samples than the requested sample
   number (a file whose stts and stsz disagree), or when called with sampleNr 0.
