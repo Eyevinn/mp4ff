@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -128,15 +129,22 @@ type BoxStructure interface {
 	Encode(w io.Writer) error
 }
 
-// WriteToFile - write a box structure to a file at filePath
+// WriteToFile - write a box structure to a file at filePath.
+// The output is buffered, since the many small boxes of a moof would
+// otherwise cost one write syscall each. A large mdat payload is not slowed
+// down by the buffer: once the buffer is empty, bufio.Writer passes a write
+// larger than the buffer directly to the file rather than copying it.
 func WriteToFile(boxStructure BoxStructure, filePath string) error {
 	ofd, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 	defer ofd.Close()
-	err = boxStructure.Encode(ofd)
-	return err
+	w := bufio.NewWriter(ofd)
+	if err := boxStructure.Encode(w); err != nil {
+		return err
+	}
+	return w.Flush()
 }
 
 // AddMediaSegment - add a mediasegment to file f
