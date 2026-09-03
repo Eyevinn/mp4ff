@@ -229,8 +229,9 @@ func TestAddFullSamplesMixing(t *testing.T) {
 	all := append(append([]mp4.FullSample{}, first...), second...)
 	want := encodeFragment(t, fragmentFromLoop(t, all))
 
-	// Monolithic data already present: the samples are copied in and the
-	// mdat stays monolithic, with the existing baseMediaDecodeTime kept.
+	// Monolithic data already present: it is closed into a data part and the
+	// bulk samples are added as parts after it, without being copied. The
+	// existing baseMediaDecodeTime is kept.
 	frag, err := mp4.CreateFragment(1, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -242,8 +243,18 @@ func TestAddFullSamplesMixing(t *testing.T) {
 	if got := encodeFragment(t, frag); !bytes.Equal(got, want) {
 		t.Error("AddFullSamples after AddFullSample does not encode identically to the loop")
 	}
-	if len(frag.Mdat.DataParts) != 0 {
-		t.Error("expected monolithic mdat after AddFullSamples onto existing data")
+	if nr := len(frag.Mdat.DataParts); nr != 2 {
+		t.Errorf("got %d mdat data parts, expected 2 (closed monolithic data, then the bulk run)", nr)
+	}
+	if len(frag.Mdat.Data) != 0 {
+		t.Error("monolithic data should have been closed into a part")
+	}
+	// The bulk samples are referenced, not copied.
+	if &frag.Mdat.DataParts[1][0] != &second[0].Data[0] {
+		t.Error("second data part does not alias the first bulk sample's data")
+	}
+	if got := frag.Moof.Traf.Tfdt.BaseMediaDecodeTime(); got != 10000 {
+		t.Errorf("got baseMediaDecodeTime %d instead of 10000", got)
 	}
 
 	// Two bulk calls: both become parts, and the second keeps the first's

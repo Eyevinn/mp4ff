@@ -21,10 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entry in place) an init segment built from a cached, shared trak
 - `Fragment.AddFullSamples` adds many samples to a fragment at once. Adjacent
   sample slices (such as the output of `GetFullSamples`) are coalesced into
-  runs that are added as mdat data parts, so the payload is not copied at all
-  and contiguous input becomes a single part; the samples are copied only
-  when the mdat already holds monolithic data. The output is byte-identical
-  to adding the samples one by one with `AddFullSample`
+  runs that are added as mdat data parts, so the payload is never copied and
+  contiguous input becomes a single part. Any data already in the mdat is
+  closed into a part first, so samples can be added before or after with
+  `AddFullSample`. Since the samples are referenced rather than copied, their
+  buffers must be kept alive and unmodified until the fragment is encoded. The
+  output is byte-identical to adding the samples one by one with
+  `AddFullSample`
 
 ### Changed
 

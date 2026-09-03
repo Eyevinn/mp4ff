@@ -218,11 +218,11 @@ func (f *Fragment) AddFullSample(s FullSample) {
 // time. The caller must therefore keep those buffers alive and unmodified
 // until the fragment has been encoded.
 //
-// If the mdat already holds monolithic data (from AddFullSample or SetData),
-// the samples are copied into it instead, growing it once up front, so that
-// the data already there is not made to alias the caller's buffers. Samples
-// may be added before or after with AddFullSample either way; the mdat keeps
-// the order in which data was added.
+// This holds however the fragment was built: any data already in the mdat is
+// closed into a data part first, so samples may be added before or after with
+// AddFullSample and the mdat keeps the order in which data was added. Since
+// the samples are never copied, a caller that needs to reuse its buffers must
+// add those samples with AddFullSample instead.
 func (f *Fragment) AddFullSamples(ss []FullSample) {
 	if len(ss) == 0 {
 		return
@@ -233,26 +233,10 @@ func (f *Fragment) AddFullSamples(ss []FullSample) {
 		copy(newSamples, trun.Samples)
 		trun.Samples = newSamples
 	}
-	mdat := f.Mdat
-	if len(mdat.Data) != 0 {
-		// Monolithic mdat: grow it once, then take the ordinary path.
-		totalSize := 0
-		for i := range ss {
-			totalSize += len(ss[i].Data)
-		}
-		if cap(mdat.Data)-len(mdat.Data) < totalSize {
-			newData := make([]byte, len(mdat.Data), len(mdat.Data)+totalSize)
-			copy(newData, mdat.Data)
-			mdat.Data = newData
-		}
-		for i := range ss {
-			f.AddFullSample(ss[i])
-		}
-		return
-	}
 	if trun.SampleCount() == 0 {
 		f.Moof.Traf.Tfdt.SetBaseMediaDecodeTime(ss[0].DecodeTime)
 	}
+	mdat := f.Mdat
 	var run []byte
 	for i := range ss {
 		trun.AddSample(ss[i].Sample)
