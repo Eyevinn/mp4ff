@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -92,7 +93,11 @@ func run(inPath, outPath string) error {
 		return err
 	}
 	defer out.Close()
-	return writeFragmentedMP4(out, init, frames, scale, isKey)
+	ow := bufio.NewWriter(out)
+	if err := writeFragmentedMP4(ow, init, frames, scale, isKey); err != nil {
+		return err
+	}
+	return ow.Flush()
 }
 
 // setupAV1 builds the init segment for an AV1 track from the sequence header in the first frame.

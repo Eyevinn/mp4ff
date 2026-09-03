@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -132,8 +133,12 @@ func writeSeg(seg encoder, filename string) error {
 		return err
 	}
 	defer ofh.Close()
-	err = seg.Encode(ofh)
+	ow := bufio.NewWriter(ofh)
+	err = seg.Encode(ow)
 	if err != nil {
+		return err
+	}
+	if err = ow.Flush(); err != nil {
 		return err
 	}
 	fmt.Printf("wrote %s\n", filename)

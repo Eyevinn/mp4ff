@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestOptionCases(t *testing.T) {
@@ -125,4 +128,57 @@ func concatenateFiles(outFile string, inFiles ...string) error {
 	}
 
 	return nil
+}
+
+// TestEncryptedOutputMatchesDirectEncode checks that the file run writes is
+// exactly the bytes encryptFile produces, so any truncation of the output --
+// an unflushed write buffer, a short write -- fails here. The successful case
+// in TestOptionCases only checks that run returns no error, which a truncated
+// file would also do.
+//
+// Note that with this input the last thing written is a large mdat, which
+// bypasses the write buffer, so this input alone would not reveal a missing
+// Flush; it takes an output ending in a small box to lose bytes that way.
+func TestEncryptedOutputMatchesDirectEncode(t *testing.T) {
+	init := "../../mp4/testdata/init.mp4"
+	inSeg := "../../mp4/testdata/1.m4s"
+	psshPath := "../../mp4/testdata/pssh.bin"
+	key := "00112233445566778899aabbccddeeff"
+	tmpDir := t.TempDir()
+	combFile := path.Join(tmpDir, "combined.mp4")
+	outFile := path.Join(tmpDir, "encrypted.mp4")
+	if err := concatenateFiles(combFile, init, inSeg); err != nil {
+		t.Fatal(err)
+	}
+
+	args := []string{appName, "-key", key, "-iv", key, "-kid", key, "-pssh", psshPath, combFile, outFile}
+	if err := run(args); err != nil {
+		t.Fatal(err)
+	}
+	written, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The same encryption, straight into memory.
+	ifh, err := os.Open(combFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ifh.Close()
+	psshData, err := os.ReadFile(psshPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want bytes.Buffer
+	if err := encryptFile(ifh, &want, nil, "cenc", key, key, key, psshData); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(written, want.Bytes()) {
+		t.Errorf("file written by run is %d bytes, direct encode gives %d",
+			len(written), want.Len())
+	}
+	if _, err := mp4.DecodeFile(bytes.NewReader(written)); err != nil {
+		t.Errorf("encrypted output does not decode: %v", err)
+	}
 }

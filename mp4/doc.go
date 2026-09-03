@@ -135,6 +135,27 @@ either of the interfaces. For benchmarks, see the [README.md of the mp4ff module
 Fur further reduction of memory allocation, use a buffered top-level reader, especially when
 when reading the [mp4.MdatBox] box of a progressive file.
 
+# Writing files and segments efficiently
+
+The Encode(w [io.Writer]) methods write roughly one Write call per box, since most boxes
+encode themselves into a small slice and write it in one go. Handed a bare [os.File],
+that is one write syscall per box, and a moof consists of a dozen or so small boxes.
+Wrapping the file in a [bufio.Writer] and flushing it is therefore several times faster
+for segment-shaped output, where box headers make up a larger share of the bytes than
+the media payload does. A large [mp4.MdatBox] payload is not slowed down by the buffer,
+since [bufio.Writer] passes a write larger than its buffer directly to the file once the
+buffer is empty. [mp4.WriteToFile] does this internally; code that opens its own file
+should do the same, and must not forget to Flush before closing.
+
+The EncodeSW(sw [bits.SliceWriter]) methods are an alternative: encode into a
+[bits.FixedSliceWriter] of Size() bytes and write it out with a single call. Note that
+the cost of this route is dominated by the per-call allocation and the zeroing of memory
+that is then overwritten in full, not by the encoding, so allocating a new slice writer
+for a single structure is not faster than a buffered Encode. It pays off when the same
+buffer is reused across many structures, for example when writing a sequence of segments,
+using [bits.NewFixedSliceWriterFromSlice] to wrap it. That call takes the size from the
+length of the slice, not its capacity, so it must be sliced to at least Size() bytes.
+
 # More about mp4 boxes
 
 The mp4 package contains a lot of box implementations.

@@ -460,6 +460,8 @@ func (f *File) AddSidx(sidx *SidxBox) {
 
 // Encode - encode a file to a Writer
 // Fragmented files are encoded based on InitSegment and MediaSegments, unless EncModeBoxTree is set.
+// One Write call is made per box, so a buffered writer should be used when w is a file.
+// See the package documentation section "Writing files and segments efficiently".
 func (f *File) Encode(w io.Writer) error {
 	if f.isFragmented {
 		switch f.FragEncMode {
@@ -517,6 +519,8 @@ func (f *File) Encode(w io.Writer) error {
 
 // EncodeSW - encode a file to a SliceWriter
 // Fragmented files are encoded based on InitSegment and MediaSegments, unless EncModeBoxTree is set.
+// See the package documentation section "Writing files and segments efficiently" for when this
+// is faster than Encode to a buffered writer.
 func (f *File) EncodeSW(sw bits.SliceWriter) error {
 	if f.isFragmented {
 		switch f.FragEncMode {

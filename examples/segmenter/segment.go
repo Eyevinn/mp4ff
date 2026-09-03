@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -118,13 +119,17 @@ func makeSingleTrackSegmentsLazyWrite(segmenter *Segmenter, parsedMp4 *mp4.File,
 				return err
 			}
 			defer ofh.Close()
-			err = seg.Encode(ofh)
+			ow := bufio.NewWriter(ofh)
+			err = seg.Encode(ow)
 			if err != nil {
 				return err
 			}
 			// Also write media data
-			err = copyMediaData(tr.inTrak, startSampleNr, endSampleNr, rs, ofh)
+			err = copyMediaData(tr.inTrak, startSampleNr, endSampleNr, rs, ow)
 			if err != nil {
+				return err
+			}
+			if err = ow.Flush(); err != nil {
 				return err
 			}
 			fmt.Printf("Generated %s\n", outPath)

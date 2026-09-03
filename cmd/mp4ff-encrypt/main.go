@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"errors"
 	"flag"
@@ -129,11 +130,12 @@ func run(args []string) error {
 		}
 	}
 
-	err = encryptFile(ifh, ofh, initSeg, opts.scheme, opts.kidStr, opts.keyStr, opts.ivHex, psshData)
+	ow := bufio.NewWriter(ofh)
+	err = encryptFile(ifh, ow, initSeg, opts.scheme, opts.kidStr, opts.keyStr, opts.ivHex, psshData)
 	if err != nil {
 		return fmt.Errorf("encryptFile: %w", err)
 	}
-	return nil
+	return ow.Flush()
 }
 
 func encryptFile(ifh io.Reader, ofh io.Writer, initSeg *mp4.InitSegment,

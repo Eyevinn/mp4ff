@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -93,5 +94,9 @@ func run(args []string, w io.Writer) error {
 		return fmt.Errorf("error creating file: %w", err)
 	}
 	defer ofd.Close()
-	return newMp4.Encode(ofd)
+	ow := bufio.NewWriter(ofd)
+	if err := newMp4.Encode(ow); err != nil {
+		return err
+	}
+	return ow.Flush()
 }

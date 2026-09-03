@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -96,11 +97,12 @@ func run(args []string, stdout io.Writer) error {
 	}
 	defer ofh.Close()
 
-	err = cropMP4(parsedMp4, int(o.durationMS), ofh, ifh)
+	ow := bufio.NewWriter(ofh)
+	err = cropMP4(parsedMp4, int(o.durationMS), ow, ifh)
 	if err != nil {
 		return fmt.Errorf("error cropping mp4 file: %w", err)
 	}
-	return nil
+	return ow.Flush()
 }
 
 func cropMP4(inMP4 *mp4.File, durationMS int, w io.Writer, ifh io.ReadSeeker) error {
