@@ -39,9 +39,15 @@ const NonSyncSampleFlags uint32 = 0x00010000
 // SampleDependsOn1 - this sample depends on others (not an I picture)
 const SampleDependsOn1 uint32 = 0x01000000
 
-// IsSyncSampleFlags - flags is set correctly for sync sample
+// sampleDependsOnMask - the two-bit sample_depends_on field
+const sampleDependsOnMask uint32 = 0x03000000
+
+// IsSyncSampleFlags - flags is set correctly for sync sample.
+// Both indications must agree: sample_depends_on must be 2 (an I picture)
+// and sample_is_non_sync_sample must be 0. A sample explicitly marked
+// non-sync is not a sync sample whatever sample_depends_on says.
 func IsSyncSampleFlags(flags uint32) bool {
-	return flags&SyncSampleFlags == SyncSampleFlags
+	return flags&sampleDependsOnMask == SyncSampleFlags && flags&NonSyncSampleFlags == 0
 }
 
 // SetSyncSampleFlags - return flags with syncsample pattern

@@ -61,3 +61,37 @@ func TestSetSyncAndNonSyncFlags(t *testing.T) {
 			redundancyFlags, nonSyncWithRedundancy, expectedNonSyncWithRedundancy)
 	}
 }
+
+// TestIsSyncSampleFlags checks that the sync predicate requires both
+// indications to agree: sample_depends_on == 2 and sample_is_non_sync_sample
+// == 0. Every other bit of sample_flags must be ignored, which is asserted by
+// repeating each case with all of them set.
+func TestIsSyncSampleFlags(t *testing.T) {
+	// Every bit outside the sample_depends_on field and the non-sync bit.
+	const otherBits = ^uint32(0x03010000)
+
+	for dependsOn := uint32(0); dependsOn < 4; dependsOn++ {
+		for nonSync := uint32(0); nonSync < 2; nonSync++ {
+			flags := dependsOn<<24 | nonSync<<16
+			want := dependsOn == 2 && nonSync == 0
+			for _, f := range []uint32{flags, flags | otherBits} {
+				if got := mp4.IsSyncSampleFlags(f); got != want {
+					t.Errorf("IsSyncSampleFlags(0x%08x) = %v, want %v (dependsOn=%d nonSync=%d)",
+						f, got, want, dependsOn, nonSync)
+				}
+				s := mp4.Sample{Flags: f}
+				if got := s.IsSync(); got != want {
+					t.Errorf("Sample{0x%08x}.IsSync() = %v, want %v", f, got, want)
+				}
+			}
+		}
+	}
+
+	// The exported patterns must agree with the predicate.
+	if !mp4.IsSyncSampleFlags(mp4.SyncSampleFlags) {
+		t.Error("SyncSampleFlags is not recognized as a sync sample")
+	}
+	if mp4.IsSyncSampleFlags(mp4.SetNonSyncSampleFlags(0)) {
+		t.Error("SetNonSyncSampleFlags(0) is recognized as a sync sample")
+	}
+}
