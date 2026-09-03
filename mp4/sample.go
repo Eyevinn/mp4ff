@@ -20,8 +20,7 @@ func NewSample(flags uint32, dur uint32, size uint32, compositionTimeOffset int3
 
 // IsSync - check sync by masking flags including dependsOn
 func (s *Sample) IsSync() bool {
-	decFlags := DecodeSampleFlags(s.Flags)
-	return !decFlags.SampleIsNonSync && (decFlags.SampleDependsOn == 2)
+	return IsSyncSampleFlags(s.Flags)
 }
 
 // FullSample - include accumulated time and data. Times in mdhd timescale

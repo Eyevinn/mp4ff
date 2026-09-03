@@ -70,6 +70,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `IsSyncSampleFlags` only inspected `sample_depends_on` and ignored
+  `sample_is_non_sync_sample`, so flags that mark a sample non-sync while also
+  saying `sample_depends_on = 2` were reported as a sync sample. It now
+  requires both indications to agree, like `Sample.IsSync` always has, and no
+  longer accepts the reserved `sample_depends_on = 3`. `Sample.IsSync` is
+  unchanged in behaviour and now delegates to it, so the two cannot drift
+  apart again
 - The mdat payload is now the concatenation of its data parts and its
   monolithic data, so the two can be combined in any order and are written in
   the order they were added. Adding a part on top of monolithic data no longer
