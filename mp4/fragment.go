@@ -219,11 +219,10 @@ func (f *Fragment) AddFullSample(s FullSample) {
 // until the fragment has been encoded.
 //
 // If the mdat already holds monolithic data (from AddFullSample or SetData),
-// data parts cannot be mixed in, so the samples are instead copied into the
-// mdat data, which is grown once up front. Conversely, once AddFullSamples
-// has added data parts, further samples must be added with AddFullSamples
-// (or AddSampleInterval) rather than AddFullSample, since an mdat with data
-// parts encodes only those.
+// the samples are copied into it instead, growing it once up front, so that
+// the data already there is not made to alias the caller's buffers. Samples
+// may be added before or after with AddFullSample either way; the mdat keeps
+// the order in which data was added.
 func (f *Fragment) AddFullSamples(ss []FullSample) {
 	if len(ss) == 0 {
 		return

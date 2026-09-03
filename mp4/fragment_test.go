@@ -349,3 +349,53 @@ func TestAddFullSamplesLargeSizeMdat(t *testing.T) {
 		}
 	}
 }
+
+// TestAddFullSamplesThenAddFullSample - adding single samples after a bulk
+// call must extend the fragment rather than being silently dropped. Before
+// mdat combined parts and monolithic data, the mdat encoded only the parts,
+// so the trun declared samples whose data was never written and the fragment
+// was rejected on decode.
+func TestAddFullSamplesThenAddFullSample(t *testing.T) {
+	bulk := fullSamplesFixture("contiguous", 8, 10000)
+	extra := fullSamplesFixture("scattered", 3, 10000+8*1024)
+	all := append(append([]mp4.FullSample{}, bulk...), extra...)
+	want := encodeFragment(t, fragmentFromLoop(t, all))
+
+	frag, err := mp4.CreateFragment(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag.AddFullSamples(bulk)
+	for _, s := range extra {
+		frag.AddFullSample(s)
+	}
+
+	var declared uint64
+	for _, s := range frag.Moof.Traf.Trun.Samples {
+		declared += uint64(s.Size)
+	}
+	if got := frag.Mdat.DataLength(); got != declared {
+		t.Errorf("mdat holds %d payload bytes but trun declares %d", got, declared)
+	}
+	if got := encodeFragment(t, frag); !bytes.Equal(got, want) {
+		t.Error("bulk followed by single samples does not encode identically to the loop")
+	}
+
+	// The fragment must survive a decode round trip with its samples intact.
+	decoded, err := mp4.DecodeFile(bytes.NewReader(encodeFragment(t, frag)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fss, err := decoded.Segments[0].Fragments[0].GetFullSamples(nil)
+	if err != nil {
+		t.Fatalf("GetFullSamples after mixed adds: %v", err)
+	}
+	if len(fss) != len(all) {
+		t.Fatalf("decoded %d samples, expected %d", len(fss), len(all))
+	}
+	for i := range fss {
+		if !bytes.Equal(fss[i].Data, all[i].Data) {
+			t.Errorf("sample %d data differs after round trip", i+1)
+		}
+	}
+}

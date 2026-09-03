@@ -58,6 +58,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The mdat payload is now the concatenation of its data parts and its
+  monolithic data, so the two can be combined in any order and are written in
+  the order they were added. Adding a part on top of monolithic data no longer
+  panics with "cannot mix sample parts with monolithic sample data", and data
+  added with `AddSampleData` on top of data parts is no longer silently
+  dropped at encode time, which produced a fragment whose trun declared
+  samples that were never written. `MdatBox.SetData` replaces the whole
+  payload and so now also drops any data parts
 - `NewSdtpEntry` packed the `sampleDependedOn` argument into both two-bit
   dependency fields and dropped `sampleDependsOn`, so every entry it built
   carried a wrong sample_depends_on value. Note that entries built with the

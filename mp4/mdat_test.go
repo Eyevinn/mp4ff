@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
@@ -279,5 +280,103 @@ func TestMdatDataRangeChecks(t *testing.T) {
 				t.Errorf("CopyData: wrote %d bytes instead of %d", n, c.size)
 			}
 		})
+	}
+}
+
+// TestMdatMixedDataAndParts - data added with AddSampleData and with
+// AddSampleDataPart can be combined in any order, and the payload is written
+// in the order it was added. Before, adding a part on top of monolithic data
+// panicked, and adding monolithic data on top of parts was silently dropped.
+func TestMdatMixedDataAndParts(t *testing.T) {
+	a := []byte{0, 1, 2}
+	b := []byte{3, 4}
+	c := []byte{5, 6, 7, 8}
+
+	cases := []struct {
+		name string
+		add  func(m *mp4.MdatBox)
+		want []byte
+	}{
+		{"dataOnly", func(m *mp4.MdatBox) {
+			m.AddSampleData(a)
+			m.AddSampleData(b)
+		}, []byte{0, 1, 2, 3, 4}},
+		{"partsOnly", func(m *mp4.MdatBox) {
+			m.AddSampleDataPart(a)
+			m.AddSampleDataPart(b)
+		}, []byte{0, 1, 2, 3, 4}},
+		{"dataThenPart", func(m *mp4.MdatBox) {
+			m.AddSampleData(a)
+			m.AddSampleDataPart(b)
+		}, []byte{0, 1, 2, 3, 4}},
+		{"partThenData", func(m *mp4.MdatBox) {
+			m.AddSampleDataPart(a)
+			m.AddSampleData(b)
+		}, []byte{0, 1, 2, 3, 4}},
+		{"interleaved", func(m *mp4.MdatBox) {
+			m.AddSampleData(a)
+			m.AddSampleDataPart(b)
+			m.AddSampleData(c)
+			m.AddSampleDataPart(a)
+		}, []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mdat := &mp4.MdatBox{}
+			c.add(mdat)
+
+			if got := mdat.DataLength(); got != uint64(len(c.want)) {
+				t.Errorf("DataLength() is %d, expected %d", got, len(c.want))
+			}
+			if got, exp := mdat.Size(), mdat.HeaderSize()+uint64(len(c.want)); got != exp {
+				t.Errorf("Size() is %d, expected %d", got, exp)
+			}
+
+			var buf bytes.Buffer
+			if err := mdat.Encode(&buf); err != nil {
+				t.Fatal(err)
+			}
+			if got := uint64(buf.Len()); got != mdat.Size() {
+				t.Errorf("encoded %d bytes, but Size() is %d", got, mdat.Size())
+			}
+			payload := buf.Bytes()[mdat.HeaderSize():]
+			if !bytes.Equal(payload, c.want) {
+				t.Errorf("Encode payload is %v, expected %v", payload, c.want)
+			}
+
+			// The SliceWriter path must write the same bytes.
+			sw := bits.NewFixedSliceWriter(int(mdat.Size()))
+			if err := mdat.EncodeSW(sw); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(sw.Bytes(), buf.Bytes()) {
+				t.Error("EncodeSW and Encode wrote different bytes")
+			}
+		})
+	}
+}
+
+// TestMdatSetDataDropsParts - SetData replaces the whole payload, so earlier
+// parts are dropped. Before, the parts won and the new data was ignored.
+func TestMdatSetDataDropsParts(t *testing.T) {
+	mdat := &mp4.MdatBox{}
+	mdat.AddSampleDataPart([]byte{0, 1, 2})
+	mdat.AddSampleData([]byte{3, 4})
+
+	replacement := []byte{7, 7, 7, 7}
+	mdat.SetData(replacement)
+
+	if got := mdat.DataLength(); got != uint64(len(replacement)) {
+		t.Errorf("DataLength() is %d after SetData, expected %d", got, len(replacement))
+	}
+	if len(mdat.DataParts) != 0 {
+		t.Errorf("SetData left %d data parts", len(mdat.DataParts))
+	}
+	var buf bytes.Buffer
+	if err := mdat.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if payload := buf.Bytes()[mdat.HeaderSize():]; !bytes.Equal(payload, replacement) {
+		t.Errorf("payload after SetData is %v, expected %v", payload, replacement)
 	}
 }
