@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -910,8 +911,12 @@ func buildAndWriteMp4(inp *mvhevcInput, outPath string, w io.Writer) error {
 		return fmt.Errorf("could not create output file: %w", err)
 	}
 	defer ofd.Close()
-	if err := outFile.Encode(ofd); err != nil {
+	ow := bufio.NewWriter(ofd)
+	if err := outFile.Encode(ow); err != nil {
 		return fmt.Errorf("encode error: %w", err)
+	}
+	if err := ow.Flush(); err != nil {
+		return fmt.Errorf("write error: %w", err)
 	}
 
 	fmt.Fprintf(w, "Wrote %s (%dx%d, %d samples, %d layers)\n",

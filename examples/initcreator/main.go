@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -178,6 +179,9 @@ func writeToFile(init *mp4.InitSegment, filePath string) error {
 		return err
 	}
 	defer ofd.Close()
-	err = init.Encode(ofd)
-	return err
+	ow := bufio.NewWriter(ofd)
+	if err := init.Encode(ow); err != nil {
+		return err
+	}
+	return ow.Flush()
 }

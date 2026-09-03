@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -111,7 +112,11 @@ func run(args []string, stdout io.Writer) error {
 		return fmt.Errorf("addSidx failed: %w", err)
 	}
 
-	return mp4Root.Encode(ofd)
+	ow := bufio.NewWriter(ofd)
+	if err := mp4Root.Encode(ow); err != nil {
+		return err
+	}
+	return ow.Flush()
 }
 
 func removeEncryptionBoxes(inFile *mp4.File) {

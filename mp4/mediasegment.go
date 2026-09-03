@@ -92,7 +92,9 @@ func (s *MediaSegment) Size() uint64 {
 	return size
 }
 
-// Encode - Write MediaSegment via writer
+// Encode - Write MediaSegment via writer.
+// One Write call is made per box, so a buffered writer should be used when w is a file.
+// See the package documentation section "Writing files and segments efficiently".
 func (s *MediaSegment) Encode(w io.Writer) error {
 	if s.Styp != nil {
 		err := s.Styp.Encode(w)

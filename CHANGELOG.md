@@ -28,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The commands and examples that create their own output file now buffer their
+  writes, like `WriteToFile` already does. `Encode` makes about one write call
+  per box, so writing straight to a file cost a syscall per box: affects
+  `mp4ff-encrypt`, `mp4ff-decrypt`, `mp4ff-crop`, `mp4ff-mvhevc` and the
+  `add-sidx`, `combine-segs`, `initcreator`, `ivf-to-mp4`, `resegmenter` and
+  `segmenter` examples. Output bytes are unchanged
+- New package documentation section "Writing files and segments efficiently"
+  covering when to use a buffered `Encode` and when a reused
+  `bits.FixedSliceWriter` with `EncodeSW` is better
 - `WriteToFile` buffers its output instead of writing straight to the file.
   The many small boxes of a moof cost one write syscall each without it, while
   a large mdat payload is unaffected, since a write larger than the buffer goes

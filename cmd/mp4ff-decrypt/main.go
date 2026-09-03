@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"errors"
 	"flag"
@@ -165,11 +166,12 @@ func run(args []string) error {
 		defer inith.Close()
 	}
 
-	err = decryptFileWithKeyMap(ifh, inith, ofh, key, keysByKID, strictKIDMode)
+	ow := bufio.NewWriter(ofh)
+	err = decryptFileWithKeyMap(ifh, inith, ow, key, keysByKID, strictKIDMode)
 	if err != nil {
 		return fmt.Errorf("decryptFile: %w", err)
 	}
-	return nil
+	return ow.Flush()
 }
 
 func decryptFileWithKeyMap(r, initR io.Reader, w io.Writer, key []byte, keysByKID map[string][]byte, strictKIDMode bool) error {
