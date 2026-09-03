@@ -10,8 +10,13 @@ import (
 
 // MdatBox - Media Data Box (mdat)
 // The mdat box contains media chunks/samples.
-// DataParts is to be able to gather output data without
-// new allocations
+//
+// The payload is the concatenation of DataParts followed by Data, so the two
+// can be combined freely: DataParts gathers output data without new
+// allocations by referencing the caller's buffers, while Data is an open tail
+// that AddSampleData appends (and thereby copies) into. Adding a part when a
+// tail is present closes the tail into a part first, so the order in which
+// data was added is always the order it is written.
 type MdatBox struct {
 	StartPos     uint64
 	Data         []byte
@@ -86,24 +91,31 @@ func (m *MdatBox) Size() uint64 {
 	return m.HeaderSize() + m.payloadSize()
 }
 
-// AddSampleData -  a sample data to an mdat box
+// AddSampleData - add sample data to an mdat box. The bytes are copied, so
+// the caller may reuse s. It is appended after any data parts already added.
 func (m *MdatBox) AddSampleData(s []byte) {
 	m.Data = append(m.Data, s...)
 }
 
-// SetData - set the mdat data to given slice. No copying is done
+// SetData - set the mdat data to given slice. No copying is done.
+// The payload becomes exactly data, so any data parts are dropped.
 func (m *MdatBox) SetData(data []byte) {
 	m.Data = data
+	m.DataParts = nil
 	m.lazyDataSize = 0
 }
 
-// AddSampleDataPart - add a data part (for output)
+// AddSampleDataPart - add a data part (for output). The slice is referenced,
+// not copied, so the caller must keep it unmodified until the box has been
+// encoded. Any data added with AddSampleData is closed into a part first, so
+// that this part is written after it.
 func (m *MdatBox) AddSampleDataPart(s []byte) {
-	if len(m.Data) != 0 {
-		panic("cannot mix sample parts with monolithic sample data")
-	}
 	if len(m.DataParts) == 0 {
 		m.DataParts = make([][]byte, 0, 8) // Reasonable size
+	}
+	if len(m.Data) != 0 {
+		m.DataParts = append(m.DataParts, m.Data)
+		m.Data = nil
 	}
 	m.DataParts = append(m.DataParts, s)
 }
@@ -114,14 +126,13 @@ func (m *MdatBox) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if len(m.DataParts) > 0 {
-		for _, dp := range m.DataParts {
-			_, err = w.Write(dp)
-			if err != nil {
-				return err
-			}
+	for _, dp := range m.DataParts {
+		_, err = w.Write(dp)
+		if err != nil {
+			return err
 		}
-	} else {
+	}
+	if len(m.Data) > 0 {
 		_, err = w.Write(m.Data)
 	}
 
@@ -134,25 +145,21 @@ func (m *MdatBox) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
-	if len(m.DataParts) > 0 {
-		for _, dp := range m.DataParts {
-			sw.WriteBytes(dp)
-		}
-	} else {
+	for _, dp := range m.DataParts {
+		sw.WriteBytes(dp)
+	}
+	if len(m.Data) > 0 {
 		sw.WriteBytes(m.Data)
 	}
 
 	return sw.AccError()
 }
 
-// DataLength - length of data stored in box either as one or multiple parts
+// DataLength - length of data stored in box, as parts and as a monolithic tail
 func (m *MdatBox) DataLength() uint64 {
 	dataLength := len(m.Data)
-	if len(m.DataParts) > 0 {
-		dataLength = 0
-		for i := range m.DataParts {
-			dataLength += len(m.DataParts[i])
-		}
+	for i := range m.DataParts {
+		dataLength += len(m.DataParts[i])
 	}
 	return uint64(dataLength)
 }
