@@ -358,13 +358,15 @@ func TestDefragmentTfdtGapExtendsPreviousSampleDuration(t *testing.T) {
 	}
 }
 
-func TestDefragmentBackwardsTfdtIsError(t *testing.T) {
+// TestDefragmentOverlapInsideSampleIsError pins that a backward tfdt landing
+// inside a sample cannot be resolved at sample granularity and fails closed.
+func TestDefragmentOverlapInsideSampleIsError(t *testing.T) {
 	tests := []struct {
 		name      string
 		videoTfdt []uint64
 		audio     bool
 	}{
-		{name: "backwards tfdt", videoTfdt: []uint64{0, 256}},
+		{name: "backwards tfdt inside sample", videoTfdt: []uint64{0, 256}},
 		{name: "repeated overlap", videoTfdt: []uint64{0, 460, 907}},
 		{name: "video overlap with monotone audio", videoTfdt: []uint64{0, 256}, audio: true},
 	}
@@ -392,7 +394,7 @@ func TestDefragmentBackwardsTfdtIsError(t *testing.T) {
 				}
 			}
 			_, err := defragment(t, buf.Bytes())
-			if err == nil || !strings.Contains(err.Error(), "before the end") {
+			if err == nil || !strings.Contains(err.Error(), "inside sample") {
 				t.Errorf("overlapping tfdt error %v", err)
 			}
 		})
@@ -494,12 +496,240 @@ func TestDefragmentProgressiveInputIsError(t *testing.T) {
 	}
 }
 
-func TestDefragmentHybridInputIsError(t *testing.T) {
-	init := createDefragInit(t)
-	// A progressive prefix: the video sample tables already declare a sample.
+func TestDefragmentHybridFile(t *testing.T) {
+	data, videoSamples, audioSamples := writeDefragTestFile(t)
+	progressive, err := defragment(t, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hybrid := bytes.NewBuffer(append([]byte{}, progressive.Bytes()...))
+	extra := []mp4.FullSample{
+		{Sample: mp4.Sample{Flags: defragSyncFlags(), Dur: 512, Size: 60, CompositionTimeOffset: 512},
+			DecodeTime: 5 * 512, Data: defragPayload(9, 60)},
+		{Sample: mp4.Sample{Flags: defragNonSyncFlags(), Dur: 512, Size: 50},
+			DecodeTime: 6 * 512, Data: defragPayload(10, 50)},
+	}
+	addDefragFragment(t, hybrid, 1, 1, extra)
+	out, err := defragment(t, hybrid.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	videoTrak := outFile.Moov.Traks[0]
+	if nr := videoTrak.GetNrSamples(); nr != 7 {
+		t.Fatalf("video has %d samples, want the 5 progressive + 2 fragment samples", nr)
+	}
+	if diff := deep.Equal(videoTrak.Mdia.Minf.Stbl.Stss.SampleNumber, []uint32{1, 4, 6}); diff != nil {
+		t.Errorf("hybrid stss: %v", diff)
+	}
+	if dur := videoTrak.Mdia.Mdhd.Duration; dur != 7*512 {
+		t.Errorf("video media duration %d, want %d", dur, 7*512)
+	}
+	want := append(concatSampleData(videoSamples), concatSampleData(extra)...)
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, want) {
+		t.Error("hybrid video sample data not byte-identical")
+	}
+	if got := readProgressiveSampleData(t, outFile, 2); !bytes.Equal(got, concatSampleData(audioSamples)) {
+		t.Error("hybrid audio sample data not byte-identical")
+	}
+}
+
+// writeDefragHybridPrefixFile writes ftyp + moov declaring a 4-sample video
+// prefix in two chunks (with descending stco offsets when swapChunkBytes is
+// set), the mdat carrying the prefix payload, and one 2-sample audio
+// fragment at audioDts. It returns the file and the video sample-order bytes.
+func writeDefragHybridPrefixFile(t *testing.T, swapChunkBytes bool, audioDts uint64) (data, videoPayload []byte) {
+	t.Helper()
+	init := createDefragPlainAvInit(t)
 	stbl := init.Moov.Traks[0].Mdia.Minf.Stbl
-	stbl.Stsz.SampleNumber = 1
-	stbl.Stsz.SampleSize = []uint32{10}
+	stbl.Stts.SampleCount = []uint32{4}
+	stbl.Stts.SampleTimeDelta = []uint32{512}
+	stbl.Stsz.SampleNumber = 4
+	stbl.Stsz.SampleSize = []uint32{10, 20, 30, 40}
+	if err := stbl.Stsc.AddEntry(1, 2, 1); err != nil {
+		t.Fatal(err)
+	}
+	stbl.Stco.ChunkOffset = []uint32{0, 0} // fixed-width placeholders, set below
+	var measure bytes.Buffer
+	if err := init.Encode(&measure); err != nil {
+		t.Fatal(err)
+	}
+	payloadStart := uint32(measure.Len()) + 8 // after the mdat header
+	chunk1 := append(defragPayload(1, 10), defragPayload(2, 20)...)
+	chunk2 := append(defragPayload(3, 30), defragPayload(4, 40)...)
+	var filePayload []byte
+	if swapChunkBytes {
+		// Chunk 2's bytes precede chunk 1's in the file: descending stco.
+		stbl.Stco.ChunkOffset = []uint32{payloadStart + uint32(len(chunk2)), payloadStart}
+		filePayload = append(append([]byte{}, chunk2...), chunk1...)
+	} else {
+		stbl.Stco.ChunkOffset = []uint32{payloadStart, payloadStart + uint32(len(chunk1))}
+		filePayload = append(append([]byte{}, chunk1...), chunk2...)
+	}
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	mdat := &mp4.MdatBox{Data: filePayload}
+	if err := mdat.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	addDefragFragment(t, &buf, 1, 2, []mp4.FullSample{
+		{Sample: mp4.Sample{Dur: 1024, Size: 12}, DecodeTime: audioDts, Data: defragPayload(9, 12)},
+		{Sample: mp4.Sample{Dur: 1024, Size: 12}, DecodeTime: audioDts + 1024, Data: defragPayload(10, 12)},
+	})
+	return buf.Bytes(), append(append([]byte{}, chunk1...), chunk2...)
+}
+
+// TestDefragmentNonMonotonicStcoKeepsSampleMapping pins that a progressive
+// prefix whose stco offsets are not monotone keeps its sample-to-chunk
+// mapping: the chunk order of the sample tables stands, so every sample
+// lands byte-correct in the output.
+func TestDefragmentNonMonotonicStcoKeepsSampleMapping(t *testing.T) {
+	data, videoPayload := writeDefragHybridPrefixFile(t, true, 0)
+	out, err := defragment(t, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, videoPayload) {
+		t.Error("video sample bytes corrupted by non-monotone chunk offsets")
+	}
+	stbl := outFile.Moov.Traks[0].Mdia.Minf.Stbl
+	wantSizes := []uint32{10, 20, 30, 40}
+	for i, want := range wantSizes {
+		if got := stbl.Stsz.GetSampleSize(i + 1); got != want {
+			t.Errorf("sample %d size %d, want %d", i+1, got, want)
+		}
+	}
+	if len(stbl.Stco.ChunkOffset) != 2 {
+		t.Errorf("video has %d chunks, want the original 2", len(stbl.Stco.ChunkOffset))
+	}
+}
+
+// TestDefragmentHybridTrackAlignsFragmentOnlyTrack pins that a track with a
+// progressive prefix starts at decode time zero and anchors the empty-edit
+// alignment of a fragment-only track with a nonzero origin.
+func TestDefragmentHybridTrackAlignsFragmentOnlyTrack(t *testing.T) {
+	data, videoPayload := writeDefragHybridPrefixFile(t, false, 1024)
+	out, err := defragment(t, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	video, audio := outFile.Moov.Traks[0], outFile.Moov.Traks[1]
+	if video.Edts != nil {
+		t.Error("hybrid track starting at zero got an edts box")
+	}
+	// 1024/44100 s is 13.93 -> 14 movie ticks; media 2048/44100 s -> 28.
+	wantElst := []mp4.ElstEntry{
+		{SegmentDuration: 14, MediaTime: -1, MediaRateInteger: 1},
+		{SegmentDuration: 28, MediaTime: 0, MediaRateInteger: 1},
+	}
+	if audio.Edts == nil || len(audio.Edts.Elst) != 1 {
+		t.Fatal("fragment-only audio track got no synthesized elst")
+	}
+	if diff := deep.Equal(audio.Edts.Elst[0].Entries, wantElst); diff != nil {
+		t.Errorf("audio elst: %v", diff)
+	}
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, videoPayload) {
+		t.Error("hybrid video sample data not byte-identical")
+	}
+}
+
+// TestDefragmentFragmentSupersedesProgressiveSamples pins that a fragment
+// re-declaring decode times of the progressive prefix wins like any
+// retransmission, under the same coverage and sample-boundary rules.
+func TestDefragmentFragmentSupersedesProgressiveSamples(t *testing.T) {
+	data, videoPayload := writeDefragHybridPrefixFile(t, false, 0)
+	t.Run("covered supersession resolves", func(t *testing.T) {
+		// The prefix covers [0, 2048); this fragment re-declares [1024, 2048).
+		hybrid := bytes.NewBuffer(append([]byte{}, data...))
+		fragSamples := defragSampleRun(1024, 2, 101, 10)
+		addDefragFragment(t, hybrid, 2, 1, fragSamples)
+		out, err := defragment(t, hybrid.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
+		outFile := decodeDefragOutput(t, out.Bytes())
+		// Prefix samples 1-2 (10+20 bytes) survive, samples 3-4 are superseded.
+		wantData := append(append([]byte{}, videoPayload[:30]...), concatSampleData(fragSamples)...)
+		if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, wantData) {
+			t.Error("video sample data must be the prefix head plus the superseding fragment")
+		}
+		if dur := outFile.Moov.Traks[0].Mdia.Mdhd.Duration; dur != 4*512 {
+			t.Errorf("video media duration %d, want %d", dur, 4*512)
+		}
+	})
+	t.Run("uncovered supersession is an error", func(t *testing.T) {
+		// [1024, 1536) is re-declared, but the prefix extended to 2048.
+		hybrid := bytes.NewBuffer(append([]byte{}, data...))
+		addDefragFragment(t, hybrid, 2, 1, defragSampleRun(1024, 1, 101, 10))
+		out, err := defragment(t, hybrid.Bytes())
+		if err == nil || !strings.Contains(err.Error(), "never re-declared") {
+			t.Errorf("uncovered supersession gave %v, want a coverage error", err)
+		}
+		if out.Len() != 0 {
+			t.Errorf("wrote %d bytes before rejecting input", out.Len())
+		}
+	})
+	t.Run("cut inside a progressive sample is an error", func(t *testing.T) {
+		hybrid := bytes.NewBuffer(append([]byte{}, data...))
+		addDefragFragment(t, hybrid, 2, 1, defragSampleRun(700, 3, 101, 10))
+		_, err := defragment(t, hybrid.Bytes())
+		if err == nil || !strings.Contains(err.Error(), "inside sample") {
+			t.Errorf("mid-sample supersession gave %v, want a sample-granularity error", err)
+		}
+	})
+}
+
+// TestDefragmentHostileProgressiveTablesAreErrors pins that compact sample
+// tables are validated against the declared sample count before expansion.
+func TestDefragmentHostileProgressiveTablesAreErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(stbl *mp4.StblBox)
+		wantErr string
+	}{
+		{name: "stts covering too many samples", mutate: func(stbl *mp4.StblBox) {
+			stbl.Stsz.SampleNumber = 3
+			stbl.Stsz.SampleSize = []uint32{10, 10, 10}
+			stbl.Stts.SampleCount = []uint32{2, 2}
+			stbl.Stts.SampleTimeDelta = []uint32{512, 512}
+			if err := stbl.Stsc.AddEntry(1, 3, 1); err != nil {
+				t.Fatal(err)
+			}
+			stbl.Stco.ChunkOffset = []uint32{8}
+		}, wantErr: "stts covers more than"},
+		{name: "stsc chunk declaring too many samples", mutate: func(stbl *mp4.StblBox) {
+			stbl.Stsz.SampleNumber = 3
+			stbl.Stsz.SampleSize = []uint32{10, 10, 10}
+			stbl.Stts.SampleCount = []uint32{3}
+			stbl.Stts.SampleTimeDelta = []uint32{512}
+			if err := stbl.Stsc.AddEntry(1, 5, 1); err != nil {
+				t.Fatal(err)
+			}
+			stbl.Stco.ChunkOffset = []uint32{8}
+		}, wantErr: "but 3 remain"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			data := writeDefragHostilePrefixFile(t, test.mutate)
+			_, err := defragment(t, data)
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Errorf("hostile tables gave %v, want %q", err, test.wantErr)
+			}
+		})
+	}
+}
+
+// writeDefragHostilePrefixFile writes a fragmented file whose video sample
+// tables have been mutated into a hostile shape, followed by one valid audio
+// fragment so that the file classifies as fragmented.
+func writeDefragHostilePrefixFile(t *testing.T, mutate func(stbl *mp4.StblBox)) []byte {
+	t.Helper()
+	init := createDefragInit(t)
+	mutate(init.Moov.Traks[0].Mdia.Minf.Stbl)
 	var buf bytes.Buffer
 	if err := init.Encode(&buf); err != nil {
 		t.Fatal(err)
@@ -507,13 +737,41 @@ func TestDefragmentHybridInputIsError(t *testing.T) {
 	addDefragFragment(t, &buf, 1, 2, []mp4.FullSample{
 		{Sample: mp4.Sample{Dur: 1024, Size: 8}, DecodeTime: 0, Data: defragPayload(1, 8)},
 	})
-	_, err := defragment(t, buf.Bytes())
-	if err == nil || !strings.Contains(err.Error(), "progressive samples") {
-		t.Errorf("hybrid input error %v", err)
+	return buf.Bytes()
+}
+
+func TestDefragmentHugeDeclaredSampleCountIsError(t *testing.T) {
+	data := writeDefragHostilePrefixFile(t, func(stbl *mp4.StblBox) {
+		stbl.Stsz.SampleUniformSize = 20
+		stbl.Stsz.SampleNumber = math.MaxUint32
+	})
+	_, err := defragment(t, data)
+	if err == nil || !strings.Contains(err.Error(), "more than the") {
+		t.Errorf("huge declared sample count error %v", err)
 	}
-	// The hybrid track is accepted when it is not kept.
-	if _, err := defragment(t, buf.Bytes(), 2); err != nil {
-		t.Errorf("dropping the hybrid track: %v", err)
+}
+
+// The crafted ctts counts {5, 4294967294} wrap the uint32 accumulation in
+// mp4ff's decoder to EndSampleNr [0, 5, 3]: the final entry matches the
+// 3-sample stsz while the intermediate one overshoots it.
+func TestDefragmentCttsOverflowIsError(t *testing.T) {
+	data := writeDefragHostilePrefixFile(t, func(stbl *mp4.StblBox) {
+		stbl.Stsz.SampleNumber = 3
+		stbl.Stsz.SampleSize = []uint32{10, 10, 10}
+		stbl.Stts.SampleCount = []uint32{3}
+		stbl.Stts.SampleTimeDelta = []uint32{512}
+		stbl.AddChild(&mp4.CttsBox{
+			EndSampleNr:  []uint32{0, 5, 3},
+			SampleOffset: []int32{100, 200},
+		})
+		if err := stbl.Stsc.AddEntry(1, 3, 1); err != nil {
+			t.Fatal(err)
+		}
+		stbl.Stco.ChunkOffset = []uint32{8}
+	})
+	_, err := defragment(t, data)
+	if err == nil || !strings.Contains(err.Error(), "ctts entry") {
+		t.Errorf("overflowing ctts error %v", err)
 	}
 }
 
@@ -1285,5 +1543,410 @@ func TestDefragmentResolvesFinalZeroSegmentDurationEdit(t *testing.T) {
 				t.Errorf("elst entries: %v", diff)
 			}
 		})
+	}
+}
+
+// defragSampleRun returns count samples of 512 ticks each from decode time
+// dts, the first one sync, with payload bytes derived from tag.
+func defragSampleRun(dts uint64, count int, tag byte, size int) []mp4.FullSample {
+	samples := make([]mp4.FullSample, 0, count)
+	for i := 0; i < count; i++ {
+		flags := defragNonSyncFlags()
+		if i == 0 {
+			flags = defragSyncFlags()
+		}
+		samples = append(samples, mp4.FullSample{
+			Sample:     mp4.Sample{Flags: flags, Dur: 512, Size: uint32(size)},
+			DecodeTime: dts + uint64(i)*512,
+			Data:       defragPayload(tag+byte(i), size),
+		})
+	}
+	return samples
+}
+
+// writeOverlapFile writes an init plus the given track-1 fragment sample
+// runs and returns the file bytes.
+func writeOverlapFile(t *testing.T, runs ...[]mp4.FullSample) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	init := createDefragPlainAvInit(t)
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	for i, run := range runs {
+		addDefragFragment(t, &buf, uint32(i+1), 1, run)
+	}
+	return buf.Bytes()
+}
+
+func TestDefragmentResolvesFullResend(t *testing.T) {
+	first := defragSampleRun(0, 4, 1, 10)
+	resend := defragSampleRun(0, 4, 101, 10) // same times, different payload: the later fragment wins
+	tail := defragSampleRun(2048, 2, 201, 10)
+	data := writeOverlapFile(t, first, resend, tail)
+	out, err := defragment(t, data, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	wantData := append(concatSampleData(resend), concatSampleData(tail)...)
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, wantData) {
+		t.Error("kept sample data must be the re-sent fragment's bytes followed by the tail")
+	}
+	if got := len(outFile.Mdat.Data); got != len(wantData) {
+		t.Errorf("mdat carries %d bytes, want only the %d surviving bytes", got, len(wantData))
+	}
+	stts := outFile.Moov.Trak.Mdia.Minf.Stbl.Stts
+	if diff := deep.Equal(stts, &mp4.SttsBox{SampleCount: []uint32{6}, SampleTimeDelta: []uint32{512}}); diff != nil {
+		t.Errorf("stts after resolution: %v", diff)
+	}
+	if dur := outFile.Moov.Trak.Mdia.Mdhd.Duration; dur != 6*512 {
+		t.Errorf("media duration %d, want %d", dur, 6*512)
+	}
+}
+
+func TestDefragmentResolvesSupersededTail(t *testing.T) {
+	first := defragSampleRun(0, 4, 1, 10)       // [0, 2048)
+	second := defragSampleRun(1024, 4, 101, 10) // [1024, 3072): supersedes the last 2 samples
+	data := writeOverlapFile(t, first, second)
+	out, err := defragment(t, data, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	wantData := append(concatSampleData(first[:2]), concatSampleData(second)...)
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, wantData) {
+		t.Error("kept sample data must be the trimmed head plus the superseding fragment")
+	}
+	stbl := outFile.Moov.Trak.Mdia.Minf.Stbl
+	if diff := deep.Equal(stbl.Stts, &mp4.SttsBox{SampleCount: []uint32{6}, SampleTimeDelta: []uint32{512}}); diff != nil {
+		t.Errorf("stts after trim: %v", diff)
+	}
+	if stbl.Stss == nil || deep.Equal(stbl.Stss.SampleNumber, []uint32{1, 3}) != nil {
+		t.Errorf("stss %v, want sync samples 1 and 3", stbl.Stss)
+	}
+}
+
+func TestDefragmentResolvesResetChain(t *testing.T) {
+	fragA := defragSampleRun(0, 8, 1, 10)       // [0, 4096)
+	fragB := defragSampleRun(2048, 8, 101, 10)  // [2048, 6144)
+	fragC := defragSampleRun(1024, 10, 201, 10) // [1024, 6144): supersedes all of B and half of A
+	data := writeOverlapFile(t, fragA, fragB, fragC)
+	out, err := defragment(t, data, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	wantData := append(concatSampleData(fragA[:2]), concatSampleData(fragC)...)
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, wantData) {
+		t.Error("kept sample data must be A's head plus all of C, with B gone")
+	}
+	stts := outFile.Moov.Trak.Mdia.Minf.Stbl.Stts
+	if diff := deep.Equal(stts, &mp4.SttsBox{SampleCount: []uint32{12}, SampleTimeDelta: []uint32{512}}); diff != nil {
+		t.Errorf("stts after reset chain: %v", diff)
+	}
+}
+
+// TestDefragmentAbandonedContentIsError pins that resolution never silently
+// drops declared content: every abandoned time range must be declared again
+// by surviving fragments.
+func TestDefragmentAbandonedContentIsError(t *testing.T) {
+	tests := []struct {
+		name string
+		runs [][]mp4.FullSample
+	}{
+		{name: "shorter full resend", runs: [][]mp4.FullSample{
+			defragSampleRun(0, 8, 1, 10),   // [0, 4096)
+			defragSampleRun(0, 2, 101, 10), // [0, 1024): abandons [1024, 4096)
+		}},
+		{name: "shortening reset chain", runs: [][]mp4.FullSample{
+			defragSampleRun(0, 8, 1, 10),      // [0, 4096)
+			defragSampleRun(2048, 8, 101, 10), // [2048, 6144)
+			defragSampleRun(1024, 8, 201, 10), // [1024, 5120): abandons B's [5120, 6144)
+		}},
+		{name: "transitive abandonment", runs: [][]mp4.FullSample{
+			defragSampleRun(0, 8, 1, 10),      // [0, 4096)
+			defragSampleRun(2048, 8, 101, 10), // [2048, 6144)
+			// [1024, 2048): voids B, so B's window must not cover A's [1024, 4096).
+			defragSampleRun(1024, 2, 201, 10),
+		}},
+		{name: "wrong-order concatenation", runs: [][]mp4.FullSample{
+			defragSampleRun(2048, 4, 1, 10), // [2048, 4096)
+			defragSampleRun(0, 4, 101, 10),  // [0, 2048): abandons all of the first fragment
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			data := writeOverlapFile(t, test.runs...)
+			out, err := defragment(t, data, 1)
+			if err == nil || !strings.Contains(err.Error(), "never re-declared") {
+				t.Errorf("abandoned declared content gave %v, want a coverage error", err)
+			}
+			if out.Len() != 0 {
+				t.Errorf("wrote %d bytes before rejecting input", out.Len())
+			}
+		})
+	}
+}
+
+func TestDefragmentResolvesByteIdenticalResend(t *testing.T) {
+	first := defragSampleRun(0, 4, 1, 10)
+	resend := defragSampleRun(0, 4, 1, 10) // byte-identical alias of the first fragment
+	data := writeOverlapFile(t, first, resend)
+	out, err := defragment(t, data, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, concatSampleData(first)) {
+		t.Error("kept sample data must be the payload exactly once")
+	}
+	if got := len(outFile.Mdat.Data); got != len(concatSampleData(first)) {
+		t.Errorf("mdat carries %d bytes, want the payload exactly once", got)
+	}
+}
+
+func TestDefragmentResolutionKeepsOtherTrackVerbatim(t *testing.T) {
+	var buf bytes.Buffer
+	init := createDefragPlainAvInit(t)
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	videoFirst := defragSampleRun(0, 4, 1, 10)
+	videoResend := defragSampleRun(0, 4, 101, 10)
+	audioSamples := []mp4.FullSample{
+		{Sample: mp4.Sample{Dur: 1024, Size: 40}, DecodeTime: 0, Data: defragPayload(51, 40)},
+		{Sample: mp4.Sample{Dur: 1024, Size: 40}, DecodeTime: 1024, Data: defragPayload(52, 40)},
+	}
+	addDefragFragment(t, &buf, 1, 1, videoFirst)
+	addDefragFragment(t, &buf, 2, 2, audioSamples[:1])
+	addDefragFragment(t, &buf, 3, 1, videoResend)
+	addDefragFragment(t, &buf, 4, 2, audioSamples[1:])
+	out, err := defragment(t, buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, concatSampleData(videoResend)) {
+		t.Error("video sample data must be the re-sent fragment's bytes")
+	}
+	if got := readProgressiveSampleData(t, outFile, 2); !bytes.Equal(got, concatSampleData(audioSamples)) {
+		t.Error("the overlap-free audio track must ride through byte-identical")
+	}
+}
+
+func TestDefragmentResolutionShrinksGapPadding(t *testing.T) {
+	fragA := defragSampleRun(0, 2, 1, 10)      // [0, 1024)
+	fragB := defragSampleRun(2048, 1, 101, 10) // gap: A's last sample gets padded to end at 2048
+	fragC := defragSampleRun(1024, 3, 201, 10) // rewinds to 1024, re-declaring through 2560: B goes
+	data := writeOverlapFile(t, fragA, fragB, fragC)
+	out, err := defragment(t, data, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	wantData := append(concatSampleData(fragA), concatSampleData(fragC)...)
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, wantData) {
+		t.Error("kept sample data must be A plus C with B gone")
+	}
+	stts := outFile.Moov.Trak.Mdia.Minf.Stbl.Stts
+	if diff := deep.Equal(stts, &mp4.SttsBox{SampleCount: []uint32{5}, SampleTimeDelta: []uint32{512}}); diff != nil {
+		t.Errorf("stts with shrunk gap padding: %v", diff)
+	}
+	if dur := outFile.Moov.Trak.Mdia.Mdhd.Duration; dur != 5*512 {
+		t.Errorf("media duration %d, want %d", dur, 5*512)
+	}
+}
+
+func TestDefragmentOverlapUncoveredTrimIsError(t *testing.T) {
+	first := defragSampleRun(0, 8, 1, 10)       // [0, 4096)
+	second := defragSampleRun(1024, 2, 101, 10) // [1024, 2048): abandons [2048, 4096) with no replacement
+	data := writeOverlapFile(t, first, second)
+	out, err := defragment(t, data, 1)
+	if err == nil || !strings.Contains(err.Error(), "past 2048 is never re-declared") {
+		t.Errorf("uncovered trim gave %v, want a coverage error reporting where coverage stops", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("wrote %d bytes before rejecting input", out.Len())
+	}
+}
+
+func TestDefragmentOverlapAbsoluteBaseOffsetIsError(t *testing.T) {
+	var buf bytes.Buffer
+	init := createDefragPlainAvInit(t)
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	addDefragFragment(t, &buf, 1, 1, defragSampleRun(0, 4, 1, 10))
+	// A superseding fragment addressing its mdat payload absolutely.
+	moof := &mp4.MoofBox{}
+	_ = moof.AddChild(mp4.CreateMfhd(2))
+	traf := &mp4.TrafBox{}
+	_ = moof.AddChild(traf)
+	tfhd := mp4.CreateTfhd(1)
+	tfhd.Flags = mp4.TfhdBaseDataOffsetPresentFlag
+	_ = traf.AddChild(tfhd)
+	_ = traf.AddChild(mp4.CreateTfdt(1024))
+	trun := mp4.CreateTrun(0)
+	for _, s := range defragSampleRun(1024, 2, 101, 10) {
+		trun.AddSample(s.Sample)
+	}
+	_ = traf.AddChild(trun)
+	tfhd.BaseDataOffset = uint64(buf.Len()) + moof.Size() // the mdat box start
+	trun.DataOffset = 8                                   // its payload, past the header
+	if err := moof.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	mdat := &mp4.MdatBox{Data: defragPayload(200, 20)}
+	if err := mdat.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	_, err := defragment(t, buf.Bytes(), 1)
+	if err == nil || !strings.Contains(err.Error(), "absolute base data offsets") {
+		t.Errorf("absolute base offsets with an overlap gave %v, want a fail-closed error", err)
+	}
+}
+
+// TestDefragmentResolvedOverlapPassesPayloadBound pins that the payload
+// bound applies to the surviving samples: the re-sent declarations exceed
+// the file size before resolution, but not after.
+func TestDefragmentResolvedOverlapPassesPayloadBound(t *testing.T) {
+	var buf bytes.Buffer
+	init := createDefragInit(t)
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	const sampleSize = 3000
+	addDefragFragment(t, &buf, 1, 1, []mp4.FullSample{
+		{Sample: mp4.Sample{Flags: defragSyncFlags(), Dur: 512, Size: sampleSize},
+			DecodeTime: 0, Data: defragPayload(1, sampleSize)},
+	})
+	payloadStart := uint64(buf.Len()) - sampleSize
+	// Three moof-only full resends of the same sample, each pointing back at
+	// the first fragment's payload bytes relative to its own moof start.
+	for seqNr := uint32(2); seqNr <= 4; seqNr++ {
+		moof := &mp4.MoofBox{}
+		_ = moof.AddChild(mp4.CreateMfhd(seqNr))
+		traf := &mp4.TrafBox{}
+		_ = moof.AddChild(traf)
+		_ = traf.AddChild(mp4.CreateTfhd(1))
+		_ = traf.AddChild(mp4.CreateTfdt(0))
+		trun := mp4.CreateTrun(0)
+		trun.AddSample(mp4.Sample{Flags: defragSyncFlags(), Dur: 512, Size: sampleSize})
+		_ = traf.AddChild(trun)
+		trun.DataOffset = int32(payloadStart) - int32(buf.Len())
+		if err := moof.Encode(&buf); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if uint64(4*sampleSize) <= uint64(buf.Len()) {
+		t.Fatal("test setup: pre-resolution payload must exceed the file size")
+	}
+	out, err := defragment(t, buf.Bytes(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outFile := decodeDefragOutput(t, out.Bytes())
+	if got := readProgressiveSampleData(t, outFile, 1); !bytes.Equal(got, defragPayload(1, sampleSize)) {
+		t.Error("kept sample data must be the payload exactly once")
+	}
+	if got := len(outFile.Mdat.Data); got != sampleSize {
+		t.Errorf("mdat carries %d bytes, want the surviving %d", got, sampleSize)
+	}
+}
+
+// buildDefragOverlapChain writes n video fragments of two 512-tick samples
+// each, where every fragment re-declares the last sample of the previous one
+// (overlap) or starts exactly where it ended (control).
+func buildDefragOverlapChain(tb testing.TB, n int, overlap bool) []byte {
+	tb.Helper()
+	init := mp4.CreateEmptyInit()
+	init.Moov.Mvhd.Timescale = 600
+	trak := init.AddEmptyTrack(defragVideoTimescale, "video", "und")
+	sps, _ := hex.DecodeString(sps1nalu)
+	pps, _ := hex.DecodeString(pps1nalu)
+	if err := trak.SetAVCDescriptor("avc1", [][]byte{sps}, [][]byte{pps}, true); err != nil {
+		tb.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		tb.Fatal(err)
+	}
+	step := uint64(1024)
+	if overlap {
+		step = 512
+	}
+	data := defragPayload(1, 130)
+	for k := 0; k < n; k++ {
+		frag, err := mp4.CreateFragment(uint32(k+1), 1)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		for s := uint64(0); s < 2; s++ {
+			frag.AddFullSample(mp4.FullSample{
+				Sample:     mp4.Sample{Flags: defragSyncFlags(), Dur: 512, Size: uint32(len(data))},
+				DecodeTime: uint64(k)*step + s*512, Data: data,
+			})
+		}
+		if err := frag.Encode(&buf); err != nil {
+			tb.Fatal(err)
+		}
+	}
+	return buf.Bytes()
+}
+
+// BenchmarkDefragmentOverlapChain guards against super-linear work on
+// overlapping input: chain and control must stay within the same order.
+func BenchmarkDefragmentOverlapChain(b *testing.B) {
+	for _, mode := range []struct {
+		name    string
+		overlap bool
+	}{{"chain", true}, {"control", false}} {
+		b.Run(mode.name, func(b *testing.B) {
+			data := buildDefragOverlapChain(b, 5000, mode.overlap)
+			b.SetBytes(int64(len(data)))
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				rs := bytes.NewReader(data)
+				f, err := mp4.DecodeFile(rs, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
+				if err != nil {
+					b.Fatal(err)
+				}
+				var out bytes.Buffer
+				if err := mp4.DefragmentTracks(f, rs, &out, 1); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// TestDefragmentHybridTrackUnsupportedElstIsError pins that edit lists are
+// validated for a progressive-prefix track too, whose origin is always 0.
+func TestDefragmentHybridTrackUnsupportedElstIsError(t *testing.T) {
+	init := createDefragInit(t)
+	init.Moov.Traks[0].Edts.Children[0].(*mp4.ElstBox).Entries = []mp4.ElstEntry{
+		{SegmentDuration: 600, MediaTime: 0, MediaRateInteger: 2},
+	}
+	stbl := init.Moov.Traks[0].Mdia.Minf.Stbl
+	stbl.Stts.SampleCount = []uint32{1}
+	stbl.Stts.SampleTimeDelta = []uint32{512}
+	stbl.Stsz.SampleNumber = 1
+	stbl.Stsz.SampleSize = []uint32{10}
+	if err := stbl.Stsc.AddEntry(1, 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	stbl.Stco.ChunkOffset = []uint32{8}
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	addDefragFragment(t, &buf, 1, 2, []mp4.FullSample{
+		{Sample: mp4.Sample{Dur: 1024, Size: 8}, DecodeTime: 0, Data: defragPayload(1, 8)},
+	})
+	_, err := defragment(t, buf.Bytes(), 1)
+	if err == nil || !strings.Contains(err.Error(), "unsupported media rate") {
+		t.Errorf("rate-2 edit on a hybrid track gave %v, want an unsupported media rate error", err)
 	}
 }

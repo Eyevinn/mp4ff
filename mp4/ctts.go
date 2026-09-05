@@ -134,6 +134,35 @@ func (b *CttsBox) AddSampleCountsAndOffset(counts []uint32, offsets []int32) err
 	return nil
 }
 
+// CompositionTimeOffsets returns the offset of each of nrSamples samples,
+// validating that the entries cover exactly that many samples. A box
+// without entries covers no samples.
+func (b *CttsBox) CompositionTimeOffsets(nrSamples uint32) ([]int32, error) {
+	ctss := make([]int32, nrSamples)
+	if len(b.EndSampleNr) < 2 {
+		if nrSamples == 0 {
+			return ctss, nil
+		}
+		return nil, fmt.Errorf("ctts covers 0 samples, not the %d declared", nrSamples)
+	}
+	if b.EndSampleNr[len(b.EndSampleNr)-1] != nrSamples {
+		return nil, fmt.Errorf("ctts covers %d samples, not the %d declared",
+			b.EndSampleNr[len(b.EndSampleNr)-1], nrSamples)
+	}
+	for i := 0; i < b.NrSampleCount(); i++ {
+		// The decoded EndSampleNr accumulation can wrap uint32, so the final
+		// entry alone proves nothing about the intermediate ones.
+		if b.EndSampleNr[i] > b.EndSampleNr[i+1] || b.EndSampleNr[i+1] > nrSamples {
+			return nil, fmt.Errorf("ctts entry %d covers samples (%d, %d], outside the %d declared samples",
+				i+1, b.EndSampleNr[i], b.EndSampleNr[i+1], nrSamples)
+		}
+		for nr := b.EndSampleNr[i]; nr < b.EndSampleNr[i+1]; nr++ {
+			ctss[nr] = b.SampleOffset[i]
+		}
+	}
+	return ctss, nil
+}
+
 // GetCompositionTimeOffset - composition time offset for (one-based) sampleNr in track timescale.
 // Returns 0 for a sampleNr beyond the samples covered by this box.
 func (b *CttsBox) GetCompositionTimeOffset(sampleNr uint32) int32 {

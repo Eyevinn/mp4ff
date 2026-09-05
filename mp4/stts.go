@@ -126,6 +126,24 @@ func (b *SttsBox) GetDecodeTime(sampleNr uint32) (decTime uint64, dur uint32, er
 	return decTime, dur, nil
 }
 
+// SampleDurations returns the duration of each of nrSamples samples,
+// validating that the entries cover exactly that many samples.
+func (b *SttsBox) SampleDurations(nrSamples uint32) ([]uint32, error) {
+	durs := make([]uint32, 0, nrSamples)
+	for i := range b.SampleCount {
+		if uint64(len(durs))+uint64(b.SampleCount[i]) > uint64(nrSamples) {
+			return nil, fmt.Errorf("stts covers more than the %d declared samples", nrSamples)
+		}
+		for j := uint32(0); j < b.SampleCount[i]; j++ {
+			durs = append(durs, b.SampleTimeDelta[i])
+		}
+	}
+	if uint32(len(durs)) != nrSamples {
+		return nil, fmt.Errorf("stts covers %d samples, not the %d declared", len(durs), nrSamples)
+	}
+	return durs, nil
+}
+
 // GetDur - get dur for a specific sample
 func (b *SttsBox) GetDur(sampleNr uint32) (dur uint32) {
 	if sampleNr == 0 {

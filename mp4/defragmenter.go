@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"math/bits"
+	"sort"
 )
 
 // Defragment converts the fragmented file f, decoded from rs, into a
@@ -12,12 +13,23 @@ import (
 //
 // Sample data is copied byte-verbatim while progressive sample tables
 // (stts, ctts, stsc, stsz, stss, stco/co64) are synthesized from the
-// fragment metadata, with each traf becoming one chunk. Every track is
+// fragment metadata, with each traf becoming one chunk. Progressive samples
+// that the moov already describes (a progressive part before the first
+// fragment) come first with their chunk structure preserved, and the
+// fragment samples are appended. Every track is
 // rebased so that its first tfdt becomes media time zero: edit-list media
 // times shift along, and a track starting later than the earliest one keeps
 // its presentation alignment through an empty edit (with at most half a
-// movie-timescale tick of rounding). Encrypted content, overlapping
-// timelines, and edits that cannot be shifted exactly are rejected.
+// movie-timescale tick of rounding).
+//
+// A fragment whose tfdt re-declares an earlier decode time supersedes the
+// earlier samples (a retransmission): the fragment appearing later in the
+// file wins, and the superseded samples are dropped at sample granularity,
+// whether or not the re-sent bytes are identical. Progressive samples can
+// be superseded the same way. Every abandoned time range must be declared
+// again by surviving fragments, so no declared content is ever silently
+// dropped; overlaps that cannot be resolved exactly are rejected, as are
+// encrypted content and edits that cannot be shifted.
 func Defragment(f *File, rs io.ReadSeeker, w io.Writer) error {
 	d, err := newDefragmenter(f, rs, nil)
 	if err != nil {
@@ -60,7 +72,9 @@ type defragChunk struct {
 	nrSamples uint32
 	size      uint64
 	ranges    []defragRange // input byte ranges, coalesced
+	srcOffset uint64        // input chunk offset, for cross-track ordering
 	offset    uint64        // output chunk offset, assigned before writing
+	dead      bool          // every sample dropped by overlap resolution
 }
 
 func (c *defragChunk) addRange(offset, size uint64) {
@@ -76,26 +90,39 @@ func (c *defragChunk) addRange(offset, size uint64) {
 }
 
 type defragTrack struct {
-	trak    *TrakBox
-	trex    *TrexBox
-	keep    bool
-	samples []defragSample
-	chunks  []*defragChunk
-	started bool   // some traf established the timeline
-	origin  uint64 // decode time of the first sample
-	endDts  uint64 // decode time just after the last sample
-	delay   uint64 // presentation delay relative to the earliest track, in movie ticks
+	trak         *TrakBox
+	trex         *TrexBox
+	keep         bool
+	samples      []defragSample
+	chunks       []*defragChunk
+	started      bool             // some traf established the timeline
+	origin       uint64           // decode time of the first sample
+	endDts       uint64           // decode time just after the last sample
+	delay        uint64           // presentation delay relative to the earliest track, in movie ticks
+	frags        []*defragFragRec // one record per collected traf, plus the progressive part
+	extendedDurs map[int]uint32   // sample index -> duration before gap padding
+}
+
+// defragFragRec records the declared decode-time span of one collected traf
+// and how many of its samples survived overlap resolution so far.
+type defragFragRec struct {
+	start, end  uint64 // declared decode-time span of the traf's samples
+	firstSample int    // index of its first sample in track.samples
+	total, kept int
+	cutoff      uint64 // first superseded decode time, set when trimmed
 }
 
 type defragmenter struct {
-	rs          io.ReadSeeker
-	fileSize    uint64
-	payloadSize uint64 // total sample payload of the kept tracks
-	ftyp        *FtypBox
-	moov        *MoovBox
-	tracks      []*defragTrack
-	byID        map[uint32]*defragTrack
-	chunks      []*defragChunk // all output chunks in output order
+	rs                io.ReadSeeker
+	fileSize          uint64
+	payloadSize       uint64 // total sample payload of the kept tracks
+	ftyp              *FtypBox
+	moov              *MoovBox
+	tracks            []*defragTrack
+	byID              map[uint32]*defragTrack
+	chunks            []*defragChunk // all output chunks in output order
+	resolvedOverlap   bool
+	sawBaseDataOffset bool
 }
 
 // newDefragmenter collects the sample and chunk layout of the kept tracks.
@@ -155,14 +182,8 @@ func newDefragmenter(f *File, rs io.ReadSeeker, keptTrackIDs []uint32) (*defragm
 			track.keep = true
 		}
 	}
-	for _, track := range d.tracks {
-		if !track.keep {
-			continue
-		}
-		if stbl := trackStbl(track.trak); stbl != nil && stbl.Stsz != nil && stbl.Stsz.GetNrSamples() > 0 {
-			return nil, fmt.Errorf("track %d already carries progressive samples, "+
-				"only purely fragmented input is supported", track.trak.Tkhd.TrackID)
-		}
+	if err := d.collectProgressivePart(); err != nil {
+		return nil, err
 	}
 	for _, seg := range f.Segments {
 		for _, frag := range seg.Fragments {
@@ -173,6 +194,9 @@ func newDefragmenter(f *File, rs io.ReadSeeker, keptTrackIDs []uint32) (*defragm
 				return nil, err
 			}
 		}
+	}
+	if err := d.finishOverlapResolution(); err != nil {
+		return nil, err
 	}
 	for _, track := range d.tracks {
 		// A track without samples would get a 0-entry stts, which
@@ -192,6 +216,171 @@ func newDefragmenter(f *File, rs io.ReadSeeker, keptTrackIDs []uint32) (*defragm
 		return nil, err
 	}
 	return d, nil
+}
+
+// collectProgressivePart gathers the samples that the moov sample tables
+// already describe (nonempty for files with a progressive part before the
+// first fragment). Per-track chunk order follows the sample tables, and the
+// tracks' chunk runs are interleaved by their input file position. The
+// progressive part counts as each track's earliest declaration, so a later
+// fragment may supersede it but never the reverse.
+func (d *defragmenter) collectProgressivePart() error {
+	var perTrack [][]*defragChunk
+	for _, track := range d.tracks {
+		if !track.keep {
+			continue
+		}
+		trackChunks, err := progressiveChunks(track, d.fileSize)
+		if err != nil {
+			return fmt.Errorf("progressive samples of track %d: %w", track.trak.Tkhd.TrackID, err)
+		}
+		if len(trackChunks) == 0 {
+			continue
+		}
+		track.chunks = trackChunks
+		// The progressive part takes part in overlap resolution like a
+		// fragment: its declared range must survive or be re-declared.
+		track.frags = append(track.frags, &defragFragRec{
+			end:   track.endDts,
+			total: len(track.samples),
+			kept:  len(track.samples),
+		})
+		perTrack = append(perTrack, trackChunks)
+	}
+	// Merge the runs by their head chunk's offset. Within a track the sample
+	// table order always stands, since stco offsets need not be monotone.
+	for {
+		best := -1
+		for i, run := range perTrack {
+			if len(run) == 0 {
+				continue
+			}
+			if best < 0 || run[0].srcOffset < perTrack[best][0].srcOffset {
+				best = i
+			}
+		}
+		if best < 0 {
+			return nil
+		}
+		d.chunks = append(d.chunks, perTrack[best][0])
+		perTrack[best] = perTrack[best][1:]
+	}
+}
+
+func progressiveChunks(track *defragTrack, fileSize uint64) ([]*defragChunk, error) {
+	stbl := trackStbl(track.trak)
+	if stbl == nil || stbl.Stsz == nil || stbl.Stsz.GetNrSamples() == 0 {
+		return nil, nil
+	}
+	nrSamples := stbl.Stsz.GetNrSamples()
+	// A table-backed stsz is inherently bounded by its own box size, but a
+	// uniform-size stsz declares its count in a fixed-size box, and the
+	// per-sample expansions below allocate proportionally to the count. Bound
+	// it by what the file can physically hold before allocating anything.
+	if uint64(nrSamples) > uint64(len(stbl.Stsz.SampleSize)) {
+		uniform := stbl.Stsz.SampleUniformSize
+		if uniform == 0 || uint64(nrSamples)*uint64(uniform) > fileSize {
+			return nil, fmt.Errorf("stsz declares %d samples of uniform size %d, more than the %d bytes of the file",
+				nrSamples, uniform, fileSize)
+		}
+	}
+	if stbl.Stts == nil || stbl.Stsc == nil || (stbl.Stco == nil && stbl.Co64 == nil) {
+		return nil, fmt.Errorf("stsz declares %d samples but stts, stsc or stco/co64 is missing", nrSamples)
+	}
+	durs, err := stbl.Stts.SampleDurations(nrSamples)
+	if err != nil {
+		return nil, err
+	}
+	ctss := make([]int32, nrSamples)
+	if stbl.Ctts != nil {
+		if ctss, err = stbl.Ctts.CompositionTimeOffsets(nrSamples); err != nil {
+			return nil, err
+		}
+	}
+	sync := make([]bool, nrSamples)
+	if stbl.Stss == nil {
+		for i := range sync {
+			sync[i] = true // no stss means every sample is sync
+		}
+	} else if sync, err = stbl.Stss.SampleIsSync(nrSamples); err != nil {
+		return nil, err
+	}
+	track.samples = make([]defragSample, nrSamples)
+	for i := uint32(0); i < nrSamples; i++ {
+		track.samples[i] = defragSample{
+			dur:     durs[i],
+			size:    stbl.Stsz.GetSampleSize(int(i + 1)),
+			cts:     ctss[i],
+			nonSync: !sync[i],
+		}
+		if uint64(durs[i]) > math.MaxUint64-track.endDts {
+			return nil, fmt.Errorf("sample %d duration overflows the decode timeline", i+1)
+		}
+		track.endDts += uint64(durs[i])
+	}
+	track.started = true
+
+	var chunkOffsets []uint64
+	if stbl.Stco != nil {
+		chunkOffsets = make([]uint64, len(stbl.Stco.ChunkOffset))
+		for i, offset := range stbl.Stco.ChunkOffset {
+			chunkOffsets[i] = uint64(offset)
+		}
+	} else {
+		chunkOffsets = stbl.Co64.ChunkOffset
+	}
+	chunks := make([]*defragChunk, 0, len(chunkOffsets))
+	stsc := stbl.Stsc
+	sampleNr := uint32(0) // zero-based
+	entryNr := 0
+	for chunkNr := 1; chunkNr <= len(chunkOffsets); chunkNr++ {
+		for entryNr+1 < len(stsc.Entries) && stsc.Entries[entryNr+1].FirstChunk <= uint32(chunkNr) {
+			entryNr++
+		}
+		if len(stsc.Entries) == 0 || stsc.Entries[0].FirstChunk > uint32(chunkNr) {
+			return nil, fmt.Errorf("no stsc entry for chunk %d", chunkNr)
+		}
+		nrInChunk := stsc.Entries[entryNr].SamplesPerChunk
+		if nrInChunk == 0 || nrInChunk > nrSamples-sampleNr {
+			return nil, fmt.Errorf("stsc chunk %d declares %d samples, but %d remain",
+				chunkNr, nrInChunk, nrSamples-sampleNr)
+		}
+		chunk := &defragChunk{
+			track:     track,
+			sdi:       stscEntrySDI(stsc, entryNr),
+			nrSamples: nrInChunk,
+			srcOffset: chunkOffsets[chunkNr-1],
+		}
+		var chunkSize uint64
+		for i := uint32(0); i < nrInChunk; i++ {
+			chunkSize += uint64(track.samples[sampleNr+i].size)
+		}
+		if chunkOffsets[chunkNr-1] > fileSize || chunkSize > fileSize-chunkOffsets[chunkNr-1] {
+			return nil, fmt.Errorf("chunk %d at %d with %d bytes extends beyond the file end %d",
+				chunkNr, chunkOffsets[chunkNr-1], chunkSize, fileSize)
+		}
+		chunk.addRange(chunkOffsets[chunkNr-1], chunkSize)
+		sampleNr += nrInChunk
+		chunks = append(chunks, chunk)
+	}
+	if sampleNr != nrSamples {
+		return nil, fmt.Errorf("chunks cover %d samples, stsz declares %d", sampleNr, nrSamples)
+	}
+	return chunks, nil
+}
+
+// stscEntrySDI returns the sample description ID of the 0-based stsc entry,
+// reading the decoded fields directly: GetSampleDescriptionID indexes
+// entries despite its chunk-number parameter name, and returns 0 for an
+// absent ID where the spec default 1 is wanted (matching the tfhd treatment).
+func stscEntrySDI(stsc *StscBox, entryNr int) uint32 {
+	if stsc.singleSampleDescriptionID != 0 {
+		return stsc.singleSampleDescriptionID
+	}
+	if entryNr < len(stsc.SampleDescriptionID) {
+		return stsc.SampleDescriptionID[entryNr]
+	}
+	return 1
 }
 
 // computeTrackAlignment gives every kept track with samples a presentation
@@ -357,7 +546,9 @@ func (d *defragmenter) collectTraf(moof *MoofBox, traf *TrafBox, track *defragTr
 			track.origin = declared
 			track.endDts = declared
 		case declared < track.endDts:
-			return fmt.Errorf("tfdt %d is before the end %d of the previous samples", declared, track.endDts)
+			if err := d.dropTrackSamplesFrom(track, declared); err != nil {
+				return err
+			}
 		case declared > track.endDts:
 			// A forward tfdt gap extends the previous sample's duration.
 			gap := declared - track.endDts
@@ -365,18 +556,26 @@ func (d *defragmenter) collectTraf(moof *MoofBox, traf *TrafBox, track *defragTr
 			if gap > uint64(math.MaxUint32-last.dur) {
 				return fmt.Errorf("tfdt gap %d does not fit the previous sample duration", gap)
 			}
+			if track.extendedDurs == nil {
+				track.extendedDurs = make(map[int]uint32)
+			}
+			if _, alreadyExtended := track.extendedDurs[len(track.samples)-1]; !alreadyExtended {
+				track.extendedDurs[len(track.samples)-1] = last.dur
+			}
 			last.dur += uint32(gap)
 			track.endDts = declared
 		}
 	} else if !track.started {
 		track.started = true
 	}
+	rec := &defragFragRec{start: track.endDts, firstSample: len(track.samples)}
 	baseOffset := int64(moof.StartPos)
 	switch {
 	case tfhd.HasBaseDataOffset():
 		if tfhd.BaseDataOffset > math.MaxInt64 {
 			return fmt.Errorf("base data offset %d too large", tfhd.BaseDataOffset)
 		}
+		d.sawBaseDataOffset = true
 		baseOffset = int64(tfhd.BaseDataOffset)
 	case !tfhd.DefaultBaseIfMoof() && traf != moof.Trafs[0]:
 		// ISO/IEC 14496-12 Section 8.8.7: without base-data-offset or
@@ -436,6 +635,190 @@ func (d *defragmenter) collectTraf(moof *MoofBox, traf *TrafBox, track *defragTr
 	if chunk.nrSamples > 0 {
 		track.chunks = append(track.chunks, chunk)
 		d.chunks = append(d.chunks, chunk)
+	}
+	rec.end = track.endDts
+	rec.total = int(chunk.nrSamples)
+	rec.kept = rec.total
+	track.frags = append(track.frags, rec)
+	return nil
+}
+
+// dropTrackSamplesFrom drops the track's collected samples at or after decode
+// time cutTime: a later fragment declares that time again and wins. The cut
+// must land on a sample boundary; only a duration that was previously
+// extended to bridge a forward tfdt gap may shrink back to absorb it.
+func (d *defragmenter) dropTrackSamplesFrom(track *defragTrack, cutTime uint64) error {
+	keep := len(track.samples)
+	end := track.endDts
+	for keep > 0 {
+		start := end - uint64(track.samples[keep-1].dur)
+		if start < cutTime {
+			break
+		}
+		keep--
+		end = start
+	}
+	switch {
+	case keep == 0:
+		track.origin = cutTime
+	case end > cutTime:
+		last := &track.samples[keep-1]
+		start := end - uint64(last.dur)
+		declaredDur, wasExtended := track.extendedDurs[keep-1]
+		if !wasExtended || start+uint64(declaredDur) > cutTime {
+			return fmt.Errorf("a later fragment starts at %d inside sample [%d,%d); "+
+				"the overlap cannot be resolved at sample granularity", cutTime, start, end)
+		}
+		last.dur = uint32(cutTime - start) // shrink the gap padding, not declared sample time
+		if last.dur == declaredDur {
+			delete(track.extendedDurs, keep-1)
+		}
+	}
+	if dropped := len(track.samples) - keep; dropped > 0 {
+		d.resolvedOverlap = true
+		trimTrackChunksTail(track, keep)
+		// firstSample+kept never decreases across records, so once a record
+		// keeps all its samples below the cut, all earlier ones do too.
+		for i := len(track.frags) - 1; i >= 0; i-- {
+			rec := track.frags[i]
+			if rec.firstSample+rec.kept <= keep {
+				break
+			}
+			newKept := keep - rec.firstSample
+			if newKept < 0 {
+				newKept = 0
+			}
+			rec.kept = newKept
+			if newKept > 0 {
+				rec.cutoff = cutTime
+			} else {
+				rec.cutoff = rec.start // the whole declared window is abandoned
+			}
+		}
+		for idx := range track.extendedDurs {
+			if idx >= keep {
+				delete(track.extendedDurs, idx)
+			}
+		}
+		track.samples = track.samples[:keep]
+	}
+	track.endDts = cutTime
+	return nil
+}
+
+// trimTrackChunksTail removes the byte ranges of the samples from index
+// fromIdx onward from the tail chunks of the track. A chunk that loses every
+// sample is marked dead and removed from the track's chunk list.
+func trimTrackChunksTail(track *defragTrack, fromIdx int) {
+	dropped := track.samples[fromIdx:]
+	di := len(dropped) - 1
+	for di >= 0 {
+		chunk := track.chunks[len(track.chunks)-1]
+		for di >= 0 && chunk.nrSamples > 0 {
+			size := uint64(dropped[di].size)
+			chunk.nrSamples--
+			chunk.size -= size
+			for size > 0 {
+				last := &chunk.ranges[len(chunk.ranges)-1]
+				if last.size > size {
+					last.size -= size
+					break
+				}
+				size -= last.size
+				chunk.ranges = chunk.ranges[:len(chunk.ranges)-1]
+			}
+			di--
+		}
+		if chunk.nrSamples == 0 {
+			chunk.dead = true
+			track.chunks = track.chunks[:len(track.chunks)-1]
+		}
+	}
+}
+
+// finishOverlapResolution applies the fail-closed guards of overlap
+// resolution once every fragment is collected, and drops the emptied chunks
+// from the output order. Without resolved overlaps it changes nothing.
+func (d *defragmenter) finishOverlapResolution() error {
+	if !d.resolvedOverlap {
+		return nil
+	}
+	if d.sawBaseDataOffset {
+		return fmt.Errorf("cannot resolve overlapping fragments when fragments use absolute base data offsets")
+	}
+	for _, track := range d.tracks {
+		if !track.keep {
+			continue
+		}
+		windows := survivingWindows(track.frags)
+		for _, rec := range track.frags {
+			if rec.total == 0 || rec.kept == rec.total {
+				continue
+			}
+			if err := checkOverlapCoverage(rec, windows); err != nil {
+				return err
+			}
+		}
+	}
+	liveChunks := d.chunks[:0]
+	for _, chunk := range d.chunks {
+		if !chunk.dead {
+			liveChunks = append(liveChunks, chunk)
+		}
+	}
+	d.chunks = liveChunks
+	return nil
+}
+
+// coverageWindow is a merged run of decode times declared by surviving
+// samples.
+type coverageWindow struct {
+	start, end uint64
+}
+
+// survivingWindows merges the declared decode-time ranges of the records'
+// surviving samples into disjoint, sorted windows. A record's own and
+// earlier windows are harmless when checking its coverage: they end at or
+// before its start, so they can never extend coverage past its cutoff.
+func survivingWindows(frags []*defragFragRec) []coverageWindow {
+	windows := make([]coverageWindow, 0, len(frags))
+	for _, rec := range frags {
+		end := rec.end
+		if rec.kept < rec.total {
+			end = rec.cutoff // only the surviving head declares coverage
+		}
+		if end > rec.start {
+			windows = append(windows, coverageWindow{start: rec.start, end: end})
+		}
+	}
+	sort.Slice(windows, func(i, j int) bool { return windows[i].start < windows[j].start })
+	merged := windows[:0]
+	for _, window := range windows {
+		if n := len(merged); n > 0 && window.start <= merged[n-1].end {
+			if window.end > merged[n-1].end {
+				merged[n-1].end = window.end
+			}
+			continue
+		}
+		merged = append(merged, window)
+	}
+	return merged
+}
+
+// checkOverlapCoverage verifies that the decode-time range a superseded
+// fragment abandoned, [rec.cutoff, rec.end), lies within one merged window
+// of surviving declarations. Gap padding never counts as coverage: rec.end
+// was captured before any later tfdt-gap extension, and cutoffs land on
+// declared sample boundaries since firstSample+kept never decreases.
+func checkOverlapCoverage(rec *defragFragRec, windows []coverageWindow) error {
+	covered := rec.cutoff
+	i := sort.Search(len(windows), func(i int) bool { return windows[i].end > rec.cutoff })
+	if i < len(windows) && windows[i].start <= rec.cutoff {
+		covered = windows[i].end
+	}
+	if covered < rec.end {
+		return fmt.Errorf("a later fragment supersedes [%d,%d) of an earlier fragment, "+
+			"but the abandoned content past %d is never re-declared", rec.cutoff, rec.end, covered)
 	}
 	return nil
 }
