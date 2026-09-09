@@ -135,31 +135,36 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 		pps.Transform8x8ModeFlag = reader.ReadFlag()
 		pps.PicScalingMatrixPresentFlag = reader.ReadFlag()
 		if pps.PicScalingMatrixPresentFlag {
-			sps, ok := spsMap[pps.SeqParameterSetID]
-			if !ok {
-				return pps, fmt.Errorf("sps ID %d not found in map", pps.SeqParameterSetID)
-			}
+			// The number of scaling lists is
+			// 6 + ((chroma_format_idc != 3) ? 2 : 6) * transform_8x8_mode_flag
+			// (ISO/IEC 14496-10 Section 7.3.2.2). The 6 4x4 lists are always
+			// present, so chroma_format_idc from the SPS is only needed when
+			// 8x8 transform mode is enabled.
 			nrScalingLists := 6
 			if pps.Transform8x8ModeFlag {
+				sps, ok := spsMap[pps.SeqParameterSetID]
+				if !ok {
+					return pps, fmt.Errorf("sps ID %d not found in map", pps.SeqParameterSetID)
+				}
 				if sps.ChromaFormatIDC != 3 {
 					nrScalingLists += 2
 				} else {
 					nrScalingLists += 6
 				}
-				pps.PicScalingLists = make([]ScalingList, nrScalingLists)
+			}
+			pps.PicScalingLists = make([]ScalingList, nrScalingLists)
 
-				for i := 0; i < nrScalingLists; i++ {
-					picScalingPresent := reader.ReadFlag()
-					if !picScalingPresent {
-						pps.PicScalingLists[i] = nil
-						continue
-					}
-					sizeOfScalingList := 16 // 4x4 for i < 6
-					if i >= 6 {
-						sizeOfScalingList = 64 // 8x8 for i >= 6
-					}
-					pps.PicScalingLists[i] = readScalingList(reader, sizeOfScalingList)
+			for i := 0; i < nrScalingLists; i++ {
+				picScalingPresent := reader.ReadFlag()
+				if !picScalingPresent {
+					pps.PicScalingLists[i] = nil
+					continue
 				}
+				sizeOfScalingList := 16 // 4x4 for i < 6
+				if i >= 6 {
+					sizeOfScalingList = 64 // 8x8 for i >= 6
+				}
+				pps.PicScalingLists[i] = readScalingList(reader, sizeOfScalingList)
 			}
 		}
 		pps.SecondChromaQpIndexOffset = reader.ReadSignedGolomb()
