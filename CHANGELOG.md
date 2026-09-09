@@ -109,6 +109,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `avc.ParsePPSNALUnit` skipped the six 4x4 picture scaling lists when
+  `pic_scaling_matrix_present_flag` was set but `transform_8x8_mode_flag` was
+  not, since the read loop was nested inside the 8x8 mode check. The lists are
+  always present when a picture scaling matrix is signalled; only the two or
+  six extra 8x8 lists depend on 8x8 mode, so such a PPS misparsed
+  `second_chroma_qp_index_offset` and then failed the trailing-bits check. As a
+  consequence, `chroma_format_idc` from the SPS is now only looked up when 8x8
+  mode makes the list count depend on it, so a PPS whose SPS is not in the map
+  no longer fails in the cases where the SPS is not needed
 - HEVC slice header and PPS parsing accepted `num_ref_idx_l0_active_minus1`,
   `num_ref_idx_l1_active_minus1` and their PPS defaults outside the range 0 to
   14 that the spec allows. The values were stored in a `uint8` without a check,
