@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `hevc.ParseSPSNALUnitWithVPS` parses an SPS with a map of the VPSs it may
+  refer to, so that a multilayer extension SPS gets the chroma format, picture
+  size, conformance window and bit depths that it does not signal itself
+  inherited from the `rep_format()` of its VPS. `hevc.ParseSPSNALUnit` is
+  unchanged and leaves those values unset, since the SPS payload can be parsed
+  without them
+- `hevc.SPS` exposes `NuhLayerID`, `ExtOrMaxSubLayersMinus1`,
+  `MultiLayerExtSpsFlag`, `UpdateRepFormatFlag`, `SpsRepFormatIdx`,
+  `InferScalingListFlag` and `ScalingListRefLayerID`, and `hevc.RepFormat`
+  exposes `SeparateColourPlaneFlag`, `ConformanceWindowFlag` and
+  `ConformanceWindow`
 - `AudioSampleEntryBox.NormalizeQuickTime` rewrites a QuickTime-shaped audio
   sample entry (sound sample description version 1 or 2, QuickTime residue in
   the version 0 reserved fields, or a wave-wrapped esds) to the plain ISO
@@ -125,6 +136,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zero-length slice while its loop guard still ran, and parsing panicked with
   an index out of range. All four read sites now check the bound and return an
   error naming the syntax element, its value and the legal range
+- `hevc.ParseSPSNALUnit` misparsed a non-base-layer SPS that uses the
+  multilayer extension form, as MV-HEVC and SHVC enhancement layers do. Such an
+  SPS signals `sps_ext_or_max_sub_layers_minus1` instead of
+  `sps_max_sub_layers_minus1` and then omits `profile_tier_level()`, the chroma
+  format, the picture size, the conformance window and the bit depths, and it
+  carries `sps_infer_scaling_list_flag`. The parser always took the base-layer
+  branch, so it read those absent fields from the following bits and typically
+  failed with `EOF`. `nuh_layer_id` is now taken from the NAL unit header and
+  the two forms are parsed accordingly
+- `rep_format()` in the VPS extension dropped `separate_colour_plane_vps_flag`
+  and the conformance window, and left the chroma format and bit depths unset
+  for a `rep_format()` with `chroma_and_bit_depth_vps_present_flag` equal to
+  zero instead of inferring them from the preceding one
 - `IsSyncSampleFlags` only inspected `sample_depends_on` and ignored
   `sample_is_non_sync_sample`, so flags that mark a sample non-sync while also
   saying `sample_depends_on = 2` were reported as a sync sample. It now

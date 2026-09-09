@@ -38,8 +38,11 @@ VPS 1 len 24B: 40010c01ffff016000000300900000030000030078959809
 }
 SPS 1 len 45B: 420101016000000300900000030000030078a00502016965959a4932bc05a80808082000000300200000030321
 {
+  "NuhLayerID": 0,
   "VpsID": 0,
   "MaxSubLayersMinus1": 0,
+  "ExtOrMaxSubLayersMinus1": 0,
+  "MultiLayerExtSpsFlag": false,
   "TemporalIDNestingFlag": true,
   "ProfileTierLevel": {
     "GeneralProfileSpace": 0,
@@ -55,6 +58,8 @@ SPS 1 len 45B: 420101016000000300900000030000030078a00502016965959a4932bc05a8080
     "SubLayers": null
   },
   "SpsID": 0,
+  "UpdateRepFormatFlag": false,
+  "SpsRepFormatIdx": 0,
   "ChromaFormatIDC": 1,
   "SeparateColourPlaneFlag": false,
   "ConformanceWindowFlag": false,
@@ -84,6 +89,8 @@ SPS 1 len 45B: 420101016000000300900000030000030078a00502016965959a4932bc05a8080
   "MaxTransformHierarchyDepthInter": 0,
   "MaxTransformHierarchyDepthIntra": 0,
   "ScalingListEnabledFlag": false,
+  "InferScalingListFlag": false,
+  "ScalingListRefLayerID": 0,
   "ScalingListDataPresentFlag": false,
   "AmpEnabledFlag": false,
   "SampleAdaptiveOffsetEnabledFlag": true,
