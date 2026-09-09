@@ -82,13 +82,18 @@ type VPSExtension struct {
 }
 
 // RepFormat holds resolution and format info for a layer (rep_format() in
-// ISO/IEC 23008-2 Annex F.7.3.2.1.2).
+// ISO/IEC 23008-2 Annex F.7.3.2.1.2). A non-base-layer SPS that uses the
+// multilayer extension form does not signal these values itself, but inherits
+// them from here.
 type RepFormat struct {
-	PicWidthLumaSamples  uint16
-	PicHeightLumaSamples uint16
-	ChromaFormatIDC      byte
-	BitDepthLuma         byte
-	BitDepthChroma       byte
+	PicWidthLumaSamples     uint16
+	PicHeightLumaSamples    uint16
+	ChromaFormatIDC         byte
+	SeparateColourPlaneFlag bool
+	BitDepthLuma            byte
+	BitDepthChroma          byte
+	ConformanceWindowFlag   bool
+	ConformanceWindow       ConformanceWindow
 }
 
 // GetNumLayers returns the number of layers signalled by this VPS.
@@ -582,7 +587,11 @@ func parseVPSExtension(vps *VPS, ext *VPSExtension, r *bits.EBSPReader) error {
 	// Rep formats
 	ext.NumRepFormats = int(r.ReadExpGolomb()) + 1
 	for i := 0; i < ext.NumRepFormats; i++ {
-		ext.RepFormats = append(ext.RepFormats, parseRepFormat(r))
+		var prev *RepFormat
+		if i > 0 {
+			prev = &ext.RepFormats[i-1]
+		}
+		ext.RepFormats = append(ext.RepFormats, parseRepFormat(r, prev))
 	}
 
 	repFormatIDXPresentFlag := false
@@ -608,23 +617,35 @@ func parseVPSExtension(vps *VPS, ext *VPSExtension, r *bits.EBSPReader) error {
 }
 
 // parseRepFormat parses rep_format() (ISO/IEC 23008-2 Annex F.7.3.2.1.2).
-func parseRepFormat(r *bits.EBSPReader) RepFormat {
+// prev is the previously parsed rep_format(), or nil for the first one. When
+// chroma_and_bit_depth_vps_present_flag is zero, the chroma format and the bit
+// depths are inferred from prev (Annex F.7.4.3.1.2). The flag shall be one for
+// the first rep_format(), so prev is only nil where nothing is inferred.
+func parseRepFormat(r *bits.EBSPReader, prev *RepFormat) RepFormat {
 	rf := RepFormat{}
 	rf.PicWidthLumaSamples = uint16(r.Read(16))
 	rf.PicHeightLumaSamples = uint16(r.Read(16))
 	if r.ReadFlag() { // chroma_and_bit_depth_vps_present_flag
 		rf.ChromaFormatIDC = byte(r.Read(2))
 		if rf.ChromaFormatIDC == 3 {
-			_ = r.ReadFlag() // separate_colour_plane_vps_flag
+			rf.SeparateColourPlaneFlag = r.ReadFlag() // separate_colour_plane_vps_flag
 		}
 		rf.BitDepthLuma = byte(r.Read(4)) + 8
 		rf.BitDepthChroma = byte(r.Read(4)) + 8
+	} else if prev != nil {
+		rf.ChromaFormatIDC = prev.ChromaFormatIDC
+		rf.SeparateColourPlaneFlag = prev.SeparateColourPlaneFlag
+		rf.BitDepthLuma = prev.BitDepthLuma
+		rf.BitDepthChroma = prev.BitDepthChroma
 	}
-	if r.ReadFlag() { // conformance_window_vps_flag
-		_ = r.ReadExpGolomb() // conf_win_vps_left_offset
-		_ = r.ReadExpGolomb() // conf_win_vps_right_offset
-		_ = r.ReadExpGolomb() // conf_win_vps_top_offset
-		_ = r.ReadExpGolomb() // conf_win_vps_bottom_offset
+	rf.ConformanceWindowFlag = r.ReadFlag() // conformance_window_vps_flag
+	if rf.ConformanceWindowFlag {
+		rf.ConformanceWindow = ConformanceWindow{
+			LeftOffset:   uint32(r.ReadExpGolomb()), // conf_win_vps_left_offset
+			RightOffset:  uint32(r.ReadExpGolomb()), // conf_win_vps_right_offset
+			TopOffset:    uint32(r.ReadExpGolomb()), // conf_win_vps_top_offset
+			BottomOffset: uint32(r.ReadExpGolomb()), // conf_win_vps_bottom_offset
+		}
 	}
 	return rf
 }

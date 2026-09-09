@@ -458,3 +458,118 @@ func TestSPSandPPS(t *testing.T) {
 	}
 
 }
+
+// The VPS and the layer-0 and layer-1 SPS of an MV-HEVC stereo bitstream, taken
+// from the hvcC and lhvC boxes of cmd/mp4ff-mvhevc/testdata/stereo_spatial.mp4.
+// The layer-1 SPS uses the multilayer extension form, so it does not signal the
+// chroma format, picture size, conformance window or bit depths itself.
+const (
+	mvhevcVpsNalu = ("40010c11ffff016000000300b0000003000003003c15c15b3c200028245970602000000b" +
+		"f800000300000303c8d00a00080a01e5c52bf708501010100080")
+	mvhevcSpsNaluLayer0 = "420101016000000300b0000003000003003ca01420207cb8815ee45951"
+	mvhevcSpsNaluLayer1 = "42090e822e458a9404"
+)
+
+// TestSPSParserMultiLayerExt verifies that a non-base-layer SPS in the
+// multilayer extension form is parsed, and that the values it does not signal
+// are inherited from the rep_format() of its VPS.
+func TestSPSParserMultiLayerExt(t *testing.T) {
+	vpsBytes, err := hex.DecodeString(mvhevcVpsNalu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vps, err := ParseVPSNALUnit(vpsBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vpsMap := map[byte]*VPS{vps.VpsID: vps}
+	spsBytes, err := hex.DecodeString(mvhevcSpsNaluLayer1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sps, err := ParseSPSNALUnitWithVPS(spsBytes, vpsMap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sps.NuhLayerID != 1 {
+		t.Errorf("nuh_layer_id is %d, wanted 1", sps.NuhLayerID)
+	}
+	if sps.ExtOrMaxSubLayersMinus1 != 7 || !sps.MultiLayerExtSpsFlag {
+		t.Errorf("sps_ext_or_max_sub_layers_minus1 is %d and MultiLayerExtSpsFlag %t, wanted 7 and true",
+			sps.ExtOrMaxSubLayersMinus1, sps.MultiLayerExtSpsFlag)
+	}
+	if sps.UpdateRepFormatFlag {
+		t.Error("update_rep_format_flag set, wanted the rep format index from the VPS")
+	}
+	// Inherited from rep_format() 0 of the VPS.
+	if sps.ChromaFormatIDC != 1 {
+		t.Errorf("chroma_format_idc is %d, wanted 1", sps.ChromaFormatIDC)
+	}
+	if sps.PicWidthInLumaSamples != 160 || sps.PicHeightInLumaSamples != 128 {
+		t.Errorf("picture size is %dx%d, wanted 160x128",
+			sps.PicWidthInLumaSamples, sps.PicHeightInLumaSamples)
+	}
+	if sps.BitDepthLumaMinus8 != 0 || sps.BitDepthChromaMinus8 != 0 {
+		t.Errorf("bit depths are %d/%d, wanted 8/8",
+			sps.BitDepthLumaMinus8+8, sps.BitDepthChromaMinus8+8)
+	}
+	if !sps.ConformanceWindowFlag || sps.ConformanceWindow.BottomOffset != 4 {
+		t.Errorf("conformance window is %t %+v, wanted a bottom offset of 4",
+			sps.ConformanceWindowFlag, sps.ConformanceWindow)
+	}
+	if w, h := sps.ImageSize(); w != 160 || h != 120 {
+		t.Errorf("image size is %dx%d, wanted 160x120", w, h)
+	}
+	// The two layers of the stereo pair share their coding structure, so the
+	// fields the layer-1 SPS does signal must match the layer-0 SPS.
+	layer0Bytes, err := hex.DecodeString(mvhevcSpsNaluLayer0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	layer0, err := ParseSPSNALUnitWithVPS(layer0Bytes, vpsMap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if layer0.MultiLayerExtSpsFlag {
+		t.Error("the layer-0 SPS should not use the multilayer extension form")
+	}
+	if sps.Log2MaxPicOrderCntLsbMinus4 != layer0.Log2MaxPicOrderCntLsbMinus4 {
+		t.Errorf("log2_max_pic_order_cnt_lsb_minus4 is %d, wanted %d as for layer 0",
+			sps.Log2MaxPicOrderCntLsbMinus4, layer0.Log2MaxPicOrderCntLsbMinus4)
+	}
+	if sps.Log2MinLumaCodingBlockSizeMinus3 != layer0.Log2MinLumaCodingBlockSizeMinus3 ||
+		sps.Log2DiffMaxMinLumaCodingBlockSize != layer0.Log2DiffMaxMinLumaCodingBlockSize {
+		t.Errorf("luma coding block sizes are %d/%d, wanted %d/%d as for layer 0",
+			sps.Log2MinLumaCodingBlockSizeMinus3, sps.Log2DiffMaxMinLumaCodingBlockSize,
+			layer0.Log2MinLumaCodingBlockSizeMinus3, layer0.Log2DiffMaxMinLumaCodingBlockSize)
+	}
+	if !sps.MultilayerExtensionFlag {
+		t.Error("sps_multilayer_extension_flag not set")
+	}
+}
+
+// TestSPSParserMultiLayerExtWithoutVPS verifies that a multilayer extension SPS
+// still parses without its VPS, since the payload can be read without it, and
+// that the values that would have been inherited are then left unset.
+func TestSPSParserMultiLayerExtWithoutVPS(t *testing.T) {
+	spsBytes, err := hex.DecodeString(mvhevcSpsNaluLayer1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sps, err := ParseSPSNALUnit(spsBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sps.MultiLayerExtSpsFlag {
+		t.Fatal("MultiLayerExtSpsFlag not set")
+	}
+	if sps.ChromaFormatIDC != 0 || sps.PicWidthInLumaSamples != 0 || sps.PicHeightInLumaSamples != 0 {
+		t.Errorf("inherited values are chroma %d and %dx%d, wanted them unset",
+			sps.ChromaFormatIDC, sps.PicWidthInLumaSamples, sps.PicHeightInLumaSamples)
+	}
+	// The signalled values must be the same as when the VPS is available.
+	if sps.Log2MaxPicOrderCntLsbMinus4 != 7 {
+		t.Errorf("log2_max_pic_order_cnt_lsb_minus4 is %d, wanted 7", sps.Log2MaxPicOrderCntLsbMinus4)
+	}
+}

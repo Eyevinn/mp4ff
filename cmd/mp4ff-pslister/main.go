@@ -370,16 +370,18 @@ func printAvcPS(w io.Writer, spsNalus, ppsNalus [][]byte, verbose bool) error {
 }
 
 func printHevcPS(w io.Writer, vpsNalus, spsNalus, ppsNalus [][]byte, verbose bool) error {
+	vpsMap := make(map[byte]*hevc.VPS)
 	for i, vps := range vpsNalus {
 		vpsInfo, err := hevc.ParseVPSNALUnit(vps)
 		if err != nil {
 			return fmt.Errorf("ParseVPSNALUnit: %w", err)
 		}
 		printPS(w, "VPS", i+1, vps, vpsInfo, verbose)
+		vpsMap[vpsInfo.VpsID] = vpsInfo
 	}
 	spsMap := make(map[uint32]*hevc.SPS)
 	for i, sps := range spsNalus {
-		spsInfo, err := hevc.ParseSPSNALUnit(sps)
+		spsInfo, err := hevc.ParseSPSNALUnitWithVPS(sps, vpsMap)
 		if err != nil {
 			return fmt.Errorf("ParseSPSNALUnit: %w", err)
 		}
@@ -395,7 +397,7 @@ func printHevcPS(w io.Writer, vpsNalus, spsNalus, ppsNalus [][]byte, verbose boo
 	}
 
 	if len(spsNalus) > 0 {
-		sps, _ := hevc.ParseSPSNALUnit(spsNalus[0])
+		sps, _ := hevc.ParseSPSNALUnitWithVPS(spsNalus[0], vpsMap)
 		fmt.Fprintf(w, "Codecs parameter (assuming hvc1) from SPS id %d: %s\n", sps.SpsID, hevc.CodecString("hvc1", sps))
 	}
 	return nil

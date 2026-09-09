@@ -12,11 +12,29 @@ import (
 // SPS - HEVC SPS parameters
 // ISO/IEC 23008-2 Sec. 7.3.2.2
 type SPS struct {
-	VpsID                                byte
-	MaxSubLayersMinus1                   byte
-	TemporalIDNestingFlag                bool
-	ProfileTierLevel                     ProfileTierLevel
-	SpsID                                byte
+	// NuhLayerID is nuh_layer_id from the NAL unit header. It is not part of the
+	// SPS payload, but decides whether the multilayer extension form is used.
+	NuhLayerID byte
+	VpsID      byte
+	// MaxSubLayersMinus1 is sps_max_sub_layers_minus1. For a multilayer
+	// extension SPS it is not signalled but inherited from the VPS.
+	MaxSubLayersMinus1 byte
+	// ExtOrMaxSubLayersMinus1 is sps_ext_or_max_sub_layers_minus1, which
+	// replaces sps_max_sub_layers_minus1 when NuhLayerID is non-zero.
+	ExtOrMaxSubLayersMinus1 byte
+	// MultiLayerExtSpsFlag tells whether this SPS uses the multilayer extension
+	// form, i.e. NuhLayerID != 0 && ExtOrMaxSubLayersMinus1 == 7. Such an SPS
+	// signals neither profile_tier_level nor the chroma format, picture size,
+	// conformance window and bit depths, but inherits them from the VPS.
+	MultiLayerExtSpsFlag  bool
+	TemporalIDNestingFlag bool
+	ProfileTierLevel      ProfileTierLevel
+	SpsID                 byte
+	// UpdateRepFormatFlag and SpsRepFormatIdx are only present for a multilayer
+	// extension SPS, and select which VPS rep_format() the inherited values come
+	// from.
+	UpdateRepFormatFlag                  bool
+	SpsRepFormatIdx                      byte
 	ChromaFormatIDC                      byte
 	SeparateColourPlaneFlag              bool
 	ConformanceWindowFlag                bool
@@ -35,6 +53,11 @@ type SPS struct {
 	MaxTransformHierarchyDepthInter      byte
 	MaxTransformHierarchyDepthIntra      byte
 	ScalingListEnabledFlag               bool
+	// InferScalingListFlag and ScalingListRefLayerID are only present for a
+	// multilayer extension SPS, and make it use the scaling list data of
+	// another layer instead of signalling its own.
+	InferScalingListFlag                 bool
+	ScalingListRefLayerID                byte
 	ScalingListDataPresentFlag           bool
 	AmpEnabledFlag                       bool
 	SampleAdaptiveOffsetEnabledFlag      bool
@@ -304,8 +327,20 @@ type SPSSccExtension struct {
 	IntraBoundaryFilteringDisabledFlag      bool
 }
 
-// ParseSPSNALUnit parses SPS NAL unit starting with NAL unit header
+// ParseSPSNALUnit parses SPS NAL unit starting with NAL unit header.
+// A non-base-layer SPS in the multilayer extension form (MV-HEVC, SHVC) does
+// not signal its chroma format, picture size, conformance window or bit depths,
+// and those fields are left at their zero values here. Use
+// ParseSPSNALUnitWithVPS to have them inherited from the VPS.
 func ParseSPSNALUnit(data []byte) (*SPS, error) {
+	return ParseSPSNALUnitWithVPS(data, nil)
+}
+
+// ParseSPSNALUnitWithVPS parses an SPS NAL unit starting with NAL unit header,
+// resolving the values that a multilayer extension SPS inherits from its VPS.
+// vpsMap maps vps_video_parameter_set_id to VPS and may be nil or incomplete,
+// in which case nothing is inherited.
+func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 
 	sps := &SPS{}
 
@@ -318,42 +353,67 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	if naluType != NALU_SPS {
 		return nil, fmt.Errorf("NALU type is %s not SPS", naluType)
 	}
+	sps.NuhLayerID = byte((naluHdrBits >> 3) & 0x3f)
 	sps.VpsID = byte(r.Read(4))
-	sps.MaxSubLayersMinus1 = byte(r.Read(3))
-	sps.TemporalIDNestingFlag = r.ReadFlag()
-	sps.ProfileTierLevel = parseProfileTierLevel(r, true, sps.MaxSubLayersMinus1)
-	sps.SpsID = byte(r.ReadExpGolomb())
-	sps.ChromaFormatIDC = byte(r.ReadExpGolomb())
-	if sps.ChromaFormatIDC == 3 {
-		sps.SeparateColourPlaneFlag = r.ReadFlag()
-	}
-	sps.PicWidthInLumaSamples = uint32(r.ReadExpGolomb())
-	sps.PicHeightInLumaSamples = uint32(r.ReadExpGolomb())
-	sps.ConformanceWindowFlag = r.ReadFlag()
-	if sps.ConformanceWindowFlag {
-		sps.ConformanceWindow = ConformanceWindow{
-			LeftOffset:   uint32(r.ReadExpGolomb()),
-			RightOffset:  uint32(r.ReadExpGolomb()),
-			TopOffset:    uint32(r.ReadExpGolomb()),
-			BottomOffset: uint32(r.ReadExpGolomb()),
+	if sps.NuhLayerID == 0 {
+		sps.MaxSubLayersMinus1 = byte(r.Read(3))
+	} else {
+		sps.ExtOrMaxSubLayersMinus1 = byte(r.Read(3))
+		sps.MultiLayerExtSpsFlag = sps.ExtOrMaxSubLayersMinus1 == 7
+		if !sps.MultiLayerExtSpsFlag {
+			sps.MaxSubLayersMinus1 = sps.ExtOrMaxSubLayersMinus1
 		}
 	}
-	sps.BitDepthLumaMinus8 = byte(r.ReadExpGolomb())
-	sps.BitDepthChromaMinus8 = byte(r.ReadExpGolomb())
-	sps.Log2MaxPicOrderCntLsbMinus4 = byte(r.ReadExpGolomb())
-	sps.SubLayerOrderingInfoPresentFlag = r.ReadFlag()
-	startValue := sps.MaxSubLayersMinus1
-	if sps.SubLayerOrderingInfoPresentFlag {
-		startValue = 0
+	if !sps.MultiLayerExtSpsFlag {
+		sps.TemporalIDNestingFlag = r.ReadFlag()
+		sps.ProfileTierLevel = parseProfileTierLevel(r, true, sps.MaxSubLayersMinus1)
 	}
-	for i := startValue; i <= sps.MaxSubLayersMinus1; i++ {
-		sps.SubLayeringOrderingInfos = append(
-			sps.SubLayeringOrderingInfos,
-			SubLayerOrderingInfo{
-				MaxDecPicBufferingMinus1: byte(r.ReadExpGolomb()),
-				MaxNumReorderPics:        byte(r.ReadExpGolomb()),
-				MaxLatencyIncreasePlus1:  byte(r.ReadExpGolomb()),
-			})
+	sps.SpsID = byte(r.ReadExpGolomb())
+	if sps.MultiLayerExtSpsFlag {
+		sps.UpdateRepFormatFlag = r.ReadFlag()
+		if sps.UpdateRepFormatFlag {
+			sps.SpsRepFormatIdx = byte(r.Read(8))
+		}
+		// The values omitted above are inherited from the VPS. Do this before
+		// parsing on, since the rest of the SPS depends on them.
+		if err := sps.inheritFromVPS(vpsMap[sps.VpsID]); err != nil {
+			return sps, err
+		}
+	} else {
+		sps.ChromaFormatIDC = byte(r.ReadExpGolomb())
+		if sps.ChromaFormatIDC == 3 {
+			sps.SeparateColourPlaneFlag = r.ReadFlag()
+		}
+		sps.PicWidthInLumaSamples = uint32(r.ReadExpGolomb())
+		sps.PicHeightInLumaSamples = uint32(r.ReadExpGolomb())
+		sps.ConformanceWindowFlag = r.ReadFlag()
+		if sps.ConformanceWindowFlag {
+			sps.ConformanceWindow = ConformanceWindow{
+				LeftOffset:   uint32(r.ReadExpGolomb()),
+				RightOffset:  uint32(r.ReadExpGolomb()),
+				TopOffset:    uint32(r.ReadExpGolomb()),
+				BottomOffset: uint32(r.ReadExpGolomb()),
+			}
+		}
+		sps.BitDepthLumaMinus8 = byte(r.ReadExpGolomb())
+		sps.BitDepthChromaMinus8 = byte(r.ReadExpGolomb())
+	}
+	sps.Log2MaxPicOrderCntLsbMinus4 = byte(r.ReadExpGolomb())
+	if !sps.MultiLayerExtSpsFlag {
+		sps.SubLayerOrderingInfoPresentFlag = r.ReadFlag()
+		startValue := sps.MaxSubLayersMinus1
+		if sps.SubLayerOrderingInfoPresentFlag {
+			startValue = 0
+		}
+		for i := startValue; i <= sps.MaxSubLayersMinus1; i++ {
+			sps.SubLayeringOrderingInfos = append(
+				sps.SubLayeringOrderingInfos,
+				SubLayerOrderingInfo{
+					MaxDecPicBufferingMinus1: byte(r.ReadExpGolomb()),
+					MaxNumReorderPics:        byte(r.ReadExpGolomb()),
+					MaxLatencyIncreasePlus1:  byte(r.ReadExpGolomb()),
+				})
+		}
 	}
 	sps.Log2MinLumaCodingBlockSizeMinus3 = byte(r.ReadExpGolomb())
 	sps.Log2DiffMaxMinLumaCodingBlockSize = byte(r.ReadExpGolomb())
@@ -363,9 +423,16 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	sps.MaxTransformHierarchyDepthIntra = byte(r.ReadExpGolomb())
 	sps.ScalingListEnabledFlag = r.ReadFlag()
 	if sps.ScalingListEnabledFlag {
-		sps.ScalingListDataPresentFlag = r.ReadFlag()
-		if sps.ScalingListDataPresentFlag {
-			readPastScalingListData(r)
+		if sps.MultiLayerExtSpsFlag {
+			sps.InferScalingListFlag = r.ReadFlag()
+		}
+		if sps.InferScalingListFlag {
+			sps.ScalingListRefLayerID = byte(r.Read(6))
+		} else {
+			sps.ScalingListDataPresentFlag = r.ReadFlag()
+			if sps.ScalingListDataPresentFlag {
+				readPastScalingListData(r)
+			}
 		}
 	}
 	sps.AmpEnabledFlag = r.ReadFlag()
@@ -478,6 +545,42 @@ func ParseSPSNALUnit(data []byte) (*SPS, error) {
 	}
 
 	return sps, nil
+}
+
+// inheritFromVPS fills in the values that a multilayer extension SPS does not
+// signal, taking them from the rep_format() of the VPS it refers to
+// (ISO/IEC 23008-2 Annex F.7.4.3.2.1). A nil vps leaves them at their zero
+// values, since the SPS payload can still be parsed without them.
+func (s *SPS) inheritFromVPS(vps *VPS) error {
+	if vps == nil {
+		return nil
+	}
+	s.MaxSubLayersMinus1 = vps.MaxSubLayersMinus1
+	if vps.Extension == nil {
+		return fmt.Errorf("VPS %d has no extension, so no rep_format() to inherit", s.VpsID)
+	}
+	ext := vps.Extension
+	repFormatIdx := s.SpsRepFormatIdx
+	if !s.UpdateRepFormatFlag {
+		repFormatIdx = ext.RepFormatIdx[ext.LayerIdInVps[s.NuhLayerID]]
+	}
+	if int(repFormatIdx) >= len(ext.RepFormats) {
+		return fmt.Errorf("rep_format index %d out of range for the %d rep formats of VPS %d",
+			repFormatIdx, len(ext.RepFormats), s.VpsID)
+	}
+	rf := ext.RepFormats[repFormatIdx]
+	if rf.BitDepthLuma < 8 || rf.BitDepthChroma < 8 {
+		return fmt.Errorf("rep_format %d of VPS %d has no bit depths", repFormatIdx, s.VpsID)
+	}
+	s.ChromaFormatIDC = rf.ChromaFormatIDC
+	s.SeparateColourPlaneFlag = rf.SeparateColourPlaneFlag
+	s.PicWidthInLumaSamples = uint32(rf.PicWidthLumaSamples)
+	s.PicHeightInLumaSamples = uint32(rf.PicHeightLumaSamples)
+	s.ConformanceWindowFlag = rf.ConformanceWindowFlag
+	s.ConformanceWindow = rf.ConformanceWindow
+	s.BitDepthLumaMinus8 = rf.BitDepthLuma - 8
+	s.BitDepthChromaMinus8 = rf.BitDepthChroma - 8
+	return nil
 }
 
 // ImageSize - calculated width and height using ConformanceWindow
