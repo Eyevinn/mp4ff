@@ -175,7 +175,7 @@ type DeltaDlt struct {
 	DeltaValDiffMinusMin []uint
 }
 
-// ParsePPSNALUnit - Parse AVC PPS NAL unit starting with NAL header
+// ParsePPSNALUnit - Parse HEVC PPS NAL unit starting with NAL header
 func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	var err error
 
