@@ -97,6 +97,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- HEVC slice header and PPS parsing accepted `num_ref_idx_l0_active_minus1`,
+  `num_ref_idx_l1_active_minus1` and their PPS defaults outside the range 0 to
+  14 that the spec allows. The values were stored in a `uint8` without a check,
+  so a stream declaring 255 made `parsePredWeightTable` allocate a
+  zero-length slice while its loop guard still ran, and parsing panicked with
+  an index out of range. All four read sites now check the bound and return an
+  error naming the syntax element, its value and the legal range
 - `IsSyncSampleFlags` only inspected `sample_depends_on` and ignored
   `sample_is_non_sync_sample`, so flags that mark a sample non-sync while also
   saying `sample_depends_on = 2` were reported as a sync sample. It now

@@ -1,10 +1,13 @@
 package hevc
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/avc"
+	"github.com/Eyevinn/mp4ff/bits"
 
 	"github.com/go-test/deep"
 )
@@ -241,5 +244,67 @@ func TestParseSliceHeaderDeblockingOffsetsInheritedFromPPS(t *testing.T) {
 	}
 	if nrSliceHeaders != 1 {
 		t.Errorf("got %d slice headers, wanted 1", nrSliceHeaders)
+	}
+}
+
+// makePSliceNalu builds a complete P-slice header NAL unit that carries
+// num_ref_idx_l0_active_minus1 = nrRefIdxMinus1 and a matching pred_weight_table.
+func makePSliceNalu(t *testing.T, nrRefIdxMinus1 uint) []byte {
+	t.Helper()
+	buf := bytes.Buffer{}
+	w := bits.NewEBSPWriter(&buf)
+	w.Write(uint(NALU_IDR_W_RADL)<<9|0x01, 16) // nal_unit_header
+	w.Write(1, 1)                              // first_slice_segment_in_pic_flag
+	w.Write(0, 1)                              // no_output_of_prior_pics_flag
+	w.WriteExpGolomb(0)                        // slice_pic_parameter_set_id
+	w.WriteExpGolomb(uint(SLICE_P))            // slice_type
+	w.Write(1, 1)                              // num_ref_idx_active_override_flag
+	w.WriteExpGolomb(nrRefIdxMinus1)           // num_ref_idx_l0_active_minus1
+	w.WriteExpGolomb(0)                        // luma_log2_weight_denom
+	for i := uint(0); i <= nrRefIdxMinus1; i++ {
+		w.Write(0, 1) // luma_weight_l0_flag[i]
+	}
+	w.WriteExpGolomb(0) // five_minus_max_num_merge_cand
+	w.WriteExpGolomb(0) // slice_qp_delta
+	w.WriteRbspTrailingBits()
+	if w.AccError() != nil {
+		t.Fatal(w.AccError())
+	}
+	return buf.Bytes()
+}
+
+func TestParseSliceHeaderNumRefIdxRange(t *testing.T) {
+	spsMap := map[uint32]*SPS{0: {SpsID: 0}}
+	ppsMap := map[uint32]*PPS{0: {PicParameterSetID: 0, SeqParameterSetID: 0, WeightedPredFlag: true}}
+
+	cases := []struct {
+		nrRefIdxMinus1 uint
+		wantErr        string
+	}{
+		{0, ""},
+		{14, ""},
+		{15, "num_ref_idx_l0_active_minus1 = 15 is outside the range 0 to 14"},
+		{255, "num_ref_idx_l0_active_minus1 = 255 is outside the range 0 to 14"},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("num_ref_idx_l0_active_minus1=%d", c.nrRefIdxMinus1), func(t *testing.T) {
+			nalu := makePSliceNalu(t, c.nrRefIdxMinus1)
+			hdr, err := ParseSliceHeader(nalu, spsMap, ppsMap)
+			if c.wantErr != "" {
+				if err == nil || err.Error() != c.wantErr {
+					t.Errorf("got error %v, wanted %q", err, c.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if uint(hdr.NumRefIdxL0ActiveMinus1) != c.nrRefIdxMinus1 {
+				t.Errorf("NumRefIdxL0ActiveMinus1 = %d, wanted %d", hdr.NumRefIdxL0ActiveMinus1, c.nrRefIdxMinus1)
+			}
+			if got := len(hdr.PredWeightTable.WeightsL0); uint(got) != c.nrRefIdxMinus1+1 {
+				t.Errorf("len(WeightsL0) = %d, wanted %d", got, c.nrRefIdxMinus1+1)
+			}
+		})
 	}
 }

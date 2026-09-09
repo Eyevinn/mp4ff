@@ -258,10 +258,16 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 			sh.NumRefIdxL1ActiveMinus1 = pps.NumRefIdxL1DefaultActiveMinus1
 			// 0 specifies that the syntax elements num_ref_idx_l0_active_minus1 and num_ref_idx_l1_active_minus1 are not present.
 			if sh.NumRefIdxActiveOverrideFlag {
-				// value shall be in the range of 0 to 14, inclusive
-				sh.NumRefIdxL0ActiveMinus1 = uint8(r.ReadExpGolomb())
+				var err error
+				sh.NumRefIdxL0ActiveMinus1, err = readNumRefIdxActiveMinus1(r, "num_ref_idx_l0_active_minus1")
+				if err != nil {
+					return sh, err
+				}
 				if sh.SliceType == SLICE_B {
-					sh.NumRefIdxL1ActiveMinus1 = uint8(r.ReadExpGolomb())
+					sh.NumRefIdxL1ActiveMinus1, err = readNumRefIdxActiveMinus1(r, "num_ref_idx_l1_active_minus1")
+					if err != nil {
+						return sh, err
+					}
 				}
 			}
 
@@ -391,6 +397,19 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	sh.Size = uint32(r.NrBytesRead())
 
 	return sh, nil
+}
+
+// maxNumRefIdxActiveMinus1 is the upper bound of num_ref_idx_lX_active_minus1 and
+// num_ref_idx_lX_default_active_minus1 according to Sections 7.4.7.1 and 7.4.3.3.
+const maxNumRefIdxActiveMinus1 = 14
+
+// readNumRefIdxActiveMinus1 reads a num_ref_idx value and checks it against the spec range.
+func readNumRefIdxActiveMinus1(r *bits.EBSPReader, name string) (uint8, error) {
+	value := r.ReadExpGolomb()
+	if value > maxNumRefIdxActiveMinus1 {
+		return 0, fmt.Errorf("%s = %d is outside the range 0 to %d", name, value, maxNumRefIdxActiveMinus1)
+	}
+	return uint8(value), nil
 }
 
 func parseRefPicListsModification(r *bits.EBSPReader, sliceType SliceType,

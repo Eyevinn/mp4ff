@@ -202,9 +202,14 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	pps.NumExtraSliceHeaderBits = uint8(r.Read(3))
 	pps.SignDataHidingEnabledFlag = r.ReadFlag()
 	pps.CabacInitPresentFlag = r.ReadFlag()
-	// value shall be in the range of 0 to 14, inclusive
-	pps.NumRefIdxL0DefaultActiveMinus1 = uint8(r.ReadExpGolomb())
-	pps.NumRefIdxL1DefaultActiveMinus1 = uint8(r.ReadExpGolomb())
+	pps.NumRefIdxL0DefaultActiveMinus1, err = readNumRefIdxActiveMinus1(r, "num_ref_idx_l0_default_active_minus1")
+	if err != nil {
+		return pps, err
+	}
+	pps.NumRefIdxL1DefaultActiveMinus1, err = readNumRefIdxActiveMinus1(r, "num_ref_idx_l1_default_active_minus1")
+	if err != nil {
+		return pps, err
+	}
 	// value shall be in the range of −( 26 + QpBdOffsetY ) to +25, inclusive
 	pps.InitQpMinus26 = int8(r.ReadSignedGolomb())
 	pps.ConstrainedIntraPredFlag = r.ReadFlag()
