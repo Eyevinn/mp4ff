@@ -99,24 +99,27 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 	children := make([]Box, 0, 8)
 	pos := startPos
 	for {
-		child, err := DecodeBox(pos, r)
-		if err == io.EOF {
-			return children, nil
-		}
-		if err != nil {
-			return children, err
-		}
-		children = append(children, child)
-		pos += child.Size()
-		if pos == endPos {
-			return children, nil
-		} else if pos > endPos {
+		if pos > endPos {
 			msg := ""
 			for _, c := range children {
 				msg += fmt.Sprintf("%s:%d ", c.Type(), c.Size())
 			}
 			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, msg)
 		}
+		if pos == endPos {
+			return children, nil
+		}
+		child, err := DecodeBox(pos, r)
+		if err == io.EOF {
+			// Data ended on a child boundary before endPos: the box is truncated.
+			return children, fmt.Errorf("%s: %w: expected %d bytes, got %d", hdr.Name,
+				io.ErrUnexpectedEOF, endPos-startPos, pos-startPos)
+		}
+		if err != nil {
+			return children, err
+		}
+		children = append(children, child)
+		pos += child.Size()
 	}
 }
 
