@@ -97,6 +97,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DecodeContainerChildren` now checks the child position against the
+  container end before decoding each child, matching
+  `DecodeContainerChildrenSR`. A container truncated exactly on a child
+  boundary is reported instead of silently decoding short, and an empty
+  container box no longer consumes its next sibling
 - `IsSyncSampleFlags` only inspected `sample_depends_on` and ignored
   `sample_is_non_sync_sample`, so flags that mark a sample non-sync while also
   saying `sample_depends_on = 2` were reported as a sync sample. It now
