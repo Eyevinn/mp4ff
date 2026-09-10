@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -69,6 +70,9 @@ func NewStyp(majorBrand string, minorVersion uint32, compatibleBrands []string) 
 
 // DecodeStyp - box-specific decode
 func DecodeStyp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	if hdr.payloadLen() < 8 {
+		return nil, fmt.Errorf("styp: payload too short: %d < 8", hdr.payloadLen())
+	}
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
@@ -79,6 +83,9 @@ func DecodeStyp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeStypSR - box-specific decode
 func DecodeStypSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	if hdr.payloadLen() < 8 {
+		return nil, fmt.Errorf("styp: payload too short: %d < 8", hdr.payloadLen())
+	}
 	b := StypBox{data: sr.ReadBytes(int(hdr.Size) - hdr.Hdrlen)}
 	return &b, sr.AccError()
 }
