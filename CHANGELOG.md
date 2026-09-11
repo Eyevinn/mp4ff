@@ -109,6 +109,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ftyp` and `styp` boxes with a payload shorter than 8 bytes are rejected at
+  decode instead of panicking. `MajorBrand` and `MinorVersion` slice the payload
+  at fixed offsets, so a short box made `Info` panic, including in `mp4ff-info`
 - `IsSyncSampleFlags` only inspected `sample_depends_on` and ignored
   `sample_is_non_sync_sample`, so flags that mark a sample non-sync while also
   saying `sample_depends_on = 2` were reported as a sync sample. It now
