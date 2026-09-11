@@ -53,9 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Fragment-format brands (dash, cmfc, isml, and friends) are removed from
   the output ftyp. Per-sample encryption auxiliary information (senc or
   saiz/saio; constant-IV full-sample encryption without such data passes
-  through losslessly), unsupported edit lists, zero
-  timescales, truncated byte ranges, and payloads larger than the input
-  file are rejected
+  through losslessly), unsupported edit lists, zero timescales, truncated
+  byte ranges, and payloads larger than the input file are rejected
 - `mp4.Defragment` and `mp4.DefragmentTracks` resolve overlapping fragments:
   when a fragment's tfdt re-declares an earlier decode time (a
   retransmission), the fragment appearing later in the file wins and the
