@@ -29,8 +29,9 @@ import (
 // be superseded the same way. Every abandoned time range must be declared
 // again by surviving fragments, so no declared content is ever silently
 // dropped; overlaps that cannot be resolved exactly are rejected, as are
-// per-sample encryption auxiliary information (senc or saiz/saio, which the
-// progressive sample tables cannot carry) and edits that cannot be shifted.
+// edits that cannot be shifted and per-sample encryption auxiliary
+// information (senc or saiz/saio, which the progressive sample tables
+// cannot carry).
 // Full-sample encryption with a constant IV has no such auxiliary data and
 // passes through losslessly, keeping the sinf of the sample description.
 func Defragment(f *File, rs io.ReadSeeker, w io.Writer) error {
