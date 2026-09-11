@@ -137,6 +137,7 @@ func init() {
 		"prji":    DecodePrji,
 		"proj":    DecodeProj,
 		"pssh":    DecodePssh,
+		"rsot":    DecodeRsot,
 		"saio":    DecodeSaio,
 		"saiz":    DecodeSaiz,
 		"sbgp":    DecodeSbgp,
