@@ -19,6 +19,7 @@ type TrafBox struct {
 	Sbgp     *SbgpBox
 	Sgpd     *SgpdBox
 	Senc     *SencBox
+	Rsot     *RsotBox
 	UUIDSenc *UUIDBox // A PIFF box of subtype senc
 	Trun     *TrunBox // The first TrunBox
 	Truns    []*TrunBox
@@ -150,6 +151,8 @@ func (t *TrafBox) AddChild(child Box) error {
 		t.Sgpd = box
 	case *SencBox:
 		t.Senc = box
+	case *RsotBox:
+		t.Rsot = box
 	case *TrunBox:
 		if t.Trun == nil {
 			t.Trun = box

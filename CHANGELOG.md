@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `InferScalingListFlag` and `ScalingListRefLayerID`, and `hevc.RepFormat`
   exposes `SeparateColourPlaneFlag`, `ConformanceWindowFlag` and
   `ConformanceWindow`
+- `RsotBox` for the Redundant Sample Original Timing Box (`rsot`) of
+  ISO/IEC 14496-12:2026 Section 8.8.18, a `traf` child that documents that the
+  first sample of a track fragment is a copy of the previous sample and how long
+  that sample has already run (`ElapsedDuration`), and that the fragment's last
+  sample was truncated to fit and how long it was meant to last
+  (`OriginalDuration`). Either duration may be signalled on its own, and
+  `CreateRsotBox` sets the flags from the non-zero arguments. It is reachable as
+  `TrafBox.Rsot`
 - `AudioSampleEntryBox.NormalizeQuickTime` rewrites a QuickTime-shaped audio
   sample entry (sound sample description version 1 or 2, QuickTime residue in
   the version 0 reserved fields, or a wave-wrapped esds) to the plain ISO
