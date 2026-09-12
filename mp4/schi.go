@@ -84,12 +84,12 @@ func (b *SchiBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - write minf container to w
+// Encode - write schi container to w
 func (b *SchiBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write minf container to sw
+// EncodeSW - write schi container to sw
 func (b *SchiBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

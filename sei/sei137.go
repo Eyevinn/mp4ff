@@ -54,7 +54,8 @@ func (m MasteringDisplayColourVolumeSEI) String() string {
 		m.MaxDisplayMasteringLuminance, m.MinDisplayMasteringLuminance)
 }
 
-// DecodeUserDataUnregisteredSEI - Decode an unregistered SEI message (type 5)
+// DecodeMasteringDisplayColourVolumeSEI decodes a mastering display colour
+// volume SEI message (type 137).
 func DecodeMasteringDisplayColourVolumeSEI(sd *SEIData) (SEIMessage, error) {
 	m := MasteringDisplayColourVolumeSEI{}
 	data := sd.Payload()

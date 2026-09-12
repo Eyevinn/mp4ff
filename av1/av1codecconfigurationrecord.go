@@ -33,7 +33,7 @@ type CodecConfRec struct {
 	ConfigOBUs                       []byte
 }
 
-// DecodeAVCDecConfRec - decode an AV1CodecConfRec
+// DecodeAV1CodecConfRec - decode an AV1CodecConfRec
 func DecodeAV1CodecConfRec(data []byte) (CodecConfRec, error) {
 	// Minimum size is 4 bytes for the fixed header fields
 	if len(data) < 4 {
@@ -125,7 +125,7 @@ func (a *CodecConfRec) Size() uint64 {
 	return uint64(4 + len(a.ConfigOBUs))
 }
 
-// EncodeSW- write an AV1CodecConfRec to w
+// Encode - write an AV1CodecConfRec to w
 func (a *CodecConfRec) Encode(w io.Writer) error {
 	sw := bits.NewFixedSliceWriter(int(a.Size()))
 	err := a.EncodeSW(sw)

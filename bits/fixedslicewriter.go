@@ -11,10 +11,10 @@ type FixedSliceWriter struct {
 	v        uint // current accumulated value for bits
 }
 
-// NewFixedSliceWriter - create writer around slice.
+// NewFixedSliceWriterFromSlice - create writer around slice.
 // The slice will not grow, but stay the same size.
 // If too much data is written, there will be
-// an accumuluated error. Can be retrieved with AccError()
+// an accumulated error. Can be retrieved with AccError()
 func NewFixedSliceWriterFromSlice(data []byte) *FixedSliceWriter {
 	return &FixedSliceWriter{
 		buf:      data,
@@ -25,7 +25,7 @@ func NewFixedSliceWriterFromSlice(data []byte) *FixedSliceWriter {
 	}
 }
 
-// NewSliceWriter - create slice writer with fixed size.
+// NewFixedSliceWriter - create slice writer with fixed size.
 func NewFixedSliceWriter(size int) *FixedSliceWriter {
 	return &FixedSliceWriter{
 		buf:      make([]byte, size),

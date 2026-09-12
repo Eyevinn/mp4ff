@@ -117,7 +117,7 @@ func (b *WvttBox) Encode(w io.Writer) error {
 	return err
 }
 
-// EncodeSW - write box to w
+// EncodeSW - write box to sw
 func (b *WvttBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
@@ -390,12 +390,12 @@ func (b *VttcBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - write mvex container to w
+// Encode - write vttc container to w
 func (b *VttcBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write vttc container to sw
+// EncodeSW - write vttc container to sw
 func (b *VttcBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

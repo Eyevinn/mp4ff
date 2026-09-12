@@ -40,7 +40,7 @@ func (b *GenericContainerBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write minf container to sw
+// EncodeSW - write GenericContainerBox to sw
 func (b *GenericContainerBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }
@@ -120,7 +120,7 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 	}
 }
 
-// DecodeContainerChildren decodes a container box
+// DecodeContainerChildrenSR decodes a container box
 func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
 	children := make([]Box, 0, 8) // Good initial size
 	pos := startPos

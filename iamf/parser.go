@@ -410,7 +410,7 @@ func mp4ReadDescr(sr bits.SliceReader) (uint8, error) {
 	return tag, nil
 }
 
-// AACDecoderConfig parses AAC decoder configuration
+// AacDecoderConfig parses AAC decoder configuration
 func AacDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 	if codecConfig.AudioRollDistance >= 0 {
 		return errors.New("invalid aac decoder config")
@@ -477,7 +477,7 @@ func AacDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 	return nil
 }
 
-// FLACDecoderConfig parses FLAC decoder configuration
+// FlacDecoderConfig parses FLAC decoder configuration
 func FlacDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 	if codecConfig.AudioRollDistance != 0 {
 		return errors.New("invalid flac decoder config")
@@ -514,7 +514,7 @@ func FlacDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error 
 	return nil
 }
 
-// PCMDecoderConfig parses PCM decoder configuration
+// PcmDecoderConfig parses PCM decoder configuration
 func PcmDecoderConfig(sr bits.SliceReader, codecConfig *IamfCodecConfig) error {
 	sampleFormat := sr.ReadUint8() // 0 = BE, 1 = LE
 	if sr.AccError() != nil {
