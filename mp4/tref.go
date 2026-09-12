@@ -125,7 +125,7 @@ func (t *TrefTypeBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Encode - write box to sw
+// EncodeSW - write box to sw
 func (b *TrefTypeBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
