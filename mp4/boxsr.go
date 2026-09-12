@@ -261,7 +261,7 @@ func DecodeBoxBodySR(startPos uint64, hdr BoxHeader, sr bits.SliceReader) (Box, 
 	return b, nil
 }
 
-// DecodeFile - parse and decode a file from reader r with optional file options.
+// DecodeFileSR - parse and decode a file from SliceReader sr with optional file options.
 // For example, the file options overwrite the default decode or encode mode.
 func DecodeFileSR(sr bits.SliceReader, options ...Option) (*File, error) {
 	f := NewFile()

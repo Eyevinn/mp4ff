@@ -117,7 +117,7 @@ func (b *CttsBox) SampleCount(i int) uint32 {
 
 }
 
-// AddSampleCountsAndOffsets - populate this box with data. Need the same number of entries in both
+// AddSampleCountsAndOffset - populate this box with data. Need the same number of entries in both
 func (b *CttsBox) AddSampleCountsAndOffset(counts []uint32, offsets []int32) error {
 	if len(counts) != len(offsets) {
 		return fmt.Errorf("not same number of sampleCounts %d and sampleOffsets %d", len(counts), len(offsets))

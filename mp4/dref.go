@@ -127,7 +127,7 @@ func (d *DrefBox) Encode(w io.Writer) error {
 	return err
 }
 
-// EncodeSW - write dref box to w including children
+// EncodeSW - write dref box to sw including children
 func (d *DrefBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(d, sw)
 	if err != nil {

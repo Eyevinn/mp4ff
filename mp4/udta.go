@@ -81,7 +81,7 @@ func (b *UdtaBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write udta container to sw
+// EncodeSW - write udta container to sw
 func (b *UdtaBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

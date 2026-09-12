@@ -83,7 +83,7 @@ func DecodeTrun(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return t, nil
 }
 
-// DecodeTrun - box-specific decode
+// DecodeTrunSR - box-specific decode
 func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	sampleCount := sr.ReadUint32()
@@ -454,7 +454,7 @@ func (t *TrunBox) AddSample(s Sample) {
 	t.Samples = append(t.Samples, s)
 }
 
-// AddSamples - add a a slice of Sample
+// AddSamples - add a slice of Sample
 func (t *TrunBox) AddSamples(s []Sample) {
 	t.Samples = append(t.Samples, s...)
 }

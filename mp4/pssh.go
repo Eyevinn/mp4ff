@@ -178,7 +178,7 @@ func (b *PsshBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// PsshBoxesFromDBytesextracts pssh boxes from slice of bytes
+// PsshBoxesFromBytes extracts pssh boxes from slice of bytes
 func PsshBoxesFromBytes(psshData []byte) ([]*PsshBox, error) {
 	psshBoxes := make([]*PsshBox, 0, 1)
 	sr := bits.NewFixedSliceReader(psshData)

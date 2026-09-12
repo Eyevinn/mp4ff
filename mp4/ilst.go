@@ -63,7 +63,7 @@ func (b *IlstBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write ilst container to sw
+// EncodeSW - write ilst container to sw
 func (b *IlstBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

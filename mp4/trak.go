@@ -109,7 +109,7 @@ func (t *TrakBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
 }
 
-// Encode - write trak container to sw
+// EncodeSW - write trak container to sw
 func (b *TrakBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

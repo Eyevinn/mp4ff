@@ -29,7 +29,7 @@ func DecodeCo64(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return DecodeCo64SR(hdr, startPos, sr)
 }
 
-// DecodeCo64 - box-specific decode
+// DecodeCo64SR - box-specific decode
 func DecodeCo64SR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	nrEntries := sr.ReadUint32()

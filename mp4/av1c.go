@@ -50,7 +50,7 @@ func (b *Av1CBox) Encode(w io.Writer) error {
 	return b.CodecConfRec.Encode(w)
 }
 
-// Encode - write box to sw
+// EncodeSW - write box to sw
 func (b *Av1CBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {

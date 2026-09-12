@@ -67,7 +67,7 @@ func (b *LudtBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write ludt container to sw
+// EncodeSW - write ludt container to sw
 func (b *LudtBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

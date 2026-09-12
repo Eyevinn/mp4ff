@@ -116,7 +116,7 @@ func (m *MoovBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
-// Encode - write moov container to sw
+// EncodeSW - write moov container to sw
 func (m *MoovBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(m, sw)
 }

@@ -139,7 +139,7 @@ func (m *MdatBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Encode - write box to sw. If m.lazyDataSize > 0, the mdat data needs to be written separately
+// EncodeSW - write box to sw. If m.lazyDataSize > 0, the mdat data needs to be written separately
 func (m *MdatBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderWithSizeSW("mdat", m.Size(), m.LargeSize, sw)
 	if err != nil {
