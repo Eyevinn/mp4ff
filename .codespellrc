@@ -1,0 +1,17 @@
+[codespell]
+# Shared by the Makefile target and the pre-commit hook so the two cannot drift.
+skip = ./venv,*/venv/*,./references,*/references/*,testdata,*/testdata/*,*.mp4,*.m4s,*.264,*.265
+# Terms codespell mistakes for misspellings. Most are ISOBMFF box names or
+# bitstream syntax elements, the rest are identifiers spelled that way on
+# purpose.
+#   trun, truns  - Track Fragment Run box
+#   fiel         - Field Ordering (QuickTime) box
+#   nam          - the iTunes (c)nam metadata atom
+#   ue           - ue(v), unsigned exponential-Golomb syntax element
+#   acn          - Ambisonic Channel Number (IAMF)
+#   te, toi, vie - fragments of sample text in tests
+#   testin       - the testIn identifier
+#   prevend      - the prevEnd identifier
+#   datas        - plural of data, used for slices of sample payloads
+#   re-declare*  - deliberate hyphenation in the defragmenter
+ignore-words-list = trun,truns,fiel,nam,ue,acn,te,toi,vie,testin,prevend,datas,re-declare,re-declares,re-declared,re-declaring

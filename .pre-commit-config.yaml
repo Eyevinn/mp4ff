@@ -10,6 +10,10 @@ repos:
       - id: go-fmt
       - id: golangci-lint
       - id: go-unit-tests
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
     rev: v9.18.0
     hooks:
