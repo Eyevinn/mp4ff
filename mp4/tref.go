@@ -58,12 +58,12 @@ func (b *TrefBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode - write minf container to w
+// Encode - write tref container to w
 func (b *TrefBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write minf container to sw
+// EncodeSW - write tref container to sw
 func (b *TrefBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

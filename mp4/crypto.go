@@ -262,8 +262,8 @@ func subSampleRange(sampleLen int, pos uint32, nr int, ss SubSamplePattern) (sta
 	return uint32(startPos), uint32(endPos), nil
 }
 
-// DecryptSampleCenc does in-place decryption of cbcs-schema encrypted sample.
-// Each protected byte range is striped with with pattern defined by pattern in tenc.
+// DecryptSampleCbcs does in-place decryption of cbcs-schema encrypted sample.
+// Each protected byte range is striped with the pattern defined in tenc.
 func DecryptSampleCbcs(sample []byte, key []byte, iv []byte, subSamplePatterns []SubSamplePattern, tenc *TencBox) error {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -272,8 +272,8 @@ func DecryptSampleCbcs(sample []byte, key []byte, iv []byte, subSamplePatterns [
 	return cryptSampleCbcs(dirDec, sample, block, iv, subSamplePatterns, tenc)
 }
 
-// EncryptSampleCenc does in-place encryption using cbcs schema.
-// Each protected byte range is striped with with pattern defined by pattern in tenc.
+// EncryptSampleCbcs does in-place encryption using cbcs schema.
+// Each protected byte range is striped with the pattern defined in tenc.
 func EncryptSampleCbcs(sample []byte, key []byte, iv []byte, subSamplePatterns []SubSamplePattern, tenc *TencBox) error {
 	block, err := aes.NewCipher(key)
 	if err != nil {

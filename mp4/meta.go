@@ -106,7 +106,7 @@ func (b *MetaBox) GetChildren() []Box {
 	return b.Children
 }
 
-// Encode writes minf container to w
+// Encode writes meta container to w
 func (b *MetaBox) Encode(w io.Writer) error {
 	err := EncodeHeader(b, w)
 	if err != nil {
@@ -128,7 +128,7 @@ func (b *MetaBox) Encode(w io.Writer) error {
 	return nil
 }
 
-// Encode writes minf container to sw
+// EncodeSW writes meta container to sw
 func (b *MetaBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {

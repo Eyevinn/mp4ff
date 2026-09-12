@@ -185,7 +185,7 @@ func (t *TrafBox) Encode(w io.Writer) error {
 	return EncodeContainer(t, w)
 }
 
-// Encode - write minf container to sw
+// EncodeSW - write traf container to sw
 func (b *TrafBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

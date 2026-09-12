@@ -271,7 +271,7 @@ type SubmixElement struct {
 	Annotations map[string]string
 }
 
-// AudioElementType identifies the type of submix layout
+// SubMixLayoutType identifies the type of submix layout
 type SubMixLayoutType uint8
 
 const (
@@ -336,7 +336,7 @@ type MixPresentation struct {
 	Annotations map[string]string
 }
 
-// MaxOBUHeaderSize is the maximum size of an IAMF OBU header
+// MaxIAMFOBUHeaderSize is the maximum size of an IAMF OBU header
 const MaxIAMFOBUHeaderSize = 1 + 8*3
 
 // ObuType represents OBU types (section 3.2)
@@ -399,7 +399,7 @@ func (o ObuType) String() string {
  * Based on AVFORMAT_IAMF_H
  */
 
-// CodecConfig represents IAMF codec configuration
+// IamfCodecConfig represents IAMF codec configuration
 type IamfCodecConfig struct {
 	CodecConfigID     uint32
 	CodecID           string
@@ -417,13 +417,13 @@ type IamfLayer struct {
 	CoupledSubstreamCount uint32
 }
 
-// SubStream represents IAMF audio substream
+// IamfSubStream represents IAMF audio substream
 type IamfSubStream struct {
 	AudioSubstreamID uint32
 	CodecParameters  CodecParameters
 }
 
-// AudioElement represents IAMF audio element
+// IamfAudioElement represents IAMF audio element
 type IamfAudioElement struct {
 	Element        AudioElement
 	AudioElementID uint32
@@ -434,7 +434,7 @@ type IamfAudioElement struct {
 	NumLayers      uint32
 }
 
-// MixPresentation represents IAMF mix presentation
+// IamfMixPresentation represents IAMF mix presentation
 type IamfMixPresentation struct {
 	Mix               MixPresentation
 	MixPresentationID uint32
@@ -442,7 +442,7 @@ type IamfMixPresentation struct {
 	LanguageLabel     []string
 }
 
-// ParamDefinition represents IAMF parameter definition
+// IamfParamDefinition represents IAMF parameter definition
 type IamfParamDefinition struct {
 	AudioElement *IamfAudioElement
 	Param        ParamDefinition
