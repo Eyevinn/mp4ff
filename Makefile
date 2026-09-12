@@ -44,7 +44,7 @@ venv:
 	python3 -m venv venv
 	venv/bin/pip install --upgrade pip
 	venv/bin/pip install pre-commit==4.2.0
-	venv/bin/pip install codespell
+	venv/bin/pip install codespell==2.4.1
 
 .PHONY: pre-commit-install
 pre-commit-install: venv
@@ -56,7 +56,7 @@ pre-commit: venv
 
 .PHONY: codespell
 codespell: venv
-	venv/bin/codespell -S testdata,references,./venv -L trun,te,truns,nam,toi,vie,testIn
+	venv/bin/codespell
 
 .PHONY: check
 check: prepare pre-commit codespell
