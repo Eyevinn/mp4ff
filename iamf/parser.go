@@ -158,7 +158,7 @@ var scalableChannelLayouts = []channelLayout{
 
 	// 10-14: Reserved for future use
 
-	// 15: Expanded channel layouts - defined in expanded_loudspeaker_layout field bellow
+	// 15: Expanded channel layouts - defined in expanded_loudspeaker_layout field below
 }
 
 func expanded(index int, channels int, mask channelMask) channelLayout {

@@ -58,7 +58,7 @@ const (
 )
 
 // NewTfrfBox creates a new TfrfBox with values.
-// fragmentCount is the number of fragments, andb both
+// fragmentCount is the number of fragments, and both
 // fragmentAbsoluteTimes and fragmentAbsoluteDurations must be slices of that length.
 func NewTfrfBox(fragmentCount byte, fragmentAbsoluteTimes, fragmentAbsoluteDurations []uint64) *UUIDBox {
 	return &UUIDBox{
