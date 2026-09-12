@@ -35,7 +35,7 @@ func DecodeMdhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return DecodeMdhdSR(hdr, startPos, sr)
 }
 
-// DecodeMdhd - Decode box
+// DecodeMdhdSR - Decode box
 func DecodeMdhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)

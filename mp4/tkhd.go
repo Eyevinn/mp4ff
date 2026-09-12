@@ -169,7 +169,7 @@ func (b *TkhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return bd.err
 }
 
-// CraetionTimeS returns the creation time in seconds since Jan 1, 1970
+// CreationTimeS returns the creation time in seconds since Jan 1, 1970
 func (b *TkhdBox) CreationTimeS() int64 {
 	return int64(b.CreationTime) - EpochDiffS
 }

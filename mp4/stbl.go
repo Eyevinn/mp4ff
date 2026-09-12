@@ -126,7 +126,7 @@ func (s *StblBox) Encode(w io.Writer) error {
 	return EncodeContainer(s, w)
 }
 
-// Encode - write stbl container to sw
+// EncodeSW - write stbl container to sw
 func (b *StblBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

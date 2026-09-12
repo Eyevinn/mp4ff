@@ -114,7 +114,7 @@ func (m *MoofBox) Encode(w io.Writer) error {
 	return nil
 }
 
-// Encode - write moof after updating trun dataoffset
+// EncodeSW - write moof after updating trun dataoffset
 func (m *MoofBox) EncodeSW(sw bits.SliceWriter) error {
 	for _, trun := range m.Traf.Truns {
 		if trun.HasDataOffset() && trun.DataOffset == 0 {

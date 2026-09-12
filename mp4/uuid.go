@@ -57,7 +57,7 @@ const (
 	UUIDSphericalVideoV1 = "ffcc8263-f855-4a93-8814-587a02521fdd"
 )
 
-// NewTrfrfBox creates a new TfrfBox with values.
+// NewTfrfBox creates a new TfrfBox with values.
 // fragmentCount is the number of fragments, andb both
 // fragmentAbsoluteTimes and fragmentAbsoluteDurations must be slices of that length.
 func NewTfrfBox(fragmentCount byte, fragmentAbsoluteTimes, fragmentAbsoluteDurations []uint64) *UUIDBox {
@@ -128,8 +128,8 @@ func (u *UUIDBox) UUID() string {
 	return u.uuid.String()
 }
 
-// UUID - Set UUID from string corresponding to 16 bytes.
-// The input should be a UUID-formatted hex string, plain hex or baset64 encoded.
+// SetUUID - Set UUID from string corresponding to 16 bytes.
+// The input should be a UUID-formatted hex string, plain hex or base64 encoded.
 func (u *UUIDBox) SetUUID(uuid string) (err error) {
 	u.uuid, err = createUUID(uuid)
 	return err

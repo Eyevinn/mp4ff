@@ -65,7 +65,7 @@ func (b *KindBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Encode - write box to w
+// EncodeSW - write box to sw
 func (b *KindBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {

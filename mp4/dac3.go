@@ -13,7 +13,7 @@ import (
 // Signaled in fscod - Sample rate code - 2 bits
 var AC3SampleRates = []int{48000, 44100, 32000}
 
-// AX3acmodChanneTable - channel configurations from ETSI TS 102 366 V1.4.1 (2017) section 4.4.2.3A
+// AC3acmodChannelTable - channel configurations from ETSI TS 102 366 V1.4.1 (2017) section 4.4.2.3A
 // Signaled in acmod - audio coding mode - 3 bits
 var AC3acmodChannelTable = []string{
 	"L/R", //Ch1 Ch2 dual mono but name them L R
@@ -124,7 +124,7 @@ func (b *Dac3Box) Encode(w io.Writer) error {
 	return err
 }
 
-// Encode - write box to sw
+// EncodeSW - write box to sw
 func (b *Dac3Box) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {

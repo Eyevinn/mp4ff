@@ -418,7 +418,7 @@ func (a *AudioSampleEntryBox) Encode(w io.Writer) error {
 	return err
 }
 
-// Encode - write box to sw
+// EncodeSW - write box to sw
 func (a *AudioSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
 	if err := a.validateQuickTime(); err != nil {
 		return err

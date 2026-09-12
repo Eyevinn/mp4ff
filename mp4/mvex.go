@@ -50,7 +50,7 @@ func DecodeMvex(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return m, nil
 }
 
-// DecodeMvex - box-specific decode
+// DecodeMvexSR - box-specific decode
 func DecodeMvexSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
@@ -83,7 +83,7 @@ func (m *MvexBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
-// Encode - write mvex container to sw
+// EncodeSW - write mvex container to sw
 func (m *MvexBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(m, sw)
 }

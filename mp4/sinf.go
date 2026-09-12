@@ -73,7 +73,7 @@ func (b *SinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(b, w)
 }
 
-// Encode - write sinf container to sw
+// EncodeSW - write sinf container to sw
 func (b *SinfBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(b, sw)
 }

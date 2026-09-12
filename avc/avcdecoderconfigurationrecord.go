@@ -203,7 +203,7 @@ func (a *DecConfRec) Encode(w io.Writer) error {
 	return err
 }
 
-// Encode - write an AVCDecConfRec to w
+// EncodeSW - write an AVCDecConfRec to sw
 func (a *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
 
 	var configurationVersion byte = 1

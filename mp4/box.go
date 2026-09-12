@@ -314,7 +314,7 @@ func EncodeHeaderSW(b Box, sw bits.SliceWriter) error {
 	return nil
 }
 
-// EncodeHeaderWithSize - encode a box header to a writer and allow for largeSize
+// EncodeHeaderWithSizeSW - encode a box header to a SliceWriter and allow for largeSize
 func EncodeHeaderWithSizeSW(boxType string, boxSize uint64, largeSize bool, sw bits.SliceWriter) error {
 	if !largeSize && boxSize >= 1<<32 {
 		return fmt.Errorf("Box size %d is too big for normal 4-byte size field", boxSize)

@@ -86,7 +86,7 @@ func (m *MinfBox) Encode(w io.Writer) error {
 	return EncodeContainer(m, w)
 }
 
-// Encode - write minf container to sw
+// EncodeSW - write minf container to sw
 func (m *MinfBox) EncodeSW(sw bits.SliceWriter) error {
 	return EncodeContainerSW(m, sw)
 }

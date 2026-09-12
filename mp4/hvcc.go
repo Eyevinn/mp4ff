@@ -65,7 +65,7 @@ func (b *HvcCBox) Encode(w io.Writer) error {
 	return b.DecConfRec.Encode(w)
 }
 
-// Encode - write box to w
+// EncodeSW - write box to sw
 func (b *HvcCBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {

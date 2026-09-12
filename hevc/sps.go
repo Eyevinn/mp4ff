@@ -260,7 +260,7 @@ type SubLayerHrdParameters struct {
 	CbrFlag              bool
 }
 
-// BitstreamRestrictrictions - optional information
+// BitstreamRestrictions - optional information
 type BitstreamRestrictions struct {
 	TilesFixedStructureFlag     bool
 	MVOverPicBoundariesFlag     bool

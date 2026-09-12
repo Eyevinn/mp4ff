@@ -252,7 +252,7 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	return sps, reader.AccError()
 }
 
-// CpbDbpDelaysPresent signals if Cpb and Dbp can be found in Picture Timing SEI
+// CpbDpbDelaysPresent signals if Cpb and Dpb can be found in Picture Timing SEI
 func (s *SPS) CpbDpbDelaysPresent() bool {
 	if s.VUI == nil {
 		return false
