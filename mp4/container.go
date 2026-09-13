@@ -96,6 +96,11 @@ func containerSize(children []Box) uint64 {
 
 // DecodeContainerChildren decodes a container box
 func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
+	// Guard before the unsigned subtractions below can wrap.
+	if startPos > endPos {
+		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
+			hdr.Name, hdr.Size, hdr.Size+(startPos-endPos))
+	}
 	children := make([]Box, 0, 8)
 	pos := startPos
 	for {
@@ -125,6 +130,11 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 
 // DecodeContainerChildrenSR decodes a container box
 func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
+	// Guard before the unsigned subtractions below can wrap.
+	if startPos > endPos {
+		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
+			hdr.Name, hdr.Size, hdr.Size+(startPos-endPos))
+	}
 	children := make([]Box, 0, 8) // Good initial size
 	pos := startPos
 	initPos := sr.GetPos()

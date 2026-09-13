@@ -3,6 +3,8 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -90,4 +92,72 @@ func TestDecodeEmptyContainerKeepsSibling(t *testing.T) {
 	check(t, "DecodeFileSR", fSR, errSR)
 	fR, errR := mp4.DecodeFile(bytes.NewReader(data))
 	check(t, "DecodeFile", fR, errR)
+}
+
+// makeUndersizedBox builds a box whose declared size is smaller than the fixed
+// fields its decoder expects before the children, followed by a sibling so that
+// reads past the declared end still find data.
+func makeUndersizedBox(name string, size uint32) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint32(b[0:4], size)
+	copy(b[4:8], name)
+	for len(b) < int(size) {
+		b = append(b, 0)
+	}
+	return append(b, makeBox("free", []byte{0, 0, 0, 0})...)
+}
+
+// TestDecodeUndersizedContainerNoSizeUnderflow checks that a container box that
+// declares a size smaller than the fixed fields preceding its children is
+// rejected with a meaningful size, on both decode paths. These boxes pass a
+// children start offset above the 8-byte header (dref, stsd and trep use +16),
+// so the declared end lands before the start and the unsigned difference used
+// to wrap to ~1.8e19 in the error message.
+func TestDecodeUndersizedContainerNoSizeUnderflow(t *testing.T) {
+	for _, name := range []string{"dref", "stsd", "trep"} {
+		for _, size := range []uint32{8, 12, 15} {
+			data := makeUndersizedBox(name, size)
+			t.Run(fmt.Sprintf("%s-%d", name, size), func(t *testing.T) {
+				check := func(label string, err error) {
+					t.Helper()
+					if err == nil {
+						t.Fatalf("%s: expected error for %s size %d, got nil", label, name, size)
+					}
+					// 18446744073709551612 and friends: uint64 wraparound.
+					if strings.Contains(err.Error(), "1844674407370955") {
+						t.Errorf("%s: size underflowed in error: %v", label, err)
+					}
+				}
+				_, errR := mp4.DecodeBox(0, bytes.NewReader(data))
+				check("DecodeBox", errR)
+				_, errS := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data))
+				check("DecodeBoxSR", errS)
+			})
+		}
+	}
+}
+
+// TestDecodeUndersizedEsdsNoSizeUnderflow checks the same for esds, whose
+// descriptor size is computed as hdr.Size-12.
+func TestDecodeUndersizedEsdsNoSizeUnderflow(t *testing.T) {
+	for _, size := range []uint32{8, 9, 11} {
+		data := makeUndersizedBox("esds", size)
+		t.Run(fmt.Sprintf("esds-%d", size), func(t *testing.T) {
+			// The size must be rejected as a size, not incidentally by the
+			// descriptor tag check that happens to run first without the guard.
+			check := func(label string, err error) {
+				t.Helper()
+				if err == nil {
+					t.Fatalf("%s: expected error for esds size %d, got nil", label, size)
+				}
+				if !strings.Contains(err.Error(), "too small") {
+					t.Errorf("%s: want size error, got %v", label, err)
+				}
+			}
+			_, errR := mp4.DecodeBox(0, bytes.NewReader(data))
+			check("DecodeBox", errR)
+			_, errS := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data))
+			check("DecodeBoxSR", errS)
+		})
+	}
 }
