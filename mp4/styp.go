@@ -70,15 +70,12 @@ func NewStyp(majorBrand string, minorVersion uint32, compatibleBrands []string) 
 
 // DecodeStyp - box-specific decode
 func DecodeStyp(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	if hdr.payloadLen() < 8 {
-		return nil, fmt.Errorf("styp: payload too short: %d < 8", hdr.payloadLen())
-	}
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	b := StypBox{data: data}
-	return &b, nil
+	sr := bits.NewFixedSliceReader(data)
+	return DecodeStypSR(hdr, startPos, sr)
 }
 
 // DecodeStypSR - box-specific decode
@@ -86,8 +83,7 @@ func DecodeStypSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if hdr.payloadLen() < 8 {
 		return nil, fmt.Errorf("styp: payload too short: %d < 8", hdr.payloadLen())
 	}
-	b := StypBox{data: sr.ReadBytes(int(hdr.Size) - hdr.Hdrlen)}
-	return &b, sr.AccError()
+	return &StypBox{data: sr.ReadBytes(hdr.payloadLen())}, sr.AccError()
 }
 
 // Type - return box type
