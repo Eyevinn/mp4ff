@@ -35,6 +35,9 @@ func DecodeEsds(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeEsdsSR - box-specific decode
 func DecodeEsdsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	if hdr.payloadLen() < 4 {
+		return nil, fmt.Errorf("esds: payload size %d is too small, needs at least 4 bytes", hdr.payloadLen())
+	}
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
@@ -42,7 +45,7 @@ func DecodeEsdsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
 	}
-	descSize := uint32(hdr.Size - 12)
+	descSize := uint32(hdr.payloadLen() - 4)
 	var err error
 	e.ESDescriptor, err = DecodeESDescriptor(sr, descSize)
 	if err != nil {

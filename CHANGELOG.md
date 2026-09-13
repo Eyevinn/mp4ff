@@ -148,6 +148,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the conformance window, and left the chroma format and bit depths unset
   for a `rep_format()` with `chroma_and_bit_depth_vps_present_flag` equal to
   zero instead of inferring them from the preceding one
+- `DecodeContainerChildren` and `DecodeContainerChildrenSR` reported a wrapped
+  parent size for a box too small to hold the fixed fields before its children,
+  as `dref`, `stsd`, `trep` and `meta` can be. Such a box is now rejected up
+  front, naming the declared and the minimum size
+- `DecodeEsdsSR` derived its descriptor size from `hdr.Size-12` without a length
+  check, wrapping for a shorter box. Both the check and the size now measure the
+  payload, which is also correct for an extended-size header
 - `DecodeContainerChildren` now checks the child position against the
   container end before decoding each child, matching
   `DecodeContainerChildrenSR`. A container truncated exactly on a child
