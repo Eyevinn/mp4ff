@@ -21,7 +21,7 @@ Some useful command line tools are available in [cmd](cmd) directory.
 2. [mp4ff-pslister](cmd/mp4ff-pslister) extracts and displays SPS and PPS for AVC or HEVC in a mp4 or a bytestream (Annex B) file.
     Partial information is printed for HEVC.
 3. [mp4ff-nallister](cmd/mp4ff-nallister) lists NALUs and picture types for video in progressive or fragmented file
-4. [mp4ff-subslister](cmd/mp4ff-subslister) lists details of wvtt or stpp (WebVTT or TTML in ISOBMFF) subtitle samples
+4. [mp4ff-subslister](cmd/mp4ff-subslister) lists details of wvtt, wvtc, stpp, or stpc (WebVTT or TTML in ISOBMFF) subtitle samples
 5. [mp4ff-crop](cmd/mp4ff-crop) crops a **progressive** mp4 file to a specified duration
 6. [mp4ff-encrypt](cmd/mp4ff-encrypt) encrypts a fragmented file using cenc or cbcs Common Encryption scheme
 7. [mp4ff-decrypt](cmd/mp4ff-decrypt) decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
@@ -83,7 +83,9 @@ codec-specific boxes. The codecs and their boxes are
 | Audio | MPEG-H 3D Audio | mha1, mha2, mhm1, mhm2 | mhaC | btrt |
 | Audio | Encrypted | enca | sinf | btrt |
 | Subtitles | WebVTT | wvtt | vttC, vlab | vttc, vtte, vtta, vsid, ctim, iden, sttg, payl, btrt |
+| Subtitles | WebVTT paint model (experimental) | wvtc | vttC, vlab | vttn, and the wvtt boxes above |
 | Subtitles | TTML | stpp | - | btrt |
+| Subtitles | TTML paint model (experimental) | stpc | - | ttmn, ttmb, btrt |
 | Subtitles | Generic | evte | - | btrt |
 
 ## Open Source Cloud

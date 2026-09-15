@@ -110,3 +110,64 @@ func TestStpp(t *testing.T) {
 		}
 	})
 }
+
+func TestStpc(t *testing.T) {
+	stpc := mp4.NewStpcBox("http://www.w3.org/ns/ttml", "", "")
+	if stpc.Type() != "stpc" {
+		t.Errorf("got type %s instead of stpc", stpc.Type())
+	}
+
+	boxDiffAfterEncodeAndDecode(t, stpc)
+
+	// The name must survive a round trip, or the entry would turn into an stpp.
+	// boxDiffAfterEncodeAndDecode does not compare unexported fields.
+	buf := bytes.Buffer{}
+	if err := stpc.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	box, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(buf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if box.Type() != "stpc" {
+		t.Errorf("decoded type %s instead of stpc", box.Type())
+	}
+	if _, ok := box.(*mp4.StppBox); !ok {
+		t.Errorf("decoded box is not a StppBox")
+	}
+}
+
+func TestTtmn(t *testing.T) {
+	ttmn := &mp4.TtmnBox{}
+	if ttmn.Size() != 8 {
+		t.Errorf("ttmn size %d instead of 8", ttmn.Size())
+	}
+	boxDiffAfterEncodeAndDecode(t, ttmn)
+
+	// A no-change sample is the eight bytes 00 00 00 08 "ttmn".
+	buf := bytes.Buffer{}
+	if err := ttmn.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := hex.EncodeToString(buf.Bytes()); got != "0000000874746d6e" {
+		t.Errorf("ttmn sample is %s", got)
+	}
+}
+
+func TestTtmb(t *testing.T) {
+	body := `<body><div><p begin="00:00:10" region="r1">Hello</p></div></body>`
+	ttmb := &mp4.TtmbBox{Body: body}
+	if ttmb.Size() != uint64(8+len(body)) {
+		t.Errorf("ttmb size %d instead of %d", ttmb.Size(), 8+len(body))
+	}
+	boxDiffAfterEncodeAndDecode(t, ttmb)
+
+	// The body is a boxstring: no length prefix and no trailing zero byte.
+	buf := bytes.Buffer{}
+	if err := ttmb.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(buf.Bytes()[8:]); got != body {
+		t.Errorf("ttmb body is %q", got)
+	}
+}

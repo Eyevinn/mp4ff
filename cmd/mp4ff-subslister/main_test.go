@@ -2,7 +2,11 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 var wantedWvttShort = `Track 1, timescale = 1000
@@ -188,6 +192,131 @@ func TestSubsLister(t *testing.T) {
 				if c.wanted != gotString {
 					t.Errorf("expected %s, got %s", c.wanted, gotString)
 				}
+			}
+		})
+	}
+}
+
+// buildPaintModelFile writes a fragmented file with one of the experimental
+// paint-model sample entries and returns its path. The first sample of the
+// fragment is a full sync sample; the rest are the new no-change and body-only
+// samples, which depend on it.
+func buildPaintModelFile(tb testing.TB, variant string) string {
+	tb.Helper()
+	init := mp4.CreateEmptyInit()
+	init.Moov.Mvhd.Timescale = 1000
+	var samples [][]byte
+	switch variant {
+	case "stpc":
+		trak := init.AddEmptyTrack(1000, "subtitle", "eng")
+		if err := trak.SetStpcDescriptor("", "", ""); err != nil {
+			tb.Fatal(err)
+		}
+		ttmn := bytes.Buffer{}
+		if err := (&mp4.TtmnBox{}).Encode(&ttmn); err != nil {
+			tb.Fatal(err)
+		}
+		ttmb := bytes.Buffer{}
+		if err := (&mp4.TtmbBox{Body: "<body><p>later</p></body>"}).Encode(&ttmb); err != nil {
+			tb.Fatal(err)
+		}
+		samples = [][]byte{[]byte(paintModelDoc), ttmn.Bytes(), ttmb.Bytes(), ttmn.Bytes()}
+	case "wvtc":
+		trak := init.AddEmptyTrack(1000, "text", "eng")
+		if err := trak.SetWvtcDescriptor(""); err != nil {
+			tb.Fatal(err)
+		}
+		vttc := mp4.VttcBox{}
+		vttc.AddChild(&mp4.PaylBox{CueText: "Hello"})
+		cue := bytes.Buffer{}
+		if err := vttc.Encode(&cue); err != nil {
+			tb.Fatal(err)
+		}
+		vttn := bytes.Buffer{}
+		if err := (&mp4.VttnBox{}).Encode(&vttn); err != nil {
+			tb.Fatal(err)
+		}
+		samples = [][]byte{cue.Bytes(), vttn.Bytes(), vttn.Bytes()}
+	default:
+		tb.Fatalf("unknown variant %s", variant)
+	}
+
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		tb.Fatal(err)
+	}
+	frag, err := mp4.CreateFragment(1, 1)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	for i, data := range samples {
+		flags := mp4.SyncSampleFlags
+		if i > 0 {
+			flags = mp4.NonSyncSampleFlags
+		}
+		frag.AddFullSample(mp4.FullSample{
+			Sample:     mp4.Sample{Flags: flags, Dur: 200, Size: uint32(len(data))},
+			DecodeTime: uint64(i) * 200,
+			Data:       data,
+		})
+	}
+	if err := frag.Encode(&buf); err != nil {
+		tb.Fatal(err)
+	}
+	path := filepath.Join(tb.TempDir(), variant+".mp4")
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		tb.Fatal(err)
+	}
+	return path
+}
+
+const paintModelDoc = `<?xml version="1.0" encoding="UTF-8"?>` +
+	`<tt xmlns="http://www.w3.org/ns/ttml"><body><p begin="00:00:00">now</p></body></tt>`
+
+var wantedStpcSamples = `Track 1, timescale = 1000
+  [stpc] size=44
+   - dataReferenceIndex: 1
+   - nameSpace: "http://www.w3.org/ns/ttml"
+   - schemaLocation: ""
+   - auxiliaryMimeTypes: ""
+Sample 1, pts=0, dur=200
+` + paintModelDoc + `Sample 2, pts=200, dur=200
+[ttmn] size=8
+Sample 3, pts=400, dur=200
+[ttmb] size=33
+ - body: "<body><p>later</p></body>"
+Sample 4, pts=600, dur=200
+[ttmn] size=8
+`
+
+var wantedWvtcSamples = `Track 1, timescale = 1000
+Sample 1, pts=0, dur=200
+[vttc] size=21
+  [payl] size=13
+   - cueText: "Hello"
+Sample 2, pts=200, dur=200
+[vttn] size=8
+Sample 3, pts=400, dur=200
+[vttn] size=8
+`
+
+func TestSubsListerPaintModel(t *testing.T) {
+	cases := []struct {
+		variant string
+		wanted  string
+	}{
+		{variant: "stpc", wanted: wantedStpcSamples},
+		{variant: "wvtc", wanted: wantedWvtcSamples},
+	}
+	for _, c := range cases {
+		t.Run(c.variant, func(t *testing.T) {
+			path := buildPaintModelFile(t, c.variant)
+			gotOut := bytes.Buffer{}
+			if err := run([]string{appName, path}, &gotOut); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if got := gotOut.String(); got != c.wanted {
+				t.Errorf("expected\n%s\ngot\n%s", c.wanted, got)
 			}
 		})
 	}

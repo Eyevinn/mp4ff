@@ -62,8 +62,12 @@ type StsdBox struct {
 	Enca *AudioSampleEntryBox
 	// Wvtt is a pointer to a WvttBox
 	Wvtt *WvttBox
+	// Wvtc is a pointer to a WvttBox with name wvtc (experimental paint-model WebVTT)
+	Wvtc *WvttBox
 	// Stpp is a pointer to a StppBox
 	Stpp *StppBox
+	// Stpc is a pointer to a StppBox with name stpc (experimental paint-model TTML)
+	Stpc *StppBox
 	// Evte is a pointer to an EvteBox
 	Evte     *EvteBox
 	Children []Box
@@ -125,8 +129,12 @@ func (s *StsdBox) AddChild(box Box) {
 		s.Enca = box.(*AudioSampleEntryBox)
 	case "wvtt":
 		s.Wvtt = box.(*WvttBox)
+	case "wvtc":
+		s.Wvtc = box.(*WvttBox)
 	case "stpp":
 		s.Stpp = box.(*StppBox)
+	case "stpc":
+		s.Stpc = box.(*StppBox)
 	case "evte":
 		s.Evte = box.(*EvteBox)
 	}

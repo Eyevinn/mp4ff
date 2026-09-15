@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/internal"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
@@ -16,8 +18,10 @@ const (
 	appName = "mp4ff-subslister"
 )
 
-var usg = `%s lists and displays content of wvtt or stpp samples.
+var usg = `%s lists and displays content of wvtt, wvtc, stpp, or stpc samples.
 These corresponds to WebVTT or TTML subtitles in ISOBMFF files.
+wvtc and stpc are the experimental paint-model variants, where a sample may be a
+no-change box (vttn or ttmn) or, for stpc, a body-only box (ttmb).
 Uses track with given non-zero track ID or first subtitle track found in an asset.
 
 Usage of %s:
@@ -161,9 +165,9 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 			return fmt.Errorf("sample %d: %w", sampleNr, err)
 		}
 		switch subsTrak.variant {
-		case "wvtt":
+		case "wvtt", "wvtc":
 			err = printWvttSample(w, sample, sampleNr, int64(decTime), dur)
-		case "stpp":
+		case "stpp", "stpc":
 			err = printStppSample(w, sample, sampleNr, int64(decTime), dur)
 		}
 		if err != nil {
@@ -183,17 +187,21 @@ func findWvttTrack(moov *mp4.MoovBox, w io.Writer, trackID uint32) (*subtitleTra
 	}
 
 	stbl := subsTrak.Mdia.Minf.Stbl
-	if stbl.Stsd.Wvtt == nil {
-		return nil, fmt.Errorf("no wvtt track found")
+	entry := stbl.Stsd.Wvtt
+	if entry == nil {
+		entry = stbl.Stsd.Wvtc
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("no wvtt or wvtc track found")
 	}
 
 	fmt.Fprintf(w, "Track %d, timescale = %d\n", subsTrak.Tkhd.TrackID, subsTrak.Mdia.Mdhd.Timescale)
-	err = stbl.Stsd.Wvtt.VttC.Info(os.Stdout, "", "  ", "  ")
+	err = entry.VttC.Info(os.Stdout, "", "  ", "  ")
 	if err != nil {
 		return nil, err
 	}
 	return &subtitleTrack{
-		variant: "wvtt",
+		variant: entry.Type(),
 		trak:    subsTrak,
 	}, nil
 }
@@ -205,17 +213,21 @@ func findStppTrack(moov *mp4.MoovBox, w io.Writer, trackID uint32) (*subtitleTra
 	}
 
 	stbl := subsTrak.Mdia.Minf.Stbl
-	if stbl.Stsd.Stpp == nil {
-		return nil, fmt.Errorf("no stpp track found")
+	entry := stbl.Stsd.Stpp
+	if entry == nil {
+		entry = stbl.Stsd.Stpc
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("no stpp or stpc track found")
 	}
 
 	fmt.Fprintf(w, "Track %d, timescale = %d\n", subsTrak.Tkhd.TrackID, subsTrak.Mdia.Mdhd.Timescale)
-	err = stbl.Stsd.Stpp.Info(w, "", "  ", "  ")
+	err = entry.Info(w, "", "  ", "  ")
 	if err != nil {
 		return nil, err
 	}
 	return &subtitleTrack{
-		variant: "stpp",
+		variant: entry.Type(),
 		trak:    subsTrak,
 	}, nil
 }
@@ -276,9 +288,9 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 	}
 	for i, sample := range iSamples {
 		switch subsTrak.variant {
-		case "wvtt":
+		case "wvtt", "wvtc":
 			err = printWvttSample(w, sample.Data, i+1, sample.PresentationTime(), sample.Dur)
-		case "stpp":
+		case "stpp", "stpc":
 			err = printStppSample(w, sample.Data, i+1, sample.PresentationTime(), sample.Dur)
 		default:
 			return fmt.Errorf("unknown subtitle track type")
@@ -318,8 +330,36 @@ func printWvttSample(w io.Writer, sample []byte, nr int, pts int64, dur uint32) 
 	return nil
 }
 
+// printStppSample prints an stpp or stpc sample.
+// An stpc sample may be a ttmn or ttmb box instead of a TTML document. It is that box
+// only if its first eight bytes are a box header of that type with a size equal to the
+// sample size. A TTML document can never match, since it cannot start with a zero byte.
 func printStppSample(w io.Writer, sample []byte, nr int, pts int64, dur uint32) error {
 	fmt.Fprintf(w, "Sample %d, pts=%d, dur=%d\n", nr, pts, dur)
+	if box := decodeStppSampleBox(sample); box != nil {
+		return box.Info(w, "  ", "", "  ")
+	}
 	_, err := w.Write(sample)
 	return err
+}
+
+// decodeStppSampleBox returns the ttmn or ttmb box that is the full sample, or nil.
+func decodeStppSampleBox(sample []byte) mp4.Box {
+	if len(sample) < 8 {
+		return nil
+	}
+	switch string(sample[4:8]) {
+	case "ttmn", "ttmb":
+		// Continue below.
+	default:
+		return nil
+	}
+	if binary.BigEndian.Uint32(sample[:4]) != uint32(len(sample)) {
+		return nil
+	}
+	box, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(sample))
+	if err != nil {
+		return nil
+	}
+	return box
 }
