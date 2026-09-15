@@ -11,19 +11,28 @@ import (
 
 ////////////////////////////// wvtt //////////////////////////////
 
-// WvttBox - WVTTSampleEntry (wvtt)
+// WvttBox - WVTTSampleEntry (wvtt or wvtc)
 // Extends PlainTextSampleEntry which extends SampleEntry
+//
+// wvtc is the experimental paint-model variant. It has the same syntax as wvtt,
+// but a sample may also be a VttnBox. The 4CC is not registered with MP4RA.
 type WvttBox struct {
 	VttC               *VttCBox
 	Vlab               *VlabBox
 	Btrt               *BtrtBox
 	Children           []Box
 	DataReferenceIndex uint16
+	name               string // wvtt unless set, e.g. to wvtc
 }
 
 // NewWvttBox - Create new empty wvtt box
 func NewWvttBox() *WvttBox {
-	return &WvttBox{DataReferenceIndex: 1}
+	return &WvttBox{DataReferenceIndex: 1, name: "wvtt"}
+}
+
+// NewWvtcBox - Create new empty wvtc box, the experimental paint-model variant of wvtt
+func NewWvtcBox() *WvttBox {
+	return &WvttBox{DataReferenceIndex: 1, name: "wvtc"}
 }
 
 // AddChild - add a child box
@@ -44,7 +53,7 @@ func (b *WvttBox) AddChild(child Box) {
 
 const nrWvttBytesBeforeChildren = 16
 
-// DecodeWvtt - Decoder wvtt Sample Entry (wvtt)
+// DecodeWvtt - Decoder wvtt Sample Entry (wvtt or wvtc)
 func DecodeWvtt(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
@@ -54,9 +63,9 @@ func DecodeWvtt(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	return DecodeWvttSR(hdr, startPos, sr)
 }
 
-// DecodeWvttSR - Decoder wvtt Sample Entry (wvtt)
+// DecodeWvttSR - Decoder wvtt Sample Entry (wvtt or wvtc)
 func DecodeWvttSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	w := WvttBox{}
+	w := WvttBox{name: hdr.Name}
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
 	sr.SkipBytes(6) // Skip 6 reserved bytes
 	w.DataReferenceIndex = sr.ReadUint16()
@@ -77,9 +86,12 @@ func DecodeWvttSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &w, nil
 }
 
-// Type - return box type
+// Type - return box type, wvtt unless set to something else such as wvtc
 func (b *WvttBox) Type() string {
-	return "wvtt"
+	if b.name == "" {
+		return "wvtt"
+	}
+	return b.name
 }
 
 // Size - return calculated size
@@ -273,7 +285,8 @@ func (b *VlabBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 }
 
 // wvtt Sample boxes
-// A sample is either one vtte box or one or more vttc or vta boxes
+// A sample is either one vtte box or one or more vttc or vta boxes.
+// Under wvtc a sample may instead be one vttn box.
 
 ////////////////////////////// vtte //////////////////////////////
 
@@ -313,6 +326,51 @@ func (b *VtteBox) EncodeSW(sw bits.SliceWriter) error {
 
 // Info - write box-specific information
 func (b *VtteBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
+	bd := newInfoDumper(w, indent, b, -1, 0)
+	return bd.err
+}
+
+////////////////////////////// vttn //////////////////////////////
+
+// VttnBox - VTTNoChangeBox (vttn), an empty box that is a full sample under wvtc.
+// It is the peer of vtte: where vtte clears the screen, vttn says that the
+// currently active cues continue unchanged.
+// Experimental: the 4CC is not registered with MP4RA.
+type VttnBox struct {
+}
+
+// Type - box-specific type
+func (b *VttnBox) Type() string {
+	return "vttn"
+}
+
+// DecodeVttn - box-specific decode
+func DecodeVttn(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	return &VttnBox{}, nil
+}
+
+// DecodeVttnSR - box-specific decode
+func DecodeVttnSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return &VttnBox{}, nil
+}
+
+// Size - calculated size of box
+func (b *VttnBox) Size() uint64 {
+	return uint64(boxHeaderSize)
+}
+
+// Encode - write box to w
+func (b *VttnBox) Encode(w io.Writer) error {
+	return EncodeHeader(b, w)
+}
+
+// EncodeSW - box-specific encode to slicewriter
+func (b *VttnBox) EncodeSW(sw bits.SliceWriter) error {
+	return EncodeHeaderSW(b, sw)
+}
+
+// Info - write box-specific information
+func (b *VttnBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	return bd.err
 }

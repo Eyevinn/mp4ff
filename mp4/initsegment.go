@@ -414,3 +414,27 @@ func (t *TrakBox) SetStppDescriptor(namespace, schemaLocation, auxiliaryMimeType
 	t.Mdia.Minf.Stbl.Stsd.AddChild(stpp)
 	return nil
 }
+
+// SetWvtcDescriptor - Set experimental paint-model wvtc descriptor with a vttC box.
+// config should start with WEBVTT or be empty.
+func (t *TrakBox) SetWvtcDescriptor(config string) error {
+	if config == "" {
+		config = "WEBVTT"
+	}
+	wvtc := NewWvtcBox()
+	wvtc.AddChild(&VttCBox{Config: config})
+	t.Mdia.Minf.Stbl.Stsd.AddChild(wvtc)
+	return nil
+}
+
+// SetStpcDescriptor - add experimental paint-model stpc box with utf8-lists
+// namespace, schemaLocation and auxiliaryMimeType.
+// The utf8-lists have space-separated items, but no zero-termination
+func (t *TrakBox) SetStpcDescriptor(namespace, schemaLocation, auxiliaryMimeTypes string) error {
+	if namespace == "" {
+		namespace = "http://www.w3.org/ns/ttml"
+	}
+	stpc := NewStpcBox(namespace, schemaLocation, auxiliaryMimeTypes)
+	t.Mdia.Minf.Stbl.Stsd.AddChild(stpc)
+	return nil
+}
