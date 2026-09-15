@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Experimental paint-model subtitle boxes for low-latency subtitles, where a
+  sample can say that what is on screen is unchanged instead of restating it.
+  `stpc` and `wvtc` sample entries have the same syntax as `stpp` and `wvtt` and
+  reuse `StppBox` and `WvttBox`, built with `NewStpcBox`/`NewWvtcBox` or
+  `TrakBox.SetStpcDescriptor`/`SetWvtcDescriptor` and reachable as `StsdBox.Stpc`
+  and `StsdBox.Wvtc`. `TtmnBox` (`ttmn`) and `VttnBox` (`vttn`) are 8-byte empty
+  boxes that are a whole sample and mean no change, and `TtmbBox` (`ttmb`) is a
+  whole sample carrying only the `<body>` of a TTML document. `mp4ff-subslister`
+  reads the new entries and renders the new samples. The 4CCs are not registered
+  with MP4RA and may change
 - `hevc.ParseSPSNALUnitWithVPS` parses an SPS with a map of the VPSs it may
   refer to, so that a multilayer extension SPS gets the chroma format, picture
   size, conformance window and bit depths that it does not signal itself

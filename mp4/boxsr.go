@@ -149,6 +149,7 @@ func init() {
 		"stco":    DecodeStcoSR,
 		"ster":    DecodeTrackGroupTypeSR,
 		"sthd":    DecodeSthdSR,
+		"stpc":    DecodeStppSR,
 		"stpp":    DecodeStppSR,
 		"stri":    DecodeStriSR,
 		"stsc":    DecodeStscSR,
@@ -174,6 +175,8 @@ func init() {
 		"trex":    DecodeTrexSR,
 		"trgr":    DecodeTrgrSR,
 		"trun":    DecodeTrunSR,
+		"ttmb":    DecodeTtmbSR,
+		"ttmn":    DecodeTtmnSR,
 		"twos":    DecodeQuickTimeAudioSampleEntrySR,
 		"udta":    DecodeUdtaSR,
 		"url ":    DecodeURLBoxSR,
@@ -194,7 +197,9 @@ func init() {
 		"vttc":    DecodeVttcSR,
 		"vttC":    DecodeVttCSR,
 		"vtte":    DecodeVtteSR,
+		"vttn":    DecodeVttnSR,
 		"wave":    DecodeWaveSR,
+		"wvtc":    DecodeWvttSR,
 		"wvtt":    DecodeWvttSR,
 	}
 }
