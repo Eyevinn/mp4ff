@@ -127,6 +127,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DecodeSgpd`/`DecodeSgpdSR` did not bound the per-entry `description_length`
+  against the bytes left in the `sgpd` box, and the sample group entry
+  decoders size their slices from it. A 32-byte box declaring
+  `description_length = 0xfffffff0` for an `alst` entry allocated 4GB in
+  `DecodeAlstSampleGroupEntry`. The length is now checked against what is left
+  of the box before the entry is decoded
 - `avc.ParsePPSNALUnit` skipped the six 4x4 picture scaling lists when
   `pic_scaling_matrix_present_flag` was set but `transform_8x8_mode_flag` was
   not, since the read loop was nested inside the 8x8 mode check. The lists are

@@ -31,6 +31,7 @@ func DecodeSgpd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeSgpdSR - box-specific decode
 func DecodeSgpdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	bodyEnd := sr.GetPos() + hdr.payloadLen()
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
@@ -55,6 +56,15 @@ func DecodeSgpdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		}
 		if descriptionLength == 0 {
 			return nil, fmt.Errorf("sgpd: invalid descriptionLength of 0")
+		}
+		// An entry cannot be longer than what is left of the box. The sample
+		// group entry decoders size their slices from descriptionLength, so an
+		// unbounded value read straight off the wire lets a small box ask for
+		// gigabytes (AlstSampleGroupEntry sizes two slices from it).
+		bytesLeft := bodyEnd - sr.GetPos()
+		if bytesLeft < 0 || uint64(descriptionLength) > uint64(bytesLeft) {
+			return nil, fmt.Errorf("sgpd: descriptionLength %d of entry %d exceeds %d bytes left in box",
+				descriptionLength, i, bytesLeft)
 		}
 		sgEntry, err := decodeSampleGroupEntry(b.GroupingType, descriptionLength, sr)
 		if err != nil {
