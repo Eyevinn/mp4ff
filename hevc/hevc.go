@@ -135,7 +135,8 @@ func SplitNalusByLayerID(sample []byte, lengthSize int) map[byte][][]byte {
 			return result
 		}
 		pos += lengthSize
-		if pos+int(naluLength) > len(sample) || naluLength < 2 {
+		// uint64 arithmetic so that a length field of 2^31 or more cannot wrap int on 32-bit platforms
+		if uint64(pos)+uint64(naluLength) > uint64(len(sample)) || naluLength < 2 {
 			break
 		}
 		layerID := GetNaluLayerID(sample[pos : pos+2])

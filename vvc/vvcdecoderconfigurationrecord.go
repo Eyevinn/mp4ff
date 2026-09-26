@@ -1,11 +1,16 @@
 package vvc
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
+
+// ErrInvalidLengthSize is returned for a LengthSizeMinusOne other than 0, 1, or 3,
+// the only values that ISO/IEC 14496-15 allows.
+var ErrInvalidLengthSize = errors.New("NALU length size must be 1, 2, or 4 bytes")
 
 /*
 PTL represents profile-tier-level information (VvcPTLRecord) Section 11.2.4.1.2
@@ -153,6 +158,9 @@ func (d *DecConfRec) Encode(w io.Writer) error {
 
 // EncodeSW writes the decoder configuration record to sw
 func (d *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
+	if err := checkLengthSizeMinusOne(d.LengthSizeMinusOne); err != nil {
+		return err
+	}
 	// First byte: reserved (5 bits) + lengthSizeMinusOne (2 bits) + ptlPresentFlag (1 bit)
 	firstByte := byte(0xF8) | (d.LengthSizeMinusOne << 1)
 	if d.PtlPresentFlag {
@@ -270,6 +278,9 @@ func DecodeVVCDecConfRec(data []byte) (DecConfRec, error) {
 	// First byte: reserved (5 bits) + lengthSizeMinusOne (2 bits) + ptlPresentFlag (1 bit)
 	firstByte := sr.ReadUint8()
 	d.LengthSizeMinusOne = (firstByte >> 1) & 0x03
+	if err := checkLengthSizeMinusOne(d.LengthSizeMinusOne); err != nil {
+		return d, err
+	}
 	d.PtlPresentFlag = (firstByte & 0x01) != 0
 
 	if d.PtlPresentFlag {
@@ -401,4 +412,15 @@ func boolToUint8(b bool) uint8 {
 		return 1
 	}
 	return 0
+}
+
+// checkLengthSizeMinusOne returns ErrInvalidLengthSize unless lengthSizeMinusOne is 0, 1, or 3.
+// A value of 2 would mean 3-byte NALU lengths, and 4 or more spills into the reserved bits.
+func checkLengthSizeMinusOne(lengthSizeMinusOne uint8) error {
+	switch lengthSizeMinusOne {
+	case 0, 1, 3:
+		return nil
+	default:
+		return fmt.Errorf("%w: LengthSizeMinusOne %d", ErrInvalidLengthSize, lengthSizeMinusOne)
+	}
 }

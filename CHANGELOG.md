@@ -127,6 +127,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Invalid NALU length sizes are rejected: the 3-byte size in lhvC and vvcC,
+  anything but 1, 2 or 4 bytes when encoding hvcC, lhvC and vvcC
+  (`ErrInvalidLengthSize`), and differing lhvC and hvcC sizes in a sample
+  entry. `mp4ff-nallister` rejects VVC tracks without 4-byte lengths
+- `hevc.SplitNalusByLayerID` panicked on 32-bit platforms for a length field of
+  2^31 or more
 - `DecodeSgpd`/`DecodeSgpdSR` did not bound the per-entry `description_length`
   against the bytes left in the `sgpd` box, and the sample group entry
   decoders size their slices from it. A 32-byte box declaring
