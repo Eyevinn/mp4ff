@@ -2,6 +2,7 @@ package vvc
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 )
 
@@ -334,5 +335,39 @@ func TestParseNaluHeader(t *testing.T) {
 				t.Errorf("NuhTemporalIdPlus1 mismatch: got %d, want %d", header.NuhTemporalIdPlus1, tc.expectedHeader.NuhTemporalIdPlus1)
 			}
 		})
+	}
+}
+
+// TestDecConfRecLengthSize checks that only the LengthSizeMinusOne values 0, 1,
+// and 3 that ISO/IEC 14496-15 allows are encoded and decoded.
+func TestDecConfRecLengthSize(t *testing.T) {
+	// Before the check, 4 was written into the reserved bits and read back as 0.
+	for _, lengthSizeMinusOne := range []uint8{0, 1, 2, 3, 4} {
+		rec := DecConfRec{LengthSizeMinusOne: lengthSizeMinusOne}
+		var buf bytes.Buffer
+		err := rec.Encode(&buf)
+		if lengthSizeMinusOne == 2 || lengthSizeMinusOne > 3 {
+			if !errors.Is(err, ErrInvalidLengthSize) {
+				t.Errorf("LengthSizeMinusOne %d: got error %v, want ErrInvalidLengthSize", lengthSizeMinusOne, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("LengthSizeMinusOne %d: %v", lengthSizeMinusOne, err)
+			continue
+		}
+		got, err := DecodeVVCDecConfRec(buf.Bytes())
+		if err != nil {
+			t.Errorf("LengthSizeMinusOne %d: %v", lengthSizeMinusOne, err)
+			continue
+		}
+		if got.LengthSizeMinusOne != lengthSizeMinusOne {
+			t.Errorf("LengthSizeMinusOne %d: decoded as %d", lengthSizeMinusOne, got.LengthSizeMinusOne)
+		}
+	}
+
+	// reserved(5) = '11111'b, LengthSizeMinusOne(2) = 2, ptl_present_flag(1) = 0, then numOfArrays = 0
+	if _, err := DecodeVVCDecConfRec([]byte{0xfc, 0x00}); !errors.Is(err, ErrInvalidLengthSize) {
+		t.Errorf("LengthSizeMinusOne 2: got error %v, want ErrInvalidLengthSize", err)
 	}
 }

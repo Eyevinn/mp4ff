@@ -1,6 +1,8 @@
 package mp4_test
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"testing"
 
@@ -327,4 +329,37 @@ func TestVvi1Box(t *testing.T) {
 
 	// Test round-trip encode/decode using helper
 	cmpAfterDecodeEncodeBox(t, data)
+}
+
+// TestVvcCLengthSize checks that a vvcC box with LengthSizeMinusOne 2 (3-byte
+// NALU lengths, which ISO/IEC 14496-15 does not allow) fails to decode on both
+// decode paths, while the allowed 1- and 2-byte values still decode.
+func TestVvcCLengthSize(t *testing.T) {
+	for _, c := range []struct {
+		lengthSizeMinusOne uint8
+		wantErr            bool
+	}{
+		{lengthSizeMinusOne: 0, wantErr: false},
+		{lengthSizeMinusOne: 1, wantErr: false},
+		{lengthSizeMinusOne: 2, wantErr: true},
+	} {
+		box := &mp4.VvcCBox{DecConfRec: vvc.DecConfRec{LengthSizeMinusOne: 3}}
+		var buf bytes.Buffer
+		if err := box.Encode(&buf); err != nil {
+			t.Fatal(err)
+		}
+		data := buf.Bytes()
+		// Byte 12, after the box header and version/flags, is reserved(5) + LengthSizeMinusOne(2) + ptl_present_flag(1).
+		data[12] = 0xf8 | c.lengthSizeMinusOne<<1
+		decoded, err := mp4.DecodeBox(0, bytes.NewReader(data))
+		_, errSR := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data))
+		for _, e := range []error{err, errSR} {
+			if c.wantErr && !errors.Is(e, vvc.ErrInvalidLengthSize) || !c.wantErr && e != nil {
+				t.Errorf("LengthSizeMinusOne %d: got error %v, want error %t", c.lengthSizeMinusOne, e, c.wantErr)
+			}
+		}
+		if !c.wantErr && err == nil && decoded.(*mp4.VvcCBox).LengthSizeMinusOne != c.lengthSizeMinusOne {
+			t.Errorf("LengthSizeMinusOne %d: decoded as %d", c.lengthSizeMinusOne, decoded.(*mp4.VvcCBox).LengthSizeMinusOne)
+		}
+	}
 }

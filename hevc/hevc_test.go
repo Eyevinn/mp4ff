@@ -242,6 +242,13 @@ func TestSplitNalusByLayerID(t *testing.T) {
 	if len(empty) != 0 {
 		t.Errorf("expected empty result for nil input")
 	}
+
+	// Length fields of 2^31 or more wrapped int on 32-bit platforms, passed the bounds check, and panicked.
+	for _, huge := range [][]byte{{0x80, 0, 0, 0, 0x40, 0x01}, {0xff, 0xff, 0xff, 0xff, 0x40, 0x01}} {
+		if got := SplitNalusByLayerID(huge, 4); len(got) != 0 {
+			t.Errorf("length field %x: expected empty result, got %d layers", huge[:4], len(got))
+		}
+	}
 }
 
 func TestNaluTypeStrings(t *testing.T) {

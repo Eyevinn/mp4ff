@@ -181,7 +181,20 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 			return nil, fmt.Errorf("not childbox of VisualSampleEntry")
 		}
 	}
+	if err := b.checkLengthSizes(); err != nil {
+		return nil, err
+	}
 	return &b, sr.AccError()
+}
+
+// checkLengthSizes checks that the hvcC and lhvC, if both are present, have the same lengthSizeMinusOne.
+// 14496-15 9.5.3 requires this, since the NALUs of all layers share the length fields of the samples.
+func (b *VisualSampleEntryBox) checkLengthSizes() error {
+	if b.HvcC != nil && b.LhvC != nil && b.HvcC.LengthSizeMinusOne != b.LhvC.LengthSizeMinusOne {
+		return fmt.Errorf("lhvC lengthSizeMinusOne %d differs from hvcC lengthSizeMinusOne %d",
+			b.LhvC.LengthSizeMinusOne, b.HvcC.LengthSizeMinusOne)
+	}
+	return nil
 }
 
 // Type returns box type
@@ -206,6 +219,9 @@ func (b *VisualSampleEntryBox) Size() uint64 {
 
 // Encode writes box to w
 func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
+	if err := b.checkLengthSizes(); err != nil {
+		return err
+	}
 	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
@@ -253,6 +269,9 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 
 // EncodeSW writes box to sw
 func (b *VisualSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
+	if err := b.checkLengthSizes(); err != nil {
+		return err
+	}
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
 		return err

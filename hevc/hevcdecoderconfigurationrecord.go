@@ -11,6 +11,9 @@ import (
 // HEVC errors
 var (
 	ErrLengthSize = errors.New("can only handle 4byte NALU length size")
+	// ErrInvalidLengthSize is returned for a lengthSizeMinusOne other than 0, 1, or 3,
+	// the only values that ISO/IEC 14496-15 allows.
+	ErrInvalidLengthSize = errors.New("NALU length size must be 1, 2, or 4 bytes")
 )
 
 // DecConfRec - HEVCDecoderConfigurationRecord
@@ -175,6 +178,9 @@ func (h *DecConfRec) Encode(w io.Writer) error {
 
 // EncodeSW- write an HEVCDecConfRec to sw
 func (h *DecConfRec) EncodeSW(sw bits.SliceWriter) error {
+	if err := checkLengthSizeMinusOne(h.LengthSizeMinusOne); err != nil {
+		return err
+	}
 	sw.WriteUint8(h.ConfigurationVersion)
 	var generalTierFlagBit byte
 	if h.GeneralTierFlag {
@@ -238,6 +244,9 @@ func DecodeLHEVCDecConfRec(data []byte) (DecConfRec, error) {
 	hdcr.NumTemporalLayers = (aByte >> 3) & 0x7
 	hdcr.TemporalIDNested = (aByte >> 2) & 0x1
 	hdcr.LengthSizeMinusOne = aByte & 0x3
+	if err := checkLengthSizeMinusOne(hdcr.LengthSizeMinusOne); err != nil {
+		return hdcr, err
+	}
 	numArrays := sr.ReadUint8()
 	for j := 0; j < int(numArrays); j++ {
 		array := NaluArray{
@@ -279,6 +288,9 @@ func (h *DecConfRec) EncodeLHEVC(w io.Writer) error {
 
 // EncodeLHEVCSW writes an L-HEVC (lhvC) decoder configuration record to sw.
 func (h *DecConfRec) EncodeLHEVCSW(sw bits.SliceWriter) error {
+	if err := checkLengthSizeMinusOne(h.LengthSizeMinusOne); err != nil {
+		return err
+	}
 	sw.WriteUint8(h.ConfigurationVersion)
 	sw.WriteUint16(0xf000 | h.MinSpatialSegmentationIDC)
 	sw.WriteUint8(0xfc | h.ParallellismType)
@@ -294,4 +306,15 @@ func (h *DecConfRec) EncodeLHEVCSW(sw bits.SliceWriter) error {
 		}
 	}
 	return sw.AccError()
+}
+
+// checkLengthSizeMinusOne returns ErrInvalidLengthSize unless lengthSizeMinusOne is 0, 1, or 3.
+// A value of 2 would mean 3-byte NALU lengths, and 4 or more spills into the neighboring fields.
+func checkLengthSizeMinusOne(lengthSizeMinusOne byte) error {
+	switch lengthSizeMinusOne {
+	case 0, 1, 3:
+		return nil
+	default:
+		return fmt.Errorf("%w: lengthSizeMinusOne %d", ErrInvalidLengthSize, lengthSizeMinusOne)
+	}
 }

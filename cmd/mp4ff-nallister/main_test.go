@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/avc"
@@ -136,5 +137,30 @@ func TestBadChunkOffsets(t *testing.T) {
 
 	if err := run([]string{appName, badFile}, &bytes.Buffer{}); err == nil {
 		t.Error("expected error for chunk offsets outside mdat, got nil")
+	}
+}
+
+// TestVVCLengthSize checks that a VVC track whose vvcC declares NALU length
+// fields other than 4 bytes gives a clear error instead of misread samples.
+func TestVVCLengthSize(t *testing.T) {
+	raw, err := os.ReadFile("../../mp4/testdata/vvc_400kbps_2s.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vvcCPos := bytes.Index(raw, []byte("vvcC"))
+	if vvcCPos < 0 {
+		t.Fatal("no vvcC box found")
+	}
+	// After the box type and version/flags: reserved(5) + LengthSizeMinusOne(2) + ptl_present_flag(1).
+	p := vvcCPos + 8
+	raw[p] = raw[p]&^0x06 | 1<<1 // 2-byte NALU lengths
+	badFile := filepath.Join(t.TempDir(), "vvc_2byte.mp4")
+	if err := os.WriteFile(badFile, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err = run([]string{appName, badFile}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "2-byte NALU lengths") {
+		t.Errorf("got error %v, want one about 2-byte NALU lengths", err)
 	}
 }

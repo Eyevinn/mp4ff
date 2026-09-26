@@ -3,6 +3,7 @@ package hevc
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -200,5 +201,62 @@ func TestLHEVCDecConfRecRoundTrip(t *testing.T) {
 	bad[0] = 2
 	if _, err := DecodeLHEVCDecConfRec(bad); err == nil {
 		t.Error("expected error for unknown configurationVersion")
+	}
+}
+
+// TestLengthSizeMinusOne checks that the hvcC and lhvC encoders accept only the
+// lengthSizeMinusOne values 0, 1, and 3 that ISO/IEC 14496-15 allows, and that
+// the lhvC decoder, which accepts 1- and 2-byte lengths, rejects the 3-byte value 2.
+func TestLengthSizeMinusOne(t *testing.T) {
+	sps, _ := hex.DecodeString("42010101600000030090000003000003007ba003c08010e5ad")
+	newRec := func(lengthSizeMinusOne byte) DecConfRec {
+		return DecConfRec{
+			ConfigurationVersion: 1,
+			NumTemporalLayers:    1,
+			TemporalIDNested:     0,
+			LengthSizeMinusOne:   lengthSizeMinusOne,
+			NaluArrays:           []NaluArray{NewNaluArray(true, NALU_SPS, [][]byte{sps})},
+		}
+	}
+	// Before the check, 4 was written into the TemporalIDNested bit and 7 into NumTemporalLayers too.
+	for _, lengthSizeMinusOne := range []byte{0, 1, 2, 3, 4, 7} {
+		rec := newRec(lengthSizeMinusOne)
+		var hvcC, lhvC bytes.Buffer
+		errHvcC := rec.Encode(&hvcC)
+		errLhvC := rec.EncodeLHEVC(&lhvC)
+		if lengthSizeMinusOne == 2 || lengthSizeMinusOne > 3 {
+			if !errors.Is(errHvcC, ErrInvalidLengthSize) {
+				t.Errorf("hvcC lengthSizeMinusOne %d: got error %v, want ErrInvalidLengthSize", lengthSizeMinusOne, errHvcC)
+			}
+			if !errors.Is(errLhvC, ErrInvalidLengthSize) {
+				t.Errorf("lhvC lengthSizeMinusOne %d: got error %v, want ErrInvalidLengthSize", lengthSizeMinusOne, errLhvC)
+			}
+			continue
+		}
+		if errHvcC != nil || errLhvC != nil {
+			t.Errorf("lengthSizeMinusOne %d: unexpected errors %v, %v", lengthSizeMinusOne, errHvcC, errLhvC)
+			continue
+		}
+		got, err := DecodeLHEVCDecConfRec(lhvC.Bytes())
+		if err != nil {
+			t.Errorf("lhvC lengthSizeMinusOne %d: %v", lengthSizeMinusOne, err)
+			continue
+		}
+		if got.LengthSizeMinusOne != lengthSizeMinusOne || got.NumTemporalLayers != 1 || got.TemporalIDNested != 0 {
+			t.Errorf("lhvC lengthSizeMinusOne %d: decoded as %d with NumTemporalLayers %d, TemporalIDNested %d",
+				lengthSizeMinusOne, got.LengthSizeMinusOne, got.NumTemporalLayers, got.TemporalIDNested)
+		}
+	}
+
+	var lhvC bytes.Buffer
+	rec := newRec(3)
+	if err := rec.EncodeLHEVC(&lhvC); err != nil {
+		t.Fatal(err)
+	}
+	data := lhvC.Bytes()
+	// Byte 4 is reserved(2) + numTemporalLayers(3) + temporalIdNested(1) + lengthSizeMinusOne(2).
+	data[4] = data[4]&^0x03 | 0x02
+	if _, err := DecodeLHEVCDecConfRec(data); !errors.Is(err, ErrInvalidLengthSize) {
+		t.Errorf("lhvC lengthSizeMinusOne 2: got error %v, want ErrInvalidLengthSize", err)
 	}
 }
