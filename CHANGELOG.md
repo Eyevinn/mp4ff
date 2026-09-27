@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Constants for `ftyp`/`styp` brands from ISOBMFF, MP4, CMAF, DASH and codec
   specifications (`mp4.BrandIso6`, `mp4.BrandCmfc`, `mp4.BrandLmsg`, ...), and
   `HasCompatibleBrand` on `FtypBox` and `StypBox`
+- `InitSegment.GenerateFtyp`, `InitSegment.SetFtyp` and
+  `MediaSegment.GenerateStyp` set ftyp/styp brands from the content: lowest
+  isoN brand, codec brands, CMAF brands, and DASH `msdh`/`msix`/`lmsg`
 - Experimental paint-model subtitle boxes: `stpc`/`wvtc` sample entries, and
   `ttmn`/`vttn` (no change) and `ttmb` (TTML body only) samples, also handled
   by `mp4ff-subslister`. The 4CCs are unregistered and may change
@@ -100,6 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `CreateFtyp` gives `cmfc` + `[cmfc, iso6]` and `CreateStyp` gives
+  `cmfs` + `[cmfs, cmff, cmfl, msdh]`: the major brand is repeated and `dash` is dropped
 - Minimum Go version bumped from 1.19 to 1.23, for `slices` and `iter`
 - The commands and examples that create their own output file now buffer their
   writes, like `WriteToFile` already does. `Encode` makes about one write call

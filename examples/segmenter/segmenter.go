@@ -130,7 +130,12 @@ func (s *Segmenter) MakeMuxedInitSegment() (*mp4.InitSegment, error) {
 			return nil, fmt.Errorf("unsupported tracktype: %s", tr.trackType)
 		}
 	}
-
+	// A CMAF header has only one track, so the default cmfc brand does not apply.
+	ftyp, err := init.GenerateFtyp(mp4.FtypOptions{})
+	if err != nil {
+		return nil, err
+	}
+	init.SetFtyp(ftyp)
 	return init, nil
 }
 

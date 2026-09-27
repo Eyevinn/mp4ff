@@ -18,9 +18,14 @@ func (b *StypBox) Copy() *StypBox {
 	return &StypBox{b.clone()}
 }
 
-// CreateStyp - Create an Styp box suitable for DASH/CMAF
+// CreateStyp - Create an Styp box for a CMAF segment in DASH
+//
+// The brands cmfs, cmff and cmfl declare a CMAF segment that starts with a
+// CMAF fragment and chunk, and msdh the DASH Simple format, which the segments
+// that mp4ff writes have. Use MediaSegment.GenerateStyp to get brands that
+// match the actual segment.
 func CreateStyp() *StypBox {
-	return NewStyp(BrandCmfs, 0, []string{BrandDash, BrandMsdh})
+	return NewStyp(BrandCmfs, 0, []string{BrandCmfs, BrandCmff, BrandCmfl, BrandMsdh})
 }
 
 // NewStyp - new styp box with parameters
