@@ -125,10 +125,14 @@ func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *Tra
 		  - stsz
 		  - stco
 	*/
+	hdlr, err := CreateHdlr(mediaType)
+	if err != nil {
+		panic(fmt.Sprintf("mediaType %s not supported", mediaType))
+	}
 	trak := &TrakBox{}
 	tkhd := CreateTkhd()
 	tkhd.TrackID = trackID
-	if mediaType == "audio" {
+	if hdlr.HandlerType == "soun" {
 		tkhd.Volume = 0x0100 // Fixed 16 value 1.0
 	}
 	trak.AddChild(tkhd)
@@ -138,10 +142,6 @@ func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *Tra
 	mdhd := &MdhdBox{}
 	mdhd.Timescale = timeScale
 	mdia.AddChild(mdhd)
-	hdlr, err := CreateHdlr(mediaType)
-	if err != nil {
-		panic(fmt.Sprintf("mediaType %s not supported", mediaType))
-	}
 	mdia.AddChild(hdlr)
 	if len(language) == 3 {
 		mdhd.SetLanguage(language)
@@ -152,16 +152,15 @@ func CreateEmptyTrak(trackID, timeScale uint32, mediaType, language string) *Tra
 	}
 	minf := NewMinfBox()
 	mdia.AddChild(minf)
-	switch mediaType {
-	case "video":
+	// The media header follows from the handler type (ISO/IEC 14496-12 Clause 12).
+	switch hdlr.HandlerType {
+	case "vide":
 		minf.AddChild(CreateVmhd())
-	case "audio":
+	case "soun":
 		minf.AddChild(CreateSmhd())
-	case "subtitle", "subtitles", "stpp":
+	case "subt":
 		minf.AddChild(&SthdBox{})
-	case "text", "wvtt":
-		minf.AddChild(&NmhdBox{})
-	default:
+	default: // text, meta and others
 		minf.AddChild(&NmhdBox{})
 	}
 	dinf := &DinfBox{}

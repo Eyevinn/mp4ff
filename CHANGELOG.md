@@ -137,6 +137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `CreateEmptyTrak`/`AddEmptyTrack` pick the media header from the handler
+  type: `subt`, `stpp` and `clcp` tracks get `sthd`, and `stpp` gets handler `subt`
 - The streaming `SampleAccessor.GetSample`, `GetSampleRange` and `GetSamples`
   allocated the sample size a trun claimed before checking it against the mdat
 - Invalid NALU length sizes are rejected: the 3-byte size in lhvC and vvcC,

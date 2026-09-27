@@ -24,6 +24,10 @@ type HdlrBox struct {
 }
 
 // CreateHdlr - create mediaType-specific hdlr box
+//
+// mediaOrHdlrType is a media type or sample entry type with a known handler
+// ("video", "audio", "subtitle", "subtitles", "stpp", "text", "wvtt", "meta"
+// or "clcp"), or any other four-character handler type, which is used as is.
 func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 	hdlr := &HdlrBox{}
 	switch mediaOrHdlrType {
@@ -33,7 +37,7 @@ func CreateHdlr(mediaOrHdlrType string) (*HdlrBox, error) {
 	case "audio", "soun":
 		hdlr.HandlerType = "soun"
 		hdlr.Name = "mp4ff audio handler"
-	case "subtitle", "subt":
+	case "subtitle", "subtitles", "subt", "stpp":
 		hdlr.HandlerType = "subt"
 		hdlr.Name = "mp4ff subtitle handler"
 	case "text", "wvtt":

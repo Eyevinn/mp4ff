@@ -107,6 +107,42 @@ func TestCreateInitSegments(t *testing.T) {
 	}
 }
 
+// TestCreateEmptyTrakHandlerAndMediaHeader checks that the media header of an
+// empty track matches its handler type (ISO/IEC 14496-12 Clause 12), whichever
+// alias is used for the media type.
+func TestCreateEmptyTrakHandlerAndMediaHeader(t *testing.T) {
+	cases := []struct {
+		mediaTypes  []string
+		handlerType string
+		mediaHeader string
+	}{
+		{[]string{"video", "vide"}, "vide", "vmhd"},
+		{[]string{"audio", "soun"}, "soun", "smhd"},
+		{[]string{"subtitle", "subtitles", "subt", "stpp", "clcp"}, "subt", "sthd"},
+		{[]string{"text", "wvtt"}, "text", "nmhd"},
+		{[]string{"meta"}, "meta", "nmhd"},
+		{[]string{"zzzz"}, "zzzz", "nmhd"},
+	}
+	for _, c := range cases {
+		for _, mediaType := range c.mediaTypes {
+			trak := mp4.CreateEmptyTrak(1, 1000, mediaType, "und")
+			if got := trak.Mdia.Hdlr.HandlerType; got != c.handlerType {
+				t.Errorf("%s: handler type %s, want %s", mediaType, got, c.handlerType)
+			}
+			if got := trak.Mdia.Minf.Children[0].Type(); got != c.mediaHeader {
+				t.Errorf("%s: media header %s, want %s", mediaType, got, c.mediaHeader)
+			}
+			wantVolume := mp4.Fixed16(0)
+			if c.handlerType == "soun" {
+				wantVolume = 0x0100
+			}
+			if got := trak.Tkhd.Volume; got != wantVolume {
+				t.Errorf("%s: tkhd volume %#x, want %#x", mediaType, got, wantVolume)
+			}
+		}
+	}
+}
+
 func createVideoAVCInitSegment() (*mp4.InitSegment, error) {
 	sps, _ := hex.DecodeString(avcSPSnalu)
 	spsNALUs := [][]byte{sps}
