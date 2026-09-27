@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"iter"
 	"sort"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -138,62 +139,131 @@ func (f *Fragment) Size() uint64 {
 
 // GetFullSamples - Get full samples including media and accumulated time
 func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
-	moof := f.Moof
-	mdat := f.Mdat
-	//seqNr := moof.Mfhd.SequenceNumber
-	var traf *TrafBox
-	foundTrak := false
-	if trex != nil {
-		for _, traf = range moof.Trafs {
-			if traf.Tfhd.TrackID == trex.TrackID {
-				foundTrak = true
-				break
-			}
-		}
-		if !foundTrak {
-			return nil, nil // This trackID may not exist for this fragment
-		}
-	} else {
-		traf = moof.Traf // The first one
+	samples, err := f.AppendFullSamples(nil, trex)
+	if err != nil {
+		return nil, err
+	}
+	return samples, nil
+}
+
+// AppendFullSamples appends the full samples of one track to dst and returns the extended slice.
+// It is GetFullSamples with caller-provided storage: when dst has enough capacity, nothing is allocated,
+// so a caller that processes many fragments can reuse one slice for all of them by passing samples[:0].
+// The track is selected by trex.TrackID, or the first traf if trex is nil. A track that is not present in the
+// fragment appends nothing. The sample data are views into f.Mdat.Data, not copies, so they are only valid as long
+// as the mdat data is. When the fragment is decoded with DecodeFileSR or DecodeBoxSR, the mdat data is itself a view
+// into the input slice, so a pooled input buffer ends up holding all sample data.
+// On error, dst is returned truncated to its original length so that its storage can be reused.
+func (f *Fragment) AppendFullSamples(dst []FullSample, trex *TrexBox) ([]FullSample, error) {
+	traf := f.sampleTraf(trex)
+	if traf == nil {
+		return dst, nil // This trackID may not exist for this fragment
 	}
 	tfhd := traf.Tfhd
 	var baseTime uint64
 	if traf.Tfdt != nil {
 		baseTime = traf.Tfdt.BaseMediaDecodeTime()
 	}
-	moofStartPos := moof.StartPos
-	var samples []FullSample
+	origLen := len(dst)
 	for _, trun := range traf.Truns {
 		totalDur := trun.AddSampleDefaultValues(tfhd, trex)
-		// The default is moofStartPos according to Section 8.8.7.1
-		baseOffset := moofStartPos
-		if tfhd.HasBaseDataOffset() {
-			baseOffset = tfhd.BaseDataOffset
-		} else if tfhd.DefaultBaseIfMoof() {
-			baseOffset = moofStartPos
-		}
-		if trun.HasDataOffset() {
-			baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
-		}
-		mdatDataLength := uint64(len(mdat.Data)) // len should be fine for 64-bit
-		var offsetInMdat uint64
-		if baseOffset > 0 {
-			offsetInMdat = baseOffset - mdat.PayloadAbsoluteOffset()
-			if offsetInMdat > mdatDataLength {
-				return nil, fmt.Errorf("offset in mdata beyond size")
-			}
-		} else {
-			offsetInMdat = 0
-		}
-		trunSamples, err := trun.GetFullSamples(uint32(offsetInMdat), baseTime, mdat)
+		offsetInMdat, err := f.trunOffsetInMdat(tfhd, trun)
 		if err != nil {
-			return nil, err
+			return dst[:origLen], err
 		}
-		samples = append(samples, trunSamples...)
+		dst, err = trun.AppendFullSamples(dst, uint32(offsetInMdat), baseTime, f.Mdat)
+		if err != nil {
+			return dst[:origLen], err
+		}
 		baseTime += totalDur // Next trun start after this
 	}
+	return dst, nil
+}
 
-	return samples, nil
+// Samples returns an iterator over the full samples of one track, the range-over-func counterpart of
+// AppendFullSamples:
+//
+//	for s, err := range frag.Samples(trex) {
+//		if err != nil {
+//			return err
+//		}
+//		// use s
+//	}
+//
+// The track is selected as for AppendFullSamples. Nothing is allocated, as no slice of samples is built: each
+// sample is passed to the loop body as it is produced. The sample data are views into f.Mdat.Data, as for
+// GetFullSamples, and the data of consecutive samples are adjacent there, so AddFullSamples adds collected samples
+// to a new fragment without copying.
+//
+// All sample data are checked against the mdat data before the first sample is yielded. If the check fails, a
+// single pair with a zero FullSample and the error is yielded, so a fragment's samples are yielded either all or
+// not at all.
+func (f *Fragment) Samples(trex *TrexBox) iter.Seq2[FullSample, error] {
+	return func(yield func(FullSample, error) bool) {
+		f.yieldSamples(trex, yield)
+	}
+}
+
+// yieldSamples implements the iterator returned by Samples.
+func (f *Fragment) yieldSamples(trex *TrexBox, yield func(FullSample, error) bool) {
+	traf := f.sampleTraf(trex)
+	if traf == nil {
+		return
+	}
+	tfhd := traf.Tfhd
+	mdatLen := uint64(len(f.Mdat.Data))
+	for nr, trun := range traf.Truns {
+		trun.AddSampleDefaultValues(tfhd, trex)
+		end, err := f.trunOffsetInMdat(tfhd, trun)
+		if err == nil {
+			for _, s := range trun.Samples {
+				end += uint64(s.Size)
+			}
+			if end > mdatLen {
+				err = fmt.Errorf("trun %d: sample data ends at %d, outside mdat data (size %d)", nr+1, end, mdatLen)
+			}
+		}
+		if err != nil {
+			yield(FullSample{}, err)
+			return
+		}
+	}
+	var decodeTime uint64
+	if traf.Tfdt != nil {
+		decodeTime = traf.Tfdt.BaseMediaDecodeTime()
+	}
+	for _, trun := range traf.Truns {
+		offset, _ := f.trunOffsetInMdat(tfhd, trun) // checked above
+		for _, s := range trun.Samples {
+			end := offset + uint64(s.Size)
+			if !yield(FullSample{Sample: s, DecodeTime: decodeTime, Data: f.Mdat.Data[offset:end]}, nil) {
+				return
+			}
+			decodeTime += uint64(s.Dur)
+			offset = end
+		}
+	}
+}
+
+// sampleTraf returns the traf of trex.TrackID, the first traf if trex is nil, or nil if the track is absent.
+func (f *Fragment) sampleTraf(trex *TrexBox) *TrafBox {
+	if trex == nil {
+		return f.Moof.Traf
+	}
+	return trafForTrackID(f.Moof, trex.TrackID)
+}
+
+// trunOffsetInMdat returns the offset in f.Mdat.Data of the first sample of trun.
+func (f *Fragment) trunOffsetInMdat(tfhd *TfhdBox, trun *TrunBox) (uint64, error) {
+	baseOffset := trunDataOffset(f.Moof.StartPos, tfhd, trun)
+	if baseOffset == 0 {
+		return 0, nil
+	}
+	offsetInMdat := baseOffset - f.Mdat.PayloadAbsoluteOffset()
+	if offsetInMdat > uint64(len(f.Mdat.Data)) {
+		return 0, fmt.Errorf("offset in mdata beyond size")
+	}
+	return offsetInMdat, nil
 }
 
 // AddFullSample - add a full sample to the first (and only) trun of a track

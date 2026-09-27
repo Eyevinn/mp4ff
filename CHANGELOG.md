@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Experimental paint-model subtitle boxes: `stpc`/`wvtc` sample entries, and
   `ttmn`/`vttn` (no change) and `ttmb` (TTML body only) samples, also handled
   by `mp4ff-subslister`. The 4CCs are unregistered and may change
+- `Fragment.AppendFullSamples`, `TrunBox.AppendFullSamples`,
+  `SampleAccessor.AppendSamples` and `AppendSampleRange` extract samples into
+  caller-provided storage, so reused slices avoid allocation. Implementations
+  of `SampleAccessor` outside mp4ff must add the two methods
+- `Fragment.Samples` iterates over the full samples of a track without
+  allocating
 - `hevc.ParseSPSNALUnitWithVPS` parses an SPS with a map of the VPSs it may
   refer to, so that a multilayer extension SPS gets the chroma format, picture
   size, conformance window and bit depths that it does not signal itself
@@ -91,6 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Minimum Go version bumped from 1.19 to 1.23, for `slices` and `iter`
 - The commands and examples that create their own output file now buffer their
   writes, like `WriteToFile` already does. `Encode` makes about one write call
   per box, so writing straight to a file cost a syscall per box: affects
