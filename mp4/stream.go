@@ -250,6 +250,9 @@ func (fsa *fragmentSampleAccessor) GetSample(trackID uint32, sampleNr uint32) (*
 		}
 
 		// Read just this sample's data
+		if err := fsa.checkInMdat(baseOffset, uint64(sample.Size)); err != nil {
+			return nil, fmt.Errorf("sample %d: %w", sampleNr, err)
+		}
 		data, err := mdat.ReadData(int64(baseOffset), int64(sample.Size), fsa.boxSeekReader)
 		if err != nil {
 			return nil, fmt.Errorf("read sample data: %w", err)
@@ -329,6 +332,9 @@ func (fsa *fragmentSampleAccessor) GetSampleRange(trackID uint32, startSampleNr,
 			rangeStarted = true
 
 			// Read this sample's data
+			if err := fsa.checkInMdat(baseOffset, uint64(sample.Size)); err != nil {
+				return nil, fmt.Errorf("sample %d: %w", currentSampleNr, err)
+			}
 			data, err := mdat.ReadData(int64(baseOffset), int64(sample.Size), fsa.boxSeekReader)
 			if err != nil {
 				return nil, fmt.Errorf("read sample %d data: %w", currentSampleNr, err)
@@ -391,6 +397,9 @@ func (fsa *fragmentSampleAccessor) GetSamples(trackID uint32) ([]FullSample, err
 
 		offsetInFile := baseOffset
 		for _, sample := range trun.GetSamples() {
+			if err := fsa.checkInMdat(offsetInFile, uint64(sample.Size)); err != nil {
+				return nil, err
+			}
 			data, err := mdat.ReadData(int64(offsetInFile), int64(sample.Size), fsa.boxSeekReader)
 			if err != nil {
 				return nil, fmt.Errorf("read sample data: %w", err)
@@ -518,6 +527,17 @@ func (fsa *fragmentSampleAccessor) readAt(pos int64, p []byte) error {
 	}
 	_, err := io.ReadFull(fsa.boxSeekReader, p)
 	return err
+}
+
+// checkInMdat returns an error unless the size bytes at the absolute file position pos are inside the mdat payload.
+// Sample sizes and data offsets come from the moof, so they are checked before a buffer of that size is allocated.
+func (fsa *fragmentSampleAccessor) checkInMdat(pos, size uint64) error {
+	mdat := fsa.fragment.Mdat
+	start, mdatSize := mdat.PayloadAbsoluteOffset(), mdat.GetLazyDataSize()
+	if pos < start || size > mdatSize || pos-start > mdatSize-size {
+		return fmt.Errorf("sample data at %d, size %d, is outside mdat payload at %d, size %d", pos, size, start, mdatSize)
+	}
+	return nil
 }
 
 // trafForTrackID returns the traf of trackID in moof, or nil if there is none.
