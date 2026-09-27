@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Constants for `ftyp`/`styp` brands from ISOBMFF, MP4, CMAF, DASH and codec
+  specifications (`mp4.BrandIso6`, `mp4.BrandCmfc`, `mp4.BrandLmsg`, ...), and
+  `HasCompatibleBrand` on `FtypBox` and `StypBox`
 - Experimental paint-model subtitle boxes: `stpc`/`wvtc` sample entries, and
   `ttmn`/`vttn` (no change) and `ttmb` (TTML body only) samples, also handled
   by `mp4ff-subslister`. The 4CCs are unregistered and may change
