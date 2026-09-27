@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -365,26 +366,37 @@ func (t *TrunBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 // To fill missing individual values from tfhd and trex defaults, call trun.AddSampleDefaultValues() before this call
 // An error is returned if the sample sizes point outside the mdat data (e.g. a truncated file).
 func (t *TrunBox) GetFullSamples(offsetInMdat uint32, baseDecodeTime uint64, mdat *MdatBox) ([]FullSample, error) {
-	samples := make([]FullSample, 0, t.SampleCount())
+	samples, err := t.AppendFullSamples(make([]FullSample, 0, t.SampleCount()), offsetInMdat, baseDecodeTime, mdat)
+	if err != nil {
+		return nil, err
+	}
+	return samples, nil
+}
+
+// AppendFullSamples appends the trun's full samples to dst and returns the extended slice, like GetFullSamples but
+// without allocating when dst has enough capacity. The sample data are views into mdat.Data, not copies.
+// On error, dst is returned truncated to its original length so that its storage can be reused.
+// To fill missing individual values from tfhd and trex defaults, call trun.AddSampleDefaultValues() before this call
+func (t *TrunBox) AppendFullSamples(dst []FullSample, offsetInMdat uint32, baseDecodeTime uint64,
+	mdat *MdatBox) ([]FullSample, error) {
+	origLen := len(dst)
+	dst = slices.Grow(dst, len(t.Samples))
 	var accDur uint64 = 0
 	for nr, s := range t.Samples {
-		dTime := baseDecodeTime + accDur
-
 		end := uint64(offsetInMdat) + uint64(s.Size)
 		if end > uint64(len(mdat.Data)) {
-			return nil, fmt.Errorf("sample %d range %d-%d is outside mdat data (size %d)",
+			return dst[:origLen], fmt.Errorf("sample %d range %d-%d is outside mdat data (size %d)",
 				nr+1, offsetInMdat, end, len(mdat.Data))
 		}
-		newSample := FullSample{
+		dst = append(dst, FullSample{
 			Sample:     s,
-			DecodeTime: dTime,
-			Data:       mdat.Data[offsetInMdat : offsetInMdat+s.Size],
-		}
-		samples = append(samples, newSample)
+			DecodeTime: baseDecodeTime + accDur,
+			Data:       mdat.Data[offsetInMdat:end],
+		})
 		accDur += uint64(s.Dur)
 		offsetInMdat += s.Size
 	}
-	return samples, nil
+	return dst, nil
 }
 
 // GetSamples - get all trun sample data

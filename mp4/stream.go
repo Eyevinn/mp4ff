@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"math"
+	"slices"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -138,6 +140,16 @@ type SampleAccessor interface {
 	GetSampleRange(trackID uint32, startSampleNr, endSampleNr uint32) ([]FullSample, error)
 	GetSamples(trackID uint32) ([]FullSample, error)
 	ReadMdatData(dst []byte) (int, error)
+	// AppendSamples is GetSamples with caller-provided storage. It appends the track's samples to dst and their
+	// data to buf, and returns both extended slices. The Data of each appended sample is a view into the
+	// returned buf, and the data of consecutive samples are adjacent there, so Fragment.AddFullSamples adds them
+	// to a new fragment as a single data part without copying. Nothing is allocated when dst and buf have enough
+	// capacity, so pass samples[:0] and buf[:0] to reuse the storage of a previous fragment once its samples are
+	// no longer needed.
+	AppendSamples(dst []FullSample, buf []byte, trackID uint32) ([]FullSample, []byte, error)
+	// AppendSampleRange is GetSampleRange with caller-provided storage, see AppendSamples.
+	AppendSampleRange(dst []FullSample, buf []byte, trackID uint32, startSampleNr, endSampleNr uint32) (
+		[]FullSample, []byte, error)
 }
 
 // StreamOption configures streaming behavior.
@@ -394,6 +406,141 @@ func (fsa *fragmentSampleAccessor) GetSamples(trackID uint32) ([]FullSample, err
 	}
 
 	return samples, nil
+}
+
+// AppendSamples appends all samples of a track to dst and their data to buf. See SampleAccessor.
+func (fsa *fragmentSampleAccessor) AppendSamples(dst []FullSample, buf []byte, trackID uint32) (
+	[]FullSample, []byte, error) {
+	return fsa.appendSamples(dst, buf, trackID, 1, math.MaxUint32, false)
+}
+
+// AppendSampleRange appends the samples startSampleNr to endSampleNr (1-based, inclusive) of a track to dst and
+// their data to buf. As for GetSampleRange, a range extending beyond the fragment is cut at its last sample.
+// See SampleAccessor.
+func (fsa *fragmentSampleAccessor) AppendSampleRange(dst []FullSample, buf []byte, trackID uint32,
+	startSampleNr, endSampleNr uint32) ([]FullSample, []byte, error) {
+	if startSampleNr < 1 {
+		return dst, buf, fmt.Errorf("start sample number must be >= 1")
+	}
+	if endSampleNr < startSampleNr {
+		return dst, buf, fmt.Errorf("end sample number %d must be >= start sample number %d", endSampleNr, startSampleNr)
+	}
+	return fsa.appendSamples(dst, buf, trackID, startSampleNr, endSampleNr, true)
+}
+
+// appendSamples implements AppendSamples and AppendSampleRange. The samples of a trun are contiguous in the file,
+// so the data of the selected samples of each trun are read with a single read. buf is grown once, before
+// anything is read, so that all appended samples view the same backing array. On error, dst and buf are
+// returned truncated to their original lengths.
+func (fsa *fragmentSampleAccessor) appendSamples(dst []FullSample, buf []byte, trackID uint32,
+	startSampleNr, endSampleNr uint32, mustStart bool) ([]FullSample, []byte, error) {
+	traf := trafForTrackID(fsa.fragment.Moof, trackID)
+	if traf == nil {
+		return dst, buf, fmt.Errorf("track %d not found in fragment", trackID)
+	}
+	tfhd := traf.Tfhd
+
+	// First pass: fill in default values, and count the selected samples and their bytes.
+	var nrSamples int
+	var nrBytes uint64
+	sampleNr := uint32(1)
+	for _, trun := range traf.Truns {
+		trun.AddSampleDefaultValues(tfhd, fsa.trex)
+		for _, s := range trun.Samples {
+			if sampleNr >= startSampleNr && sampleNr <= endSampleNr {
+				nrSamples++
+				nrBytes += uint64(s.Size)
+			}
+			sampleNr++
+		}
+	}
+	if mustStart && nrSamples == 0 {
+		return dst, buf, fmt.Errorf("start sample %d not found in fragment", startSampleNr)
+	}
+	// The sample sizes come from the trun and buf is grown by their sum before anything is read, so bound the sum
+	// by the mdat payload, which the data of a track's samples cannot exceed since they do not overlap.
+	if mdatSize := fsa.fragment.Mdat.GetLazyDataSize(); nrBytes > mdatSize {
+		return dst, buf, fmt.Errorf("sample data size %d exceeds mdat payload size %d", nrBytes, mdatSize)
+	}
+	if nrBytes > uint64(math.MaxInt-len(buf)) {
+		return dst, buf, fmt.Errorf("sample data size %d too big", nrBytes)
+	}
+	origDstLen, origBufLen := len(dst), len(buf)
+	dst = slices.Grow(dst, nrSamples)
+	buf = slices.Grow(buf, int(nrBytes))
+
+	// Second pass: read the selected samples of each trun into buf and append views of them.
+	var baseTime uint64
+	if traf.Tfdt != nil {
+		baseTime = traf.Tfdt.BaseMediaDecodeTime()
+	}
+	sampleNr = 1
+	for _, trun := range traf.Truns {
+		offset := trunDataOffset(fsa.fragment.Moof.StartPos, tfhd, trun)
+		first := len(dst)
+		readStart := uint64(0)
+		readSize := 0
+		for _, s := range trun.Samples {
+			switch {
+			case sampleNr < startSampleNr:
+				offset += uint64(s.Size)
+			case sampleNr <= endSampleNr:
+				if readSize == 0 {
+					readStart = offset
+				}
+				dst = append(dst, FullSample{Sample: s, DecodeTime: baseTime})
+				readSize += int(s.Size)
+			}
+			baseTime += uint64(s.Dur)
+			sampleNr++
+		}
+		if len(dst) == first {
+			continue
+		}
+		pos := len(buf)
+		buf = buf[:pos+readSize]
+		if err := fsa.readAt(int64(readStart), buf[pos:]); err != nil {
+			return dst[:origDstLen], buf[:origBufLen], fmt.Errorf("read sample data: %w", err)
+		}
+		for i := first; i < len(dst); i++ {
+			end := pos + int(dst[i].Size)
+			dst[i].Data = buf[pos:end]
+			pos = end
+		}
+	}
+	return dst, buf, nil
+}
+
+// readAt fills p with the stream data starting at the absolute file position pos.
+func (fsa *fragmentSampleAccessor) readAt(pos int64, p []byte) error {
+	if _, err := fsa.boxSeekReader.Seek(pos, io.SeekStart); err != nil {
+		return fmt.Errorf("seek to %d: %w", pos, err)
+	}
+	_, err := io.ReadFull(fsa.boxSeekReader, p)
+	return err
+}
+
+// trafForTrackID returns the traf of trackID in moof, or nil if there is none.
+func trafForTrackID(moof *MoofBox, trackID uint32) *TrafBox {
+	for _, traf := range moof.Trafs {
+		if traf.Tfhd.TrackID == trackID {
+			return traf
+		}
+	}
+	return nil
+}
+
+// trunDataOffset returns the absolute file position of the first sample of trun.
+func trunDataOffset(moofStartPos uint64, tfhd *TfhdBox, trun *TrunBox) uint64 {
+	// The default is moofStartPos according to Section 8.8.7.1
+	baseOffset := moofStartPos
+	if tfhd.HasBaseDataOffset() {
+		baseOffset = tfhd.BaseDataOffset
+	}
+	if trun.HasDataOffset() {
+		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
+	}
+	return baseOffset
 }
 
 // ReadMdatData reads the raw mdat payload of the fragment into dst in a single read.
