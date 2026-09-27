@@ -569,6 +569,18 @@ func TestStreamSampleSizesBoundedByMdat(t *testing.T) {
 			_, _, err := sa.AppendSampleRange(nil, nil, 1, 1, 3)
 			return err
 		},
+		"GetSample": func(sa mp4.SampleAccessor) error {
+			_, err := sa.GetSample(1, 1)
+			return err
+		},
+		"GetSampleRange": func(sa mp4.SampleAccessor) error {
+			_, err := sa.GetSampleRange(1, 1, 3)
+			return err
+		},
+		"GetSamples": func(sa mp4.SampleAccessor) error {
+			_, err := sa.GetSamples(1)
+			return err
+		},
 	}
 	data := hugeSizesStream(t)
 	for name, call := range calls {

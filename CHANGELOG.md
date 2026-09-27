@@ -137,6 +137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The streaming `SampleAccessor.GetSample`, `GetSampleRange` and `GetSamples`
+  allocated the sample size a trun claimed before checking it against the mdat
 - Invalid NALU length sizes are rejected: the 3-byte size in lhvC and vvcC,
   anything but 1, 2 or 4 bytes when encoding hvcC, lhvC and vvcC
   (`ErrInvalidLengthSize`), and differing lhvC and hvcC sizes in a sample
