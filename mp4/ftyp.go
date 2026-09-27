@@ -18,9 +18,14 @@ func (b *FtypBox) Copy() *FtypBox {
 	return &FtypBox{b.clone()}
 }
 
-// CreateFtyp - Create an Ftyp box suitable for DASH/CMAF
+// CreateFtyp - Create an Ftyp box for a CMAF header with one track
+//
+// The brands cmfc and iso6 fit a single video or audio track with the
+// segments mp4ff writes. Use InitSegment.GenerateFtyp to get brands that
+// match the actual tracks, such as iso8 for subtitles or mp42 for several
+// tracks.
 func CreateFtyp() *FtypBox {
-	return NewFtyp(BrandCmfc, 0, []string{BrandDash, BrandIso6})
+	return NewFtyp(BrandCmfc, 0, []string{BrandCmfc, BrandIso6})
 }
 
 // NewFtyp - new ftyp box with parameters

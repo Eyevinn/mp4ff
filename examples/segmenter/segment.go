@@ -184,6 +184,8 @@ func makeMultiTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.Rea
 				}
 			}
 		}
+		// A multiplexed segment is not a CMAF segment, so replace the default styp.
+		seg.Styp = seg.GenerateStyp(mp4.StypOptions{Last: segNr == segmenter.nrSegs})
 		outPath := fmt.Sprintf("%s_media_%d.m4s", outFilePath, segNr)
 		err = mp4.WriteToFile(seg, outPath)
 		if err != nil {

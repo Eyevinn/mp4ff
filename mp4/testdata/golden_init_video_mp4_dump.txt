@@ -1,7 +1,7 @@
 [ftyp] size=24
  - majorBrand: cmfc
  - minorVersion: 0
- - compatibleBrand: dash
+ - compatibleBrand: cmfc
  - compatibleBrand: iso6
 [moov] size=649
   [mvhd] size=108 version=0 flags=000000
