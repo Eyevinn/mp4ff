@@ -17,7 +17,7 @@ boxes needed for progressive MP4 files.
 Some useful command line tools are available in [cmd](cmd) directory.
 
 1. [mp4ff-info](cmd/mp4ff-info) prints a tree of the box hierarchy of a mp4 file with information
-    about the boxes.
+    about the boxes, or with `-brands` checks the ftyp and styp brands against the content.
 2. [mp4ff-pslister](cmd/mp4ff-pslister) extracts and displays SPS and PPS for AVC or HEVC in a mp4 or a bytestream (Annex B) file.
     Partial information is printed for HEVC.
 3. [mp4ff-nallister](cmd/mp4ff-nallister) lists NALUs and picture types for video in progressive or fragmented file
