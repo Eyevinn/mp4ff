@@ -68,53 +68,66 @@ var isoBrandLevelByType = map[string]int{
 	"prsl": levelIsod,
 }
 
-// boxBrandLevel returns the lowest brand in isoBrandChain that supports b,
-// which has a parent box of type parentType ("" at the top level). The box
-// itself is considered, not its children.
-func boxBrandLevel(b Box, parentType string) int {
-	level := isoBrandLevelByType[b.Type()]
+// brandNeed is the lowest brand in isoBrandChain that a box needs, and why.
+type brandNeed struct {
+	level  int
+	reason string // what needs the brand, such as "ctts version 1"
+	// strict is set if a reader of an earlier brand would misinterpret the box,
+	// rather than just not support it. Annex E states these as requirements on
+	// files, such as default-base-is-moof not being set under isom to iso4.
+	strict bool
+}
+
+// boxBrandNeed returns what b, which has a parent box of type parentType
+// ("" at the top level), needs. The box itself is considered, not its
+// children. The zero brandNeed means that isom suffices.
+func boxBrandNeed(b Box, parentType string) brandNeed {
+	need := brandNeed{}
+	if level, ok := isoBrandLevelByType[b.Type()]; ok {
+		need = brandNeed{level: level, reason: b.Type()}
+	}
 	switch box := b.(type) {
 	case *CttsBox:
 		if box.Version == 1 {
-			level = max(level, levelIso4)
+			need = brandNeed{levelIso4, "ctts version 1", true}
 		}
 	case *CslgBox:
 		if box.Version == 0 {
-			level = max(level, levelIso4)
+			need = brandNeed{levelIso4, "cslg", false}
 		} else {
-			level = max(level, levelIso9)
+			need = brandNeed{levelIso9, "cslg version 1", false}
 		}
 	case *SgpdBox:
 		switch {
 		case box.Version >= 3:
-			level = max(level, levelIsod)
+			need = brandNeed{levelIsod, "sgpd version 3", false}
 		case parentType == "traf":
-			level = max(level, levelIso6)
+			need = brandNeed{levelIso6, "sgpd in traf", false}
 		default:
-			level = max(level, levelAvc1)
+			need = brandNeed{levelAvc1, "sgpd", false}
 		}
 	case *MetaBox:
 		if parentType == "moof" || parentType == "traf" {
-			level = max(level, levelIso8)
+			need = brandNeed{levelIso8, "meta in a movie fragment", false}
 		} else {
-			level = max(level, levelIso2)
+			need = brandNeed{levelIso2, "meta", false}
 		}
 	case *TrunBox:
 		if box.Version == 1 {
-			level = max(level, levelIso6)
+			need = brandNeed{levelIso6, "trun version 1", true}
 		}
 	case *TfhdBox:
 		if box.Flags&TfhdDefaultBaseIsMoofFlag != 0 {
-			level = max(level, levelIso5)
+			need = brandNeed{levelIso5, "default-base-is-moof", true}
 		}
 	case *ElstBox:
 		for _, e := range box.Entries {
 			if e.MediaRateFraction != 0 || (e.MediaRateInteger != 0 && e.MediaRateInteger != 1) {
-				level = max(level, levelIsob)
+				need = brandNeed{levelIsob, "edit list media_rate other than 0 or 1", true}
 			}
 		}
 	}
-	return level
+	return need
 }
 
 // childBoxes returns the children of b, including the sample entries of stsd
@@ -142,24 +155,39 @@ func walkBoxes(boxes []Box, parent Box, visit func(b, parent Box)) {
 	}
 }
 
-// isoBrandLevel returns the lowest brand in isoBrandChain that supports all
-// boxes in the trees rooted at boxes.
-func isoBrandLevel(boxes []Box) int {
-	level := levelIsom
+// isoBrandNeeds returns what the boxes in the trees rooted at boxes need,
+// with one entry per reason.
+func isoBrandNeeds(boxes []Box) []brandNeed {
+	var needs []brandNeed
+	add := func(n brandNeed) {
+		if n.level > levelIsom && !slices.ContainsFunc(needs, func(o brandNeed) bool { return o.reason == n.reason }) {
+			needs = append(needs, n)
+		}
+	}
 	nrSubs := map[Box]int{}
 	walkBoxes(boxes, nil, func(b, parent Box) {
 		parentType := ""
 		if parent != nil {
 			parentType = parent.Type()
 		}
-		level = max(level, boxBrandLevel(b, parentType))
+		add(boxBrandNeed(b, parentType))
 		if b.Type() == "subs" {
 			nrSubs[parent]++
 			if nrSubs[parent] > 1 {
-				level = max(level, levelIso8) // more than one subs per track
+				add(brandNeed{levelIso8, "more than one subs in a track", false})
 			}
 		}
 	})
+	return needs
+}
+
+// isoBrandLevel returns the lowest brand in isoBrandChain that supports all
+// boxes in the trees rooted at boxes.
+func isoBrandLevel(boxes []Box) int {
+	level := levelIsom
+	for _, n := range isoBrandNeeds(boxes) {
+		level = max(level, n.level)
+	}
 	return level
 }
 
@@ -351,15 +379,14 @@ func (s *MediaSegment) GenerateStyp(opts StypOptions) *StypBox {
 	var brands []string
 	if opts.CMAF {
 		brands = append(brands, BrandCmfs, BrandCmff, BrandCmfl)
-		if s.startsWithSyncSample() {
+		if sync, known := s.firstSampleIsSync(); known && sync {
 			brands = append(brands, BrandCmfr)
 		}
 	}
-	du := s.isDeliveryUnitFormat()
-	if du && s.allTrafsHaveTfdt() && (len(s.Sidxs) == 0 || s.firstSidxCoversSegment()) {
+	if s.simpleFormatProblem() == "" {
 		brands = append(brands, BrandMsdh)
 	}
-	if du && s.moofsFollowedByMdat() && len(s.Sidxs) > 0 && s.firstSidxCoversSegment() {
+	if s.indexedFormatProblem() == "" {
 		brands = append(brands, BrandMsix)
 	}
 	if opts.Last {
@@ -371,57 +398,79 @@ func (s *MediaSegment) GenerateStyp(opts StypOptions) *StypBox {
 	return NewStyp(brands[0], 0, brands)
 }
 
-// isDeliveryUnitFormat reports whether the segment meets the checkable rules
-// of the Delivery Unit Media Segment format (ISO/IEC 23009-1 Section 6.3.5.2):
-// every fragment has a moof with at least one traf and an mdat, and uses
-// movie-fragment relative addressing.
-func (s *MediaSegment) isDeliveryUnitFormat() bool {
+// deliveryUnitProblem returns why the segment does not meet the checkable
+// rules of the Delivery Unit Media Segment format (ISO/IEC 23009-1 Section
+// 6.3.5.2), or "" if it does: every fragment has a moof with at least one
+// traf and an mdat, and uses movie-fragment relative addressing.
+func (s *MediaSegment) deliveryUnitProblem() string {
 	if len(s.Fragments) == 0 {
-		return false
+		return "there are no fragments"
 	}
 	for _, f := range s.Fragments {
-		if f.Moof == nil || f.Mdat == nil || len(f.Moof.Trafs) == 0 {
-			return false
+		switch {
+		case f.Moof == nil:
+			return "a fragment has no moof"
+		case len(f.Moof.Trafs) == 0:
+			return "a moof has no traf"
+		case f.Mdat == nil:
+			return "a fragment has no mdat"
 		}
 		for _, traf := range f.Moof.Trafs {
 			tfhd := traf.Tfhd
-			if tfhd == nil || tfhd.Flags&TfhdDefaultBaseIsMoofFlag == 0 || tfhd.HasBaseDataOffset() {
-				return false
+			if tfhd == nil || tfhd.Flags&TfhdDefaultBaseIsMoofFlag == 0 {
+				return "a tfhd lacks default-base-is-moof"
+			}
+			if tfhd.HasBaseDataOffset() {
+				return "a tfhd has base-data-offset"
 			}
 			for _, trun := range traf.Truns {
 				if !trun.HasDataOffset() {
-					return false
+					return "a trun lacks data-offset"
 				}
 			}
 		}
 	}
-	return true
+	return ""
 }
 
-// allTrafsHaveTfdt reports whether every traf of the segment has a tfdt.
-func (s *MediaSegment) allTrafsHaveTfdt() bool {
+// simpleFormatProblem returns why the segment does not have the Simple
+// format (ISO/IEC 23009-1 Section 6.3.5.3), or "" if it has.
+func (s *MediaSegment) simpleFormatProblem() string {
+	if p := s.deliveryUnitProblem(); p != "" {
+		return p
+	}
 	for _, f := range s.Fragments {
-		if f.Moof == nil {
-			return false
-		}
 		for _, traf := range f.Moof.Trafs {
 			if traf.Tfdt == nil {
-				return false
+				return "a traf lacks tfdt"
 			}
 		}
 	}
-	return true
+	if len(s.Sidxs) > 0 && !s.firstSidxCoversSegment() {
+		return "the first sidx does not cover the segment"
+	}
+	return ""
 }
 
-// moofsFollowedByMdat reports whether each moof is immediately followed by an mdat.
-func (s *MediaSegment) moofsFollowedByMdat() bool {
+// indexedFormatProblem returns why the segment does not have the Indexed
+// format (ISO/IEC 23009-1 Section 6.3.5.4), or "" if it has.
+func (s *MediaSegment) indexedFormatProblem() string {
+	if p := s.deliveryUnitProblem(); p != "" {
+		return p
+	}
 	for _, f := range s.Fragments {
 		i := slices.IndexFunc(f.Children, func(b Box) bool { return b.Type() == "moof" })
 		if i < 0 || i+1 >= len(f.Children) || f.Children[i+1].Type() != "mdat" {
-			return false
+			return "a moof is not followed by its mdat"
 		}
 	}
-	return true
+	if len(s.Sidxs) == 0 {
+		return "there is no sidx"
+	}
+	if !s.firstSidxCoversSegment() {
+		return "the first sidx does not cover the segment"
+	}
+	return ""
 }
 
 // firstSidxCoversSegment reports whether the first sidx references all bytes
@@ -443,15 +492,16 @@ func (s *MediaSegment) firstSidxCoversSegment() bool {
 	return referenced == following
 }
 
-// startsWithSyncSample reports whether the first sample of the segment is
-// known to be a sync sample. Flags that are only given by trex are unknown.
-func (s *MediaSegment) startsWithSyncSample() bool {
+// firstSampleIsSync reports whether the first sample of the segment is a sync
+// sample, and whether that is known. Flags that are only given by trex are
+// unknown.
+func (s *MediaSegment) firstSampleIsSync() (sync, known bool) {
 	if len(s.Fragments) == 0 || s.Fragments[0].Moof == nil {
-		return false
+		return false, false
 	}
 	traf := s.Fragments[0].Moof.Traf
 	if traf == nil || traf.Trun == nil || traf.Trun.SampleCount() == 0 {
-		return false
+		return false, false
 	}
 	trun := traf.Trun
 	var flags uint32
@@ -463,7 +513,7 @@ func (s *MediaSegment) startsWithSyncSample() bool {
 	case traf.Tfhd != nil && traf.Tfhd.HasDefaultSampleFlags():
 		flags = traf.Tfhd.DefaultSampleFlags
 	default:
-		return false
+		return false, false
 	}
-	return !DecodeSampleFlags(flags).SampleIsNonSync
+	return !DecodeSampleFlags(flags).SampleIsNonSync, true
 }
