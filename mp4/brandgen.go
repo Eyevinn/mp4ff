@@ -200,6 +200,18 @@ func isoBrandFor(level int) string {
 	return isoBrandChain[level]
 }
 
+// usesLargeSaiz reports whether the trees rooted at boxes have a saiz box of
+// version 1 or 2, which needs the saie brand (ISO/IEC 14496-12:2026 E.20).
+func usesLargeSaiz(boxes []Box) bool {
+	found := false
+	walkBoxes(boxes, nil, func(b, _ Box) {
+		if saiz, ok := b.(*SaizBox); ok && saiz.Version > 0 {
+			found = true
+		}
+	})
+	return found
+}
+
 // codecBrands returns the brands that codec specifications require or
 // recommend in compatible_brands for the sample entries found in boxes:
 // av01 (AV1-ISOBMFF), iamf (IAMF) and dby1 (Dolby Vision).
@@ -240,6 +252,9 @@ type FragmentFeatures struct {
 	Prft              bool // prft (iso6)
 	SgpdInTraf        bool // sgpd in traf (iso6)
 	SampleAuxInfo     bool // saiz and saio in traf, as for Common Encryption (iso6)
+	// LargeSampleAuxInfo declares saiz version 1 or 2, for sample auxiliary
+	// information sizes above 255 bytes (iso6 and saie).
+	LargeSampleAuxInfo bool
 }
 
 // DefaultFragmentFeatures returns the features of the media segments that
@@ -257,7 +272,7 @@ func DefaultFragmentFeatures() FragmentFeatures {
 // isoBrandLevel returns the lowest brand in isoBrandChain that supports f.
 func (f FragmentFeatures) isoBrandLevel() int {
 	switch {
-	case f.Tfdt || f.TrunV1 || f.Styp || f.Sidx || f.Prft || f.SgpdInTraf || f.SampleAuxInfo:
+	case f.Tfdt || f.TrunV1 || f.Styp || f.Sidx || f.Prft || f.SgpdInTraf || f.SampleAuxInfo || f.LargeSampleAuxInfo:
 		return levelIso6
 	case f.DefaultBaseIsMoof:
 		return levelIso5
@@ -282,10 +297,10 @@ type FtypOptions struct {
 //
 // The compatible brands are the lowest brand of the ISO/IEC 14496-12:2026
 // Annex E chain that supports the boxes of the init segment and the declared
-// fragment features, the codec brands av01, iamf and dby1 when their sample
-// entries are present, and opts.Extra. The 'avc1' brand of the chain is
-// replaced by 'iso2', which includes it and is not mistaken for the AVC sample
-// entry. A brand of the chain below the lowest one would be a false claim, so
+// fragment features, saie for saiz version 1 or 2, the codec brands av01,
+// iamf and dby1 when their sample entries are present, and opts.Extra. The
+// 'avc1' brand of the chain is replaced by 'iso2', which includes it and is
+// not mistaken for the AVC sample entry. A brand of the chain below the lowest one would be a false claim, so
 // such brands are rejected in opts.Extra. This also keeps isom to iso4 out of
 // files with default-base-is-moof, as 14496-12:2026 Section 8.8.7.1 requires.
 //
@@ -303,6 +318,7 @@ func (s *InitSegment) GenerateFtyp(opts FtypOptions) (*FtypBox, error) {
 	}
 	level := max(isoBrandLevel([]Box{s.Moov}), fragments.isoBrandLevel())
 	isoBrand := isoBrandFor(level)
+	saie := fragments.LargeSampleAuxInfo || usesLargeSaiz([]Box{s.Moov})
 
 	var brands []string
 	switch opts.CMAF {
@@ -317,6 +333,10 @@ func (s *InitSegment) GenerateFtyp(opts FtypOptions) (*FtypBox, error) {
 			return nil, fmt.Errorf("CMAF allows the box versions and flags of %s, but %s is needed",
 				BrandIso9, isoBrand)
 		}
+		if saie {
+			return nil, fmt.Errorf("CMAF allows the box versions and flags of %s, but saiz version 1 or 2 needs %s",
+				BrandIso9, BrandSaie)
+		}
 		if !fragments.DefaultBaseIsMoof || !fragments.Tfdt {
 			return nil, fmt.Errorf("CMAF fragments need default-base-is-moof and tfdt")
 		}
@@ -328,6 +348,9 @@ func (s *InitSegment) GenerateFtyp(opts FtypOptions) (*FtypBox, error) {
 		return nil, fmt.Errorf("unknown CMAF structural brand %q", opts.CMAF)
 	}
 	brands = append(brands, isoBrand)
+	if saie {
+		brands = append(brands, BrandSaie)
+	}
 	brands = append(brands, codecBrands([]Box{s.Moov})...)
 	for _, b := range opts.Extra {
 		if len(b) != 4 {

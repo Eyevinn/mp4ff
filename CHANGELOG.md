@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `saiz` versions 1 and 2 (16- and 32-bit sizes, ISO/IEC 14496-12:2026) are
+  decoded and encoded, and `SaizBox.AddSampleInfo` picks the lowest version
+  that fits, so samples with more than 39 subsamples can be encrypted.
+  `GenerateFtyp` adds the `saie` brand for them and `CheckBrands` checks it
 - Constants for `ftyp`/`styp` brands from ISOBMFF, MP4, CMAF, DASH and codec
   specifications (`mp4.BrandIso6`, `mp4.BrandCmfc`, `mp4.BrandLmsg`, ...), and
   `HasCompatibleBrand` on `FtypBox` and `StypBox`
@@ -106,6 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `SaizBox.DefaultSampleInfoSize` is a `uint32` and `SaizBox.SampleInfo` a
+  `[]uint32`, to hold the sizes of saiz versions 1 and 2
 - `CreateFtyp` gives `cmfc` + `[cmfc, iso6]` and `CreateStyp` gives
   `cmfs` + `[cmfs, cmff, cmfl, msdh]`: the major brand is repeated and `dash` is dropped
 - Minimum Go version bumped from 1.19 to 1.23, for `slices` and `iter`

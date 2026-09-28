@@ -58,11 +58,12 @@ func (i BrandIssue) String() string {
 //     default-base-is-moof, edit list media rates), and a warning when they
 //     need not support it (such as sgpd, tfdt or sthd)
 //
-// The ftyp is also checked for the codec brands av01 and iamf, which are
-// required, and dby1, which is recommended, for the CMAF header rules when
-// cmfc or cmf2 is claimed (ISO/IEC 23000-19:2024), and for a dash brand
-// without any sidx. The boxes of the whole file count, so that the ftyp of an
-// init segment followed by media segments covers the segments too.
+// The ftyp is also checked for saie, which saiz version 1 or 2 needs, for
+// the codec brands av01 and iamf, which are required, and dby1, which is
+// recommended, for the CMAF header rules when cmfc or cmf2 is claimed
+// (ISO/IEC 23000-19:2024), and for a dash brand without any sidx. The boxes
+// of the whole file count, so that the ftyp of an init segment followed by
+// media segments covers the segments too.
 //
 // The styp of each media segment is also checked for msdh and msix, which
 // need the Simple and Indexed formats of ISO/IEC 23009-1, lmsg, which only
@@ -162,8 +163,13 @@ func (f *File) checkFtypBrands() []BrandIssue {
 		}
 	}
 
+	largeSaiz := usesLargeSaiz(f.Children)
+	if largeSaiz && !slices.Contains(claimed, BrandSaie) {
+		b.add(BrandError, "saiz version 1 or 2 needs the saie brand (ISO/IEC 14496-12 E.20)")
+	}
+
 	if slices.Contains(claimed, BrandCmfc) || slices.Contains(claimed, BrandCmf2) {
-		f.checkCMAFHeaderBrands(b, major, needs)
+		f.checkCMAFHeaderBrands(b, major, needs, largeSaiz)
 	}
 
 	if slices.Contains(claimed, BrandDash) && !f.hasSidx() {
@@ -175,13 +181,17 @@ func (f *File) checkFtypBrands() []BrandIssue {
 
 // checkCMAFHeaderBrands checks the rules of a CMAF header that follow from
 // its boxes, for a file that claims cmfc or cmf2.
-func (f *File) checkCMAFHeaderBrands(b *brandIssues, major string, needs []brandNeed) {
+func (f *File) checkCMAFHeaderBrands(b *brandIssues, major string, needs []brandNeed, largeSaiz bool) {
 	if (major == BrandCmfc || major == BrandCmf2) && f.Ftyp.MinorVersion() != 0 {
 		b.add(BrandError, "minor version is %d, but shall be 0 with CMAF major brand %s (ISO/IEC 23000-19 7.2)",
 			f.Ftyp.MinorVersion(), major)
 	}
 	if f.Moov != nil && len(f.Moov.Traks) != 1 {
 		b.add(BrandError, "a CMAF header has exactly one track, not %d (ISO/IEC 23000-19 7.3.2.1)", len(f.Moov.Traks))
+	}
+	if largeSaiz {
+		b.add(BrandError, "CMAF allows the box versions and flags of iso9, but saiz version 1 or 2 needs saie "+
+			"(ISO/IEC 23000-19 7.3.1)")
 	}
 	for _, n := range needs {
 		if n.level > levelIso9 {
