@@ -1418,19 +1418,20 @@ func TestDefragmentFtypBrands(t *testing.T) {
 	tests := []struct {
 		name       string
 		inFtyp     *mp4.FtypBox
-		wantMajor  string
-		wantMinor  uint32
-		wantBrands []string
+		wantBrands []string // major brand mp42 first
 	}{
 		{name: "fragment-format brands dropped",
-			inFtyp:    mp4.NewFtyp("dash", 0, []string{"iso6", "cmfc", "dsms", "lmsg", "dash"}),
-			wantMajor: "isom", wantMinor: 0, wantBrands: []string{"iso6", "isom"}},
-		{name: "progressive brands untouched",
-			inFtyp:    mp4.NewFtyp("isom", 512, []string{"isom", "iso2", "avc1", "mp41"}),
-			wantMajor: "isom", wantMinor: 512, wantBrands: []string{"isom", "iso2", "avc1", "mp41"}},
-		{name: "missing ftyp gets the plain default",
-			inFtyp:    nil,
-			wantMajor: "isom", wantMinor: 512, wantBrands: []string{"isom", "mp42"}},
+			inFtyp:     mp4.NewFtyp("dash", 0, []string{"iso6", "cmfc", "dsms", "lmsg", "dash"}),
+			wantBrands: []string{"mp42", "isom"}},
+		{name: "brands not known to hold dropped",
+			inFtyp:     mp4.NewFtyp("isom", 512, []string{"isom", "iso2", "avc1", "mp41", "3gp6"}),
+			wantBrands: []string{"mp42", "isom"}},
+		{name: "track brands kept",
+			inFtyp:     mp4.NewFtyp("cmfc", 0, []string{"cmfc", "iso6", "nras"}),
+			wantBrands: []string{"mp42", "isom", "nras"}},
+		{name: "missing ftyp",
+			inFtyp:     nil,
+			wantBrands: []string{"mp42", "isom"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1452,15 +1453,27 @@ func TestDefragmentFtypBrands(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			outFtyp := decodeDefragOutput(t, out.Bytes()).Ftyp
-			if outFtyp.MajorBrand() != test.wantMajor || outFtyp.MinorVersion() != test.wantMinor {
-				t.Errorf("ftyp %s/%d, want %s/%d",
-					outFtyp.MajorBrand(), outFtyp.MinorVersion(), test.wantMajor, test.wantMinor)
-			}
-			if diff := deep.Equal(outFtyp.CompatibleBrands(), test.wantBrands); diff != nil {
-				t.Errorf("compatible brands: %v", diff)
-			}
+			checkDefragFtyp(t, decodeDefragOutput(t, out.Bytes()).Ftyp, test.wantBrands)
 		})
+	}
+	// Negative composition time offsets give ctts version 1, which needs iso4.
+	data, _, _ := writeDefragTestFile(t)
+	out, err := defragment(t, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkDefragFtyp(t, decodeDefragOutput(t, out.Bytes()).Ftyp, []string{"mp42", "iso4"})
+}
+
+// checkDefragFtyp checks that ftyp has major brand wantBrands[0], minor
+// version 0 and the compatible brands wantBrands.
+func checkDefragFtyp(t *testing.T, ftyp *mp4.FtypBox, wantBrands []string) {
+	t.Helper()
+	if ftyp.MajorBrand() != wantBrands[0] || ftyp.MinorVersion() != 0 {
+		t.Errorf("ftyp %s/%d, want %s/0", ftyp.MajorBrand(), ftyp.MinorVersion(), wantBrands[0])
+	}
+	if diff := deep.Equal(ftyp.CompatibleBrands(), wantBrands); diff != nil {
+		t.Errorf("compatible brands %v: %v", ftyp.CompatibleBrands(), diff)
 	}
 }
 
