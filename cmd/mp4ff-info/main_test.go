@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,46 @@ func TestOptions(t *testing.T) {
 			}
 			if !c.err && err != nil {
 				t.Errorf("unexpected error: %s", err)
+			}
+		})
+	}
+}
+
+func TestBrands(t *testing.T) {
+	cases := []struct {
+		desc    string
+		file    string
+		want    []string // substrings of the output lines, in order
+		wantErr string
+	}{
+		{desc: "no issues", file: "golden_init_video.mp4", want: []string{"no brand issues"}},
+		{desc: "warnings only", file: "init.mp4", want: []string{
+			"warning: ftyp: major brand iso5 is an ISO/IEC 14496-12 Annex E brand",
+			"warning: ftyp: dash declares an Indexed Self-Initializing Media Segment",
+		}},
+		{desc: "errors", file: "moof_enc.m4s", want: []string{
+			"error: styp of segment 1: msdh is claimed, but a fragment has no mdat",
+			"error: styp of segment 1: msix is claimed, but a fragment has no mdat",
+		}, wantErr: "found 2 brand errors"},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			w := &bytes.Buffer{}
+			err := run([]string{appName, "-brands", "../../mp4/testdata/" + c.file}, w)
+			switch {
+			case c.wantErr == "" && err != nil:
+				t.Errorf("unexpected error: %v", err)
+			case c.wantErr != "" && (err == nil || err.Error() != c.wantErr):
+				t.Errorf("got error %v, want %q", err, c.wantErr)
+			}
+			lines := strings.Split(strings.TrimSuffix(w.String(), "\n"), "\n")
+			if len(lines) != len(c.want) {
+				t.Fatalf("got %d lines, want %d:\n%s", len(lines), len(c.want), w.String())
+			}
+			for i, want := range c.want {
+				if !strings.Contains(lines[i], want) {
+					t.Errorf("line %d is %q, want it to contain %q", i, lines[i], want)
+				}
 			}
 		})
 	}
