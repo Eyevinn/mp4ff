@@ -163,6 +163,15 @@ func isoBrandLevel(boxes []Box) int {
 	return level
 }
 
+// isoBrandFor returns the brand at level in isoBrandChain, but iso2 for avc1.
+// iso2 includes avc1, and is not mistaken for the AVC sample entry.
+func isoBrandFor(level int) string {
+	if level == levelAvc1 {
+		return BrandIso2
+	}
+	return isoBrandChain[level]
+}
+
 // codecBrands returns the brands that codec specifications require or
 // recommend in compatible_brands for the sample entries found in boxes:
 // av01 (AV1-ISOBMFF), iamf (IAMF) and dby1 (Dolby Vision).
@@ -265,10 +274,7 @@ func (s *InitSegment) GenerateFtyp(opts FtypOptions) (*FtypBox, error) {
 		fragments = *opts.Fragments
 	}
 	level := max(isoBrandLevel([]Box{s.Moov}), fragments.isoBrandLevel())
-	isoBrand := isoBrandChain[level]
-	if isoBrand == BrandAvc1 {
-		isoBrand = BrandIso2
-	}
+	isoBrand := isoBrandFor(level)
 
 	var brands []string
 	switch opts.CMAF {

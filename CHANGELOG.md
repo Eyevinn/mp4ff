@@ -73,8 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   progressive readers do not apply it as a zero-length edit, and a track
   starting later than the earliest one keeps its presentation alignment
   through an empty edit; a trivial identity edit list is dropped.
-  Fragment-format brands (dash, cmfc, isml, and friends) are removed from
-  the output ftyp. Per-sample encryption auxiliary information (senc or
+  The output ftyp has major brand mp42, the lowest isoN brand the output
+  needs, the codec brands, and the ISO/IEC 14496-15 brands of the input. Per-sample encryption auxiliary information (senc or
   saiz/saio; constant-IV full-sample encryption without such data passes
   through losslessly), unsupported edit lists, zero timescales, truncated
   byte ranges, and payloads larger than the input file are rejected

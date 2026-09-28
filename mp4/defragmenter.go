@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"math/bits"
+	"slices"
 	"sort"
 )
 
@@ -34,6 +35,11 @@ import (
 // cannot carry).
 // Full-sample encryption with a constant IV has no such auxiliary data and
 // passes through losslessly, keeping the sinf of the sample description.
+//
+// The ftyp is made for the output: major brand mp42 and the lowest brand of
+// ISO/IEC 14496-12 Annex E that the rebuilt moov needs, plus the codec brands
+// and the ISO/IEC 14496-15 track brands of the input. Input brands of the
+// fragmented delivery, such as those of CMAF and DASH, are dropped.
 func Defragment(f *File, rs io.ReadSeeker, w io.Writer) error {
 	d, err := newDefragmenter(f, rs, nil)
 	if err != nil {
@@ -866,13 +872,10 @@ func checkOverlapCoverage(rec *defragFragRec, windows []coverageWindow) error {
 }
 
 func (d *defragmenter) writeProgressive(w io.Writer) error {
-	ftyp := NewFtyp("isom", 512, []string{"isom", "mp42"})
-	if d.ftyp != nil {
-		ftyp = progressiveFtyp(d.ftyp)
-	}
 	if err := d.rebuildMoov(); err != nil {
 		return err
 	}
+	ftyp := progressiveFtyp(d.ftyp, d.moov)
 	payload := d.payloadSize
 	mdatHeaderSize := uint64(8)
 	if payload+8 > math.MaxUint32 {
@@ -899,41 +902,28 @@ func (d *defragmenter) writeProgressive(w io.Writer) error {
 	return d.copySampleData(w)
 }
 
-// fragmentFormatBrands are ftyp brands declaring a fragmented delivery
-// format (DASH segments, CMAF tracks/fragments/segments, Smooth Streaming,
-// PIFF, fragmented HLS), which a progressive file cannot conform to.
-var fragmentFormatBrands = map[string]bool{
-	"dash": true, "dsms": true, "msdh": true, "msix": true,
-	"sims": true, "lmsg": true, "cmfc": true, "cmf2": true,
-	"cmff": true, "cmfs": true, "isml": true, "piff": true,
-	"hlsf": true,
-}
+// trackBrands are the input brands that the progressive output keeps. They
+// describe the bitstreams of the tracks (ISO/IEC 14496-15 Annex D), which
+// defragmentation does not change.
+var trackBrands = []string{BrandHvce, BrandHvci, BrandHvti, BrandLhti, BrandLhte, BrandHvcx, BrandNras}
 
-// progressiveFtyp rewrites the input ftyp for the progressive output:
-// fragment-format brands are dropped, a dropped major brand becomes isom,
-// and isom is ensured among the compatible brands. The structural version
-// brands iso2..iso6 declare ISOBMFF editions, not fragmentation, and stay.
-func progressiveFtyp(in *FtypBox) *FtypBox {
-	major := in.MajorBrand()
-	if fragmentFormatBrands[major] {
-		major = "isom"
-	}
-	inBrands := in.CompatibleBrands()
-	brands := make([]string, 0, len(inBrands)+1)
-	hasIsom := false
-	for _, brand := range inBrands {
-		if fragmentFormatBrands[brand] {
-			continue
+// progressiveFtyp returns the ftyp for the progressive output with the
+// rebuilt moov: major brand mp42, the lowest structural brand that supports
+// the boxes of moov, the codec brands, and the trackBrands of in (which may be
+// nil). The other brands of in are dropped, since they describe the
+// fragmented delivery (CMAF, DASH) or are not known to be true for the output
+// (ISO/IEC 14496-12:2026 Annex B.4.2).
+func progressiveFtyp(in *FtypBox, moov *MoovBox) *FtypBox {
+	brands := []string{BrandMp42, isoBrandFor(isoBrandLevel([]Box{moov}))}
+	brands = append(brands, codecBrands([]Box{moov})...)
+	if in != nil {
+		for _, b := range append([]string{in.MajorBrand()}, in.CompatibleBrands()...) {
+			if slices.Contains(trackBrands, b) && !slices.Contains(brands, b) {
+				brands = append(brands, b)
+			}
 		}
-		if brand == "isom" {
-			hasIsom = true
-		}
-		brands = append(brands, brand)
 	}
-	if !hasIsom {
-		brands = append(brands, "isom")
-	}
-	return NewFtyp(major, in.MinorVersion(), brands)
+	return NewFtyp(BrandMp42, 0, brands)
 }
 
 // rebuildMoov drops the fragment structures and fills the sample tables of
