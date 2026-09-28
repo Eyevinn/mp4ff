@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `InitSegment.GenerateFtyp`, `InitSegment.SetFtyp` and
   `MediaSegment.GenerateStyp` set ftyp/styp brands from the content: lowest
   isoN brand, codec brands, CMAF brands, and DASH `msdh`/`msix`/`lmsg`
+- `File.CheckBrands` reports ftyp/styp brands that the content contradicts or
+  that miss spec recommendations, as `BrandIssue` errors and warnings
 - Experimental paint-model subtitle boxes: `stpc`/`wvtc` sample entries, and
   `ttmn`/`vttn` (no change) and `ttmb` (TTML body only) samples, also handled
   by `mp4ff-subslister`. The 4CCs are unregistered and may change
