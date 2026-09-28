@@ -3,19 +3,48 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
 // SaizBox - Sample Auxiliary Information Sizes Box (saiz)  (in stbl or traf box)
+//
+// The version sets the width of the sizes: 8 bits for version 0, and 16 or
+// 32 bits for versions 1 and 2, which ISO/IEC 14496-12:2026 added. Files with
+// version 1 or 2 need the saie brand.
 type SaizBox struct {
 	Version               byte
 	Flags                 uint32
 	AuxInfoType           string // Used for Common Encryption Scheme (4-bytes uint32 according to spec)
 	AuxInfoTypeParameter  uint32
 	SampleCount           uint32
-	SampleInfo            []byte
-	DefaultSampleInfoSize byte
+	SampleInfo            []uint32 // Per-sample sizes, used when DefaultSampleInfoSize is 0
+	DefaultSampleInfoSize uint32
+}
+
+// saizSizeBytes returns the number of bytes of each size field for version.
+func saizSizeBytes(version byte) int {
+	switch version {
+	case 0:
+		return 1
+	case 1:
+		return 2
+	default:
+		return 4
+	}
+}
+
+// saizVersionFor returns the lowest version whose size fields can hold size.
+func saizVersionFor(size uint32) byte {
+	switch {
+	case size <= math.MaxUint8:
+		return 0
+	case size <= math.MaxUint16:
+		return 1
+	default:
+		return 2
+	}
 }
 
 // DecodeSaiz - box-specific decode
@@ -32,6 +61,9 @@ func DecodeSaiz(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 func DecodeSaizSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
+	if version > 2 {
+		return nil, fmt.Errorf("saiz: version %d not supported", version)
+	}
 	b := SaizBox{
 		Version: version,
 		Flags:   versionAndFlags & flagsMask,
@@ -40,7 +72,7 @@ func DecodeSaizSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.AuxInfoType = sr.ReadFixedLengthString(4)
 		b.AuxInfoTypeParameter = sr.ReadUint32()
 	}
-	b.DefaultSampleInfoSize = sr.ReadUint8()
+	b.DefaultSampleInfoSize = b.readSize(sr)
 	b.SampleCount = sr.ReadUint32()
 
 	if hdr.Size != b.expectedSize() {
@@ -48,18 +80,42 @@ func DecodeSaizSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	}
 
 	if b.DefaultSampleInfoSize == 0 {
-		b.SampleInfo = make([]byte, 0, b.SampleCount)
-		for i := uint32(0); i < b.SampleCount; i++ {
-			b.SampleInfo = append(b.SampleInfo, sr.ReadUint8())
+		b.SampleInfo = make([]uint32, b.SampleCount)
+		for i := range b.SampleInfo {
+			b.SampleInfo[i] = b.readSize(sr)
 		}
 	}
 	return &b, sr.AccError()
 }
 
+// readSize reads one size field of the width that the version gives.
+func (b *SaizBox) readSize(sr bits.SliceReader) uint32 {
+	switch b.Version {
+	case 0:
+		return uint32(sr.ReadUint8())
+	case 1:
+		return uint32(sr.ReadUint16())
+	default:
+		return sr.ReadUint32()
+	}
+}
+
+// writeSize writes one size field of the width that the version gives.
+func (b *SaizBox) writeSize(sw bits.SliceWriter, size uint32) {
+	switch b.Version {
+	case 0:
+		sw.WriteUint8(uint8(size))
+	case 1:
+		sw.WriteUint16(uint16(size))
+	default:
+		sw.WriteUint32(size)
+	}
+}
+
 // NewSaizBox creates a SaizBox with appropriate size allocated.
 func NewSaizBox(capacity int) *SaizBox {
 	return &SaizBox{
-		SampleInfo: make([]byte, 0, capacity),
+		SampleInfo: make([]uint32, 0, capacity),
 	}
 }
 
@@ -71,29 +127,35 @@ func NewSaizBox(capacity int) *SaizBox {
 // to per-sample sizes. Within one fragment, either all samples or no
 // samples should carry subsample patterns, matching the box-level
 // senc_use_subsamples flag of the corresponding senc box.
+//
+// The version is raised when needed, so that it is the lowest one that can
+// hold all sizes: 1 for sizes above 255 bytes and 2 for sizes above 65535
+// bytes. With 16-byte IVs, that happens above 39 subsamples.
 func (b *SaizBox) AddSampleInfo(iv []byte, subsamplePatterns []SubSamplePattern) error {
-	size := len(iv)
+	size := uint64(len(iv))
 	if len(subsamplePatterns) > 0 {
-		size += 2 + len(subsamplePatterns)*6
+		size += 2 + uint64(len(subsamplePatterns))*6
 	}
 	if size == 0 {
 		return nil
 	}
-	if size > 255 {
-		return fmt.Errorf("saiz: sample info size %d does not fit in 8 bits", size)
+	if size > math.MaxUint32 {
+		return fmt.Errorf("saiz: sample info size %d does not fit in 32 bits", size)
 	}
+	s := uint32(size)
+	b.Version = max(b.Version, saizVersionFor(s))
 	switch {
 	case b.SampleCount == 0:
-		b.DefaultSampleInfoSize = byte(size)
-	case b.DefaultSampleInfoSize != 0 && byte(size) != b.DefaultSampleInfoSize:
+		b.DefaultSampleInfoSize = s
+	case b.DefaultSampleInfoSize != 0 && s != b.DefaultSampleInfoSize:
 		// Sizes are no longer uniform: switch to per-sample sizes.
-		for i := uint32(0); i < b.SampleCount; i++ {
+		for range b.SampleCount {
 			b.SampleInfo = append(b.SampleInfo, b.DefaultSampleInfoSize)
 		}
 		b.DefaultSampleInfoSize = 0
 	}
 	if b.DefaultSampleInfoSize == 0 {
-		b.SampleInfo = append(b.SampleInfo, byte(size))
+		b.SampleInfo = append(b.SampleInfo, s)
 	}
 	b.SampleCount++
 	return nil
@@ -109,14 +171,15 @@ func (b *SaizBox) Size() uint64 {
 	return b.expectedSize()
 }
 
-// expectedSize - calculate size based on flags and sample count
+// expectedSize - calculate size based on version, flags and sample count
 func (b *SaizBox) expectedSize() uint64 {
-	size := uint64(boxHeaderSize + 9) // 9 = version + flags(4) + defaultSampleInfoSize(1) + sampleCount(4)
+	sizeBytes := uint64(saizSizeBytes(b.Version))
+	size := uint64(boxHeaderSize+8) + sizeBytes // 8 = version + flags(4) + sampleCount(4)
 	if b.Flags&0x01 != 0 {
 		size += 8 // auxInfoType(4) + auxInfoTypeParameter(4)
 	}
 	if b.DefaultSampleInfoSize == 0 {
-		size += uint64(b.SampleCount) // 1 byte per sample info when default size is 0
+		size += sizeBytes * uint64(b.SampleCount)
 	}
 	return size
 }
@@ -133,7 +196,28 @@ func (b *SaizBox) Encode(w io.Writer) error {
 }
 
 // EncodeSW - box-specific encode to slicewriter
+//
+// An error is returned if a size does not fit the width of the version, or
+// if SampleInfo has fewer than SampleCount sizes.
 func (b *SaizBox) EncodeSW(sw bits.SliceWriter) error {
+	if b.Version > 2 {
+		return fmt.Errorf("saiz: version %d not supported", b.Version)
+	}
+	if v := saizVersionFor(b.DefaultSampleInfoSize); v > b.Version {
+		return fmt.Errorf("saiz: default sample info size %d needs version %d, not %d",
+			b.DefaultSampleInfoSize, v, b.Version)
+	}
+	if b.DefaultSampleInfoSize == 0 {
+		if uint64(len(b.SampleInfo)) < uint64(b.SampleCount) {
+			return fmt.Errorf("saiz: %d sample info sizes for %d samples", len(b.SampleInfo), b.SampleCount)
+		}
+		for i := range b.SampleCount {
+			if v := saizVersionFor(b.SampleInfo[i]); v > b.Version {
+				return fmt.Errorf("saiz: sample info size %d needs version %d, not %d",
+					b.SampleInfo[i], v, b.Version)
+			}
+		}
+	}
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
 		return err
@@ -144,11 +228,11 @@ func (b *SaizBox) EncodeSW(sw bits.SliceWriter) error {
 		sw.WriteString(b.AuxInfoType, false)
 		sw.WriteUint32(b.AuxInfoTypeParameter)
 	}
-	sw.WriteUint8(b.DefaultSampleInfoSize)
+	b.writeSize(sw, b.DefaultSampleInfoSize)
 	sw.WriteUint32(b.SampleCount)
 	if b.DefaultSampleInfoSize == 0 {
-		for i := uint32(0); i < b.SampleCount; i++ {
-			sw.WriteUint8(b.SampleInfo[i])
+		for i := range b.SampleCount {
+			b.writeSize(sw, b.SampleInfo[i])
 		}
 	}
 	return sw.AccError()

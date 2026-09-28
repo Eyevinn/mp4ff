@@ -152,6 +152,30 @@ func TestCheckBrandsIssues(t *testing.T) {
 			},
 		},
 		{
+			desc: "saiz version 1 without saie in a CMAF file",
+			file: func(t *testing.T) *mp4.File {
+				init := newBrandTestInit(t, "und", "video")
+				seg := newBrandTestSegment(t, mp4.SyncSampleFlags)
+				addLargeSaiz(t, seg)
+				return encodeAndDecodeFile(t, init, seg)
+			},
+			want: []string{
+				"error: ftyp: saiz version 1 or 2 needs the saie brand",
+				"error: ftyp: CMAF allows the box versions and flags of iso9, but saiz version 1 or 2 needs saie",
+			},
+		},
+		{
+			desc: "saiz version 1 with saie",
+			file: func(t *testing.T) *mp4.File {
+				init := newBrandTestInit(t, "und", "video")
+				init.SetFtyp(mp4.NewFtyp(mp4.BrandMp42, 0, []string{mp4.BrandMp42, mp4.BrandIso6, mp4.BrandSaie}))
+				seg := newBrandTestSegment(t, mp4.SyncSampleFlags)
+				addLargeSaiz(t, seg)
+				return encodeAndDecodeFile(t, init, seg)
+			},
+			want: nil,
+		},
+		{
 			desc: "msix without sidx, lmsg too early, cmfr without sync sample",
 			file: func(t *testing.T) *mp4.File {
 				init := newBrandTestInit(t, "und", "video")
@@ -184,6 +208,15 @@ func TestCheckBrandsIssues(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// addLargeSaiz adds a version 1 saiz box to the first traf of seg.
+func addLargeSaiz(t *testing.T, seg *mp4.MediaSegment) {
+	t.Helper()
+	saiz := &mp4.SaizBox{Version: 1, DefaultSampleInfoSize: 310, SampleCount: 2}
+	if err := seg.Fragments[0].Moof.Traf.AddChild(saiz); err != nil {
+		t.Fatal(err)
 	}
 }
 

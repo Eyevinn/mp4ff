@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/avc"
@@ -902,5 +903,92 @@ func TestProtectRangesBadNaluLength(t *testing.T) {
 				t.Error("GetHEVCProtectRanges: expected error, got nil")
 			}
 		})
+	}
+}
+
+// TestEncryptDecryptManySubsamples encrypts a sample with so many subsamples
+// that its sample auxiliary information exceeds 255 bytes, which needs a
+// version 1 saiz, and checks that it decrypts after being written and read.
+func TestEncryptDecryptManySubsamples(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("7766554433221100")
+	kidUUID, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+
+	ifh, err := os.Open("testdata/init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initFile, err := mp4.DecodeFile(ifh)
+	ifh.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	init := initFile.Init
+	ipd, err := mp4.InitProtect(init, key, iv, "cenc", kidUUID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 50 IDR slice NAL units, each large enough to get its own protected range.
+	const nrNalus, naluSize = 50, 300
+	var sample []byte
+	for i := range nrNalus {
+		nalu := make([]byte, 4+naluSize)
+		binary.BigEndian.PutUint32(nalu, naluSize)
+		nalu[4] = 0x65 // IDR slice
+		for j := 5; j < len(nalu); j++ {
+			nalu[j] = byte(i + j)
+		}
+		sample = append(sample, nalu...)
+	}
+	plain := slices.Clone(sample)
+
+	seg := mp4.NewMediaSegment()
+	frag, err := mp4.CreateFragment(1, init.Moov.Trak.Tkhd.TrackID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg.AddFragment(frag)
+	frag.AddFullSample(mp4.FullSample{
+		Sample: mp4.Sample{Flags: mp4.SyncSampleFlags, Dur: 1000, Size: uint32(len(sample))}, Data: sample,
+	})
+	if _, err := mp4.EncryptFragment(frag, key, iv, ipd); err != nil {
+		t.Fatal(err)
+	}
+	saiz := frag.Moof.Traf.Saiz
+	wantSize := uint32(8 + 2 + nrNalus*6)
+	if saiz.Version != 1 || saiz.DefaultSampleInfoSize != wantSize {
+		t.Fatalf("got saiz version %d with size %d, want version 1 with size %d",
+			saiz.Version, saiz.DefaultSampleInfoSize, wantSize)
+	}
+
+	var initBuf, segBuf bytes.Buffer
+	if err := init.Encode(&initBuf); err != nil {
+		t.Fatal(err)
+	}
+	if err := seg.Encode(&segBuf); err != nil {
+		t.Fatal(err)
+	}
+	encInit, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(initBuf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decInfo, err := mp4.DecryptInit(encInit.Init)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encSeg, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(segBuf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decFrag := encSeg.Segments[0].Fragments[0]
+	if v := decFrag.Moof.Traf.Saiz.Version; v != 1 {
+		t.Errorf("decoded saiz version %d, want 1", v)
+	}
+	if err := mp4.DecryptFragment(decFrag, decInfo, key); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(decFrag.Mdat.Data, plain) {
+		t.Error("decrypted sample differs from the original")
 	}
 }

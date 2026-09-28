@@ -113,6 +113,22 @@ func TestGenerateFtyp(t *testing.T) {
 			wantBrands: []string{"mp42", "iso6", "dby1"},
 		},
 		{
+			desc: "saiz version 1 or 2 needs saie",
+			init: func(t *testing.T) *mp4.InitSegment { return newBrandTestInit(t, "und", "video") },
+			opts: mp4.FtypOptions{Fragments: &mp4.FragmentFeatures{
+				DefaultBaseIsMoof: true, Tfdt: true, TrunV1: true, Styp: true, LargeSampleAuxInfo: true,
+			}},
+			wantBrands: []string{"mp42", "iso6", "saie"},
+		},
+		{
+			desc: "CMAF with saiz version 1 or 2",
+			init: func(t *testing.T) *mp4.InitSegment { return newBrandTestInit(t, "und", "video") },
+			opts: mp4.FtypOptions{CMAF: mp4.BrandCmfc, Fragments: &mp4.FragmentFeatures{
+				DefaultBaseIsMoof: true, Tfdt: true, LargeSampleAuxInfo: true,
+			}},
+			wantErr: "saiz version 1 or 2 needs saie",
+		},
+		{
 			desc:    "CMAF header with two tracks",
 			init:    func(t *testing.T) *mp4.InitSegment { return newBrandTestInit(t, "und", "video", "audio") },
 			opts:    mp4.FtypOptions{CMAF: mp4.BrandCmfc},
