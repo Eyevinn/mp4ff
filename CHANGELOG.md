@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Box decoding finds the box type and its decoder with one integer-keyed lookup and reuses the
+  child slices of `moof` and `traf`, so decoding a fragment makes about 40% fewer allocations
+
 ### Fixed
 
 - `avc.ParseSliceHeader` no longer hangs on a huge `num_ref_idx_l0_active_minus1`,

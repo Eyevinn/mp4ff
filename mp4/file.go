@@ -331,7 +331,7 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		currSeg := f.LastSegment()
 		lastFrag := currSeg.LastFragment()
 		if lastFrag == nil || lastFrag.Moof != nil {
-			currSeg.AddFragment(&Fragment{StartPos: boxStartPos})
+			currSeg.AddFragment(&Fragment{StartPos: boxStartPos, Children: make([]Box, 0, 2)})
 		}
 		frag := currSeg.LastFragment()
 		frag.AddChild(moof)
