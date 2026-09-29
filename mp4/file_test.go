@@ -355,7 +355,8 @@ func TestEmptyMdat(t *testing.T) {
 		expectedError string
 	}{
 		{desc: "2 non-empty", mdatSizes: []uint64{24, 16},
-			expectedError: "only one non-empty mdat box supported (payload sizes 16 and 8)"},
+			expectedError: "only one non-empty mdat box supported (payload sizes 16 and 8)" +
+				", pass WithDecodeFlags(DecMultipleMdat) to read by offset instead"},
 		{desc: "empty + normal", mdatSizes: []uint64{8, 16}, expectedError: ""},
 		{desc: "normal+empty", mdatSizes: []uint64{16, 8}, expectedError: ""},
 		{desc: "empty+normal+empty", mdatSizes: []uint64{8, 16, 8}, expectedError: ""},

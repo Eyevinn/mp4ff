@@ -306,8 +306,9 @@ LoopBoxes:
 					oldPayloadSize := f.Mdat.Size() - f.Mdat.HeaderSize()
 					newMdat := box.(*MdatBox)
 					newPayloadSize := newMdat.Size() - newMdat.HeaderSize()
-					if oldPayloadSize > 0 && newPayloadSize > 0 {
-						return nil, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)",
+					if oldPayloadSize > 0 && newPayloadSize > 0 && (f.fileDecFlags&DecMultipleMdat) == 0 {
+						return nil, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)"+
+							", pass WithDecodeFlags(DecMultipleMdat) to read by offset instead",
 							oldPayloadSize, newPayloadSize)
 					}
 				}

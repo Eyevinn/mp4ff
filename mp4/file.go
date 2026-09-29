@@ -29,6 +29,7 @@ type File struct {
 	Ftyp         *FtypBox
 	Moov         *MoovBox
 	Mdat         *MdatBox        // mdat box for non-fragmented files. Extra empty boxes allowed.
+	Mdats        []*MdatBox      // every mdat box of a non-fragmented file, in file order
 	Init         *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Sidx         *SidxBox        // The first sidx box for a DASH OnDemand file
 	Sidxs        []*SidxBox      // All sidx boxes for a DASH OnDemand file
@@ -75,6 +76,19 @@ const (
 	// This is provided no styp, or sidx/mfra box gives other information
 	DecStartOnMoof = (1 << 1)
 	// if no styp box, or sidx/mfra strudture
+
+	// DecMultipleMdat accepts a progressive file carrying several non-empty mdat
+	// boxes. ISO/IEC 14496-12 allows any number of Media Data Boxes, and a
+	// sample's position is an absolute file offset in stco or co64, so where the
+	// boundaries between them fall does not matter to a reader that resolves
+	// samples by offset.
+	//
+	// It is opt-in because File.Mdat can only point at one of them: a caller
+	// reading sample data out of Mdat.Data would silently be handed part of the
+	// file, which is exactly what refusing such a file protects it from. A
+	// caller that passes this flag is saying it reads by offset, and finds every
+	// mdat in File.Mdats, in file order.
+	DecMultipleMdat DecFileFlags = (1 << 2)
 )
 
 // EncOptimize - encoder optimization mode
@@ -210,8 +224,9 @@ LoopBoxes:
 					oldPayloadSize := f.Mdat.Size() - f.Mdat.HeaderSize()
 					newMdat := box.(*MdatBox)
 					newPayloadSize := newMdat.Size() - newMdat.HeaderSize()
-					if oldPayloadSize > 0 && newPayloadSize > 0 {
-						return f, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)",
+					if oldPayloadSize > 0 && newPayloadSize > 0 && (f.fileDecFlags&DecMultipleMdat) == 0 {
+						return f, fmt.Errorf("only one non-empty mdat box supported (payload sizes %d and %d)"+
+							", pass WithDecodeFlags(DecMultipleMdat) to read by offset instead",
 							oldPayloadSize, newPayloadSize)
 					}
 				}
@@ -337,6 +352,10 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		frag.AddChild(moof)
 	case *MdatBox:
 		if !f.isFragmented { // Only add if previous mdat is nil or empty
+			// Every mdat is recorded, in file order, whatever Mdat ends up
+			// pointing at: a reader resolving samples by absolute offset needs
+			// to know they all exist, and one that does not is unaffected.
+			f.Mdats = append(f.Mdats, box)
 			if f.Mdat == nil || f.Mdat.Size()-f.Mdat.HeaderSize() == 0 {
 				f.Mdat = box
 			}
