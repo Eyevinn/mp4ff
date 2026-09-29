@@ -231,8 +231,11 @@ func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
 		}
 		size = sr.ReadUint64()
 		headerLen += largeSizeLen
-	case 0: // size 0 means to end of file
-		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
+	case 0:
+		// Size 0 means the box extends to the end of the file (ISO/IEC
+		// 14496-12 section 4.2). A SliceReader holds the whole thing, so what
+		// is left IS the rest of the file and the size is known exactly.
+		size = uint64(sr.NrRemainingBytes()) + uint64(headerLen)
 	}
 	if uint64(headerLen) > size {
 		return BoxHeader{}, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)

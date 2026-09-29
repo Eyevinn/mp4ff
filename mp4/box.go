@@ -240,8 +240,44 @@ func (b BoxHeader) payloadLen() int {
 	return int(b.Size) - b.Hdrlen
 }
 
-// DecodeHeader decodes a box header (size + box type + possible largeSize)
+// DecodeHeader decodes a box header (size + box type + possible largeSize).
+//
+// A size of 0 means the box extends to the end of the file (ISO/IEC 14496-12
+// section 4.2). A plain io.Reader cannot tell how much that is, so it is an
+// error here; DecodeHeaderSeek resolves it for a reader that can seek.
 func DecodeHeader(r io.Reader) (BoxHeader, error) {
+	return decodeHeader(r, nil)
+}
+
+// DecodeHeaderSeek decodes a box header from a reader that can seek, and so can
+// resolve a size of 0: the box extends to the end of the file, and what is left
+// of the file is measurable.
+//
+// Such a box is necessarily the last one in the file, since nothing can follow
+// something that runs to the end of it.
+func DecodeHeaderSeek(rs io.ReadSeeker) (BoxHeader, error) {
+	return decodeHeader(rs, func() (uint64, error) {
+		pos, err := rs.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return 0, err
+		}
+		end, err := rs.Seek(0, io.SeekEnd)
+		if err != nil {
+			return 0, err
+		}
+		if _, err := rs.Seek(pos, io.SeekStart); err != nil {
+			return 0, err
+		}
+		if end < pos {
+			return 0, fmt.Errorf("file ends at %d, before the current position %d", end, pos)
+		}
+		return uint64(end - pos), nil
+	})
+}
+
+// decodeHeader reads a box header. remaining, when not nil, says how many bytes
+// follow the header and is what lets a size of 0 be resolved.
+func decodeHeader(r io.Reader, remaining func() (uint64, error)) (BoxHeader, error) {
 	buf := make([]byte, boxHeaderSize)
 	n, err := io.ReadFull(r, buf)
 	if err != nil {
@@ -265,8 +301,15 @@ func DecodeHeader(r io.Reader) (BoxHeader, error) {
 		}
 		size = binary.BigEndian.Uint64(buf)
 		headerLen += largeSizeLen
-	case 0: // size 0 means to end of file
-		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
+	case 0: // size 0 means the box extends to the end of the file
+		if remaining == nil {
+			return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
+		}
+		left, err := remaining()
+		if err != nil {
+			return BoxHeader{}, fmt.Errorf("size 0, measuring what is left: %w", err)
+		}
+		size = left + uint64(headerLen)
 	}
 	if uint64(headerLen) > size {
 		return BoxHeader{}, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)
@@ -369,7 +412,15 @@ type BoxDecoder func(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error)
 
 // DecodeBox decodes a box
 func DecodeBox(startPos uint64, r io.Reader) (Box, error) {
-	h, err := DecodeHeader(r)
+	// A reader that can seek can measure what is left, which is what a size of
+	// 0 needs. Reading a whole file into memory and decoding it from a
+	// bytes.Reader is an ordinary way to use this, and it would otherwise be
+	// the one path where such a file is refused.
+	decode := DecodeHeader
+	if rs, ok := r.(io.ReadSeeker); ok {
+		decode = func(io.Reader) (BoxHeader, error) { return DecodeHeaderSeek(rs) }
+	}
+	h, err := decode(r)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +448,7 @@ func DecodeBoxBody(startPos uint64, hdr BoxHeader, r io.Reader) (Box, error) {
 
 // DecodeBoxLazyMdat decodes a box but doesn't read mdat into memory
 func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
-	h, err := DecodeHeader(r)
+	h, err := DecodeHeaderSeek(r)
 	if err != nil {
 		return nil, err
 	}

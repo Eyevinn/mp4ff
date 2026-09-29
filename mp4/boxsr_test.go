@@ -12,9 +12,10 @@ import (
 // TestDecodeHeaderSRI tests DecodeHeaderSR with sufficient and insufficient bytes
 func TestDecodeHeaderSRInsufficientBytes(t *testing.T) {
 	tests := []struct {
-		name    string
-		data    []byte
-		wantErr bool
+		name     string
+		data     []byte
+		wantErr  bool
+		wantSize uint64 // 0 means the size is not checked
 	}{
 		{
 			name:    "7 bytes (one less than boxHeaderSize)",
@@ -42,18 +43,31 @@ func TestDecodeHeaderSRInsufficientBytes(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "zero size not supported",
-			data:    []byte{0x00, 0x00, 0x00, 0x00, 't', 'e', 's', 't'},
-			wantErr: true,
+			// Size 0 means the box extends to the end of the file (ISO/IEC
+			// 14496-12 section 4.2). A SliceReader holds the whole thing, so
+			// what is left IS the rest of the file.
+			name:     "zero size runs to the end of what is there",
+			data:     []byte{0x00, 0x00, 0x00, 0x00, 't', 'e', 's', 't', 1, 2, 3, 4},
+			wantErr:  false,
+			wantSize: 12,
+		},
+		{
+			name:     "zero size with nothing after the header is an empty box",
+			data:     []byte{0x00, 0x00, 0x00, 0x00, 't', 'e', 's', 't'},
+			wantErr:  false,
+			wantSize: 8,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sr := bits.NewFixedSliceReader(tt.data)
-			_, err := mp4.DecodeHeaderSR(sr)
+			hdr, err := mp4.DecodeHeaderSR(sr)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DecodeHeaderSR() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantSize != 0 && hdr.Size != tt.wantSize {
+				t.Errorf("DecodeHeaderSR() size = %d, want %d", hdr.Size, tt.wantSize)
 			}
 		})
 	}
