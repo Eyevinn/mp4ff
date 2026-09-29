@@ -14,12 +14,14 @@ import (
 // The buffer grows to accommodate the largest box seen and is reused across boxes.
 type BoxSeekReader struct {
 	reader     io.Reader
-	buffer     []byte // Single reusable buffer that grows as needed
-	bufferPos  uint64 // Absolute position of first byte in buffer
-	currentPos uint64 // Current read position in stream
-	mdatStart  uint64 // Start of current mdat payload (when mdatActive)
-	mdatSize   uint64 // Size of current mdat payload
-	mdatActive bool   // Whether we're within mdat and doing lazy reading
+	buffer     []byte   // Single reusable buffer that grows as needed
+	bufferPos  uint64   // Absolute position of first byte in buffer
+	currentPos uint64   // Current read position in stream
+	mdatStart  uint64   // Start of current mdat payload (when mdatActive)
+	mdatSize   uint64   // Size of current mdat payload
+	mdatActive bool     // Whether we're within mdat and doing lazy reading
+	hdr        [16]byte // Scratch for box headers read from the underlying reader
+	largeSize  [8]byte  // Scratch for large sizes read from the underlying reader
 }
 
 // NewBoxSeekReader creates a BoxSeekReader with initial buffer capacity.
@@ -287,7 +289,7 @@ func (bsr *BoxSeekReader) PeekBoxHeader() (BoxHeader, uint64, error) {
 
 		// Parse header from buffer
 		size := uint64(binary.BigEndian.Uint32(bsr.buffer[0:4]))
-		boxType := string(bsr.buffer[4:8])
+		boxType, _ := lookupBoxType(bsr.buffer[4:8])
 		headerLen := boxHeaderSize
 
 		if size == 1 && len(bsr.buffer) >= boxHeaderSize+largeSizeLen {
@@ -310,7 +312,7 @@ func (bsr *BoxSeekReader) PeekBoxHeader() (BoxHeader, uint64, error) {
 	}
 
 	// Need to read header from underlying reader
-	headerBuf := make([]byte, boxHeaderSize)
+	headerBuf := bsr.hdr[:boxHeaderSize]
 	n, err := io.ReadFull(bsr.reader, headerBuf)
 	if err != nil {
 		return BoxHeader{}, 0, err
@@ -320,12 +322,12 @@ func (bsr *BoxSeekReader) PeekBoxHeader() (BoxHeader, uint64, error) {
 	}
 
 	size := uint64(binary.BigEndian.Uint32(headerBuf[0:4]))
-	boxType := string(headerBuf[4:8])
+	boxType, _ := lookupBoxType(headerBuf[4:8])
 	headerLen := boxHeaderSize
 
 	// Check for large size
 	if size == 1 {
-		largeSizeBuf := make([]byte, largeSizeLen)
+		largeSizeBuf := bsr.largeSize[:]
 		n, err := io.ReadFull(bsr.reader, largeSizeBuf)
 		if err != nil {
 			return BoxHeader{}, 0, err

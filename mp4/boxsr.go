@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -202,6 +203,10 @@ func init() {
 		"wvtc":    DecodeWvttSR,
 		"wvtt":    DecodeWvttSR,
 	}
+	boxTypes = make(map[uint32]boxTypeEntry, len(decodersSR))
+	for k, d := range decodersSR {
+		setBoxType(k, d)
+	}
 }
 
 // BoxDecoderSR is function signature of the Box DecodeSR method
@@ -209,39 +214,87 @@ type BoxDecoderSR func(hdr BoxHeader, startPos uint64, sw bits.SliceReader) (Box
 
 // DecodeBoxSR - decode a box from SliceReader
 func DecodeBoxSR(startPos uint64, sr bits.SliceReader) (Box, error) {
-	h, err := DecodeHeaderSR(sr)
+	h, d, err := decodeHeaderSR(sr)
 	if err != nil {
 		return nil, err
 	}
-	return DecodeBoxBodySR(startPos, h, sr)
+	return decodeBoxBodySR(startPos, h, d, sr)
+}
+
+// boxTypeEntry is what a box type read from the input maps to: the type as a string, so that no
+// string has to be allocated for it, and its SliceReader decoder.
+type boxTypeEntry struct {
+	name  string
+	decSR BoxDecoderSR
+}
+
+// boxTypes mirrors decodersSR, keyed by the four bytes of the box type as a big-endian uint32, so
+// that one lookup of the bytes in a header gives both the type and its decoder.
+var boxTypes map[uint32]boxTypeEntry
+
+// setBoxType adds boxType to boxTypes, or removes it if decSR is nil.
+func setBoxType(boxType string, decSR BoxDecoderSR) {
+	if len(boxType) != 4 {
+		return
+	}
+	key := binary.BigEndian.Uint32([]byte(boxType))
+	if decSR == nil {
+		delete(boxTypes, key)
+		return
+	}
+	boxTypes[key] = boxTypeEntry{name: boxType, decSR: decSR}
+}
+
+// lookupBoxType returns the box type b as a string and its decoder, or nil for a type without a
+// decoder. Only the string of a type without a decoder is allocated.
+func lookupBoxType(b []byte) (string, BoxDecoderSR) {
+	if len(b) == 4 {
+		if e, ok := boxTypes[binary.BigEndian.Uint32(b)]; ok {
+			return e.name, e.decSR
+		}
+	}
+	return string(b), nil
 }
 
 // DecodeHeaderSR - decode a box header (size + box type + possible largeSize) from sr
 func DecodeHeaderSR(sr bits.SliceReader) (BoxHeader, error) {
+	hdr, _, err := decodeHeaderSR(sr)
+	return hdr, err
+}
+
+// decodeHeaderSR is DecodeHeaderSR also returning the decoder of the box type.
+func decodeHeaderSR(sr bits.SliceReader) (BoxHeader, BoxDecoderSR, error) {
 	if sr.NrRemainingBytes() < boxHeaderSize {
-		return BoxHeader{}, fmt.Errorf("not enough bytes to read box header, need %d, have %d", boxHeaderSize, sr.NrRemainingBytes())
+		return BoxHeader{}, nil, fmt.Errorf("not enough bytes to read box header, need %d, have %d", boxHeaderSize, sr.NrRemainingBytes())
 	}
 	size := uint64(sr.ReadUint32())
-	boxType := sr.ReadFixedLengthString(4)
+	boxType, decSR := lookupBoxType(sr.ReadBytes(4))
 	headerLen := boxHeaderSize
 	switch size {
 	case 1: // size 1 means large size in next 8 bytes
 		if boxType != "mdat" {
-			return BoxHeader{}, fmt.Errorf("extended size not supported for box type %s", boxType)
+			return BoxHeader{}, nil, fmt.Errorf("extended size not supported for box type %s", boxType)
 		}
 		size = sr.ReadUint64()
 		headerLen += largeSizeLen
 	case 0: // size 0 means to end of file
-		return BoxHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
+		return BoxHeader{}, nil, fmt.Errorf("Size 0, meaning to end of file, not supported")
 	}
 	if uint64(headerLen) > size {
-		return BoxHeader{}, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)
+		return BoxHeader{}, nil, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)
 	}
-	return BoxHeader{boxType, size, headerLen}, sr.AccError()
+	return BoxHeader{boxType, size, headerLen}, decSR, sr.AccError()
 }
 
 // DecodeBoxBodySR - decode box body from SliceReader given BoxHeader
 func DecodeBoxBodySR(startPos uint64, hdr BoxHeader, sr bits.SliceReader) (Box, error) {
+	d, _ := decodersSR[hdr.Name]
+	return decodeBoxBodySR(startPos, hdr, d, sr)
+}
+
+// decodeBoxBodySR is DecodeBoxBodySR with the decoder of the box type already looked up, nil if
+// there is none.
+func decodeBoxBodySR(startPos uint64, hdr BoxHeader, d BoxDecoderSR, sr bits.SliceReader) (Box, error) {
 	maxSize := uint64(sr.NrRemainingBytes()) + uint64(hdr.Hdrlen)
 	// In the following, we do not block mdat to allow for the case
 	// that the first kiloBytes of a file are fetched and parsed to
@@ -251,11 +304,9 @@ func DecodeBoxBodySR(startPos uint64, hdr BoxHeader, sr bits.SliceReader) (Box, 
 		return nil, fmt.Errorf("decode box %q, size %d too big (max %d)", hdr.Name, hdr.Size, maxSize)
 	}
 
-	d, ok := decodersSR[hdr.Name]
-
 	var b Box
 	var err error
-	if !ok {
+	if d == nil {
 		b, err = DecodeUnknownSR(hdr, startPos, sr)
 	} else {
 		b, err = d(hdr, startPos, sr)

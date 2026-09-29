@@ -34,7 +34,7 @@ func DecodeMoof(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := MoofBox{Children: make([]Box, 0, len(children))}
+	m := MoofBox{Children: children[:0]} // AddChild appends each child once, in order, so the slice is refilled in place
 	m.StartPos = startPos
 	for _, c := range children {
 		err := m.AddChild(c)
@@ -52,7 +52,7 @@ func DecodeMoofSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if err != nil {
 		return nil, err
 	}
-	m := MoofBox{Children: make([]Box, 0, len(children))}
+	m := MoofBox{Children: children[:0]} // AddChild appends each child once, in order, so the slice is refilled in place
 	m.StartPos = startPos
 	for _, c := range children {
 		err := m.AddChild(c)

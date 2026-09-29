@@ -32,7 +32,7 @@ func DecodeTraf(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &TrafBox{Children: make([]Box, 0, len(children))}
+	t := &TrafBox{Children: children[:0]} // AddChild appends each child once, in order, so the slice is refilled in place
 	for _, child := range children {
 		err := t.AddChild(child)
 		if err != nil {
@@ -48,7 +48,7 @@ func DecodeTrafSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if err != nil {
 		return nil, err
 	}
-	t := &TrafBox{Children: make([]Box, 0, len(children))}
+	t := &TrafBox{Children: children[:0]} // AddChild appends each child once, in order, so the slice is refilled in place
 	for _, child := range children {
 		err := t.AddChild(child)
 		if err != nil {

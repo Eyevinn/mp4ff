@@ -219,6 +219,7 @@ func init() {
 func RemoveBoxDecoder(boxType string) {
 	delete(decoders, boxType)
 	delete(decodersSR, boxType)
+	setBoxType(boxType, nil)
 }
 
 // SetBoxDecoder sets decoder functions for a specific boxType.
@@ -227,6 +228,7 @@ func RemoveBoxDecoder(boxType string) {
 func SetBoxDecoder(boxType string, dec BoxDecoder, decSR BoxDecoderSR) {
 	decoders[boxType] = dec
 	decodersSR[boxType] = decSR
+	setBoxType(boxType, decSR)
 }
 
 // BoxHeader - 8 or 16 bytes depending on size
@@ -251,10 +253,10 @@ func DecodeHeader(r io.Reader) (BoxHeader, error) {
 		return BoxHeader{}, fmt.Errorf("incomplete box header read: %d/%d", n, boxHeaderSize)
 	}
 	size := uint64(binary.BigEndian.Uint32(buf[0:4]))
+	boxType, _ := lookupBoxType(buf[4:8])
 	headerLen := boxHeaderSize
 	switch size {
 	case 1: // size 1 means large size in next 8 bytes
-		boxType := string(buf[4:8])
 		if boxType != "mdat" {
 			return BoxHeader{}, fmt.Errorf("extended size not supported for box type %s", boxType)
 		}
@@ -271,7 +273,7 @@ func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	if uint64(headerLen) > size {
 		return BoxHeader{}, fmt.Errorf("box header size %d exceeds box size %d", headerLen, size)
 	}
-	return BoxHeader{string(buf[4:8]), size, headerLen}, nil
+	return BoxHeader{boxType, size, headerLen}, nil
 }
 
 // EncodeHeader - encode a box header to a writer
