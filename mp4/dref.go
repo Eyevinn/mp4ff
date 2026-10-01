@@ -160,3 +160,44 @@ func (d *DrefBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	return err
 }
+
+// dataEntryIsSelfContained reports whether a data entry in a dref box puts the
+// media data in the same file as the moov box. That is the entry flag 0x000001,
+// defined for url entries but also set on QuickTime alis entries, so it is read
+// from entries decoded as UnknownBox too. A url entry without a location is
+// also taken as self-contained, since it names no other place for the data.
+func dataEntryIsSelfContained(entry Box) bool {
+	switch e := entry.(type) {
+	case *URLBox:
+		return e.Flags&dataIsSelfContainedFlag != 0 || e.Location == ""
+	case *UnknownBox:
+		p := e.Payload()
+		return len(p) >= 4 && p[3]&dataIsSelfContainedFlag != 0
+	}
+	return false
+}
+
+// sampleEntryDataReferenceIndex returns the data_reference_index of a sample
+// entry. Every SampleEntry starts with six reserved bytes followed by the
+// index, which gives the value also for sample entries decoded as UnknownBox.
+func sampleEntryDataReferenceIndex(entry Box) (uint16, bool) {
+	switch e := entry.(type) {
+	case *VisualSampleEntryBox:
+		return e.DataReferenceIndex, true
+	case *AudioSampleEntryBox:
+		return e.DataReferenceIndex, true
+	case *WvttBox:
+		return e.DataReferenceIndex, true
+	case *StppBox:
+		return e.DataReferenceIndex, true
+	case *EvteBox:
+		return e.DataReferenceIndex, true
+	case *UnknownBox:
+		p := e.Payload()
+		if len(p) < 8 {
+			return 0, false
+		}
+		return binary.BigEndian.Uint16(p[6:8]), true
+	}
+	return 0, false
+}

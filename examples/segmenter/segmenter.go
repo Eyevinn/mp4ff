@@ -32,6 +32,9 @@ func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
 	s := Segmenter{inFile: inFile}
 	traks := inFile.Moov.Traks
 	for _, trak := range traks {
+		if err := trak.CheckDataIsSelfContained(); err != nil {
+			return nil, err
+		}
 		track := &Track{trackType: "", lang: ""}
 		switch hdlrType := trak.Mdia.Hdlr.HandlerType; hdlrType {
 		case "vide":

@@ -651,6 +651,9 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 	if f.isFragmented {
 		return fmt.Errorf("only available for progressive files")
 	}
+	if err := trak.CheckDataIsSelfContained(); err != nil {
+		return err
+	}
 	mdat := f.Mdat
 	if mdat == nil {
 		return fmt.Errorf("no mdat box in file")

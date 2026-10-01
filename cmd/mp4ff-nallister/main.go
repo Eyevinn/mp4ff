@@ -187,6 +187,9 @@ func parseProgressiveMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec strin
 			return err
 		}
 	}
+	if err := videoTrak.CheckDataIsSelfContained(); err != nil {
+		return err
+	}
 	nrSamples := stbl.Stsz.SampleNumber
 	mdat := f.Mdat
 

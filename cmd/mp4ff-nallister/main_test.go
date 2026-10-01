@@ -30,6 +30,7 @@ func TestOptions(t *testing.T) {
 		{desc: "annexBBadCodec", args: []string{appName, "-annexb", "-c", "av1", "testdata/4pics.264"},
 			expectedErr: true},
 		{desc: "initFile", args: []string{appName, "../../mp4/testdata/init.mp4"}, expectedErr: false},
+		{desc: "data in other file", args: []string{appName, "../../mp4/testdata/prog_8s_dref.mp4"}, expectedErr: true},
 		{desc: "progH264", args: []string{appName, "-ps", "-m", "4", "../../mp4/testdata/prog_8s.mp4"},
 			goldenOut: "testdata/golden_prot_h264_4pics.txt", expectedErr: false},
 		{desc: "mp4H264", args: []string{appName, "testdata/h264.mp4"},

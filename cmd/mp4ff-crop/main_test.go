@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -40,6 +41,16 @@ func TestCommandLines(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+// TestExternalData checks that a file whose sample data are in another file,
+// through dref url entries, is rejected instead of copying the wrong bytes.
+func TestExternalData(t *testing.T) {
+	outFile := filepath.Join(t.TempDir(), "out.mp4")
+	err := run([]string{appName, "-d", "1000", "../../mp4/testdata/prog_8s_dref.mp4", outFile}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "has its data outside this file") {
+		t.Errorf("expected external data error, got %v", err)
 	}
 }
 
