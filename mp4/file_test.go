@@ -782,6 +782,47 @@ func TestCopySampleDataNilMdat(t *testing.T) {
 	}
 }
 
+// TestCopySampleDataExternalData checks that a track whose sample data are in
+// another file, through a dref url entry, gives an error instead of reading
+// this file's mdat box.
+func TestCopySampleDataExternalData(t *testing.T) {
+	for _, name := range []string{"testdata/prog_8s_dref.mp4", "testdata/prog_8s.mp4"} {
+		t.Run(name, func(t *testing.T) {
+			fd, err := os.Open(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer fd.Close()
+			f, err := mp4.DecodeFile(fd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
+			if err != nil {
+				t.Fatal(err)
+			}
+			trak := f.Moov.Traks[0]
+			if name == "testdata/prog_8s.mp4" {
+				// Same track, but data in this file's mdat: replace the dref
+				// entry to check that the dref, not a missing mdat, gives the error.
+				dref := &mp4.DrefBox{}
+				dref.AddChild(&mp4.URLBox{Location: "prog_8s.mp4"})
+				trak.Mdia.Minf.Dinf.Dref = dref
+			}
+			err = f.CopySampleData(&bytes.Buffer{}, fd, trak, 1, 1, nil)
+			if err == nil || !strings.Contains(err.Error(), "has its data outside this file") {
+				t.Errorf("expected external data error, got %v", err)
+			}
+		})
+	}
+}
+
+func TestNilMdatReadAndCopyData(t *testing.T) {
+	var mdat *mp4.MdatBox
+	if _, err := mdat.ReadData(0, 1, nil); err == nil {
+		t.Error("expected error from ReadData on nil mdat")
+	}
+	if _, err := mdat.CopyData(0, 1, nil, &bytes.Buffer{}); err == nil {
+		t.Error("expected error from CopyData on nil mdat")
+	}
+}
+
 func TestCopySampleDataIncompleteTrak(t *testing.T) {
 	f := mp4.NewFile()
 	mdat := &mp4.MdatBox{Data: []byte{0}}

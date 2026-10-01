@@ -185,6 +185,11 @@ func findEndTime(moov *mp4.MoovBox, durationMS int) (endTime, endTimescale uint6
 
 func cropToTime(inMP4 *mp4.File, endTime, endTimescale uint64, w io.Writer, ifh io.ReadSeeker) error {
 	traks := inMP4.Moov.Traks
+	for _, trak := range traks {
+		if err := trak.CheckDataIsSelfContained(); err != nil {
+			return err
+		}
+	}
 	tos, err := findTrakEnds(traks, endTime, endTimescale)
 	if err != nil {
 		return err

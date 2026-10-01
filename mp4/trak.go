@@ -229,3 +229,42 @@ func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) 
 	}
 	return dataRanges, nil
 }
+
+// CheckDataIsSelfContained returns an error if a sample description of the
+// track refers, through its data_reference_index, to a data entry that puts the
+// sample data outside this file, for example a url entry with the location of
+// another file as in Unified Streaming's dref MP4 files. The chunk offsets of
+// such a track are offsets into the referenced data, so reading them from this
+// file's mdat box gives the wrong bytes. A missing dref box, or an index
+// outside it, is not reported, since nothing then says the data is elsewhere.
+func (t *TrakBox) CheckDataIsSelfContained() error {
+	if t.Mdia == nil || t.Mdia.Minf == nil {
+		return nil
+	}
+	minf := t.Mdia.Minf
+	if minf.Dinf == nil || minf.Dinf.Dref == nil || minf.Stbl == nil || minf.Stbl.Stsd == nil {
+		return nil
+	}
+	dataEntries := minf.Dinf.Dref.Children
+	for i, sampleEntry := range minf.Stbl.Stsd.Children {
+		dataRefIdx, ok := sampleEntryDataReferenceIndex(sampleEntry)
+		if !ok || dataRefIdx == 0 || int(dataRefIdx) > len(dataEntries) {
+			continue
+		}
+		dataEntry := dataEntries[dataRefIdx-1]
+		if dataEntryIsSelfContained(dataEntry) {
+			continue
+		}
+		where := fmt.Sprintf("%q entry", dataEntry.Type())
+		if u, ok := dataEntry.(*URLBox); ok {
+			where = fmt.Sprintf("url %q", u.Location)
+		}
+		var trackID uint32
+		if t.Tkhd != nil {
+			trackID = t.Tkhd.TrackID
+		}
+		return fmt.Errorf("track %d: sample description %d (%s) has its data outside this file (data reference %d: %s)",
+			trackID, i+1, sampleEntry.Type(), dataRefIdx, where)
+	}
+	return nil
+}

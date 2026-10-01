@@ -231,6 +231,9 @@ func parseMp4File(w io.Writer, r io.Reader, codec string, verbose bool) error {
 	// Non-fragmented mp4 file with PS in samples
 	for _, trak := range parsedMp4.Moov.Traks {
 		if trak.Tkhd.TrackID == trackID {
+			if err := trak.CheckDataIsSelfContained(); err != nil {
+				return err
+			}
 			stbl := trak.Mdia.Minf.Stbl
 			var offset int64
 			if stbl.Stco != nil {

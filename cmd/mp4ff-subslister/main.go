@@ -136,6 +136,9 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 			return fmt.Errorf("no subtitle track found: %w", err)
 		}
 	}
+	if err := subsTrak.trak.CheckDataIsSelfContained(); err != nil {
+		return err
+	}
 	stbl := subsTrak.trak.Mdia.Minf.Stbl
 	nrSamples := stbl.Stsz.SampleNumber
 	mdat := f.Mdat

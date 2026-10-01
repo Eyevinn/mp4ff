@@ -693,6 +693,9 @@ func parseMp4Input(inPath string, w io.Writer) (*mvhevcInput, error) {
 		}
 	}
 
+	if err := trak.CheckDataIsSelfContained(); err != nil {
+		return nil, err
+	}
 	samples := make([]mvhevcSample, 0, nrSamples)
 	mdat := parsedMp4.Mdat
 	dataRanges, err := trak.GetRangesForSampleInterval(1, nrSamples)

@@ -190,7 +190,11 @@ func (m *MdatBox) PayloadAbsoluteOffset() uint64 {
 // ReadData reads Mdat data specified by the start and size.
 // Input argument start is the position relative to the start of a file.
 // The ReadSeeker is used for lazily loaded mdat case.
+// A nil MdatBox, as for a file without mdat box, gives an error.
 func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) {
+	if m == nil {
+		return nil, errors.New("no mdat box")
+	}
 	// The Mdat box was decoded lazily
 	if m.lazyDataSize > 0 {
 		if rs == nil {
@@ -216,7 +220,11 @@ func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) 
 
 // CopyData - copy data range from mdat to w.
 // The ReadSeeker is used for lazily loaded mdat case.
+// A nil MdatBox, as for a file without mdat box, gives an error.
 func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nrWritten int64, err error) {
+	if m == nil {
+		return 0, errors.New("no mdat box")
+	}
 	// The Mdat box was decoded lazily
 	if m.lazyDataSize > 0 {
 		if rs == nil {

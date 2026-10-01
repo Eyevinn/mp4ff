@@ -20,6 +20,8 @@ func TestCommandLines(t *testing.T) {
 		{desc: "no args", args: []string{appName}, expectedErr: true},
 		{desc: "duration = 0", args: []string{appName, "-d", "0", "dummy.mp4", "dummy.mp4"}, expectedErr: true},
 		{desc: "non-existing infile", args: []string{appName, "-d", "1000", "notExists.mp4", "dummy.mp4"}, expectedErr: true},
+		{desc: "data in other file", args: []string{appName, "-d", "1000", "../../mp4/testdata/prog_8s_dref.mp4", "dref"},
+			expectedErr: true},
 		{desc: "segment 10s to 5s", args: []string{appName, "-d", "5000", testIn, "split"}, expectedErr: false,
 			wantedFiles: []string{"split_a1_1.m4s", "split_a1_2.m4s", "split_a1_init.mp4", "split_v1_1.m4s",
 				"split_v1_2.m4s", "split_v1_init.mp4"},
