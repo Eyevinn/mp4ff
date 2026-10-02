@@ -42,7 +42,7 @@ type LevaBox struct {
 // LevaLevel - level data for LevaBox
 type LevaLevel struct {
 	TrackID                  uint32
-	GroupingType             uint32
+	GroupingType             string // uint32, but takes values such as seig
 	GroupingTypeParameter    uint32
 	SubTrackID               uint32
 	paddingAndAssignmentType byte
@@ -73,13 +73,17 @@ func (l LevaLevel) Size() uint64 {
 }
 
 // NewLevaLevel - create new level for LevaBox.
+// groupingType is a four-character code such as "seig", and is only used for assignmentType 0 and 1.
 func NewLevaLevel(trackID uint32, paddingFlag bool, assignmentType byte,
-	groupingType, groupingTypeParameter, subTrackID uint32) (LevaLevel, error) {
+	groupingType string, groupingTypeParameter, subTrackID uint32) (LevaLevel, error) {
 	ll := LevaLevel{
 		TrackID: trackID,
 	}
 	if assignmentType > 4 {
 		return ll, fmt.Errorf("assignmentType %d not supported", assignmentType)
+	}
+	if assignmentType <= 1 && len(groupingType) != 4 {
+		return ll, fmt.Errorf("groupingType %q is not four characters", groupingType)
 	}
 	data := assignmentType
 	if paddingFlag {
@@ -130,9 +134,9 @@ func DecodeLevaSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		}
 		switch lvl.AssignmentType() {
 		case 0:
-			lvl.GroupingType = sr.ReadUint32()
+			lvl.GroupingType = sr.ReadFixedLengthString(4)
 		case 1:
-			lvl.GroupingType = sr.ReadUint32()
+			lvl.GroupingType = sr.ReadFixedLengthString(4)
 			lvl.GroupingTypeParameter = sr.ReadUint32()
 		case 4:
 			lvl.SubTrackID = sr.ReadUint32()
@@ -178,13 +182,16 @@ func (b *LevaBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint8(uint8(len(b.Levels)))
 	for _, lvl := range b.Levels {
+		if lvl.AssignmentType() <= 1 && len(lvl.GroupingType) != 4 {
+			return fmt.Errorf("leva groupingType %q is not four characters", lvl.GroupingType)
+		}
 		sw.WriteUint32(lvl.TrackID)
 		sw.WriteUint8(lvl.paddingAndAssignmentType)
 		switch lvl.AssignmentType() {
 		case 0:
-			sw.WriteUint32(lvl.GroupingType)
+			sw.WriteString(lvl.GroupingType, false)
 		case 1:
-			sw.WriteUint32(lvl.GroupingType)
+			sw.WriteString(lvl.GroupingType, false)
 			sw.WriteUint32(lvl.GroupingTypeParameter)
 		case 4:
 			sw.WriteUint32(lvl.SubTrackID)
@@ -202,10 +209,10 @@ func (b *LevaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		for i, lvl := range b.Levels {
 			switch lvl.AssignmentType() {
 			case 0:
-				bd.write(" - level[%d]: trackID=%d paddingFlag=%t assignmentType=%d groupingType=%d",
+				bd.write(" - level[%d]: trackID=%d paddingFlag=%t assignmentType=%d groupingType=%s",
 					i+1, lvl.TrackID, lvl.PaddingFlag(), lvl.AssignmentType(), lvl.GroupingType)
 			case 1:
-				bd.write(" - level[%d]: trackID=%d paddingFlag=%t assignmentType=%d groupingType=%d groupingTypeParameter=%d",
+				bd.write(" - level[%d]: trackID=%d paddingFlag=%t assignmentType=%d groupingType=%s groupingTypeParameter=%d",
 					i+1, lvl.TrackID, lvl.PaddingFlag(), lvl.AssignmentType(), lvl.GroupingType, lvl.GroupingTypeParameter)
 			case 4:
 				bd.write(" - level[%d]: trackID=%d paddingFlag=%t assignmentType=%d subTrackID=%d",

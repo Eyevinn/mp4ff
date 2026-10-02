@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Box decoding finds the box type and its decoder with one integer-keyed lookup and reuses the
   child slices of `moof` and `traf`, so decoding a fragment makes about 40% fewer allocations
+- `LevaLevel.GroupingType` and the `groupingType` argument of `NewLevaLevel`
+  are four-character strings, as in `SbgpBox` and `SgpdBox`, and `Info()`
+  prints them as such instead of as a number
 
 ### Fixed
 
