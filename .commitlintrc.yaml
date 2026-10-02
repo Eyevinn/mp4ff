@@ -1,0 +1,9 @@
+# Conventional Commits headers, checked by the commit-msg hook in
+# .pre-commit-config.yaml. Bodies are often unwrapped paragraphs and subjects
+# may start with an identifier such as CloneBox, so those rules are off.
+extends:
+  - "@commitlint/config-conventional"
+rules:
+  body-max-line-length: [0]
+  footer-max-line-length: [0]
+  subject-case: [0]
