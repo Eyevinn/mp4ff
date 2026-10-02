@@ -992,3 +992,223 @@ func TestEncryptDecryptManySubsamples(t *testing.T) {
 		t.Error("decrypted sample differs from the original")
 	}
 }
+
+// clearSequence returns the AVC init segment of the test data and its 60 samples re-fragmented into fragments of
+// samplesPerFrag samples, with a copy of the clear sample data.
+func clearSequence(t *testing.T, samplesPerFrag int) (*mp4.InitSegment, []*mp4.Fragment, [][]byte) {
+	t.Helper()
+	initFile, err := mp4.ReadMP4File("testdata/init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	segFile, err := mp4.ReadMP4File("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trex := initFile.Init.Moov.Mvex.Trex
+	fss, err := segFile.Segments[0].Fragments[0].GetFullSamples(trex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	var clear [][]byte
+	for start := 0; start < len(fss); start += samplesPerFrag {
+		end := min(start+samplesPerFrag, len(fss))
+		frag, err := mp4.CreateFragment(uint32(start/samplesPerFrag+1), trex.TrackID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		frag.AddFullSamples(fss[start:end])
+		if err := frag.Encode(&buf); err != nil {
+			t.Fatal(err)
+		}
+		for _, fs := range fss[start:end] {
+			clear = append(clear, bytes.Clone(fs.Data))
+		}
+	}
+	// Decode the fragments, since the encryptor works on decoded fragments
+	f, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(buf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return initFile.Init, f.Segments[0].Fragments, clear
+}
+
+// addToIV returns iv plus n as a big-endian integer, wrapping around.
+func addToIV(iv []byte, n uint64) []byte {
+	out := bytes.Clone(iv)
+	for i := len(out) - 1; i >= 0 && n > 0; i-- {
+		sum := uint64(out[i]) + n&0xff
+		out[i] = byte(sum)
+		n = n>>8 + sum>>8
+	}
+	return out
+}
+
+// TestFragmentEncryptorMatchesSampleFunctions encrypts a sequence of fragments with one FragmentEncryptor and
+// then checks every sample against CryptSampleCenc or EncryptSampleCbcs of the clear sample with the IV and
+// subsamples in senc. It also checks that the cenc IVs follow on from each other across fragments. Since the
+// encryptor reuses its storage from fragment to fragment, the checks start only when all fragments are encrypted.
+func TestFragmentEncryptorMatchesSampleFunctions(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	iv8, _ := hex.DecodeString("77665544332211fe") // the low byte overflows after two samples
+	iv16, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+	for _, sc := range []struct {
+		scheme string
+		iv     []byte
+	}{{"cenc", iv8}, {"cenc", iv16}, {"cbcs", iv16}} {
+		for _, samplesPerFrag := range []int{1, 7, 60} {
+			name := fmt.Sprintf("%s %d-byte IV, %d samples per fragment", sc.scheme, len(sc.iv), samplesPerFrag)
+			t.Run(name, func(t *testing.T) {
+				init, frags, clear := clearSequence(t, samplesPerFrag)
+				ipd, err := mp4.InitProtect(init, key, sc.iv, sc.scheme, kid, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				e, err := ipd.NewFragmentEncryptor(key, sc.iv)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, frag := range frags {
+					if err := e.EncryptFragment(frag); err != nil {
+						t.Fatal(err)
+					}
+				}
+				nr := 0
+				expIV := sc.iv
+				for _, frag := range frags {
+					fss, err := frag.GetFullSamples(ipd.Trex)
+					if err != nil {
+						t.Fatal(err)
+					}
+					senc := frag.Moof.Traf.Senc
+					if len(senc.SubSamples) != len(fss) {
+						t.Fatalf("senc has %d subsample entries for %d samples", len(senc.SubSamples), len(fss))
+					}
+					for i, fs := range fss {
+						want := bytes.Clone(clear[nr])
+						subSamples := senc.SubSamples[i]
+						switch sc.scheme {
+						case "cenc":
+							iv := []byte(senc.IVs[i])
+							if !bytes.Equal(iv, expIV) {
+								t.Fatalf("sample %d: IV %x, want %x", nr+1, iv, expIV)
+							}
+							ctrIV := make([]byte, 16)
+							copy(ctrIV, iv)
+							if err := mp4.CryptSampleCenc(want, key, ctrIV, subSamples); err != nil {
+								t.Fatal(err)
+							}
+							if len(iv) == 8 {
+								expIV = addToIV(iv, 1)
+							} else {
+								nrBlocks := 0
+								for _, ss := range subSamples {
+									nrBlocks += int(ss.BytesOfProtectedData / 16)
+								}
+								expIV = addToIV(iv, uint64(nrBlocks))
+							}
+						case "cbcs":
+							if len(senc.IVs) != 0 {
+								t.Fatalf("cbcs senc has %d IVs, want none", len(senc.IVs))
+							}
+							if err := mp4.EncryptSampleCbcs(want, key, sc.iv, subSamples, ipd.Tenc); err != nil {
+								t.Fatal(err)
+							}
+						}
+						if !bytes.Equal(fs.Data, want) {
+							t.Fatalf("sample %d is not encrypted as its senc entry says", nr+1)
+						}
+						nr++
+					}
+				}
+				if nr != len(clear) {
+					t.Fatalf("checked %d samples, want %d", nr, len(clear))
+				}
+				if sc.scheme == "cenc" && !bytes.Equal(e.IV(), expIV) {
+					t.Errorf("next IV %x, want %x", e.IV(), expIV)
+				}
+			})
+		}
+	}
+}
+
+// TestFragmentEncryptorIV checks that IV returns a copy, which neither changes when the encryptor encrypts
+// more fragments nor changes the encryptor when the caller changes it.
+func TestFragmentEncryptorIV(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	iv, _ := hex.DecodeString("7766554433221100")
+	init, frags, _ := clearSequence(t, 30)
+	ipd, err := mp4.InitProtect(init, key, iv, "cenc", kid, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := ipd.NewFragmentEncryptor(key, iv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.EncryptFragment(frags[0]); err != nil {
+		t.Fatal(err)
+	}
+	ivAfterFirst := e.IV()
+	saved := bytes.Clone(ivAfterFirst)
+	ivAfterFirst[0] ^= 0xff
+	if err := e.EncryptFragment(frags[1]); err != nil {
+		t.Fatal(err)
+	}
+	if got := []byte(frags[1].Moof.Traf.Senc.IVs[0]); !bytes.Equal(got, saved) {
+		t.Errorf("second fragment starts with IV %x, want %x", got, saved)
+	}
+	ivAfterFirst[0] ^= 0xff
+	if !bytes.Equal(ivAfterFirst, saved) {
+		t.Errorf("IV returned after the first fragment changed to %x from %x", ivAfterFirst, saved)
+	}
+	if bytes.Equal(e.IV(), saved) {
+		t.Error("IV did not advance in the second fragment")
+	}
+}
+
+// TestFragmentEncryptorAllocations checks that cbcs encryption of a fragment allocates less than once per sample.
+// It used to allocate three times per sample, and about ten times before avc.SliceHeaderSize.
+func TestFragmentEncryptorAllocations(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+	init, err := mp4.ReadMP4File("testdata/init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ipd, err := mp4.InitProtect(init.Init, key, iv, "cbcs", kid, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := ipd.NewFragmentEncryptor(key, iv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg, err := os.ReadFile("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := make([]byte, len(seg))
+	decode := func() *mp4.Fragment {
+		copy(work, seg) // encryption is in place
+		f, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(work))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f.Segments[0].Fragments[0]
+	}
+	nrSamples := int(decode().Moof.Traf.Trun.SampleCount())
+	decodeAllocs := testing.AllocsPerRun(10, func() { decode() })
+	allocs := testing.AllocsPerRun(10, func() {
+		if err := e.EncryptFragment(decode()); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if encAllocs := allocs - decodeAllocs; encAllocs >= float64(nrSamples) {
+		t.Errorf("encrypting %d samples made %.0f allocations, want fewer than one per sample", nrSamples, encAllocs)
+	}
+}

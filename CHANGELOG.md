@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fragment no longer allocates, and `Fragment.SetTrunDataOffsets` no longer allocates either
 - `bits.EBSPReader` no longer allocates for each byte it reads from an `io.ByteReader`, so AVC and HEVC
   parameter set and slice header parsing allocate far less (`avc.ParseSliceHeader`: 13 to 1)
+- `FragmentEncryptor` reuses its CBC mode and keeps a fragment's IVs and subsamples in one array each,
+  so cbcs encryption no longer allocates per sample and cenc allocates less
 
 ### Fixed
 
@@ -30,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them, and no longer panics on a `sidx`-indexed file whose fragments start with a `prft`
 - `emsg` boxes before a later `moof` and with `DecStartOnMoof` belong to that `moof`'s fragment, and the
   stream decoder sets `Fragment.Emsgs` and `Fragment.Prfts`
+- `FragmentEncryptor.IV` returns a copy, so changing the returned IV no longer changes the next IV
 - `avc.ParseSliceHeader` no longer hangs on a huge `num_ref_idx_l0_active_minus1`,
   and returns an error for a NAL unit that ends inside the slice header
 - `avc.ParseSPSNALUnit`, `ParsePPSNALUnit` and `ParseSliceHeader` reject
