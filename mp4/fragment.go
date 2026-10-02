@@ -1,10 +1,12 @@
 package mp4
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"iter"
-	"sort"
+	"slices"
+	"sync"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -441,13 +443,71 @@ func (f *Fragment) Encode(w io.Writer) error {
 		return fmt.Errorf("mdat not set in fragment")
 	}
 	f.SetTrunDataOffsets()
-	for _, b := range f.Children {
-		err := b.Encode(w)
-		if err != nil {
+	return f.encodeChildren(w)
+}
+
+// fragmentEncodeBuffer is the buffer that Fragment.Encode assembles box headers and metadata in, with the
+// writer of it, which would otherwise escape to the heap as a bits.SliceWriter.
+type fragmentEncodeBuffer struct {
+	buf []byte
+	sw  bits.FixedSliceWriter
+}
+
+var fragmentEncodeBuffers = sync.Pool{New: func() any { return new(fragmentEncodeBuffer) }}
+
+// encodeChildren writes the top-level boxes of the fragment to w. Everything but mdat payloads is assembled in one
+// pooled buffer, so that no box needs its own buffer, and mdat payloads are written directly, so that media data is
+// never copied.
+func (f *Fragment) encodeChildren(w io.Writer) error {
+	var size uint64
+	for _, c := range f.Children {
+		if m, ok := c.(*MdatBox); ok {
+			size += m.HeaderSize()
+		} else {
+			size += c.Size()
+		}
+	}
+	eb := fragmentEncodeBuffers.Get().(*fragmentEncodeBuffer)
+	defer fragmentEncodeBuffers.Put(eb)
+	if uint64(cap(eb.buf)) < size {
+		eb.buf = make([]byte, size)
+	}
+	buf := eb.buf[:size]
+	eb.sw = *bits.NewFixedSliceWriterFromSlice(buf)
+	sw := &eb.sw
+	start := 0 // start of what is in buf but not yet written to w
+	for _, c := range f.Children {
+		m, ok := c.(*MdatBox)
+		if !ok {
+			if err := c.EncodeSW(sw); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := EncodeHeaderWithSizeSW("mdat", m.Size(), m.LargeSize, sw); err != nil {
+			return err
+		}
+		if _, err := w.Write(buf[start:sw.Offset()]); err != nil {
+			return err
+		}
+		start = sw.Offset()
+		for _, dp := range m.DataParts {
+			if _, err := w.Write(dp); err != nil {
+				return err
+			}
+		}
+		if len(m.Data) > 0 {
+			if _, err := w.Write(m.Data); err != nil {
+				return err
+			}
+		}
+	}
+	if sw.Offset() > start {
+		if _, err := w.Write(buf[start:sw.Offset()]); err != nil {
 			return err
 		}
 	}
-	return nil
+	return sw.AccError()
 }
 
 // EncodeSW - write fragment via SliceWriter
@@ -507,13 +567,16 @@ func (f *Fragment) SetTrunDataOffsets() {
 		return
 	}
 
-	truns := make([]*TrunBox, 0, nrTruns)
+	var trunsArr [8]*TrunBox // enough for most fragments, so that nothing is allocated
+	truns := trunsArr[:0]
 	for _, traf := range f.Moof.Trafs {
 		truns = append(truns, traf.Truns...)
 	}
-	sort.Slice(truns, func(i, j int) bool {
-		return truns[i].writeOrderNr < truns[j].writeOrderNr
-	})
+	if len(truns) > 1 {
+		slices.SortFunc(truns, func(a, b *TrunBox) int {
+			return cmp.Compare(a.writeOrderNr, b.writeOrderNr)
+		})
+	}
 	dataOffset := f.Moof.Size() + f.Mdat.HeaderSize()
 	for _, trun := range truns {
 		trun.DataOffset = int32(dataOffset)
