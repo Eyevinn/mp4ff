@@ -1,7 +1,6 @@
 package bits
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +19,9 @@ const (
 // It also supports checking for more rbsp data and reading rbsp_trailing_bits.
 type EBSPReader struct {
 	rd        io.Reader
+	br        io.ByteReader // rd as an io.ByteReader if it is one, which reads a byte without allocating
+	data      []byte        // the bytes to read when created by NewEBSPReaderFromSlice
+	fromSlice bool
 	err       error
 	n         int  // current number of bits
 	v         uint // current accumulated value
@@ -28,11 +30,40 @@ type EBSPReader struct {
 }
 
 // NewEBSPReader return a new EBSP reader stopping reading at first error.
+// If rd is an io.ByteReader, such as a bytes.Reader, bytes are read without allocating.
 func NewEBSPReader(rd io.Reader) *EBSPReader {
+	br, _ := rd.(io.ByteReader)
 	return &EBSPReader{
 		rd:  rd,
+		br:  br,
 		pos: -1,
 	}
+}
+
+// NewEBSPReaderFromSlice returns a new EBSP reader of data. It reads without allocating and
+// supports MoreRbspData.
+func NewEBSPReaderFromSlice(data []byte) *EBSPReader {
+	return &EBSPReader{
+		data:      data,
+		fromSlice: true,
+		pos:       -1,
+	}
+}
+
+// readByte reads the next byte of the underlying reader.
+func (r *EBSPReader) readByte() (byte, error) {
+	if r.fromSlice {
+		if r.pos+1 >= len(r.data) {
+			return 0, io.EOF
+		}
+		return r.data[r.pos+1], nil
+	}
+	if r.br != nil {
+		return r.br.ReadByte()
+	}
+	var b [1]byte
+	_, err := io.ReadFull(r.rd, b[:])
+	return b[0], err
 }
 
 // AccError returns the accumulated error. If no error, returns nil.
@@ -68,14 +99,14 @@ func (r *EBSPReader) Read(n int) uint {
 	for r.n < n {
 		r.v <<= 8
 		var b uint8
-		err = binary.Read(r.rd, binary.BigEndian, &b)
+		b, err = r.readByte()
 		if err != nil {
 			r.err = err
 			return 0
 		}
 		r.pos++
 		if r.zeroCount == 2 && b == startCodeEmulationPreventionByte {
-			err = binary.Read(r.rd, binary.BigEndian, &b)
+			b, err = r.readByte()
 			if err != nil {
 				r.err = err
 				return 0
@@ -166,6 +197,9 @@ func (r *EBSPReader) ReadSignedGolomb() int {
 
 // IsSeeker returns true if underluing reader supports Seek interface.
 func (r *EBSPReader) IsSeeker() bool {
+	if r.fromSlice {
+		return true
+	}
 	_, ok := r.rd.(io.ReadSeeker)
 	return ok
 }
@@ -216,10 +250,12 @@ func (r *EBSPReader) MoreRbspData() (bool, error) {
 
 // reset resets EBSPReader based on copy of previous state.
 func (r *EBSPReader) reset(prevState EBSPReader) error {
-	rdSeek, _ := r.rd.(io.ReadSeeker)
-	_, err := rdSeek.Seek(int64(prevState.pos+1), 0)
-	if err != nil {
-		return err
+	if !r.fromSlice {
+		rdSeek, _ := r.rd.(io.ReadSeeker)
+		_, err := rdSeek.Seek(int64(prevState.pos+1), 0)
+		if err != nil {
+			return err
+		}
 	}
 	r.n = prevState.n
 	r.v = prevState.v

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Fragment.Prfts` holds all `prft` boxes of a fragment, such as one per reference track or flags value
+- `bits.NewEBSPReaderFromSlice` and `avc.SliceHeaderSize`, which parse without allocating
 
 ### Changed
 
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prints them as such instead of as a number
 - `Fragment.Encode` writes everything but the mdat payload through one pooled buffer, so encoding a
   fragment no longer allocates, and `Fragment.SetTrunDataOffsets` no longer allocates either
+- `bits.EBSPReader` no longer allocates for each byte it reads from an `io.ByteReader`, so AVC and HEVC
+  parameter set and slice header parsing allocate far less (`avc.ParseSliceHeader`: 13 to 1)
 
 ### Fixed
 

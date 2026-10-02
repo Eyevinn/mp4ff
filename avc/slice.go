@@ -127,9 +127,26 @@ type SliceHeader struct {
 
 // ParseSliceHeader parses AVC slice header following the syntax in ISO/IEC 14496-10 section 7.3.3
 func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) (*SliceHeader, error) {
-	sh := SliceHeader{}
-	buf := bytes.NewBuffer(nalu)
-	r := bits.NewEBSPReader(buf)
+	sh := &SliceHeader{}
+	if err := parseSliceHeader(sh, nalu, spsMap, ppsMap); err != nil {
+		return nil, err
+	}
+	return sh, nil
+}
+
+// SliceHeaderSize returns the size in bytes of the slice header of nalu, as ParseSliceHeader
+// would set it in SliceHeader.Size, without allocating.
+func SliceHeaderSize(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) (int, error) {
+	var sh SliceHeader
+	if err := parseSliceHeader(&sh, nalu, spsMap, ppsMap); err != nil {
+		return 0, err
+	}
+	return int(sh.Size), nil
+}
+
+// parseSliceHeader parses the slice header of nalu into sh.
+func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) error {
+	r := bits.NewEBSPReaderFromSlice(nalu)
 	nalHdr := r.Read(8)
 	naluType := GetNaluType(byte(nalHdr))
 	switch naluType {
@@ -138,7 +155,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		// slice_data_partition_a_layer_rbsp
 	default:
 		err := ErrNoSliceHeader
-		return nil, err
+		return err
 	}
 	nalRefIDC := (nalHdr >> 5) & 0x3
 	sh.FirstMBInSlice = uint32(r.ReadExpGolomb())
@@ -146,12 +163,12 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	sh.PicParamID = uint32(r.ReadExpGolomb())
 	pps, ok := ppsMap[sh.PicParamID]
 	if !ok {
-		return nil, fmt.Errorf("pps ID %d unknown", sh.PicParamID)
+		return fmt.Errorf("pps ID %d unknown", sh.PicParamID)
 	}
 	spsID := pps.SeqParameterSetID
 	sps, ok := spsMap[uint32(spsID)]
 	if !ok {
-		return nil, fmt.Errorf("sps ID %d unknown", spsID)
+		return fmt.Errorf("sps ID %d unknown", spsID)
 	}
 	if sps.SeparateColourPlaneFlag {
 		sh.ColorPlaneID = uint32(r.Read(2))
@@ -195,13 +212,13 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 			// before the uint32 conversion can truncate a bogus value.
 			numRefIdxL0ActiveMinus1 := r.ReadExpGolomb()
 			if !checkMax(r, "num_ref_idx_l0_active_minus1", numRefIdxL0ActiveMinus1, maxNumRefIdxActiveMinus1) {
-				return nil, r.AccError()
+				return r.AccError()
 			}
 			sh.NumRefIdxL0ActiveMinus1 = uint32(numRefIdxL0ActiveMinus1)
 			if sliceType == SLICE_B {
 				numRefIdxL1ActiveMinus1 := r.ReadExpGolomb()
 				if !checkMax(r, "num_ref_idx_l1_active_minus1", numRefIdxL1ActiveMinus1, maxNumRefIdxActiveMinus1) {
-					return nil, r.AccError()
+					return r.AccError()
 				}
 				sh.NumRefIdxL1ActiveMinus1 = uint32(numRefIdxL1ActiveMinus1)
 			}
@@ -348,7 +365,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	// -QpBdOffsetY to 51 (7.4.3)
 	qpBdOffsetY := 6 * int(sps.BitDepthLumaMinus8)
 	if !checkRange(r, "SliceQPY", 26+pps.PicInitQpMinus26+sliceQPDelta, -qpBdOffsetY, 51) {
-		return nil, r.AccError()
+		return r.AccError()
 	}
 	sh.SliceQPDelta = int32(sliceQPDelta)
 	if sliceType == SLICE_SP || sliceType == SLICE_SI {
@@ -375,10 +392,10 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	// A NAL unit that ends inside the slice header is an error, not a header
 	// whose remaining fields are zero.
 	if r.AccError() != nil {
-		return nil, r.AccError()
+		return r.AccError()
 	}
 
 	// compute the size in bytes. The last byte may not be fully parsed
 	sh.Size = uint32(r.NrBytesRead())
-	return &sh, nil
+	return nil
 }
