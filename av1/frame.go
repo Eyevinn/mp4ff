@@ -1,7 +1,6 @@
 package av1
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -56,7 +55,7 @@ func ParseFrameHeaderStart(payload []byte, sh *SequenceHeader) (FrameInfo, error
 	if sh.ReducedStillPictureHeader {
 		return FrameInfo{FrameType: FrameTypeKey, ShowFrame: true, FrameIsIntra: true}, nil
 	}
-	r := bits.NewReader(bytes.NewReader(payload))
+	r := bits.NewReaderFromSlice(payload)
 	fi := FrameInfo{}
 	fi.ShowExistingFrame = r.ReadFlag()
 	if fi.ShowExistingFrame {

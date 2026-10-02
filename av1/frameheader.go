@@ -1,7 +1,6 @@
 package av1
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -104,7 +103,7 @@ func (d *FrameHeaderDecoder) ParseFrameHeader(temporalID, spatialID byte, payloa
 		return nil, fmt.Errorf("av1 frame header: empty payload")
 	}
 	seq := d.seq
-	r := bits.NewReader(bytes.NewReader(payload))
+	r := bits.NewReaderFromSlice(payload)
 	fh := &FrameHeader{}
 
 	idLen := 0
