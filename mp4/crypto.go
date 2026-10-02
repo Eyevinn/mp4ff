@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
@@ -27,7 +28,13 @@ const (
 // For scheme cbcs, protection range must start after the slice header.
 func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS, sample []byte,
 	scheme string) ([]SubSamplePattern, error) {
-	var ssps []SubSamplePattern
+	return appendAVCProtectRanges(nil, spsMap, ppsMap, sample, scheme)
+}
+
+// appendAVCProtectRanges is GetAVCProtectRanges appending to ssps.
+func appendAVCProtectRanges(ssps []SubSamplePattern, spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
+	sample []byte, scheme string) ([]SubSamplePattern, error) {
+	origLen := len(ssps)
 	length := len(sample)
 	if length < 4 {
 		return nil, fmt.Errorf("less than 4 bytes, No NALUs")
@@ -57,11 +64,11 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 					}
 				}
 			case "cbcs":
-				sh, err := avc.ParseSliceHeader(nalu, spsMap, ppsMap)
+				shSize, err := avc.SliceHeaderSize(nalu, spsMap, ppsMap)
 				if err != nil {
 					return nil, err
 				}
-				clearHeadSize := uint32(sh.Size)
+				clearHeadSize := uint32(shSize)
 				clearEnd = pos + clearHeadSize
 				bytesToProtect = naluLength - clearHeadSize
 			default:
@@ -79,7 +86,7 @@ func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
 	if clearEnd > clearStart {
 		ssps = AppendProtectRange(ssps, clearEnd-clearStart, 0)
 	}
-	if len(ssps) == 0 {
+	if len(ssps) == origLen {
 		// Degenerate sample (e.g. only a NALU length field): mark all
 		// bytes clear so every video sample carries a subsample entry,
 		// keeping senc and saiz consistent within the fragment.
@@ -211,10 +218,6 @@ func AppendProtectRange(ssps []SubSamplePattern, nrClear, nrProtected uint32) []
 	return ssps
 }
 
-func getAudioProtectRanges(sample []byte, scheme string) ([]SubSamplePattern, error) {
-	return nil, nil
-}
-
 // CryptSampleCenc encrypts/decrypts cenc-schema sample in place provided key, iv, and subSamplePatterns.
 func CryptSampleCenc(sample []byte, key []byte, iv []byte, subSamplePatterns []SubSamplePattern) error {
 	block, err := aes.NewCipher(key)
@@ -316,8 +319,6 @@ func cryptSampleCbcs(dir cryptoDir, sample []byte, block cipher.Block, iv []byte
 // cbcsCrypt does one in-place CBC encryption/decryption. Full if nrInSkipBlock == 0.
 // The normal case is that nrInCryptBlock == 16 and nrInSkipBlock == 144.
 func cbcsCrypt(dir cryptoDir, data []byte, block cipher.Block, iv []byte, nrInCryptBlock, nrInSkipBlock int) error {
-	pos := 0
-	size := len(data) // This is the bytes that we should stripe decrypt
 	var cph cipher.BlockMode
 	switch dir {
 	case dirDec:
@@ -327,11 +328,52 @@ func cbcsCrypt(dir cryptoDir, data []byte, block cipher.Block, iv []byte, nrInCr
 	default:
 		return fmt.Errorf("unknown crypto direction %d", dir)
 	}
+	cbcsStripe(cph, data, nrInCryptBlock, nrInSkipBlock)
+	return nil
+}
 
+// cbcMode is a CBC mode whose IV can be reset, as those of the standard library can, so that one
+// instance serves every subsample instead of a new one being created for each.
+type cbcMode interface {
+	cipher.BlockMode
+	SetIV(iv []byte)
+}
+
+// cryptSampleCbcsMode is cryptSampleCbcs with a reusable CBC mode, which is reset to iv at the
+// start of every protected range.
+func cryptSampleCbcsMode(cph cbcMode, sample []byte, iv []byte, subSamplePatterns []SubSamplePattern,
+	tenc *TencBox) error {
+	nrInCryptBlock := int(tenc.DefaultCryptByteBlock) * 16
+	nrInSkipBlock := int(tenc.DefaultSkipByteBlock) * 16
+	if len(subSamplePatterns) == 0 { // Full encryption as used for audio
+		cph.SetIV(iv)
+		cbcsStripe(cph, sample, nrInCryptBlock, nrInSkipBlock)
+		return nil
+	}
+	var pos uint32 = 0
+	for j := 0; j < len(subSamplePatterns); j++ {
+		start, end, err := subSampleRange(len(sample), pos, j, subSamplePatterns[j])
+		if err != nil {
+			return err
+		}
+		if end > start {
+			cph.SetIV(iv)
+			cbcsStripe(cph, sample[start:end], nrInCryptBlock, nrInSkipBlock)
+		}
+		pos = end
+	}
+	return nil
+}
+
+// cbcsStripe encrypts or decrypts data in place with cph, in the pattern of nrInCryptBlock processed
+// bytes followed by nrInSkipBlock clear bytes, or all full 16-byte blocks if nrInSkipBlock == 0.
+func cbcsStripe(cph cipher.BlockMode, data []byte, nrInCryptBlock, nrInSkipBlock int) {
+	pos := 0
+	size := len(data) // This is the bytes that we should stripe decrypt
 	if nrInSkipBlock == 0 {
 		nrToCrypt := size & ^0xf // Drops 4 last bits -> multiple of 16
 		cph.CryptBlocks(data[:nrToCrypt], data[:nrToCrypt])
-		return nil
+		return
 	}
 	for size-pos >= nrInCryptBlock {
 		cph.CryptBlocks(data[pos:pos+nrInCryptBlock], data[pos:pos+nrInCryptBlock])
@@ -341,23 +383,18 @@ func cbcsCrypt(dir cryptoDir, data []byte, block cipher.Block, iv []byte, nrInCr
 		}
 		pos += nrInSkipBlock
 	}
-	return nil
 }
 
-// incrementIV increments the IV by the number of encrypted blocks and return a new IV.
-func incrementIV(inIV []byte, subsamplePatterns []SubSamplePattern, sampleLen int) []byte {
-	nrEncBlocks := 0
+// nrEncBlocks returns the number of 16-byte blocks that cenc encrypts in a sample.
+func nrEncBlocks(subsamplePatterns []SubSamplePattern, sampleLen int) int {
 	if len(subsamplePatterns) == 0 {
-		nrEncBlocks = (sampleLen + 15) / 16
-	} else {
-		for _, s := range subsamplePatterns {
-			nrEncBlocks += int(s.BytesOfProtectedData / 16)
-		}
+		return (sampleLen + 15) / 16
 	}
-	iv := make([]byte, len(inIV))
-	copy(iv, inIV)
-	incrementIVInPlace(iv, nrEncBlocks)
-	return iv
+	n := 0
+	for _, s := range subsamplePatterns {
+		n += int(s.BytesOfProtectedData / 16)
+	}
+	return n
 }
 
 func incrementIVInPlace(iv []byte, nrSteps int) {
@@ -379,7 +416,8 @@ func incrementIVInPlace(iv []byte, nrSteps int) {
 // must not be reused across sequences. Obtain a fresh one per encryption run via
 // InitProtectData.newProtector (see FragmentEncryptor).
 type sampleProtector interface {
-	protectRanges(sample []byte, scheme string) ([]SubSamplePattern, error)
+	// appendProtectRanges appends the subsample patterns of sample to dst.
+	appendProtectRanges(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error)
 }
 
 // sampleProtectorFactory creates a fresh sampleProtector. It is immutable and safe to call
@@ -525,10 +563,11 @@ func getAVCPSMaps(spss [][]byte, ppss [][]byte) (map[uint32]*avc.SPS, map[uint32
 
 // funcProtector adapts a stateless protection-range function to the sampleProtector interface.
 // It carries no mutable state, so a single instance is safe to reuse and share.
-type funcProtector func(sample []byte, scheme string) ([]SubSamplePattern, error)
+type funcProtector func(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error)
 
-func (f funcProtector) protectRanges(sample []byte, scheme string) ([]SubSamplePattern, error) {
-	return f(sample, scheme)
+func (f funcProtector) appendProtectRanges(dst []SubSamplePattern, sample []byte, scheme string) (
+	[]SubSamplePattern, error) {
+	return f(dst, sample, scheme)
 }
 
 // statelessFactory returns a factory that always hands back the same stateless protector.
@@ -537,7 +576,10 @@ func statelessFactory(p sampleProtector) sampleProtectorFactory {
 }
 
 // audioProtectorFactory protects full audio samples; it is stateless and codec-independent.
-var audioProtectorFactory = statelessFactory(funcProtector(getAudioProtectRanges))
+var audioProtectorFactory = statelessFactory(funcProtector(
+	func(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error) {
+		return dst, nil // full-sample encryption: no subsamples
+	}))
 
 func newAVCProtectorFactory(avcC *AvcCBox) (sampleProtectorFactory, error) {
 	spsMap, ppsMap, err := getAVCPSMaps(avcC.SPSnalus, avcC.PPSnalus)
@@ -546,8 +588,8 @@ func newAVCProtectorFactory(avcC *AvcCBox) (sampleProtectorFactory, error) {
 	}
 	// AVC subsample ranges are computed per sample from immutable parameter sets, so the
 	// protector is stateless and can be shared across sequences and goroutines.
-	p := funcProtector(func(sample []byte, scheme string) ([]SubSamplePattern, error) {
-		return GetAVCProtectRanges(spsMap, ppsMap, sample, scheme)
+	p := funcProtector(func(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error) {
+		return appendAVCProtectRanges(dst, spsMap, ppsMap, sample, scheme)
 	})
 	return statelessFactory(p), nil
 }
@@ -593,8 +635,9 @@ func newHEVCProtectorFactory(hvcC *HvcCBox) (sampleProtectorFactory, error) {
 	}
 	// Like AVC, HEVC ranges come from immutable parameter sets - parse them once and share a
 	// single stateless protector (previously they were re-parsed for every sample).
-	p := funcProtector(func(sample []byte, scheme string) ([]SubSamplePattern, error) {
-		return GetHEVCProtectRanges(spsMap, ppsMap, sample, scheme)
+	p := funcProtector(func(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error) {
+		ssps, err := GetHEVCProtectRanges(spsMap, ppsMap, sample, scheme)
+		return append(dst, ssps...), err
 	})
 	return statelessFactory(p), nil
 }
@@ -606,8 +649,10 @@ type av1Protector struct {
 	dec *av1.FrameHeaderDecoder
 }
 
-func (p *av1Protector) protectRanges(sample []byte, scheme string) ([]SubSamplePattern, error) {
-	return GetAV1ProtectRanges(p.dec, sample, scheme)
+func (p *av1Protector) appendProtectRanges(dst []SubSamplePattern, sample []byte, scheme string) (
+	[]SubSamplePattern, error) {
+	ssps, err := GetAV1ProtectRanges(p.dec, sample, scheme)
+	return append(dst, ssps...), err
 }
 
 func newAV1ProtectorFactory(av1C *Av1CBox) (sampleProtectorFactory, error) {
@@ -641,6 +686,12 @@ type FragmentEncryptor struct {
 	iv      []byte
 	iv8Mode bool
 	prot    sampleProtector
+	cbc     cbcMode // reusable CBC encrypter for cbcs, created at first use
+
+	// Scratch reused for every fragment
+	samples []FullSample
+	iv16    [16]byte
+	ivNext  [16]byte
 }
 
 // NewFragmentEncryptor validates the key/iv against the scheme and builds a fresh sample protector
@@ -684,10 +735,10 @@ func (ipd *InitProtectData) NewFragmentEncryptor(key, iv []byte) (*FragmentEncry
 	return &FragmentEncryptor{ipd: ipd, block: block, iv: ivCopy, iv8Mode: iv8Mode, prot: prot}, nil
 }
 
-// IV returns the next initialization vector. For cenc it advances as fragments are encrypted, so
+// IV returns a copy of the next initialization vector. For cenc it advances as fragments are encrypted, so
 // it can be chained into the next sequence; for cbcs it is the constant IV.
 func (e *FragmentEncryptor) IV() []byte {
-	return e.iv
+	return bytes.Clone(e.iv)
 }
 
 // EncryptFragment encrypts one fragment in place and advances the internal IV. Call it once per
@@ -717,26 +768,39 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 		return fmt.Errorf("unknown scheme %s", ipd.Scheme)
 	}
 	_ = traf.AddChild(senc)
-	fss, err := f.GetFullSamples(ipd.Trex)
+	fss, err := f.AppendFullSamples(e.samples[:0], ipd.Trex)
 	if err != nil {
 		return fmt.Errorf("get full samples: %w", err)
 	}
+	e.samples = fss
 
-	var iv16 []byte
-	if e.iv8Mode {
-		// The 16-byte CTR IV for an 8-byte per-sample IV: the high half is the
-		// sample IV, the low half stays zero. NewCTR copies the IV, so one
-		// buffer serves every sample of the fragment.
-		iv16 = make([]byte, 16)
+	// The per-sample IVs and subsample patterns stay referenced by senc and saiz until the fragment
+	// is encoded, so they get fresh storage per fragment: one array each instead of one per sample.
+	var ivs []byte
+	if ipd.Scheme == "cenc" {
+		ivs = make([]byte, 0, len(fss)*len(iv))
 	}
+	ssps := make([]SubSamplePattern, 0, 2*len(fss))
+	// The 16-byte CTR IV for an 8-byte per-sample IV: the high half is the sample IV, the low
+	// half stays zero. NewCTR copies the IV, so one buffer serves every sample.
+	iv16 := e.iv16[:]
+	clear(iv16)
 	for _, fs := range fss {
 		sample := fs.Data
-		subsamplePatterns, err := e.prot.protectRanges(sample, ipd.Scheme)
+		start := len(ssps)
+		ssps, err = e.prot.appendProtectRanges(ssps, sample, ipd.Scheme)
 		if err != nil {
 			return fmt.Errorf("get protect ranges: %w", err)
 		}
+		subsamplePatterns := ssps[start:len(ssps):len(ssps)]
+		if len(subsamplePatterns) == 0 {
+			subsamplePatterns = nil
+		}
 		switch ipd.Scheme {
 		case "cenc":
+			ivStart := len(ivs)
+			ivs = append(ivs, iv...)
+			iv = ivs[ivStart:len(ivs):len(ivs)] // the sample's own copy, kept by senc and saiz
 			ctrIV := iv
 			if e.iv8Mode {
 				copy(iv16, iv)
@@ -752,16 +816,30 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 			if err := saiz.AddSampleInfo(iv, subsamplePatterns); err != nil {
 				return fmt.Errorf("saiz add sample info: %w", err)
 			}
+			// Advance the IV in scratch; the next sample copies it into ivs
+			next := e.iv16[:len(iv)]
 			if e.iv8Mode {
-				nextIV := make([]byte, 8)
-				copy(nextIV, iv)
-				incrementIVInPlace(nextIV, 1)
-				iv = nextIV
-			} else {
-				iv = incrementIV(iv, subsamplePatterns, len(sample))
+				next = e.ivNext[:8]
 			}
+			copy(next, iv)
+			if e.iv8Mode {
+				incrementIVInPlace(next, 1)
+			} else {
+				incrementIVInPlace(next, nrEncBlocks(subsamplePatterns, len(sample)))
+			}
+			iv = next
 		case "cbcs":
-			if err := cryptSampleCbcs(dirEnc, sample, e.block, iv, subsamplePatterns, ipd.Tenc); err != nil {
+			if e.cbc == nil {
+				if m, ok := cipher.NewCBCEncrypter(e.block, iv).(cbcMode); ok {
+					e.cbc = m
+				}
+			}
+			if e.cbc != nil {
+				err = cryptSampleCbcsMode(e.cbc, sample, iv, subsamplePatterns, ipd.Tenc)
+			} else {
+				err = cryptSampleCbcs(dirEnc, sample, e.block, iv, subsamplePatterns, ipd.Tenc)
+			}
+			if err != nil {
 				return fmt.Errorf("crypt sample cbcs: %w", err)
 			}
 			// iv is constant and not sent to senc
@@ -775,7 +853,8 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 			return fmt.Errorf("unknown scheme %s", ipd.Scheme)
 		}
 	}
-	e.iv = iv
+	e.iv = append(e.iv[:0], iv...)
+	clear(e.samples) // do not keep the fragment's sample data alive until the next call
 	if len(senc.IVs) == 0 && len(senc.SubSamples) == 0 {
 		// No sample auxiliary information (full-sample encryption with a constant IV): CMAF
 		// (ISO/IEC 23000-19 Section 8.2.2.1) recommends omitting the senc, saiz, and saio boxes.

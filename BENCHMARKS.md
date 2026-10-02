@@ -30,6 +30,7 @@ The allocations are the heap allocations inside the benchmark loop. Most benchma
 | `BenchmarkDecodeFragments` | `mp4/benchmarks_decode_test.go` | Decoding `1.m4s` as 60 one-sample fragments, the layout of low-latency streams, with `DecodeFileSR`, `DecodeFile` and the stream decoder |
 | `BenchmarkEncodeFragments` | `mp4/benchmarks_encode_test.go` | Encoding the same 60 fragments with `Fragment.Encode` and `Fragment.EncodeSW` |
 | `BenchmarkEncryptFragment` | `mp4/benchmarks_crypto_test.go` | Encrypting one AVC fragment in place with cenc and cbcs |
+| `BenchmarkEncryptFragments` | `mp4/benchmarks_encrypt_test.go` | Encrypting `1.m4s` as one 60-sample fragment and as 60 one-sample fragments with one `FragmentEncryptor`, with cenc and cbcs |
 | `BenchmarkBuildFragment`, `BenchmarkBuildAndEncodeFragment` | `mp4/benchmarks_fragment_test.go` | Building a fragment from samples in memory with `AddFullSample` and `AddFullSamples`, and also encoding it |
 | `BenchmarkFragmentFullSamples` | `mp4/append_samples_test.go` | Getting the samples of a decoded fragment with `GetFullSamples`, `AppendFullSamples` and `Samples` |
 | `BenchmarkStreamSamples` | `mp4/append_samples_test.go` | Getting samples in the stream decoder with `GetSamples` and `AppendSamples` |
@@ -72,8 +73,13 @@ of one or a few samples. Apple M4 Pro, each compared with the code just before i
 | EBSP reading ([#614](https://github.com/Eyevinn/mp4ff/pull/614)) | `ParseNALUnits/ParseSliceHeader` | 341 ns → 263 ns | 13 → 1 |
 | | `ParseNALUnits/ParseSPSNALUnit` | 568 ns → 359 ns | 28 → 3 |
 | | `ParseNALUnits/SliceHeaderSize` (new) | 244 ns | 0 |
+| Encryption ([#616](https://github.com/Eyevinn/mp4ff/pull/616)) | `EncryptFragments/cbcs/Fragment60` | 22.6 µs → 18.0 µs | 190 → 12 for 60 samples |
+| | `EncryptFragments/cbcs/Fragments1` | 28.0 µs → 24.4 µs | 603 → 425 for 60 samples |
+| | `EncryptFragments/cenc/Fragment60` | 10.8 µs → 10.3 µs | 192 → 73 for 60 samples |
+| | `EncryptFragments/cenc/Fragments1` | 17.3 µs → 16.2 µs | 723 → 604 for 60 samples |
 
-The fragment benchmarks report the time for all 60 fragments.
+The fragment benchmarks report the time for all 60 fragments. cenc keeps one allocation per sample for its
+`cipher.NewCTR` stream, since an allocation-free CTR on `cipher.Block` is several times slower.
 
 ### SliceReader and SliceWriter (v0.27)
 
