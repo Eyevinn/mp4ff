@@ -93,7 +93,8 @@ func (s *MediaSegment) Size() uint64 {
 }
 
 // Encode - Write MediaSegment via writer.
-// One Write call is made per box, so a buffered writer should be used when w is a file.
+// The styp and sidx boxes are written with one Write call each, and the fragments as described for
+// Fragment.Encode, so a buffered writer still saves a few small writes when w is a file.
 // See the package documentation section "Writing files and segments efficiently".
 func (s *MediaSegment) Encode(w io.Writer) error {
 	if s.Styp != nil {

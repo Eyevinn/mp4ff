@@ -427,7 +427,9 @@ func (f *Fragment) AddSampleToTrack(s Sample, trackID uint32, baseMediaDecodeTim
 	return nil
 }
 
-// Encode - write fragment via writer
+// Encode - write fragment via writer.
+// All boxes up to the mdat payload are encoded into one pooled buffer and written with one Write call,
+// and the mdat payload is then written directly, one call per part, without copying or allocating.
 func (f *Fragment) Encode(w io.Writer) error {
 	if f.Moof == nil {
 		return fmt.Errorf("moof not set in fragment")
