@@ -11,6 +11,30 @@ import (
 // ExtendedSAR - Extended Sample Aspect Ratio Code
 const ExtendedSAR = 255
 
+// maxFrameSizeInMbs is the largest MaxFS of any AVC level (levels 6 to 6.2 in
+// Table A-1 of ISO/IEC 14496-10). Since PicWidthInMbs * FrameHeightInMbs <= MaxFS
+// (A.3.1), neither dimension of a conforming picture exceeds it.
+const maxFrameSizeInMbs = 139264
+
+// checkMax sets an out-of-range error on r and returns false if value > maxValue.
+func checkMax(r *bits.EBSPReader, name string, value, maxValue uint) bool {
+	if value > maxValue {
+		r.SetError(fmt.Errorf("%s %d out of range [0, %d]", name, value, maxValue))
+		return false
+	}
+	return true
+}
+
+// checkRange sets an out-of-range error on r and returns false if value is
+// outside [minValue, maxValue].
+func checkRange(r *bits.EBSPReader, name string, value, minValue, maxValue int) bool {
+	if value < minValue || value > maxValue {
+		r.SetError(fmt.Errorf("%s %d out of range [%d, %d]", name, value, minValue, maxValue))
+		return false
+	}
+	return true
+}
+
 // SPS errors
 var (
 	ErrNotSPS = errors.New("not an SPS NAL unit")
@@ -139,12 +163,20 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 	// The following table is from 14496-10:2020 Section 7.3.2.1.1
 	switch sps.Profile {
 	case 100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135:
-		sps.ChromaFormatIDC = byte(reader.ReadExpGolomb())
+		chromaFormatIDC := reader.ReadExpGolomb()
+		if !checkMax(reader, "chroma_format_idc", chromaFormatIDC, 3) {
+			return nil, reader.AccError()
+		}
+		sps.ChromaFormatIDC = byte(chromaFormatIDC)
 		if sps.ChromaFormatIDC == 3 {
 			sps.SeparateColourPlaneFlag = reader.ReadFlag()
 		}
 		sps.BitDepthLumaMinus8 = reader.ReadExpGolomb()
 		sps.BitDepthChromaMinus8 = reader.ReadExpGolomb()
+		if !checkMax(reader, "bit_depth_luma_minus8", sps.BitDepthLumaMinus8, 6) ||
+			!checkMax(reader, "bit_depth_chroma_minus8", sps.BitDepthChromaMinus8, 6) {
+			return nil, reader.AccError()
+		}
 		sps.QPPrimeYZeroTransformBypassFlag = reader.ReadFlag()
 		sps.SeqScalingMatrixPresentFlag = reader.ReadFlag()
 		if sps.SeqScalingMatrixPresentFlag {
@@ -171,11 +203,18 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		// Empty
 	}
 
+	// The two log2 values are bit counts of slice header fields.
 	sps.Log2MaxFrameNumMinus4 = reader.ReadExpGolomb()
+	if !checkMax(reader, "log2_max_frame_num_minus4", sps.Log2MaxFrameNumMinus4, 12) {
+		return nil, reader.AccError()
+	}
 	sps.PicOrderCntType = reader.ReadExpGolomb()
 	switch sps.PicOrderCntType {
 	case 0:
 		sps.Log2MaxPicOrderCntLsbMinus4 = reader.ReadExpGolomb()
+		if !checkMax(reader, "log2_max_pic_order_cnt_lsb_minus4", sps.Log2MaxPicOrderCntLsbMinus4, 12) {
+			return nil, reader.AccError()
+		}
 	case 1:
 		sps.DeltaPicOrderAlwaysZeroFlag = reader.ReadFlag()
 		sps.OffsetForNonRefPic = reader.ReadExpGolomb()
@@ -199,6 +238,11 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 
 	picWidthInMbsUnitsMinus1 := reader.ReadExpGolomb()
 	picHeightInMbsUnitsMinus1 := reader.ReadExpGolomb()
+	// Bound the dimensions so that Width and Height cannot overflow.
+	if !checkMax(reader, "pic_width_in_mbs_minus1", picWidthInMbsUnitsMinus1, maxFrameSizeInMbs-1) ||
+		!checkMax(reader, "pic_height_in_map_units_minus1", picHeightInMbsUnitsMinus1, maxFrameSizeInMbs-1) {
+		return nil, reader.AccError()
+	}
 
 	sps.Width = (picWidthInMbsUnitsMinus1 + 1) * 16
 	sps.Height = (picHeightInMbsUnitsMinus1 + 1) * 16
@@ -234,6 +278,19 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		sps.FrameCropRightOffset = reader.ReadExpGolomb()
 		sps.FrameCropTopOffset = reader.ReadExpGolomb()
 		sps.FrameCropBottomOffset = reader.ReadExpGolomb()
+
+		// The cropping rectangle must keep at least one sample in each direction
+		// (7.4.2.1.1). Checked without adding the offsets, so that a bogus offset
+		// can neither overflow nor wrap Width or Height around.
+		maxCropX := sps.Width / cropUnitX
+		maxCropY := sps.Height / cropUnitY
+		if sps.FrameCropLeftOffset >= maxCropX || sps.FrameCropRightOffset >= maxCropX-sps.FrameCropLeftOffset ||
+			sps.FrameCropTopOffset >= maxCropY || sps.FrameCropBottomOffset >= maxCropY-sps.FrameCropTopOffset {
+			reader.SetError(fmt.Errorf("frame cropping offsets (left %d, right %d, top %d, bottom %d) exceed the %dx%d picture",
+				sps.FrameCropLeftOffset, sps.FrameCropRightOffset, sps.FrameCropTopOffset,
+				sps.FrameCropBottomOffset, sps.Width, sps.Height))
+			return nil, reader.AccError()
+		}
 
 		frameCropWidth := sps.FrameCropLeftOffset + sps.FrameCropRightOffset
 		frameCropHeight := sps.FrameCropTopOffset + sps.FrameCropBottomOffset

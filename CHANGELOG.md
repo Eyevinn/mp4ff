@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `avc.ParseSliceHeader` no longer hangs on a huge `num_ref_idx_l0_active_minus1`,
+  and returns an error for a NAL unit that ends inside the slice header
+- `avc.ParseSPSNALUnit`, `ParsePPSNALUnit` and `ParseSliceHeader` reject
+  out-of-range values (dimensions, cropping, bit depths, QPs and more), so
+  cropping can no longer wrap `SPS.Width` and `SPS.Height` around
+
 ## [0.57.0] - 2026-09-29
 
 ### Added

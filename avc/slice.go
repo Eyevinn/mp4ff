@@ -191,9 +191,19 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		sh.NumRefIdxActiveOverrideFlag = r.ReadFlag()
 
 		if sh.NumRefIdxActiveOverrideFlag {
-			sh.NumRefIdxL0ActiveMinus1 = uint32(r.ReadExpGolomb())
+			// These counts drive the pred_weight_table loops below, so check them
+			// before the uint32 conversion can truncate a bogus value.
+			numRefIdxL0ActiveMinus1 := r.ReadExpGolomb()
+			if !checkMax(r, "num_ref_idx_l0_active_minus1", numRefIdxL0ActiveMinus1, maxNumRefIdxActiveMinus1) {
+				return nil, r.AccError()
+			}
+			sh.NumRefIdxL0ActiveMinus1 = uint32(numRefIdxL0ActiveMinus1)
 			if sliceType == SLICE_B {
-				sh.NumRefIdxL1ActiveMinus1 = uint32(r.ReadExpGolomb())
+				numRefIdxL1ActiveMinus1 := r.ReadExpGolomb()
+				if !checkMax(r, "num_ref_idx_l1_active_minus1", numRefIdxL1ActiveMinus1, maxNumRefIdxActiveMinus1) {
+					return nil, r.AccError()
+				}
+				sh.NumRefIdxL1ActiveMinus1 = uint32(numRefIdxL1ActiveMinus1)
 			}
 		} else {
 			sh.NumRefIdxL0ActiveMinus1 = uint32(pps.NumRefIdxI0DefaultActiveMinus1)
@@ -333,7 +343,14 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	if pps.EntropyCodingModeFlag && sliceType != SLICE_I && sliceType != SLICE_SI {
 		sh.CabacInitIDC = uint32(r.ReadExpGolomb())
 	}
-	sh.SliceQPDelta = int32(r.ReadSignedGolomb())
+	sliceQPDelta := r.ReadSignedGolomb()
+	// SliceQPY = 26 + pic_init_qp_minus26 + slice_qp_delta must be in the range
+	// -QpBdOffsetY to 51 (7.4.3)
+	qpBdOffsetY := 6 * int(sps.BitDepthLumaMinus8)
+	if !checkRange(r, "SliceQPY", 26+pps.PicInitQpMinus26+sliceQPDelta, -qpBdOffsetY, 51) {
+		return nil, r.AccError()
+	}
+	sh.SliceQPDelta = int32(sliceQPDelta)
 	if sliceType == SLICE_SP || sliceType == SLICE_SI {
 		if sliceType == SLICE_SP {
 			sh.SPForSwitchFlag = r.ReadFlag()
@@ -354,6 +371,11 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		sliceGroupChangeRate := pps.SliceGroupChangeRateMinus1 + 1
 		nrBits := int(math.Ceil(math.Log2(float64(picSizeInMapUnits/sliceGroupChangeRate + 1))))
 		sh.SliceGroupChangeCycle = uint32(r.Read(nrBits))
+	}
+	// A NAL unit that ends inside the slice header is an error, not a header
+	// whose remaining fields are zero.
+	if r.AccError() != nil {
+		return nil, r.AccError()
 	}
 
 	// compute the size in bytes. The last byte may not be fully parsed
