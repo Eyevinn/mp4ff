@@ -2,10 +2,13 @@ package bits_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/go-test/deep"
 )
 
 func TestAccErrReader(t *testing.T) {
@@ -348,5 +351,90 @@ func TestReaderSignedGolomb(t *testing.T) {
 		if got != c.wanted {
 			t.Errorf("ReadSignedGolomb(%08b)=%d, want %d", c.input, got, c.wanted)
 		}
+	}
+}
+
+// endlessReader returns the bytes of data over and over. It is not an io.ByteReader.
+type endlessReader struct {
+	data []byte
+	pos  int
+}
+
+func (e *endlessReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = e.data[e.pos]
+		e.pos = (e.pos + 1) % len(e.data)
+	}
+	return len(p), nil
+}
+
+// TestReaderKinds checks that a Reader of an io.ByteReader, of a plain io.Reader and of a slice return the same
+// values, positions and errors, for Exp-Golomb codes, signed values, the remaining bytes and the end of data.
+func TestReaderKinds(t *testing.T) {
+	data := []byte{0xa6, 0x42, 0x1f, 0xe0, 0x55, 0x01, 0x02}
+	trace := func(r *bits.Reader) []string {
+		var tr []string
+		log := func(op string, v any) {
+			tr = append(tr, fmt.Sprintf("%s=%v bytes=%d bits=%d err=%v", op, v, r.NrBytesRead(), r.NrBitsRead(),
+				r.AccError()))
+		}
+		log("ue", r.ReadExpGolomb())
+		log("ue", r.ReadExpGolomb())
+		log("se", r.ReadSignedGolomb())
+		log("se", r.ReadSignedGolomb())
+		log("flag", r.ReadFlag())
+		log("signed", r.ReadSigned(5))
+		r.ByteAlign()
+		log("align", 0)
+		log("bits", r.Read(16))
+		log("remaining", r.ReadRemainingBytes())
+		log("bits", r.Read(1))
+		return tr
+	}
+	want := trace(bits.NewReader(bytes.NewReader(data)))
+	if diff := deep.Equal(trace(bits.NewReader(plainReader{bytes.NewReader(data)})), want); diff != nil {
+		t.Errorf("plain io.Reader and io.ByteReader differ: %v", diff)
+	}
+	if diff := deep.Equal(trace(bits.NewReaderFromSlice(data)), want); diff != nil {
+		t.Errorf("slice and io.ByteReader differ: %v", diff)
+	}
+	if last := want[len(want)-1]; !strings.HasSuffix(last, "err=EOF") {
+		t.Errorf("reading after the end gave %q, want EOF", last)
+	}
+}
+
+// TestReaderAllocations checks that reading bits does not allocate, from an io.ByteReader, a plain io.Reader or a
+// slice. Reading from an io.Reader used to cost an allocation per byte.
+func TestReaderAllocations(t *testing.T) {
+	data := bytes.Repeat([]byte{0x5a}, 100)
+	br := bytes.NewReader(data)
+	r := bits.NewReader(br)
+	allocs := testing.AllocsPerRun(10, func() {
+		br.Reset(data)
+		*r = *bits.NewReader(br)
+		for r.AccError() == nil {
+			r.Read(7)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("io.ByteReader: got %.0f allocations, want 0", allocs)
+	}
+	plain := bits.NewReader(&endlessReader{data: data})
+	allocs = testing.AllocsPerRun(10, func() {
+		for i := 0; i < 100; i++ {
+			plain.Read(8)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("plain io.Reader: got %.0f allocations for 100 bytes, want 0", allocs)
+	}
+	allocs = testing.AllocsPerRun(10, func() {
+		r := bits.NewReaderFromSlice(data)
+		for r.AccError() == nil {
+			r.Read(7)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("slice: got %.0f allocations, want 0", allocs)
 	}
 }

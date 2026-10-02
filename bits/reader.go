@@ -1,7 +1,6 @@
 package bits
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 )
@@ -10,6 +9,10 @@ import (
 // First error can be fetched usiin AccError().
 type Reader struct {
 	rd    io.Reader
+	br    io.ByteReader // reads the bytes of rd without allocating
+	data  []byte        // the bytes to read when created by NewReaderFromSlice
+	off   int           // offset of the next byte in data
+	slice bool          // created by NewReaderFromSlice
 	err   error
 	n     int  // current number of bits
 	value uint // current accumulated value
@@ -22,11 +25,56 @@ func (r *Reader) AccError() error {
 }
 
 // NewReader return a new Reader that accumulates errors.
+// No byte read allocates. If rd is not an io.ByteReader, such as a bytes.Reader, the reader allocates once.
 func NewReader(rd io.Reader) *Reader {
 	return &Reader{
 		rd:  rd,
+		br:  newByteReader(rd),
 		pos: -1,
 	}
+}
+
+// NewReaderFromSlice returns a new Reader of data that accumulates errors. It reads without allocating.
+func NewReaderFromSlice(data []byte) *Reader {
+	return &Reader{
+		data:  data,
+		slice: true,
+		pos:   -1,
+	}
+}
+
+// readByte reads the next byte.
+func (r *Reader) readByte() (byte, error) {
+	if r.slice {
+		if r.off >= len(r.data) {
+			return 0, io.EOF
+		}
+		b := r.data[r.off]
+		r.off++
+		return b, nil
+	}
+	return r.br.ReadByte()
+}
+
+// byteReader reads the bytes of an io.Reader that is not an io.ByteReader one at a time, without reading ahead, so
+// that the io.Reader can still be used and seeked directly.
+type byteReader struct {
+	rd  io.Reader
+	buf [1]byte
+}
+
+// newByteReader returns rd as an io.ByteReader, wrapping it if it is not one.
+func newByteReader(rd io.Reader) io.ByteReader {
+	if br, ok := rd.(io.ByteReader); ok {
+		return br
+	}
+	return &byteReader{rd: rd}
+}
+
+// ReadByte reads one byte. The buffer is a field, since a local one would escape and allocate for every byte.
+func (b *byteReader) ReadByte() (byte, error) {
+	_, err := io.ReadFull(b.rd, b.buf[:])
+	return b.buf[0], err
 }
 
 // Read - read n bits. Return 0, if error now or previously
@@ -37,8 +85,7 @@ func (r *Reader) Read(n int) uint {
 
 	for r.n < n {
 		r.value <<= 8
-		var newByte uint8
-		err := binary.Read(r.rd, binary.BigEndian, &newByte)
+		newByte, err := r.readByte()
 		if err != nil {
 			r.err = err
 			return 0
@@ -122,6 +169,12 @@ func (r *Reader) ReadRemainingBytes() []byte {
 	if r.n != 0 {
 		r.err = fmt.Errorf("%d bit instead of byte alignment when reading remaining bytes", r.n)
 		return nil
+	}
+	if r.slice {
+		rest := make([]byte, len(r.data)-r.off)
+		copy(rest, r.data[r.off:])
+		r.off = len(r.data)
+		return rest
 	}
 	rest, err := io.ReadAll(r.rd)
 	if err != nil {
