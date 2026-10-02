@@ -9,10 +9,11 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
-// Fragment - MP4 Fragment ([prft] + moof + mdat)
+// Fragment - MP4 Fragment ([emsg] [prft] + moof + mdat)
 type Fragment struct {
 	Emsgs       []*EmsgBox
-	Prft        *PrftBox
+	Prft        *PrftBox   // The first prft box, if any
+	Prfts       []*PrftBox // All prft boxes, which may be one per reference track or flags value
 	Moof        *MoofBox
 	Mdat        *MdatBox
 	Children    []Box       // All top-level boxes in order
@@ -76,7 +77,10 @@ func (f *Fragment) AddChild(b Box) {
 	case *EmsgBox:
 		f.Emsgs = append(f.Emsgs, box)
 	case *PrftBox:
-		f.Prft = box
+		if f.Prft == nil {
+			f.Prft = box
+		}
+		f.Prfts = append(f.Prfts, box)
 	case *MoofBox:
 		f.Moof = box
 	case *MdatBox:

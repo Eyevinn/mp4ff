@@ -160,7 +160,7 @@ For fragmented files, the following high-level attributes are used:
    boxes and then one or more`Fragment`s.
 * `Fragment` is a mp4 fragment with exactly one `moof` box followed by a `mdat` box where the latter
    contains the media data. It can have one or more `trun` boxes containing the metadata
-   for the samples. The fragment can start with one or more `emsg` boxes.
+   for the samples. The fragment can start with one or more `emsg` and `prft` boxes, available as `Emsgs` and `Prfts`.
 
 It should be noted that it is sometimes hard to decide what should belong to a Segment or Fragment.
 
