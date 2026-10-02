@@ -3,6 +3,8 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -408,5 +410,141 @@ func TestAddFullSamplesThenAddFullSample(t *testing.T) {
 		if !bytes.Equal(fss[i].Data, all[i].Data) {
 			t.Errorf("sample %d data differs after round trip", i+1)
 		}
+	}
+}
+
+// fragmentedTestFiles are the test files with fragments that have both moof and mdat.
+var fragmentedTestFiles = []string{
+	"1.m4s", "aac_1.m4s", "av1_multitile_seg.m4s", "bbb5s_aac_sidx.mp4", "cbcs.mp4", "golden_1_frag.m4s",
+	"hvc1_seg_1.m4s", "interleaved_sidxs_segment.m4s", "multi_sidx_segment.m4s", "opus.mp4",
+	"prog_8s_enc_dashinit.mp4", "seg_cenc_no_seig.m4v", "v300_multiple_segments.mp4", "vvc_400kbps_2s.mp4",
+}
+
+func encodeFragmentSW(t *testing.T, frag *mp4.Fragment) []byte {
+	t.Helper()
+	sw := bits.NewFixedSliceWriter(int(frag.Size()))
+	if err := frag.EncodeSW(sw); err != nil {
+		t.Fatal(err)
+	}
+	return sw.Bytes()
+}
+
+// TestFragmentEncodeMatchesEncodeSW checks that Fragment.Encode, which assembles everything but the mdat
+// payload in one buffer, writes the same bytes as Fragment.EncodeSW for every fragment of the test files.
+// With a lazily decoded mdat, both write only its header.
+func TestFragmentEncodeMatchesEncodeSW(t *testing.T) {
+	for _, name := range fragmentedTestFiles {
+		data, err := os.ReadFile("testdata/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, lazy := range []bool{false, true} {
+			var f *mp4.File
+			if lazy {
+				f, err = mp4.DecodeFile(bytes.NewReader(data), mp4.WithDecodeMode(mp4.DecModeLazyMdat))
+			} else {
+				f, err = mp4.DecodeFileSR(bits.NewFixedSliceReader(data))
+			}
+			if err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			nrFrags := 0
+			for _, seg := range f.Segments {
+				for _, frag := range seg.Fragments {
+					nrFrags++
+					if got, want := encodeFragment(t, frag), encodeFragmentSW(t, frag); !bytes.Equal(got, want) {
+						t.Errorf("%s (lazy=%t) fragment %d: Encode and EncodeSW differ", name, lazy, nrFrags)
+					}
+				}
+			}
+			if nrFrags == 0 {
+				t.Errorf("%s (lazy=%t): no fragments", name, lazy)
+			}
+		}
+	}
+}
+
+// TestFragmentEncodeAllocations checks that Fragment.Encode of a decoded fragment does not allocate once its
+// pooled buffer exists. A garbage collection that empties the pool costs a couple of allocations, which the
+// average over the runs rounds away.
+func TestFragmentEncodeAllocations(t *testing.T) {
+	data, err := os.ReadFile("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag := f.Segments[0].Fragments[0]
+	allocs := testing.AllocsPerRun(100, func() {
+		if err := frag.Encode(io.Discard); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("got %.0f allocations, want 0", allocs)
+	}
+}
+
+// TestFragmentEncodeTopLevelBoxes checks Fragment.Encode on a fragment with emsg and prft before moof, and
+// with more truns than SetTrunDataOffsets sorts without allocating, since two tracks alternate sample by
+// sample. Every trun data offset must point at its sample in the output.
+func TestFragmentEncodeTopLevelBoxes(t *testing.T) {
+	frag := mp4.NewFragment()
+	frag.AddChild(&mp4.EmsgBox{Version: 1, TimeScale: 90000, SchemeIDURI: "urn:mp4ff:test", Value: "1",
+		MessageData: []byte("event")})
+	frag.AddChild(mp4.CreatePrftBox(1, 24, 1, 0x1234567890abcdef, 0))
+	moof := &mp4.MoofBox{}
+	frag.AddChild(moof)
+	if err := moof.AddChild(mp4.CreateMfhd(1)); err != nil {
+		t.Fatal(err)
+	}
+	for _, trackID := range []uint32{1, 2} {
+		traf := &mp4.TrafBox{}
+		if err := moof.AddChild(traf); err != nil {
+			t.Fatal(err)
+		}
+		if err := traf.AddChild(mp4.CreateTfhd(trackID)); err != nil {
+			t.Fatal(err)
+		}
+		if err := traf.AddChild(&mp4.TfdtBox{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	frag.AddChild(&mp4.MdatBox{})
+	samples := fullSamplesFixture("scattered", 12, 0)
+	for i, s := range samples {
+		if err := frag.AddFullSampleToTrack(s, uint32(1+i%2)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got := encodeFragment(t, frag)
+	if want := encodeFragmentSW(t, frag); !bytes.Equal(got, want) {
+		t.Fatal("Encode and EncodeSW differ")
+	}
+	decoded, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(got))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dFrag := decoded.Segments[0].Fragments[0]
+	if len(dFrag.Emsgs) != 1 || len(dFrag.Prfts) != 1 {
+		t.Fatalf("decoded %d emsg and %d prft boxes, expected 1 of each", len(dFrag.Emsgs), len(dFrag.Prfts))
+	}
+	moofStart := dFrag.Moof.StartPos
+	nrTruns := 0
+	for tr, traf := range dFrag.Moof.Trafs {
+		for j, trun := range traf.Truns {
+			nrTruns++
+			s := samples[2*j+tr]
+			start := moofStart + uint64(trun.DataOffset)
+			if !bytes.Equal(got[start:start+uint64(len(s.Data))], s.Data) {
+				t.Errorf("track %d trun %d: data offset %d does not point at its sample", tr+1, j+1, trun.DataOffset)
+			}
+		}
+	}
+	if nrTruns != len(samples) {
+		t.Errorf("got %d truns, expected %d", nrTruns, len(samples))
 	}
 }
