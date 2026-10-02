@@ -374,27 +374,39 @@ func (t *TrunBox) GetFullSamples(offsetInMdat uint32, baseDecodeTime uint64, mda
 }
 
 // AppendFullSamples appends the trun's full samples to dst and returns the extended slice, like GetFullSamples but
-// without allocating when dst has enough capacity. The sample data are views into mdat.Data, not copies.
+// without allocating when dst has enough capacity. The sample data are views into the mdat data, not copies.
+// The mdat data may be in DataParts as well as in Data, but each sample must lie within one of them,
+// or an error is returned.
 // On error, dst is returned truncated to its original length so that its storage can be reused.
 // To fill missing individual values from tfhd and trex defaults, call trun.AddSampleDefaultValues() before this call
 func (t *TrunBox) AppendFullSamples(dst []FullSample, offsetInMdat uint32, baseDecodeTime uint64,
 	mdat *MdatBox) ([]FullSample, error) {
 	origLen := len(dst)
 	dst = slices.Grow(dst, len(t.Samples))
+	c := mdat.cursorAt(uint64(offsetInMdat))
+	samples := t.Samples
+	var pos uint64 // position of sample i in rest
 	var accDur uint64 = 0
-	for nr, s := range t.Samples {
-		end := uint64(offsetInMdat) + uint64(s.Size)
-		if end > uint64(len(mdat.Data)) {
-			return dst[:origLen], fmt.Errorf("sample %d range %d-%d is outside mdat data (size %d)",
-				nr+1, offsetInMdat, end, len(mdat.Data))
+	for i := 0; i < len(samples); {
+		rest, err := c.next(pos, uint64(samples[i].Size))
+		if err != nil {
+			return dst[:origLen], fmt.Errorf("sample %d: %w", i+1, err)
 		}
-		dst = append(dst, FullSample{
-			Sample:     s,
-			DecodeTime: baseDecodeTime + accDur,
-			Data:       mdat.Data[offsetInMdat:end],
-		})
-		accDur += uint64(s.Dur)
-		offsetInMdat += s.Size
+		// rest is the mdat payload from sample i to the end of its data part: take the samples inside it.
+		for pos = 0; i < len(samples); i++ {
+			s := samples[i]
+			end := pos + uint64(s.Size)
+			if end > uint64(len(rest)) {
+				break
+			}
+			dst = append(dst, FullSample{
+				Sample:     s,
+				DecodeTime: baseDecodeTime + accDur,
+				Data:       rest[pos:end],
+			})
+			accDur += uint64(s.Dur)
+			pos = end
+		}
 	}
 	return dst, nil
 }
@@ -413,6 +425,7 @@ func (t *TrunBox) GetSampleRange(startSampleNr, endSampleNr uint32) []Sample {
 
 // GetSampleInterval - get sample interval [startSampleNr, endSampleNr] (1-based and inclusive)
 // This includes mdat data (if not lazy), in which case only offsetInMdat is given.
+// The data is a view into the mdat data if it lies within one of DataParts or Data, and otherwise a copy.
 // baseDecodeTime is decodeTime in tfdt in track timescale (timescale from mfhd).
 // To fill missing individual values from tfhd and trex defaults, call AddSampleDefaultValues() before this call.
 func (t *TrunBox) GetSampleInterval(startSampleNr, endSampleNr uint32, baseDecodeTime uint64,
@@ -446,12 +459,11 @@ func (t *TrunBox) GetSampleInterval(startSampleNr, endSampleNr uint32, baseDecod
 	si.OffsetInMdat = offsetInMdat
 	si.Size = size
 	if mdat != nil && !mdat.IsLazy() {
-		end := uint64(si.OffsetInMdat) + uint64(si.Size)
-		if end > uint64(len(mdat.Data)) {
-			return SampleInterval{}, fmt.Errorf("sample interval range %d-%d is outside mdat data (size %d)",
-				si.OffsetInMdat, end, len(mdat.Data))
+		data, err := mdat.payloadData(uint64(si.OffsetInMdat), uint64(si.Size))
+		if err != nil {
+			return SampleInterval{}, fmt.Errorf("sample interval: %w", err)
 		}
-		si.Data = mdat.Data[si.OffsetInMdat : si.OffsetInMdat+si.Size]
+		si.Data = data
 	}
 	return si, nil
 }
