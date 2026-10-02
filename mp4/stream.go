@@ -718,17 +718,16 @@ func (sf *StreamFile) processFragment(moof *MoofBox, moofStartPos uint64, preFra
 			mdatPayloadStart, mdatBox.PayloadAbsoluteOffset())
 	}
 
-	// Create fragment with all boxes (pre-fragment boxes + moof + mdat)
-	children := make([]Box, 0, len(preFragmentBoxes)+2)
-	children = append(children, preFragmentBoxes...)
-	children = append(children, moof, mdatBox)
-
+	// Create fragment with all boxes (pre-fragment boxes + moof + mdat). AddChild also sets Emsgs and Prfts.
 	frag := &Fragment{
-		Moof:     moof,
-		Mdat:     mdatBox,
-		Children: children,
+		Children: make([]Box, 0, len(preFragmentBoxes)+2),
 		StartPos: moofStartPos,
 	}
+	for _, b := range preFragmentBoxes {
+		frag.AddChild(b)
+	}
+	frag.AddChild(moof)
+	frag.AddChild(mdatBox)
 
 	// Invoke callback if set
 	if sf.onFragmentReady != nil {

@@ -41,6 +41,8 @@ type File struct {
 	fileDecFlags DecFileFlags    // Bit field with flags for decoding
 	isFragmented bool
 	fileDecMode  DecFileMode
+	preMoofBoxes []Box  // emsg and prft boxes waiting for the moof of their fragment
+	preMoofStart uint64 // Start position of the first of preMoofBoxes
 }
 
 // EncFragFileMode - mode for writing file
@@ -247,6 +249,7 @@ LoopBoxes:
 		lastBoxType = boxType
 		boxStartPos += boxSize
 	}
+	f.addTrailingPreMoofBoxes()
 	f.tfra = nil // Not needed anymore
 	return f, nil
 }
@@ -313,28 +316,32 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		// Starts a new segment
 		f.isFragmented = true
 		f.AddMediaSegment(&MediaSegment{Styp: box, StartPos: boxStartPos})
-	case *EmsgBox:
-		// emsg box is only added at the start of a fragment (inside a segment).
-		// The case that a segment starts without an emsg is also handled.
-		f.startSegmentIfNeeded(box, boxStartPos)
-		lastSeg := f.LastSegment()
-		if len(lastSeg.Fragments) == 0 {
-			lastSeg.AddFragment(&Fragment{StartPos: boxStartPos})
+	case *EmsgBox, *PrftBox:
+		// emsg and prft boxes belong to the fragment of the moof that follows them
+		if len(f.preMoofBoxes) == 0 {
+			f.preMoofStart = boxStartPos
 		}
-		frag := lastSeg.LastFragment()
-		frag.AddChild(box)
+		f.preMoofBoxes = append(f.preMoofBoxes, box)
 	case *MoofBox:
 		f.isFragmented = true
 		moof := box
 		moof.StartPos = boxStartPos
-		f.startSegmentIfNeeded(moof, boxStartPos)
-		currSeg := f.LastSegment()
-		lastFrag := currSeg.LastFragment()
-		if lastFrag == nil || lastFrag.Moof != nil {
-			currSeg.AddFragment(&Fragment{StartPos: boxStartPos, Children: make([]Box, 0, 2)})
+		fragStart := boxStartPos
+		if len(f.preMoofBoxes) > 0 {
+			fragStart = f.preMoofStart
 		}
-		frag := currSeg.LastFragment()
+		// A sidx references the first box of a fragment, while a tfra points to its moof
+		if len(f.Segments) == 0 || f.segmentStartsAt(fragStart) ||
+			(fragStart != boxStartPos && f.segmentStartsAt(boxStartPos)) {
+			f.startSegment(fragStart)
+		}
+		frag := &Fragment{StartPos: fragStart, Children: make([]Box, 0, len(f.preMoofBoxes)+2)}
+		for _, b := range f.preMoofBoxes {
+			frag.AddChild(b)
+		}
+		f.preMoofBoxes = nil
 		frag.AddChild(moof)
+		f.LastSegment().AddFragment(frag)
 	case *MdatBox:
 		if !f.isFragmented { // Only add if previous mdat is nil or empty
 			if f.Mdat == nil || f.Mdat.Size()-f.Mdat.HeaderSize() == 0 {
@@ -357,8 +364,23 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 	f.Children = append(f.Children, child)
 }
 
-// startSegmentIfNeeded starts a new segment if there is none or if position match with sidx of tfra.
-func (f *File) startSegmentIfNeeded(_ Box, boxStartPos uint64) {
+// addTrailingPreMoofBoxes adds emsg and prft boxes that no moof followed to the children of the last fragment, so
+// that they are still encoded. They are not added to its Emsgs or Prfts, since they belong to a missing fragment.
+func (f *File) addTrailingPreMoofBoxes() {
+	if len(f.preMoofBoxes) == 0 {
+		return
+	}
+	if seg := f.LastSegment(); seg != nil {
+		if frag := seg.LastFragment(); frag != nil {
+			frag.Children = append(frag.Children, f.preMoofBoxes...)
+		}
+	}
+	f.preMoofBoxes = nil
+}
+
+// segmentStartsAt reports whether a new segment starts with the box at boxStartPos: the first segment, or a
+// position that matches the sidx or tfra, or every fragment with DecStartOnMoof.
+func (f *File) segmentStartsAt(boxStartPos uint64) bool {
 	segStart := false
 	segIdx := len(f.Segments)
 	switch {
@@ -388,17 +410,19 @@ func (f *File) startSegmentIfNeeded(_ Box, boxStartPos uint64) {
 	default:
 		segStart = (segIdx == 0)
 	}
-	if segStart {
-		f.isFragmented = true
-		ms := MediaSegment{
-			Styp:        nil,
-			Fragments:   nil,
-			EncOptimize: OptimizeNone,
-			StartPos:    boxStartPos,
-		}
-		f.AddMediaSegment(&ms)
-		return
+	return segStart
+}
+
+// startSegment starts a new media segment without styp at boxStartPos.
+func (f *File) startSegment(boxStartPos uint64) {
+	f.isFragmented = true
+	ms := MediaSegment{
+		Styp:        nil,
+		Fragments:   nil,
+		EncOptimize: OptimizeNone,
+		StartPos:    boxStartPos,
 	}
+	f.AddMediaSegment(&ms)
 }
 
 // findAndReadMfra tries to find a tfra box inside an mfra box at the end of the file

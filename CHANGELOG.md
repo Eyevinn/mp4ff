@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Fragment.Prfts` holds all `prft` boxes of a fragment, such as one per reference track or flags value
+
 ### Changed
 
 - Box decoding finds the box type and its decoder with one integer-keyed lookup and reuses the
@@ -17,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- File decoding adds `prft` boxes to the fragment of the following `moof`, so re-encoding no longer drops
+  them, and no longer panics on a `sidx`-indexed file whose fragments start with a `prft`
+- `emsg` boxes before a later `moof` and with `DecStartOnMoof` belong to that `moof`'s fragment, and the
+  stream decoder sets `Fragment.Emsgs` and `Fragment.Prfts`
 - `avc.ParseSliceHeader` no longer hangs on a huge `num_ref_idx_l0_active_minus1`,
   and returns an error for a NAL unit that ends inside the slice header
 - `avc.ParseSPSNALUnit`, `ParsePPSNALUnit` and `ParseSliceHeader` reject
