@@ -2,9 +2,11 @@ package mp4
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"io"
 	"iter"
+	"math"
 	"slices"
 	"sync"
 
@@ -156,9 +158,12 @@ func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 // It is GetFullSamples with caller-provided storage: when dst has enough capacity, nothing is allocated,
 // so a caller that processes many fragments can reuse one slice for all of them by passing samples[:0].
 // The track is selected by trex.TrackID, or the first traf if trex is nil. A track that is not present in the
-// fragment appends nothing. The sample data are views into f.Mdat.Data, not copies, so they are only valid as long
+// fragment appends nothing. The sample data are views into the mdat data, not copies, so they are only valid as long
 // as the mdat data is. When the fragment is decoded with DecodeFileSR or DecodeBoxSR, the mdat data is itself a view
-// into the input slice, so a pooled input buffer ends up holding all sample data.
+// into the input slice, so a pooled input buffer ends up holding all sample data. For a fragment built with
+// AddFullSamples, they are views into the buffers that were added.
+// A fragment that has not been decoded has its sample data where Encode will write them, whether it has been
+// encoded or not.
 // On error, dst is returned truncated to its original length so that its storage can be reused.
 func (f *Fragment) AppendFullSamples(dst []FullSample, trex *TrexBox) ([]FullSample, error) {
 	traf := f.sampleTraf(trex)
@@ -197,7 +202,7 @@ func (f *Fragment) AppendFullSamples(dst []FullSample, trex *TrexBox) ([]FullSam
 //	}
 //
 // The track is selected as for AppendFullSamples. Nothing is allocated, as no slice of samples is built: each
-// sample is passed to the loop body as it is produced. The sample data are views into f.Mdat.Data, as for
+// sample is passed to the loop body as it is produced. The sample data are views into the mdat data, as for
 // GetFullSamples, and the data of consecutive samples are adjacent there, so AddFullSamples adds collected samples
 // to a new fragment without copying.
 //
@@ -217,20 +222,14 @@ func (f *Fragment) yieldSamples(trex *TrexBox, yield func(FullSample, error) boo
 		return
 	}
 	tfhd := traf.Tfhd
-	mdatLen := uint64(len(f.Mdat.Data))
 	for nr, trun := range traf.Truns {
 		trun.AddSampleDefaultValues(tfhd, trex)
-		end, err := f.trunOffsetInMdat(tfhd, trun)
+		offset, err := f.trunOffsetInMdat(tfhd, trun)
 		if err == nil {
-			for _, s := range trun.Samples {
-				end += uint64(s.Size)
-			}
-			if end > mdatLen {
-				err = fmt.Errorf("trun %d: sample data ends at %d, outside mdat data (size %d)", nr+1, end, mdatLen)
-			}
+			err = checkSampleData(f.Mdat.cursorAt(offset), trun.Samples)
 		}
 		if err != nil {
-			yield(FullSample{}, err)
+			yield(FullSample{}, fmt.Errorf("trun %d: %w", nr+1, err))
 			return
 		}
 	}
@@ -240,15 +239,49 @@ func (f *Fragment) yieldSamples(trex *TrexBox, yield func(FullSample, error) boo
 	}
 	for _, trun := range traf.Truns {
 		offset, _ := f.trunOffsetInMdat(tfhd, trun) // checked above
-		for _, s := range trun.Samples {
-			end := offset + uint64(s.Size)
-			if !yield(FullSample{Sample: s, DecodeTime: decodeTime, Data: f.Mdat.Data[offset:end]}, nil) {
+		c := f.Mdat.cursorAt(offset)
+		samples := trun.Samples
+		var pos uint64 // position of sample i in rest
+		for i := 0; i < len(samples); {
+			rest, err := c.next(pos, uint64(samples[i].Size))
+			if err != nil { // only if the loop body changed the fragment
+				yield(FullSample{}, err)
 				return
 			}
-			decodeTime += uint64(s.Dur)
-			offset = end
+			for pos = 0; i < len(samples); i++ {
+				s := samples[i]
+				end := pos + uint64(s.Size)
+				if end > uint64(len(rest)) {
+					break
+				}
+				if !yield(FullSample{Sample: s, DecodeTime: decodeTime, Data: rest[pos:end]}, nil) {
+					return
+				}
+				decodeTime += uint64(s.Dur)
+				pos = end
+			}
 		}
 	}
+}
+
+// checkSampleData checks that the data of consecutive samples, from the offset of c, are each inside one data
+// part of the mdat payload, as payloadCursor describes.
+func checkSampleData(c payloadCursor, samples []Sample) error {
+	var pos uint64 // position of sample i in rest
+	for i := 0; i < len(samples); {
+		rest, err := c.next(pos, uint64(samples[i].Size))
+		if err != nil {
+			return fmt.Errorf("sample %d: %w", i+1, err)
+		}
+		for pos = 0; i < len(samples); i++ {
+			end := pos + uint64(samples[i].Size)
+			if end > uint64(len(rest)) {
+				break
+			}
+			pos = end
+		}
+	}
+	return nil
 }
 
 // sampleTraf returns the traf of trex.TrackID, the first traf if trex is nil, or nil if the track is absent.
@@ -259,17 +292,50 @@ func (f *Fragment) sampleTraf(trex *TrexBox) *TrafBox {
 	return trafForTrackID(f.Moof, trex.TrackID)
 }
 
-// trunOffsetInMdat returns the offset in f.Mdat.Data of the first sample of trun.
+// trunOffsetInMdat returns the offset in the mdat payload of the first sample of trun.
+// A decoded fragment has the file positions of its boxes, which the trun data offset is resolved against.
+// A fragment that has not been decoded has no such positions (its mdat StartPos is 0, which cannot be the
+// position of an mdat that follows a moof), so its trun data offset may be unset or relative to positions it
+// does not have. Its sample data are instead where Encode writes them, which is given by trunOffsetInWriteOrder.
 func (f *Fragment) trunOffsetInMdat(tfhd *TfhdBox, trun *TrunBox) (uint64, error) {
+	mdat := f.Mdat
+	if mdat == nil {
+		return 0, errors.New("fragment has no mdat")
+	}
+	if mdat.StartPos == 0 {
+		return f.trunOffsetInWriteOrder(trun), nil
+	}
 	baseOffset := trunDataOffset(f.Moof.StartPos, tfhd, trun)
 	if baseOffset == 0 {
 		return 0, nil
 	}
-	offsetInMdat := baseOffset - f.Mdat.PayloadAbsoluteOffset()
-	if offsetInMdat > uint64(len(f.Mdat.Data)) {
-		return 0, fmt.Errorf("offset in mdata beyond size")
+	payloadStart := mdat.PayloadAbsoluteOffset()
+	if baseOffset < payloadStart || baseOffset-payloadStart > mdat.payloadSize() {
+		return 0, fmt.Errorf("trun data offset %d is outside mdat payload %d-%d",
+			baseOffset, payloadStart, payloadStart+mdat.payloadSize())
 	}
-	return offsetInMdat, nil
+	return baseOffset - payloadStart, nil
+}
+
+// trunOffsetInWriteOrder returns the offset in the mdat payload of the first sample of trun in a fragment that has
+// not been decoded. As SetTrunDataOffsets lays them out, the data of the truns follow each other in write order,
+// so the offset is the data size of the truns written before trun. Truns with the same write order number are
+// taken in moof order.
+func (f *Fragment) trunOffsetInWriteOrder(trun *TrunBox) uint64 {
+	var offset uint64
+	before := true // whether the truns visited so far come before trun in moof order
+	for _, traf := range f.Moof.Trafs {
+		for _, t := range traf.Truns {
+			if t == trun {
+				before = false
+				continue
+			}
+			if t.writeOrderNr < trun.writeOrderNr || (t.writeOrderNr == trun.writeOrderNr && before) {
+				offset += t.SizeOfData()
+			}
+		}
+	}
+	return offset
 }
 
 // AddFullSample - add a full sample to the first (and only) trun of a track
@@ -621,19 +687,16 @@ func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr u
 		return SampleInterval{}, fmt.Errorf("not exactly 1, but %d trun boxes", len(traf.Truns))
 	}
 	tfhd, trun := traf.Tfhd, traf.Trun
-	moofStartPos := moof.StartPos
 	_ = trun.AddSampleDefaultValues(tfhd, trex)
-	var baseOffset uint64
-	if tfhd.HasBaseDataOffset() {
-		baseOffset = tfhd.BaseDataOffset
-	} else if tfhd.DefaultBaseIfMoof() {
-		baseOffset = moofStartPos
+	offsetInMdat, err := f.trunOffsetInMdat(tfhd, trun)
+	if err != nil {
+		return SampleInterval{}, err
 	}
-	if trun.HasDataOffset() {
-		baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
+	if offsetInMdat > math.MaxUint32 {
+		return SampleInterval{}, fmt.Errorf("trun offset %d in mdat does not fit in 32 bits", offsetInMdat)
 	}
-	offsetInMdat := uint32(baseOffset - f.Mdat.PayloadAbsoluteOffset())
-	return trun.GetSampleInterval(startSampleNr, endSampleNr, traf.Tfdt.BaseMediaDecodeTime(), f.Mdat, offsetInMdat)
+	return trun.GetSampleInterval(startSampleNr, endSampleNr, traf.Tfdt.BaseMediaDecodeTime(), f.Mdat,
+		uint32(offsetInMdat))
 }
 
 // AddSampleInterval - add SampleInterval for a fragment with only one track

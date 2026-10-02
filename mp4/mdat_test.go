@@ -283,6 +283,53 @@ func TestMdatDataRangeChecks(t *testing.T) {
 	}
 }
 
+// TestMdatDataRangeInParts - ReadData and CopyData resolve a range in DataParts or in the Data tail, but not a
+// range that spans more than one of them. Before, any range gave an error when there were data parts.
+func TestMdatDataRangeInParts(t *testing.T) {
+	// Payload of 7 bytes starting 8 bytes into the file: parts {0, 1, 2} and {3, 4}, then tail {5, 6}.
+	mdat := &mp4.MdatBox{}
+	mdat.AddSampleDataPart([]byte{0, 1, 2})
+	mdat.AddSampleDataPart([]byte{3, 4})
+	mdat.AddSampleData([]byte{5, 6})
+	cases := []struct {
+		desc  string
+		start int64
+		size  int64
+		want  []byte // nil for an error
+	}{
+		{desc: "first part", start: 8, size: 3, want: []byte{0, 1, 2}},
+		{desc: "inside second part", start: 12, size: 1, want: []byte{4}},
+		{desc: "tail", start: 13, size: 2, want: []byte{5, 6}},
+		{desc: "empty range at end", start: 15, size: 0, want: []byte{}},
+		{desc: "spans parts", start: 10, size: 2},
+		{desc: "spans part and tail", start: 12, size: 2},
+		{desc: "beyond payload", start: 14, size: 2},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			data, err := mdat.ReadData(c.start, c.size, nil)
+			switch {
+			case c.want == nil && err == nil:
+				t.Errorf("ReadData: expected error, got %v", data)
+			case c.want != nil && err != nil:
+				t.Errorf("ReadData: unexpected error: %v", err)
+			case !bytes.Equal(data, c.want):
+				t.Errorf("ReadData: got %v instead of %v", data, c.want)
+			}
+			var buf bytes.Buffer
+			_, err = mdat.CopyData(c.start, c.size, nil, &buf)
+			switch {
+			case c.want == nil && err == nil:
+				t.Errorf("CopyData: expected error, wrote %v", buf.Bytes())
+			case c.want != nil && err != nil:
+				t.Errorf("CopyData: unexpected error: %v", err)
+			case !bytes.Equal(buf.Bytes(), c.want):
+				t.Errorf("CopyData: wrote %v instead of %v", buf.Bytes(), c.want)
+			}
+		})
+	}
+}
+
 // TestMdatMixedDataAndParts - data added with AddSampleData and with
 // AddSampleDataPart can be combined in any order, and the payload is written
 // in the order it was added. Before, adding a part on top of monolithic data

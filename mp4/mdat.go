@@ -250,22 +250,148 @@ func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nr
 // dataRange returns the in-memory mdat payload for the absolute file range
 // [start, start+size). An error is returned if the range is not fully inside
 // the mdat payload, so that a bad chunk offset or sample size in a corrupt
-// file results in an error instead of a panic.
+// file results in an error instead of a panic. The range must also be inside
+// one of DataParts or Data, since it is returned as a view.
 func (m *MdatBox) dataRange(start, size int64) ([]byte, error) {
 	if start < 0 || size < 0 {
 		return nil, fmt.Errorf("negative start %d or size %d", start, size)
-	}
-	if len(m.DataParts) > 0 {
-		return nil, fmt.Errorf("extraction of range from dataParts not yet implemented")
 	}
 	payloadStart := m.PayloadAbsoluteOffset()
 	if uint64(start) < payloadStart {
 		return nil, fmt.Errorf("start %d is before mdat payload start %d", start, payloadStart)
 	}
-	offset := uint64(start) - payloadStart
-	end := offset + uint64(size) // cannot overflow since both are non-negative int64
-	if dataLen := m.DataLength(); end > dataLen {
-		return nil, fmt.Errorf("range %d-%d is outside mdat data (size %d)", offset, end, dataLen)
+	c := payloadCursor{mdat: m}
+	rest, err := c.restAt(uint64(start)-payloadStart, uint64(size)) // cannot overflow since both are non-negative
+	if err != nil {
+		return nil, err
 	}
-	return m.Data[offset:end], nil
+	return rest[:size], nil
+}
+
+// errSpansDataParts is returned for a payload range that starts in one data part and ends in another, so that
+// it cannot be returned as a view.
+var errSpansDataParts = errors.New("spans more than one mdat data part")
+
+// part returns part i of the in-memory payload: DataParts[i], or the tail Data for i == len(DataParts).
+func (m *MdatBox) part(i int) []byte {
+	if i < len(m.DataParts) {
+		return m.DataParts[i]
+	}
+	return m.Data
+}
+
+// payloadCursor finds ranges of the in-memory mdat payload, DataParts followed by Data, in those slices.
+// It continues from the part where the previous range was found, so finding the ranges of consecutive samples
+// takes time linear in their number, however many parts there are.
+//
+// A loop over consecutive samples gets rest, the payload from a sample to the end of its part, from next, and
+// slices that sample and the following ones inside rest from it, so that a part is looked up once and not for
+// every sample:
+//
+//	c := mdat.cursorAt(offset)
+//	var pos uint64 // position of sample i in rest
+//	for i := 0; i < len(samples); {
+//		rest, err := c.next(pos, uint64(samples[i].Size))
+//		if err != nil { ... }
+//		for pos = 0; i < len(samples); i++ {
+//			end := pos + uint64(samples[i].Size)
+//			if end > uint64(len(rest)) {
+//				break
+//			}
+//			data := rest[pos:end]
+//			pos = end
+//		}
+//	}
+//
+// The inner loop has no call, which keeps its variables in registers. Since next returns a rest that holds
+// sample i, every round of the outer loop takes at least one sample. The sample data are not capped, so the
+// data of adjacent samples are adjacent slices.
+type payloadCursor struct {
+	mdat  *MdatBox
+	part  int    // index of the current part, as for MdatBox.part
+	start uint64 // payload offset of the current part
+	off   uint64 // payload offset of the rest that next returned last, or of the first range
+}
+
+// cursorAt returns a payloadCursor for consecutive ranges from payload offset off.
+func (m *MdatBox) cursorAt(off uint64) payloadCursor {
+	return payloadCursor{mdat: m, off: off}
+}
+
+// next returns the payload from the next range, of size bytes, to the end of the part that holds it.
+// The next range starts consumed bytes after the start of the rest that next returned last.
+func (c *payloadCursor) next(consumed, size uint64) ([]byte, error) {
+	off := c.off + consumed
+	rest, err := c.restAt(off, size)
+	if err != nil {
+		return nil, err
+	}
+	c.off = off
+	return rest, nil
+}
+
+// restAt returns the payload from off to the end of the part that holds the range [off, off+size).
+// A range that is outside the payload, or that spans more than one part (wrapping errSpansDataParts), gives an
+// error, since it cannot be sliced from one part.
+func (c *payloadCursor) restAt(off, size uint64) ([]byte, error) {
+	m := c.mdat
+	if off < c.start {
+		c.part, c.start = 0, 0
+	}
+	end := off + size
+	for ; c.part <= len(m.DataParts); c.part++ {
+		p := m.part(c.part)
+		partEnd := c.start + uint64(len(p))
+		if off < partEnd || (off == partEnd && size == 0) {
+			if end <= partEnd {
+				return p[off-c.start:], nil
+			}
+			if end <= m.DataLength() {
+				return nil, fmt.Errorf("range %d-%d %w", off, end, errSpansDataParts)
+			}
+			break
+		}
+		c.start = partEnd
+	}
+	return nil, m.outsideDataErr(off, end)
+}
+
+// payloadData returns the in-memory payload range [off, off+size): a view if the range is inside one part,
+// and otherwise a copy gathered from the parts it spans.
+func (m *MdatBox) payloadData(off, size uint64) ([]byte, error) {
+	c := payloadCursor{mdat: m}
+	rest, err := c.restAt(off, size)
+	if err == nil {
+		return rest[:size], nil
+	}
+	if !errors.Is(err, errSpansDataParts) {
+		return nil, err
+	}
+	data := make([]byte, 0, size)
+	end := off + size
+	var partStart uint64
+	for i := 0; i <= len(m.DataParts) && partStart < end; i++ {
+		p := m.part(i)
+		partEnd := partStart + uint64(len(p))
+		if partEnd > off {
+			lo, hi := uint64(0), uint64(len(p))
+			if off > partStart {
+				lo = off - partStart
+			}
+			if end < partEnd {
+				hi = end - partStart
+			}
+			data = append(data, p[lo:hi]...)
+		}
+		partStart = partEnd
+	}
+	return data, nil
+}
+
+// outsideDataErr reports that the payload range [off, end) is not inside the in-memory payload.
+func (m *MdatBox) outsideDataErr(off, end uint64) error {
+	if m.IsLazy() {
+		return fmt.Errorf("range %d-%d: mdat data is not in memory (lazy mdat)", off, end)
+	}
+	return fmt.Errorf("range %d-%d is outside mdat data (size %d)", off, end, m.DataLength())
 }
