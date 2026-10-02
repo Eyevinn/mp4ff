@@ -1,7 +1,6 @@
 package av1
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -56,12 +55,9 @@ func (d *FrameHeaderDecoder) GetTileRanges(sample []byte) ([]TileRange, error) {
 			}
 			if !fh.ShowExistingFrame {
 				tgOffset := pos + fh.HeaderBytes
-				tiles, err := tileGroupRanges(sample[tgOffset:pos+payloadLen], fh)
+				ranges, err = appendTileGroupRanges(ranges, sample[tgOffset:pos+payloadLen], tgOffset, fh)
 				if err != nil {
 					return nil, fmt.Errorf("frame OBU tile group: %w", err)
-				}
-				for _, t := range tiles {
-					ranges = append(ranges, TileRange{Offset: tgOffset + t.Offset, Length: t.Length})
 				}
 			}
 		case OBUFrameHeader, OBURedundantFrameHeader:
@@ -72,12 +68,10 @@ func (d *FrameHeaderDecoder) GetTileRanges(sample []byte) ([]TileRange, error) {
 			if d.lastFrameHeader == nil {
 				return nil, fmt.Errorf("tile group OBU before any frame header")
 			}
-			tiles, err := tileGroupRanges(payload, d.lastFrameHeader)
+			var err error
+			ranges, err = appendTileGroupRanges(ranges, payload, pos, d.lastFrameHeader)
 			if err != nil {
 				return nil, fmt.Errorf("tile group OBU: %w", err)
-			}
-			for _, t := range tiles {
-				ranges = append(ranges, TileRange{Offset: pos + t.Offset, Length: t.Length})
 			}
 		}
 		pos += payloadLen
@@ -85,15 +79,15 @@ func (d *FrameHeaderDecoder) GetTileRanges(sample []byte) ([]TileRange, error) {
 	return ranges, nil
 }
 
-// tileGroupRanges implements tile_group_obu() (spec 5.11.1) enough to return the byte range
-// of each tile's data within the given tile-group bytes. It requires the tile-size fields to
-// account for the whole tile group exactly.
-func tileGroupRanges(tg []byte, fh *FrameHeader) ([]TileRange, error) {
+// appendTileGroupRanges implements tile_group_obu() (spec 5.11.1) enough to append the byte range
+// of each tile's data within the given tile-group bytes to ranges, offset by tgOffset. It requires
+// the tile-size fields to account for the whole tile group exactly.
+func appendTileGroupRanges(ranges []TileRange, tg []byte, tgOffset int, fh *FrameHeader) ([]TileRange, error) {
 	numTiles := fh.NumTiles()
 	if numTiles <= 0 {
 		return nil, fmt.Errorf("invalid tile count %d", numTiles)
 	}
-	r := bits.NewReader(bytes.NewReader(tg))
+	r := bits.NewReaderFromSlice(tg)
 	tileStartAndEndPresent := false
 	if numTiles > 1 {
 		tileStartAndEndPresent = r.ReadFlag()
@@ -110,7 +104,6 @@ func tileGroupRanges(tg []byte, fh *FrameHeader) ([]TileRange, error) {
 	}
 	pos := r.NrBytesRead()
 
-	var ranges []TileRange
 	for tileNum := tgStart; tileNum <= tgEnd; tileNum++ {
 		lastTile := tileNum == tgEnd
 		var tileSize int
@@ -126,7 +119,7 @@ func tileGroupRanges(tg []byte, fh *FrameHeader) ([]TileRange, error) {
 		if tileSize < 0 || pos+tileSize > len(tg) {
 			return nil, fmt.Errorf("tile %d size %d exceeds tile group", tileNum, tileSize)
 		}
-		ranges = append(ranges, TileRange{Offset: pos, Length: tileSize})
+		ranges = append(ranges, TileRange{Offset: tgOffset + pos, Length: tileSize})
 		pos += tileSize
 	}
 	if pos != len(tg) {

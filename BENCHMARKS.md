@@ -31,6 +31,7 @@ The allocations are the heap allocations inside the benchmark loop. Most benchma
 | `BenchmarkEncodeFragments` | `mp4/benchmarks_encode_test.go` | Encoding the same 60 fragments with `Fragment.Encode` and `Fragment.EncodeSW` |
 | `BenchmarkEncryptFragment` | `mp4/benchmarks_crypto_test.go` | Encrypting one AVC fragment in place with cenc and cbcs |
 | `BenchmarkEncryptFragments` | `mp4/benchmarks_encrypt_test.go` | Encrypting `1.m4s` as one 60-sample fragment and as 60 one-sample fragments with one `FragmentEncryptor`, with cenc and cbcs |
+| `BenchmarkGetAV1ProtectRanges` | `mp4/benchmarks_encrypt_test.go` | Finding the cbcs protection ranges of the three samples of `av1_multitile_seg.m4s`, which parses their frame headers and tile groups |
 | `BenchmarkBuildFragment`, `BenchmarkBuildAndEncodeFragment` | `mp4/benchmarks_fragment_test.go` | Building a fragment from samples in memory with `AddFullSample` and `AddFullSamples`, and also encoding it |
 | `BenchmarkFragmentFullSamples` | `mp4/append_samples_test.go` | Getting the samples of a decoded fragment with `GetFullSamples`, `AppendFullSamples` and `Samples` |
 | `BenchmarkStreamSamples` | `mp4/append_samples_test.go` | Getting samples in the stream decoder with `GetSamples` and `AppendSamples` |
@@ -77,6 +78,7 @@ of one or a few samples. Apple M4 Pro, each compared with the code just before i
 | | `EncryptFragments/cbcs/Fragments1` | 28.0 µs → 24.4 µs | 603 → 425 for 60 samples |
 | | `EncryptFragments/cenc/Fragment60` | 10.8 µs → 10.3 µs | 192 → 73 for 60 samples |
 | | `EncryptFragments/cenc/Fragments1` | 17.3 µs → 16.2 µs | 723 → 604 for 60 samples |
+| Bit reading and AV1 ([#617](https://github.com/Eyevinn/mp4ff/pull/617)) | `GetAV1ProtectRanges` | 1353 ns → 909 ns | 77 → 16 for 3 samples |
 
 The fragment benchmarks report the time for all 60 fragments. cenc keeps one allocation per sample for its
 `cipher.NewCTR` stream, since an allocation-free CTR on `cipher.Block` is several times slower.

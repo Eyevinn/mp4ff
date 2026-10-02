@@ -1,7 +1,6 @@
 package av1
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -85,7 +84,7 @@ func ParseSequenceHeader(payload []byte) (*SequenceHeader, error) {
 	if len(payload) == 0 {
 		return nil, fmt.Errorf("av1 seqhdr: empty payload")
 	}
-	r := bits.NewReader(bytes.NewReader(payload))
+	r := bits.NewReaderFromSlice(payload)
 	s := &SequenceHeader{}
 
 	s.SeqProfile = byte(r.Read(3))

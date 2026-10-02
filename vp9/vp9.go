@@ -6,7 +6,6 @@
 package vp9
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -47,7 +46,7 @@ type Header struct {
 // payload, or the first coded frame of a superframe). It reads through frame_size() for key
 // frames and stops early for show_existing_frame and non-key frames.
 func ParseFrameHeader(frame []byte) (*Header, error) {
-	r := bits.NewReader(bytes.NewReader(frame))
+	r := bits.NewReaderFromSlice(frame)
 	h := &Header{}
 	if r.Read(2) != 2 {
 		return nil, fmt.Errorf("vp9: invalid frame_marker (not a VP9 frame)")

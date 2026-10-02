@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/av1"
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
@@ -64,6 +65,39 @@ func BenchmarkEncryptFragments(b *testing.B) {
 					}
 				}
 			})
+		}
+	}
+}
+
+// BenchmarkGetAV1ProtectRanges finds the cbcs protection ranges of the three samples of
+// testdata/av1_multitile_seg.m4s, which parses their frame headers and tile groups.
+func BenchmarkGetAV1ProtectRanges(b *testing.B) {
+	init, err := mp4.ReadMP4File("testdata/av1_multitile_init.mp4")
+	if err != nil {
+		b.Fatal(err)
+	}
+	seg, err := mp4.ReadMP4File("testdata/av1_multitile_seg.m4s")
+	if err != nil {
+		b.Fatal(err)
+	}
+	fss, err := seg.Segments[0].Fragments[0].GetFullSamples(init.Init.Moov.Mvex.Trex)
+	if err != nil {
+		b.Fatal(err)
+	}
+	seqHdr, err := init.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.Av01.Av1C.SequenceHeader()
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		dec, err := av1.NewFrameHeaderDecoder(seqHdr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for _, fs := range fss {
+			if _, err := mp4.GetAV1ProtectRanges(dec, fs.Data, "cbcs"); err != nil {
+				b.Fatal(err)
+			}
 		}
 	}
 }

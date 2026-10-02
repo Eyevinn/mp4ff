@@ -171,6 +171,13 @@ func GetHEVCProtectRanges(spsMap map[uint32]*hevc.SPS, ppsMap map[uint32]*hevc.P
 // dec must be fed samples in decode order because inter frames may inherit their size from
 // reference frames; getAV1ProtFunc creates one decoder per track for this reason.
 func GetAV1ProtectRanges(dec *av1.FrameHeaderDecoder, sample []byte, scheme string) ([]SubSamplePattern, error) {
+	return appendAV1ProtectRanges(nil, dec, sample, scheme)
+}
+
+// appendAV1ProtectRanges is GetAV1ProtectRanges appending to ssps.
+func appendAV1ProtectRanges(ssps []SubSamplePattern, dec *av1.FrameHeaderDecoder, sample []byte, scheme string) (
+	[]SubSamplePattern, error) {
+	origLen := len(ssps)
 	if scheme != "cenc" && scheme != "cbcs" {
 		return nil, fmt.Errorf("unknown protect scheme %s", scheme)
 	}
@@ -180,7 +187,6 @@ func GetAV1ProtectRanges(dec *av1.FrameHeaderDecoder, sample []byte, scheme stri
 	}
 	// Accumulate clear bytes and emit a (clear, protected) subsample per tile, aligning the
 	// protected data to whole 16-byte blocks for cenc as shaka-packager's SubsampleOrganizer does.
-	var ssps []SubSamplePattern
 	clearAccum := 0
 	prevEnd := 0
 	for _, t := range tiles {
@@ -200,7 +206,7 @@ func GetAV1ProtectRanges(dec *av1.FrameHeaderDecoder, sample []byte, scheme stri
 		prevEnd = t.Offset + t.Length
 	}
 	clearAccum += len(sample) - prevEnd
-	if clearAccum > 0 || len(ssps) == 0 {
+	if clearAccum > 0 || len(ssps) == origLen {
 		// A trailing clear range, or an all-clear sample (so every video sample carries a
 		// subsample entry, keeping senc and saiz consistent).
 		ssps = AppendProtectRange(ssps, uint32(clearAccum), 0)
@@ -651,8 +657,7 @@ type av1Protector struct {
 
 func (p *av1Protector) appendProtectRanges(dst []SubSamplePattern, sample []byte, scheme string) (
 	[]SubSamplePattern, error) {
-	ssps, err := GetAV1ProtectRanges(p.dec, sample, scheme)
-	return append(dst, ssps...), err
+	return appendAV1ProtectRanges(dst, p.dec, sample, scheme)
 }
 
 func newAV1ProtectorFactory(av1C *Av1CBox) (sampleProtectorFactory, error) {
