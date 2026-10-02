@@ -49,6 +49,10 @@ var (
 // AVC profile (ISO/IEC 14496-10 Annex A).
 const maxNumSliceGroupsMinus1 = 7
 
+// maxNumRefIdxActiveMinus1 is the highest num_ref_idx_lX_default_active_minus1
+// (7.4.2.2) and num_ref_idx_lX_active_minus1 (7.4.3, field slices) allowed.
+const maxNumRefIdxActiveMinus1 = 31
+
 // ParsePPSNALUnit - Parse AVC PPS NAL unit starting with NAL header
 func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	var err error
@@ -111,11 +115,23 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	}
 	pps.NumRefIdxI0DefaultActiveMinus1 = reader.ReadExpGolomb()
 	pps.NumRefIdxI1DefaultActiveMinus1 = reader.ReadExpGolomb()
+	if !checkMax(reader, "num_ref_idx_l0_default_active_minus1", pps.NumRefIdxI0DefaultActiveMinus1, maxNumRefIdxActiveMinus1) ||
+		!checkMax(reader, "num_ref_idx_l1_default_active_minus1", pps.NumRefIdxI1DefaultActiveMinus1, maxNumRefIdxActiveMinus1) {
+		return nil, reader.AccError()
+	}
 	pps.WeightedPredFlag = reader.ReadFlag()
 	pps.WeightedBipredIDC = reader.Read(2)
 	pps.PicInitQpMinus26 = reader.ReadSignedGolomb()
 	pps.PicInitQsMinus26 = reader.ReadSignedGolomb()
 	pps.ChromaQpIndexOffset = reader.ReadSignedGolomb()
+	// The lower bound of pic_init_qp_minus26 is -(26 + QpBdOffsetY). The SPS may
+	// not be known yet, so allow the widest one (bit_depth_luma_minus8 = 6) here.
+	// ParseSliceHeader checks the resulting SliceQPY against the actual bit depth.
+	if !checkRange(reader, "pic_init_qp_minus26", pps.PicInitQpMinus26, -(26+6*6), 25) ||
+		!checkRange(reader, "pic_init_qs_minus26", pps.PicInitQsMinus26, -26, 25) ||
+		!checkRange(reader, "chroma_qp_index_offset", pps.ChromaQpIndexOffset, -12, 12) {
+		return nil, reader.AccError()
+	}
 	pps.DeblockingFilterControlPresentFlag = reader.ReadFlag()
 	pps.ConstrainedIntraPredFlag = reader.ReadFlag()
 	pps.RedundantPicCntPresentFlag = reader.ReadFlag()
@@ -168,6 +184,9 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 			}
 		}
 		pps.SecondChromaQpIndexOffset = reader.ReadSignedGolomb()
+		if !checkRange(reader, "second_chroma_qp_index_offset", pps.SecondChromaQpIndexOffset, -12, 12) {
+			return nil, reader.AccError()
+		}
 	}
 
 	err = reader.ReadRbspTrailingBits()
