@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
@@ -398,4 +399,113 @@ func TestEBSPReader(t *testing.T) {
 
 	})
 
+}
+
+// plainReader hides every interface of its reader but io.Reader.
+type plainReader struct{ r io.Reader }
+
+func (p plainReader) Read(b []byte) (int, error) { return p.r.Read(b) }
+
+// TestEBSPReaderKinds checks that an EBSPReader of a slice, of an io.ByteReader and of a plain io.Reader return
+// the same values, positions and errors for the same reads, including emulation prevention bytes and the end of
+// data, and that MoreRbspData gives the same answer for the slice and the io.ReadSeeker.
+func TestEBSPReaderKinds(t *testing.T) {
+	type op struct {
+		kind string // "bits", "ue", "se", "more" or "trailing"
+		n    int
+	}
+	cases := []struct {
+		name    string
+		hexData string
+		ops     []op
+	}{
+		{"bits across emulation prevention", "0000030100000302ff", []op{{"bits", 3}, {"bits", 13}, {"bits", 16},
+			{"bits", 1}, {"bits", 23}, {"bits", 8}}},
+		{"golomb", "a6421fe0", []op{{"ue", 0}, {"ue", 0}, {"se", 0}, {"se", 0}, {"ue", 0}, {"bits", 5}}},
+		{"more rbsp data and trailing bits", "c080", []op{{"bits", 1}, {"more", 0}, {"bits", 1}, {"more", 0},
+			{"trailing", 0}}},
+		{"more rbsp data after emulation prevention", "0000030180", []op{{"bits", 23}, {"more", 0},
+			{"bits", 1}, {"more", 0}, {"trailing", 0}}},
+		{"end of data", "0001", []op{{"bits", 12}, {"bits", 5}, {"bits", 1}}},
+		{"end after emulation prevention byte", "000003", []op{{"bits", 16}, {"bits", 1}}},
+		{"empty", "", []op{{"ue", 0}, {"bits", 0}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := hex.DecodeString(tc.hexData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trace := func(r *bits.EBSPReader, withMore bool) []string {
+				var tr []string
+				for _, o := range tc.ops {
+					var res string
+					switch o.kind {
+					case "bits":
+						res = fmt.Sprint(r.Read(o.n))
+					case "ue":
+						res = fmt.Sprint(r.ReadExpGolomb())
+					case "se":
+						res = fmt.Sprint(r.ReadSignedGolomb())
+					case "more":
+						if !withMore {
+							continue
+						}
+						more, err := r.MoreRbspData()
+						res = fmt.Sprint(more, err)
+					case "trailing":
+						res = fmt.Sprint(r.ReadRbspTrailingBits())
+					}
+					tr = append(tr, fmt.Sprintf("%s(%d)=%s bytes=%d bits=%d err=%v", o.kind, o.n, res,
+						r.NrBytesRead(), r.NrBitsRead(), r.AccError()))
+				}
+				return tr
+			}
+			fromSlice := trace(bits.NewEBSPReaderFromSlice(data), true)
+			if diff := deep.Equal(trace(bits.NewEBSPReader(bytes.NewReader(data)), true), fromSlice); diff != nil {
+				t.Errorf("io.ReadSeeker and slice differ: %v", diff)
+			}
+			fromSliceNoMore := trace(bits.NewEBSPReaderFromSlice(data), false)
+			plain := trace(bits.NewEBSPReader(plainReader{bytes.NewReader(data)}), false)
+			if diff := deep.Equal(plain, fromSliceNoMore); diff != nil {
+				t.Errorf("plain io.Reader and slice differ: %v", diff)
+			}
+		})
+	}
+	t.Run("plain reader is not a seeker", func(t *testing.T) {
+		r := bits.NewEBSPReader(plainReader{bytes.NewReader([]byte{0x80})})
+		if _, err := r.MoreRbspData(); !errors.Is(err, bits.ErrNotReadSeeker) {
+			t.Errorf("got error %v, want %v", err, bits.ErrNotReadSeeker)
+		}
+	})
+}
+
+// TestEBSPReaderAllocations checks that reading bits allocates nothing, neither from a slice nor from an
+// io.ByteReader, which used to cost an allocation per byte.
+func TestEBSPReaderAllocations(t *testing.T) {
+	data := bytes.Repeat([]byte{0x00, 0x00, 0x03, 0x01, 0x5a}, 20)
+	br := bytes.NewReader(data)
+	r := bits.NewEBSPReader(br)
+	allocs := testing.AllocsPerRun(10, func() {
+		br.Reset(data)
+		*r = *bits.NewEBSPReader(br)
+		for r.AccError() == nil {
+			r.Read(7)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("io.ByteReader: got %.0f allocations, want 0", allocs)
+	}
+	allocs = testing.AllocsPerRun(10, func() {
+		r := bits.NewEBSPReaderFromSlice(data)
+		for r.AccError() == nil {
+			r.Read(7)
+		}
+		if more, _ := r.MoreRbspData(); more {
+			t.Error("more rbsp data at end of data")
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("slice: got %.0f allocations, want 0", allocs)
+	}
 }
