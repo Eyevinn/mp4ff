@@ -89,3 +89,24 @@ func (lb *limitedBuffer) Write(p []byte) (n int, err error) {
 	lb.buf = append(lb.buf, p...)
 	return len(p), nil
 }
+
+// TestByteWriterAllocations checks that writing values does not allocate. binary.Write used to allocate for each.
+func TestByteWriterAllocations(t *testing.T) {
+	var buf bytes.Buffer
+	buf.Grow(100)
+	w := bits.NewByteWriter(&buf)
+	allocs := testing.AllocsPerRun(10, func() {
+		buf.Reset()
+		w.WriteUint8(0x01)
+		w.WriteUint16(0x0203)
+		w.WriteUint32(0x04050607)
+		w.WriteUint48(0x08090a0b0c0d)
+		w.WriteUint64(0x0e0f101112131415)
+	})
+	if allocs != 0 {
+		t.Errorf("got %.0f allocations, want 0", allocs)
+	}
+	if w.AccError() != nil {
+		t.Error(w.AccError())
+	}
+}

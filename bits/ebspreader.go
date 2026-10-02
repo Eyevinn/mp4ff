@@ -19,7 +19,7 @@ const (
 // It also supports checking for more rbsp data and reading rbsp_trailing_bits.
 type EBSPReader struct {
 	rd        io.Reader
-	br        io.ByteReader // rd as an io.ByteReader if it is one, which reads a byte without allocating
+	br        io.ByteReader // reads the bytes of rd without allocating
 	data      []byte        // the bytes to read when created by NewEBSPReaderFromSlice
 	fromSlice bool
 	err       error
@@ -30,12 +30,11 @@ type EBSPReader struct {
 }
 
 // NewEBSPReader return a new EBSP reader stopping reading at first error.
-// If rd is an io.ByteReader, such as a bytes.Reader, bytes are read without allocating.
+// No byte read allocates. If rd is not an io.ByteReader, such as a bytes.Reader, the reader allocates once.
 func NewEBSPReader(rd io.Reader) *EBSPReader {
-	br, _ := rd.(io.ByteReader)
 	return &EBSPReader{
 		rd:  rd,
-		br:  br,
+		br:  newByteReader(rd),
 		pos: -1,
 	}
 }
@@ -58,12 +57,7 @@ func (r *EBSPReader) readByte() (byte, error) {
 		}
 		return r.data[r.pos+1], nil
 	}
-	if r.br != nil {
-		return r.br.ReadByte()
-	}
-	var b [1]byte
-	_, err := io.ReadFull(r.rd, b[:])
-	return b[0], err
+	return r.br.ReadByte()
 }
 
 // AccError returns the accumulated error. If no error, returns nil.

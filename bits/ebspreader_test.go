@@ -480,8 +480,8 @@ func TestEBSPReaderKinds(t *testing.T) {
 	})
 }
 
-// TestEBSPReaderAllocations checks that reading bits allocates nothing, neither from a slice nor from an
-// io.ByteReader, which used to cost an allocation per byte.
+// TestEBSPReaderAllocations checks that reading bits allocates nothing, from a slice, an io.ByteReader or a plain
+// io.Reader, which used to cost an allocation per byte.
 func TestEBSPReaderAllocations(t *testing.T) {
 	data := bytes.Repeat([]byte{0x00, 0x00, 0x03, 0x01, 0x5a}, 20)
 	br := bytes.NewReader(data)
@@ -507,5 +507,14 @@ func TestEBSPReaderAllocations(t *testing.T) {
 	})
 	if allocs != 0 {
 		t.Errorf("slice: got %.0f allocations, want 0", allocs)
+	}
+	plain := bits.NewEBSPReader(&endlessReader{data: data})
+	allocs = testing.AllocsPerRun(10, func() {
+		for i := 0; i < 100; i++ {
+			plain.Read(8)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("plain io.Reader: got %.0f allocations for 100 bytes, want 0", allocs)
 	}
 }
