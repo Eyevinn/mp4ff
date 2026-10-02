@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Fragment.Prfts` holds all `prft` boxes of a fragment, such as one per reference track or flags value
+- `Fragment.Prfts` holds all `prft` boxes of a fragment, such as one per reference track or flags value, and
+  `Fragment.Prft` is now the first of them instead of the last
 - `bits.NewEBSPReaderFromSlice`, `bits.NewReaderFromSlice` and `avc.SliceHeaderSize`, which parse without allocating
 
 ### Changed
@@ -18,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   child slices of `moof` and `traf`, so decoding a fragment makes about 40% fewer allocations
 - `LevaLevel.GroupingType` and the `groupingType` argument of `NewLevaLevel`
   are four-character strings, as in `SbgpBox` and `SgpdBox`, and `Info()`
-  prints them as such instead of as a number
+  prints them as such instead of as a number. This is a breaking change
 - `Fragment.Encode` writes everything but the mdat payload through one pooled buffer, so encoding a
   fragment no longer allocates, and `Fragment.SetTrunDataOffsets` no longer allocates either
 - `bits.EBSPReader` and `bits.Reader` no longer allocate for each byte they read, nor `bits.ByteWriter` for

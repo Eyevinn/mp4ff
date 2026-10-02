@@ -137,15 +137,22 @@ when reading the [mp4.MdatBox] box of a progressive file.
 
 # Writing files and segments efficiently
 
-The Encode(w [io.Writer]) methods write roughly one Write call per box, since most boxes
-encode themselves into a small slice and write it in one go. Handed a bare [os.File],
-that is one write syscall per box, and a moof consists of a dozen or so small boxes.
-Wrapping the file in a [bufio.Writer] and flushing it is therefore several times faster
-for segment-shaped output, where box headers make up a larger share of the bytes than
-the media payload does. A large [mp4.MdatBox] payload is not slowed down by the buffer,
-since [bufio.Writer] passes a write larger than its buffer directly to the file once the
-buffer is empty. [mp4.WriteToFile] does this internally; code that opens its own file
-should do the same, and must not forget to Flush before closing.
+Most Encode(w [io.Writer]) methods make roughly one Write call per box, nested boxes
+included, since each box encodes itself into a small slice and writes it in one go.
+Handed a bare [os.File], that is one write syscall per box, and a moov box consists of
+many small boxes. Wrapping the file in a [bufio.Writer] and flushing it is therefore
+several times faster.
+
+[Fragment.Encode] is the exception. It encodes all boxes up to the [MdatBox] payload into
+one pooled buffer, writes that with one call, and then writes the payload directly, one
+call per payload part, without allocating. A decoded fragment therefore takes two Write
+calls, and [MediaSegment.Encode] adds one for the styp box and one for each sidx box.
+A buffer still saves those few small writes.
+
+A large [MdatBox] payload is not slowed down by a buffer, since [bufio.Writer] passes a
+write larger than its buffer directly to the file once the buffer is empty.
+[WriteToFile] buffers internally. Code that opens its own file should do the same, and
+must not forget to Flush before closing.
 
 The EncodeSW(sw [bits.SliceWriter]) methods are an alternative: encode into a
 [bits.FixedSliceWriter] of Size() bytes and write it out with a single call. Note that
@@ -155,6 +162,7 @@ for a single structure is not faster than a buffered Encode. It pays off when th
 buffer is reused across many structures, for example when writing a sequence of segments,
 using [bits.NewFixedSliceWriterFromSlice] to wrap it. That call takes the size from the
 length of the slice, not its capacity, so it must be sliced to at least Size() bytes.
+For fragments it brings little, since [Fragment.Encode] already reuses a buffer.
 
 # More about mp4 boxes
 
