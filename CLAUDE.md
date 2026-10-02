@@ -3,8 +3,9 @@
 ## Committing
 
 Pre-commit hooks are enforced. Activate the venv first: `source venv/bin/activate`.
+`pre-commit install` (once per clone) installs both the pre-commit and the commit-msg hook.
 
-Conventional Commits enforced via commitlint: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`.
+Conventional Commits enforced via commitlint: `feat:`, `fix:`, `perf:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`.
 
 ## Architecture
 

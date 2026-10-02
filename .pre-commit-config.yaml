@@ -1,4 +1,5 @@
 
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -19,4 +20,6 @@ repos:
     hooks:
       - id: commitlint
         stages: [commit-msg]
-        additional_dependencies: ['@commitlint/config-conventional']
+        # Keep the major version equal to the commitlint CLI that the hook rev
+        # ships (19 for v9.18.0), or headers like feat!: no longer parse.
+        additional_dependencies: ['@commitlint/config-conventional@19']
