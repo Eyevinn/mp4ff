@@ -284,7 +284,7 @@ func TestMdatDataRangeChecks(t *testing.T) {
 }
 
 // TestMdatDataRangeInParts - ReadData and CopyData resolve a range in DataParts or in the Data tail, but not a
-// range that spans more than one of them. Before, any range gave an error when there were data parts.
+// range that spans more than one of them.
 func TestMdatDataRangeInParts(t *testing.T) {
 	// Payload of 7 bytes starting 8 bytes into the file: parts {0, 1, 2} and {3, 4}, then tail {5, 6}.
 	mdat := &mp4.MdatBox{}
