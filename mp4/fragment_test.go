@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -410,6 +411,195 @@ func TestAddFullSamplesThenAddFullSample(t *testing.T) {
 		if !bytes.Equal(fss[i].Data, all[i].Data) {
 			t.Errorf("sample %d data differs after round trip", i+1)
 		}
+	}
+}
+
+// checkFragmentSamples checks that GetFullSamples, Samples and GetSampleInterval of frag give back samples.
+func checkFragmentSamples(t *testing.T, frag *mp4.Fragment, trex *mp4.TrexBox, samples []mp4.FullSample) {
+	t.Helper()
+	fss, err := frag.GetFullSamples(trex)
+	if err != nil {
+		t.Fatalf("GetFullSamples: %v", err)
+	}
+	if len(fss) != len(samples) {
+		t.Fatalf("GetFullSamples gave %d samples, expected %d", len(fss), len(samples))
+	}
+	for i := range fss {
+		if !bytes.Equal(fss[i].Data, samples[i].Data) {
+			t.Errorf("GetFullSamples: sample %d data differs", i+1)
+		}
+		if fss[i].DecodeTime != samples[i].DecodeTime {
+			t.Errorf("GetFullSamples: sample %d decode time %d, expected %d", i+1, fss[i].DecodeTime,
+				samples[i].DecodeTime)
+		}
+	}
+	nr := 0
+	for s, err := range frag.Samples(trex) {
+		if err != nil {
+			t.Fatalf("Samples: %v", err)
+		}
+		if !bytes.Equal(s.Data, samples[nr].Data) {
+			t.Errorf("Samples: sample %d data differs", nr+1)
+		}
+		nr++
+	}
+	if nr != len(samples) {
+		t.Errorf("Samples gave %d samples, expected %d", nr, len(samples))
+	}
+	if len(frag.Moof.Trafs) != 1 {
+		return // GetSampleInterval needs a single track
+	}
+	for _, itv := range [][2]int{{1, len(samples)}, {2, len(samples) - 1}, {len(samples), len(samples)}} {
+		si, err := frag.GetSampleInterval(trex, uint32(itv[0]), uint32(itv[1]))
+		if err != nil {
+			t.Fatalf("GetSampleInterval(%d, %d): %v", itv[0], itv[1], err)
+		}
+		var want []byte
+		for _, s := range samples[itv[0]-1 : itv[1]] {
+			want = append(want, s.Data...)
+		}
+		if !bytes.Equal(si.Data, want) {
+			t.Errorf("GetSampleInterval(%d, %d): data differs", itv[0], itv[1])
+		}
+		if si.FirstDecodeTime != samples[itv[0]-1].DecodeTime {
+			t.Errorf("GetSampleInterval(%d, %d): first decode time %d, expected %d", itv[0], itv[1],
+				si.FirstDecodeTime, samples[itv[0]-1].DecodeTime)
+		}
+	}
+}
+
+// TestBuiltFragmentSamples - the samples of a fragment can be read back with GetFullSamples, Samples and
+// GetSampleInterval however it was built, before it is encoded, after it is encoded, and after it is decoded
+// again. A fragment built with AddFullSamples has its sample data in mdat data parts until it is decoded.
+func TestBuiltFragmentSamples(t *testing.T) {
+	builds := []struct {
+		name  string
+		build func(f *mp4.Fragment, ss []mp4.FullSample)
+	}{
+		{"AddFullSample", func(f *mp4.Fragment, ss []mp4.FullSample) {
+			for _, s := range ss {
+				f.AddFullSample(s)
+			}
+		}},
+		{"AddFullSamples", func(f *mp4.Fragment, ss []mp4.FullSample) { f.AddFullSamples(ss) }},
+		{"mixed", func(f *mp4.Fragment, ss []mp4.FullSample) {
+			f.AddFullSample(ss[0])
+			f.AddFullSamples(ss[1:5])
+			f.AddFullSample(ss[5])
+			f.AddFullSamples(ss[6:])
+		}},
+	}
+	for _, b := range builds {
+		for _, layout := range []string{"contiguous", "chunked", "scattered"} {
+			t.Run(b.name+"/"+layout, func(t *testing.T) {
+				samples := fullSamplesFixture(layout, 10, 10000)
+				frag, err := mp4.CreateFragment(1, 1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				b.build(frag, samples)
+				checkFragmentSamples(t, frag, nil, samples)
+				if b.name == "AddFullSamples" {
+					fss, _ := frag.GetFullSamples(nil)
+					if &fss[0].Data[0] != &samples[0].Data[0] {
+						t.Error("GetFullSamples data is not a view into the added buffer")
+					}
+					allocs := testing.AllocsPerRun(10, func() {
+						fss, _ = frag.AppendFullSamples(fss[:0], nil)
+					})
+					if allocs != 0 {
+						t.Errorf("AppendFullSamples made %.0f allocations, expected none", allocs)
+					}
+				}
+				encoded := encodeFragment(t, frag)
+				checkFragmentSamples(t, frag, nil, samples)
+
+				decoded, err := mp4.DecodeFile(bytes.NewReader(encoded))
+				if err != nil {
+					t.Fatal(err)
+				}
+				checkFragmentSamples(t, decoded.Segments[0].Fragments[0], nil, samples)
+			})
+		}
+	}
+}
+
+// TestBuiltMultiTrackFragmentSamples - the samples of each track of a built fragment are found where Encode
+// writes them, in write order, before it is encoded, after it is encoded, and after it is decoded again.
+func TestBuiltMultiTrackFragmentSamples(t *testing.T) {
+	video := fullSamplesFixture("scattered", 6, 10000)
+	audio := fullSamplesFixture("contiguous", 6, 20000)
+	for i := range audio {
+		for j := range audio[i].Data {
+			audio[i].Data[j] += 100 // differ from video
+		}
+	}
+	frag, err := mp4.CreateMultiTrackFragment(1, []uint32{1, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two truns per track, so that the write order interleaves the tracks.
+	for _, part := range [][2]int{{0, 3}, {3, 6}} {
+		for _, s := range video[part[0]:part[1]] {
+			if err := frag.AddFullSampleToTrack(s, 1); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, s := range audio[part[0]:part[1]] {
+			if err := frag.AddFullSampleToTrack(s, 2); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	trexs := []*mp4.TrexBox{{TrackID: 1}, {TrackID: 2}}
+	check := func(frag *mp4.Fragment) {
+		t.Helper()
+		checkFragmentSamples(t, frag, trexs[0], video)
+		checkFragmentSamples(t, frag, trexs[1], audio)
+	}
+	check(frag)
+	encoded := encodeFragment(t, frag)
+	check(frag)
+	decoded, err := mp4.DecodeFile(bytes.NewReader(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(decoded.Segments[0].Fragments[0])
+}
+
+// TestSampleSpanningDataParts - a sample whose data is split over two mdat data parts cannot be returned as a
+// view, so GetFullSamples and Samples give an error, while GetSampleInterval returns a copy of the data.
+func TestSampleSpanningDataParts(t *testing.T) {
+	frag, err := mp4.CreateFragment(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag.AddSample(mp4.Sample{Flags: mp4.SyncSampleFlags, Dur: 1024, Size: 4}, 0)
+	frag.AddSample(mp4.Sample{Flags: mp4.NonSyncSampleFlags, Dur: 1024, Size: 3}, 0)
+	frag.Mdat.SetLazyDataSize(0)
+	frag.Mdat.AddSampleDataPart([]byte{1, 2, 3, 4, 5})
+	frag.Mdat.AddSampleDataPart([]byte{6, 7})
+
+	if _, err := frag.GetFullSamples(nil); err == nil || !strings.Contains(err.Error(), "sample 2") ||
+		!strings.Contains(err.Error(), "spans more than one mdat data part") {
+		t.Errorf("GetFullSamples: got error %v, expected sample 2 to span data parts", err)
+	}
+	nr := 0
+	for _, err := range frag.Samples(nil) {
+		if err == nil || !strings.Contains(err.Error(), "spans more than one mdat data part") {
+			t.Errorf("Samples: got error %v, expected sample 2 to span data parts", err)
+		}
+		nr++
+	}
+	if nr != 1 {
+		t.Errorf("Samples yielded %d times, expected once with the error", nr)
+	}
+	si, err := frag.GetSampleInterval(nil, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []byte{1, 2, 3, 4, 5, 6, 7}; !bytes.Equal(si.Data, want) {
+		t.Errorf("GetSampleInterval data is %v, expected %v", si.Data, want)
 	}
 }
 

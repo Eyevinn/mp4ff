@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cropping can no longer wrap `SPS.Width` and `SPS.Height` around
 - `File.CopySampleData` and the tools reject tracks whose sample data are in another file (`dref` url entries)
   instead of panicking or writing wrong bytes, with the new `TrakBox.CheckDataIsSelfContained`
+- `Fragment.GetFullSamples`, `Samples`, `GetSampleInterval` and `EncryptFragment` work on built fragments: with
+  `AddFullSamples` data, after `Encode`, and for each track; `MdatBox.ReadData` and `CopyData` read `DataParts`
 
 ## [0.57.0] - 2026-09-29
 

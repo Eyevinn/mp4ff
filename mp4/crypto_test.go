@@ -344,6 +344,70 @@ func TestEncryptFragmentIVChaining(t *testing.T) {
 	}
 }
 
+// TestEncryptBuiltFragment - a fragment built with AddFullSamples, whose sample data are in mdat data parts, is
+// encrypted as one built with AddFullSample.
+func TestEncryptBuiltFragment(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	rawSeg, err := os.ReadFile("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, scheme := range []string{"cenc", "cbcs"} {
+		t.Run(scheme, func(t *testing.T) {
+			init, err := mp4.ReadMP4File("testdata/init.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ipd, err := mp4.InitProtect(init.Init, key, iv, scheme, kid, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			seg, err := mp4.DecodeFile(bytes.NewReader(rawSeg))
+			if err != nil {
+				t.Fatal(err)
+			}
+			inFrag := seg.Segments[0].Fragments[0]
+			samples, err := inFrag.GetFullSamples(ipd.Trex)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trackID := inFrag.Moof.Traf.Tfhd.TrackID
+			build := func(bulk bool) []byte {
+				frag, err := mp4.CreateFragment(1, trackID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Each sample in its own buffer, so that AddFullSamples makes one data part per sample.
+				ss := make([]mp4.FullSample, len(samples))
+				for i, s := range samples {
+					ss[i] = s
+					ss[i].Data = bytes.Clone(s.Data)
+				}
+				if bulk {
+					frag.AddFullSamples(ss)
+				} else {
+					for _, s := range ss {
+						frag.AddFullSample(s)
+					}
+				}
+				if _, err := mp4.EncryptFragment(frag, key, iv, ipd); err != nil {
+					t.Fatalf("EncryptFragment: %v", err)
+				}
+				var buf bytes.Buffer
+				if err := frag.Encode(&buf); err != nil {
+					t.Fatal(err)
+				}
+				return buf.Bytes()
+			}
+			if got, want := build(true), build(false); !bytes.Equal(got, want) {
+				t.Error("fragment built with AddFullSamples is not encrypted as one built with AddFullSample")
+			}
+		})
+	}
+}
+
 func TestDecryptInit(t *testing.T) {
 	encFile := "testdata/prog_8s_enc_dashinit.mp4"
 	mp4f, err := mp4.ReadMP4File(encFile)
