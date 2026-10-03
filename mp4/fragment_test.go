@@ -468,10 +468,9 @@ func checkFragmentSamples(t *testing.T, frag *mp4.Fragment, trex *mp4.TrexBox, s
 	}
 }
 
-// TestBuiltFragmentSamples - the samples of a fragment can be read back however it was built, before it is
-// encoded, after it is encoded, and after it is decoded again. Before, a fragment built with AddFullSamples
-// gave an error until decoded, since its data is in mdat data parts, and GetSampleInterval and an encoded but
-// not decoded fragment gave an error for every way of building it.
+// TestBuiltFragmentSamples - the samples of a fragment can be read back with GetFullSamples, Samples and
+// GetSampleInterval however it was built, before it is encoded, after it is encoded, and after it is decoded
+// again. A fragment built with AddFullSamples has its sample data in mdat data parts until it is decoded.
 func TestBuiltFragmentSamples(t *testing.T) {
 	builds := []struct {
 		name  string
@@ -526,8 +525,7 @@ func TestBuiltFragmentSamples(t *testing.T) {
 }
 
 // TestBuiltMultiTrackFragmentSamples - the samples of each track of a built fragment are found where Encode
-// writes them, in write order. Before the fragment was encoded, every trun was taken to start at the start of
-// the mdat data, so a track but the first got the samples of another track.
+// writes them, in write order, before it is encoded, after it is encoded, and after it is decoded again.
 func TestBuiltMultiTrackFragmentSamples(t *testing.T) {
 	video := fullSamplesFixture("scattered", 6, 10000)
 	audio := fullSamplesFixture("contiguous", 6, 20000)

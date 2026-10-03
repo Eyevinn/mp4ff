@@ -344,8 +344,8 @@ func TestEncryptFragmentIVChaining(t *testing.T) {
 	}
 }
 
-// TestEncryptBuiltFragment - a fragment built with AddFullSamples is encrypted as one built with AddFullSample.
-// Before, its sample data in mdat data parts were not found, so encryption failed.
+// TestEncryptBuiltFragment - a fragment built with AddFullSamples, whose sample data are in mdat data parts, is
+// encrypted as one built with AddFullSample.
 func TestEncryptBuiltFragment(t *testing.T) {
 	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
 	iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
