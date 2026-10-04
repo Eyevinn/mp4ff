@@ -37,6 +37,10 @@ type SencBox struct {
 	IVs              []InitializationVector // 8 or 16 bytes if present
 	SubSamples       [][]SubSamplePattern
 	readBoxSize      uint64 // As read from box header
+	// The arrays that FragmentEncryptor stores the IVs and subsample patterns in, so that a box kept
+	// by Fragment.Reset brings them along for the next fragment.
+	ivStore  []byte
+	sspStore []SubSamplePattern
 }
 
 // CreateSencBox - create an empty SencBox
