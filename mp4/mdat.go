@@ -164,6 +164,32 @@ func (m *MdatBox) DataLength() uint64 {
 	return uint64(dataLength)
 }
 
+// Payload returns the in-memory payload, DataParts followed by Data, as one slice. When at most one of them is
+// non-empty, as for a decoded mdat, one filled with AddSampleData, or one whose samples AddFullSamples added as a
+// single data part, that slice is returned without copying, so changing it changes the payload. Otherwise the parts
+// are joined into a new slice. A lazily decoded mdat has no payload in memory, and gives nil.
+func (m *MdatBox) Payload() []byte {
+	if m.IsLazy() {
+		return nil
+	}
+	var payload []byte
+	nrNonEmpty := 0
+	for i := 0; i <= len(m.DataParts); i++ {
+		if p := m.part(i); len(p) > 0 {
+			payload = p
+			nrNonEmpty++
+		}
+	}
+	if nrNonEmpty <= 1 {
+		return payload
+	}
+	payload = make([]byte, 0, m.DataLength())
+	for i := 0; i <= len(m.DataParts); i++ {
+		payload = append(payload, m.part(i)...)
+	}
+	return payload
+}
+
 // Info - write box-specific information
 func (m *MdatBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, m, -1, 0)

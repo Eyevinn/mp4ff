@@ -451,3 +451,92 @@ func TestMdatSetDataDropsParts(t *testing.T) {
 		t.Errorf("payload after SetData is %v, expected %v", payload, replacement)
 	}
 }
+
+// TestMdatPayload - Payload gives the payload that Encode writes. A payload held in one slice is that slice, and
+// one held in several is a joined copy.
+func TestMdatPayload(t *testing.T) {
+	a := []byte{0, 1, 2}
+	b := []byte{3, 4}
+
+	cases := []struct {
+		name  string
+		add   func(m *mp4.MdatBox)
+		view  []byte // the slice that Payload returns without copying, nil if it joins
+		empty bool
+	}{
+		{"empty", func(m *mp4.MdatBox) {}, nil, true},
+		{"dataOnly", func(m *mp4.MdatBox) { m.SetData(a) }, a, false},
+		{"partOnly", func(m *mp4.MdatBox) { m.AddSampleDataPart(a) }, a, false},
+		{"partAndEmptyPart", func(m *mp4.MdatBox) {
+			m.AddSampleDataPart(b)
+			m.AddSampleDataPart([]byte{})
+		}, b, false},
+		{"parts", func(m *mp4.MdatBox) {
+			m.AddSampleDataPart(a)
+			m.AddSampleDataPart(b)
+		}, nil, false},
+		{"partThenData", func(m *mp4.MdatBox) {
+			m.AddSampleDataPart(a)
+			m.AddSampleData(b)
+		}, nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mdat := &mp4.MdatBox{}
+			c.add(mdat)
+			var buf bytes.Buffer
+			if err := mdat.Encode(&buf); err != nil {
+				t.Fatal(err)
+			}
+			want := buf.Bytes()[mdat.HeaderSize():]
+			got := mdat.Payload()
+			if !bytes.Equal(got, want) {
+				t.Fatalf("Payload is %v, expected %v", got, want)
+			}
+			switch {
+			case c.empty:
+				if len(got) != 0 {
+					t.Errorf("Payload of empty mdat is %v", got)
+				}
+			case c.view != nil:
+				if &got[0] != &c.view[0] {
+					t.Error("Payload copied a payload held in one slice")
+				}
+			default:
+				got[0]++
+				if got[0] == mdat.DataParts[0][0] {
+					t.Error("Payload of several slices shares memory with the box")
+				}
+			}
+		})
+	}
+}
+
+// TestMdatPayloadOfFullSamples - the samples that AddFullSamples adds from one buffer form one data part, so the
+// payload is that buffer.
+func TestMdatPayloadOfFullSamples(t *testing.T) {
+	buf := []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	samples := []mp4.FullSample{
+		{Sample: mp4.Sample{Dur: 1, Size: 3}, Data: buf[:3]},
+		{Sample: mp4.Sample{Dur: 1, Size: 5}, Data: buf[3:]},
+	}
+	frag, err := mp4.CreateFragment(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag.AddFullSamples(samples)
+	if len(frag.Mdat.Data) != 0 {
+		t.Fatalf("AddFullSamples put %d bytes in Data", len(frag.Mdat.Data))
+	}
+	got := frag.Mdat.Payload()
+	if !bytes.Equal(got, buf) || &got[0] != &buf[0] {
+		t.Errorf("Payload is %v, expected the sample buffer %v", got, buf)
+	}
+}
+
+func TestLazyMdatPayload(t *testing.T) {
+	lazyMdat, _ := createLazyMdat(t, []byte{0, 1, 2})
+	if got := lazyMdat.Payload(); got != nil {
+		t.Errorf("Payload of lazy mdat is %v, expected nil", got)
+	}
+}

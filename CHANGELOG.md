@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fragment.Prfts` holds all `prft` boxes of a fragment, such as one per reference track or flags value, and
   `Fragment.Prft` is now the first of them instead of the last
 - `bits.NewEBSPReaderFromSlice`, `bits.NewReaderFromSlice` and `avc.SliceHeaderSize`, which parse without allocating
+- `MdatBox.Payload` returns the payload as one slice, also for a fragment built with `AddFullSamples`, without
+  copying when it is held in one slice
 
 ### Changed
 
