@@ -260,8 +260,16 @@ func (m *MdatBox) dataRange(start, size int64) ([]byte, error) {
 	if uint64(start) < payloadStart {
 		return nil, fmt.Errorf("start %d is before mdat payload start %d", start, payloadStart)
 	}
+	off := uint64(start) - payloadStart
+	end := off + uint64(size)  // cannot overflow since both are non-negative int64
+	if len(m.DataParts) == 0 { // as in a decoded mdat, so there is no part to look up
+		if end > uint64(len(m.Data)) {
+			return nil, m.outsideDataErr(off, end)
+		}
+		return m.Data[off:end], nil
+	}
 	c := payloadCursor{mdat: m}
-	rest, err := c.restAt(uint64(start)-payloadStart, uint64(size)) // cannot overflow since both are non-negative
+	rest, err := c.restAt(off, uint64(size))
 	if err != nil {
 		return nil, err
 	}
