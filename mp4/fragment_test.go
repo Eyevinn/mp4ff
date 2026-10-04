@@ -2,9 +2,11 @@ package mp4_test
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -565,6 +567,79 @@ func TestBuiltMultiTrackFragmentSamples(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(decoded.Segments[0].Fragments[0])
+}
+
+// TestBuiltFragmentTrunLayouts - in a built fragment, the trun data are in write order, and truns with the same
+// write order number are in moof order. The samples of each track are found there, whether the truns of every
+// traf are in write order or not, and agree with what Encode writes.
+func TestBuiltFragmentTrunLayouts(t *testing.T) {
+	cases := []struct {
+		desc    string
+		truns   [][]uint32 // for each track, the write order numbers of its truns
+		encodes bool       // whether Encode lays out the trun data unambiguously, which needs distinct numbers
+	}{
+		{"interleaved", [][]uint32{{0, 3, 6, 9}, {1, 4, 7}, {2, 5, 8, 10, 11}}, true},
+		{"one track after the other", [][]uint32{{0, 1}, {2, 3}}, true},
+		{"empty track", [][]uint32{{0, 2}, {}, {1}}, true},
+		{"not in write order", [][]uint32{{3, 0}, {1, 2}}, true},
+		{"equal write order numbers", [][]uint32{{1, 1}, {1, 2}, {0, 2}}, false},
+		{"unset write order", [][]uint32{{0, 0}, {0}}, false},
+	}
+	type trunData struct {
+		writeOrderNr uint32
+		data         []byte
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			trackIDs := make([]uint32, len(c.truns))
+			for i := range trackIDs {
+				trackIDs[i] = uint32(i + 1)
+			}
+			frag, err := mp4.CreateMultiTrackFragment(1, trackIDs)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var truns []trunData // in moof order
+			samples := make([][]mp4.FullSample, len(c.truns))
+			for i, writeOrderNrs := range c.truns {
+				var decodeTime uint64
+				for j, writeOrderNr := range writeOrderNrs {
+					trun := mp4.CreateTrun(writeOrderNr)
+					if err := frag.Moof.Trafs[i].AddChild(trun); err != nil {
+						t.Fatal(err)
+					}
+					var data []byte
+					for k := 0; k < 2; k++ {
+						d := bytes.Repeat([]byte{byte(16*i + 4*j + k)}, 10*i+3*j+k+1) // unique size and content
+						s := mp4.Sample{Flags: mp4.SyncSampleFlags, Dur: 1000, Size: uint32(len(d))}
+						trun.AddSample(s)
+						samples[i] = append(samples[i], mp4.FullSample{Sample: s, DecodeTime: decodeTime, Data: d})
+						decodeTime += 1000
+						data = append(data, d...)
+					}
+					truns = append(truns, trunData{writeOrderNr, data})
+				}
+			}
+			slices.SortStableFunc(truns, func(a, b trunData) int { return cmp.Compare(a.writeOrderNr, b.writeOrderNr) })
+			for _, td := range truns {
+				frag.Mdat.AddSampleData(td.data)
+			}
+			for i := range c.truns {
+				checkFragmentSamples(t, frag, &mp4.TrexBox{TrackID: trackIDs[i]}, samples[i])
+			}
+			if !c.encodes {
+				return
+			}
+			decoded, err := mp4.DecodeFile(bytes.NewReader(encodeFragment(t, frag)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := range c.truns {
+				checkFragmentSamples(t, decoded.Segments[0].Fragments[0], &mp4.TrexBox{TrackID: trackIDs[i]},
+					samples[i])
+			}
+		})
+	}
 }
 
 // TestSampleSpanningDataParts - a sample whose data is split over two mdat data parts cannot be returned as a

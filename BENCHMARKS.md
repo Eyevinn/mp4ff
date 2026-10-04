@@ -34,6 +34,8 @@ The allocations are the heap allocations inside the benchmark loop. Most benchma
 | `BenchmarkGetAV1ProtectRanges` | `mp4/benchmarks_encrypt_test.go` | Finding the cbcs protection ranges of the three samples of `av1_multitile_seg.m4s`, which parses their frame headers and tile groups |
 | `BenchmarkBuildFragment`, `BenchmarkBuildAndEncodeFragment` | `mp4/benchmarks_fragment_test.go` | Building a fragment from samples in memory with `AddFullSample` and `AddFullSamples`, and also encoding it |
 | `BenchmarkFragmentFullSamples` | `mp4/append_samples_test.go` | Getting the samples of a decoded fragment with `GetFullSamples`, `AppendFullSamples` and `Samples` |
+| `BenchmarkInterleavedFragmentSamples` | `mp4/append_samples_test.go` | Getting both tracks' samples of a two-track fragment with one trun per sample, as built with `AddFullSampleToTrack` and as decoded |
+| `BenchmarkMdatReadData` | `mp4/mdat_test.go` | Reading one sample from an in-memory mdat with `ReadData` and `CopyData` |
 | `BenchmarkStreamSamples` | `mp4/append_samples_test.go` | Getting samples in the stream decoder with `GetSamples` and `AppendSamples` |
 | `BenchmarkDecodeStsz`, `Ctts`, `Stco`, `Stss` | `mp4/benchmarks_table_test.go` | Decoding large sample tables |
 | `BenchmarkDefragmentOverlapChain` | `mp4/defragmenter_test.go` | That defragmenting overlapping input stays linear |

@@ -384,6 +384,68 @@ func BenchmarkFragmentFullSamples(b *testing.B) {
 	})
 }
 
+// BenchmarkInterleavedFragmentSamples reads both tracks of a fragment whose samples alternate between two tracks,
+// as when a muxer adds video and audio samples in decode order with AddFullSampleToTrack. Every sample is then a
+// trun of its own. "built" is the fragment as built, whose trun data are found in write order, and "decoded" is
+// the same fragment encoded and decoded again, whose trun data are found from the file positions.
+func BenchmarkInterleavedFragmentSamples(b *testing.B) {
+	const nrSamples = 300 // per track
+	built, err := mp4.CreateMultiTrackFragment(1, []uint32{1, 2})
+	if err != nil {
+		b.Fatal(err)
+	}
+	data := make([]byte, 1000)
+	for i := 0; i < nrSamples; i++ {
+		for _, trackID := range []uint32{1, 2} {
+			s := mp4.FullSample{
+				Sample:     mp4.Sample{Flags: mp4.SyncSampleFlags, Dur: 1024, Size: uint32(len(data))},
+				DecodeTime: uint64(i) * 1024,
+				Data:       data,
+			}
+			if err := built.AddFullSampleToTrack(s, trackID); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+	var buf bytes.Buffer
+	if err := built.Encode(&buf); err != nil {
+		b.Fatal(err)
+	}
+	f, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(buf.Bytes()))
+	if err != nil {
+		b.Fatal(err)
+	}
+	trexs := []*mp4.TrexBox{{TrackID: 1}, {TrackID: 2}}
+	for _, c := range []struct {
+		name string
+		frag *mp4.Fragment
+	}{{"built", built}, {"decoded", f.Segments[0].Fragments[0]}} {
+		b.Run(c.name+"/AppendFullSamples", func(b *testing.B) {
+			b.ReportAllocs()
+			var samples []mp4.FullSample
+			for i := 0; i < b.N; i++ {
+				for _, trex := range trexs {
+					if samples, err = c.frag.AppendFullSamples(samples[:0], trex); err != nil {
+						b.Fatal(err)
+					}
+				}
+			}
+		})
+		b.Run(c.name+"/Samples", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				for _, trex := range trexs {
+					for _, err := range c.frag.Samples(trex) {
+						if err != nil {
+							b.Fatal(err)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
 // TestStreamAppendSamplesRefragment checks the zero-copy chain from a stream to a new fragment: the samples that
 // AppendSamples reads into one buffer are adjacent there, so AddFullSamples adds them as a single data part that
 // views that buffer.

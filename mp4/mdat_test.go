@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"io"
 	"math"
 	"testing"
 
@@ -156,6 +157,29 @@ func TestCopyData_NormalMode(t *testing.T) {
 	if !bytes.Equal(outBuffer.Bytes(), expected) {
 		t.Errorf("expected %v, got %v", expected, outBuffer.Bytes())
 	}
+}
+
+// BenchmarkMdatReadData reads the data of one sample from an mdat held in memory, as File.CopySampleData and the
+// tools do for every sample of a progressive file.
+func BenchmarkMdatReadData(b *testing.B) {
+	mdat := &mp4.MdatBox{StartPos: 1000, Data: make([]byte, 100_000)}
+	start := int64(mdat.PayloadAbsoluteOffset()) + 50_000
+	b.Run("ReadData", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			if _, err := mdat.ReadData(start, 1000, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("CopyData", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			if _, err := mdat.CopyData(start, 1000, nil, io.Discard); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
 
 func TestCopyData_LazyMdatMode(t *testing.T) {

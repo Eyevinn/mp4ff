@@ -176,10 +176,14 @@ func (f *Fragment) AppendFullSamples(dst []FullSample, trex *TrexBox) ([]FullSam
 		baseTime = traf.Tfdt.BaseMediaDecodeTime()
 	}
 	origLen := len(dst)
+	walk := f.trunWalk(traf)
 	for _, trun := range traf.Truns {
 		totalDur := trun.AddSampleDefaultValues(tfhd, trex)
-		offsetInMdat, err := f.trunOffsetInMdat(tfhd, trun)
-		if err != nil {
+		var offsetInMdat uint64
+		var err error
+		if walk != nil {
+			offsetInMdat = walk.offset(f, trun)
+		} else if offsetInMdat, err = f.trunOffsetInMdat(tfhd, trun); err != nil {
 			return dst[:origLen], err
 		}
 		dst, err = trun.AppendFullSamples(dst, uint32(offsetInMdat), baseTime, f.Mdat)
@@ -222,9 +226,16 @@ func (f *Fragment) yieldSamples(trex *TrexBox, yield func(FullSample, error) boo
 		return
 	}
 	tfhd := traf.Tfhd
+	walk := f.trunWalk(traf)
 	for nr, trun := range traf.Truns {
 		trun.AddSampleDefaultValues(tfhd, trex)
-		offset, err := f.trunOffsetInMdat(tfhd, trun)
+		var offset uint64
+		var err error
+		if walk != nil {
+			offset = walk.offset(f, trun)
+		} else {
+			offset, err = f.trunOffsetInMdat(tfhd, trun)
+		}
 		if err == nil {
 			err = checkSampleData(f.Mdat.cursorAt(offset), trun.Samples)
 		}
@@ -237,8 +248,16 @@ func (f *Fragment) yieldSamples(trex *TrexBox, yield func(FullSample, error) boo
 	if traf.Tfdt != nil {
 		decodeTime = traf.Tfdt.BaseMediaDecodeTime()
 	}
+	if walk != nil {
+		*walk = trunWalk{traf: traf} // start over
+	}
 	for _, trun := range traf.Truns {
-		offset, _ := f.trunOffsetInMdat(tfhd, trun) // checked above
+		var offset uint64
+		if walk != nil {
+			offset = walk.offset(f, trun)
+		} else {
+			offset, _ = f.trunOffsetInMdat(tfhd, trun) // checked above
+		}
 		c := f.Mdat.cursorAt(offset)
 		samples := trun.Samples
 		var pos uint64 // position of sample i in rest
@@ -297,6 +316,7 @@ func (f *Fragment) sampleTraf(trex *TrexBox) *TrafBox {
 // A fragment that has not been decoded has no such positions (its mdat StartPos is 0, which cannot be the
 // position of an mdat that follows a moof), so its trun data offset may be unset or relative to positions it
 // does not have. Its sample data are instead where Encode writes them, which is given by trunOffsetInWriteOrder.
+// To take all truns of a traf, use trunWalk for such a fragment.
 func (f *Fragment) trunOffsetInMdat(tfhd *TfhdBox, trun *TrunBox) (uint64, error) {
 	mdat := f.Mdat
 	if mdat == nil {
@@ -336,6 +356,84 @@ func (f *Fragment) trunOffsetInWriteOrder(trun *TrunBox) uint64 {
 		}
 	}
 	return offset
+}
+
+// maxWalkTrafs is the largest number of trafs whose truns trunWalk walks in write order.
+const maxWalkTrafs = 8
+
+// trunWalk gives the offsets in the mdat payload of the truns of traf, in a fragment that has not been decoded,
+// when they are taken in moof order. The trun data of such a fragment are in write order, and the truns of each
+// traf are usually in write order too, as AddSampleToTrack and AddFullSampleToTrack create them. The truns of all
+// trafs are then walked once, in write order, so that the offsets of all truns of traf take time linear in the
+// number of truns and samples of the fragment. Otherwise, each offset is given by trunOffsetInWriteOrder.
+// The walk starts with the first offset, so creating one costs nothing more than setting traf.
+type trunWalk struct {
+	traf    *TrafBox
+	started bool
+	trafNr  int               // index of traf in the moof, or -1 if the truns are not walked
+	counted [maxWalkTrafs]int // for each traf, the number of its truns that offset includes
+	sum     uint64            // data size of the truns that come before the next trun of traf
+}
+
+// trunWalk returns a trunWalk for the truns of traf if the fragment has not been decoded, and nil otherwise, when
+// trunOffsetInMdat gives the offsets. The callers branch on it, so that trunOffsetInMdat, which decoded fragments
+// call for every trun, has no call to the walk, which would make it slower. It is inlined, so the trunWalk does not
+// escape.
+func (f *Fragment) trunWalk(traf *TrafBox) *trunWalk {
+	if f.Mdat != nil && f.Mdat.StartPos == 0 {
+		return &trunWalk{traf: traf}
+	}
+	return nil
+}
+
+// offset returns the offset in the mdat payload of the first sample of trun, the trun of w.traf that follows the
+// one of the previous call, or its first trun.
+func (w *trunWalk) offset(f *Fragment, trun *TrunBox) uint64 {
+	if !w.started {
+		w.started = true
+		w.trafNr = f.walkTrafNr(w.traf)
+	}
+	if w.trafNr < 0 {
+		return f.trunOffsetInWriteOrder(trun)
+	}
+	// Add the truns of the other trafs that come before trun, in the order of trunOffsetInWriteOrder.
+	for nr, traf := range f.Moof.Trafs {
+		if nr == w.trafNr {
+			continue
+		}
+		i := w.counted[nr]
+		for ; i < len(traf.Truns); i++ {
+			t := traf.Truns[i]
+			if t.writeOrderNr > trun.writeOrderNr || (t.writeOrderNr == trun.writeOrderNr && nr > w.trafNr) {
+				break
+			}
+			w.sum += t.SizeOfData()
+		}
+		w.counted[nr] = i
+	}
+	offset := w.sum
+	w.sum += trun.SizeOfData()
+	return offset
+}
+
+// walkTrafNr returns the index of traf in the moof if the truns of every traf are in write order, so that
+// trunWalk can walk them, and -1 otherwise.
+func (f *Fragment) walkTrafNr(traf *TrafBox) int {
+	if len(f.Moof.Trafs) > maxWalkTrafs {
+		return -1
+	}
+	trafNr := -1
+	for nr, tr := range f.Moof.Trafs {
+		for i := 1; i < len(tr.Truns); i++ {
+			if tr.Truns[i].writeOrderNr < tr.Truns[i-1].writeOrderNr {
+				return -1
+			}
+		}
+		if tr == traf {
+			trafNr = nr
+		}
+	}
+	return trafNr
 }
 
 // AddFullSample - add a full sample to the first (and only) trun of a track
