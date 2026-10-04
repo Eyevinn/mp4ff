@@ -24,6 +24,11 @@ type Fragment struct {
 	nextTrunNr  uint32      // To handle multi-trun cases
 	EncOptimize EncOptimize // Bit field with optimizations being done at encoding
 	StartPos    uint64      // Start position in file added by parser
+
+	// Encryption boxes that Reset took out of the traf, for FragmentEncryptor to reuse
+	spareSenc *SencBox
+	spareSaiz *SaizBox
+	spareSaio *SaioBox
 }
 
 // NewFragment creates an empty MP4 Fragment.
@@ -51,6 +56,92 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 	f.AddChild(mdat)
 
 	return &f, nil
+}
+
+// Reset puts a single-track fragment, such as one from CreateFragment, back in the state that CreateFragment
+// returns, with sequence number seqNumber, the track ID of its tfhd and its EncOptimize setting. Everything added
+// since is dropped: samples, sample data, emsg and prft boxes, and the senc, saiz and saio boxes that encryption
+// adds. The storage is kept, so that building, encrypting and encoding fragment after fragment in one Fragment
+// does not allocate it again: the boxes, the trun sample list, the mdat data-part list, the encryption boxes,
+// which FragmentEncryptor takes back, and the mdat payload if AddSampleData allocated it. The data parts are
+// cleared, so that the sample buffers they referenced can be garbage collected, and a payload that the box does
+// not own, such as a buffer given to SetData or the input of a decoded fragment, is dropped rather than reused.
+//
+// Since its boxes and storage are reused, nothing taken from the fragment before Reset, such as its moof, trun,
+// samples or the sample data copied into its mdat, may be used after it. Reset returns an error, and leaves the
+// fragment unchanged, unless the fragment has an mfhd, one traf with a tfhd, a tfdt and one trun, and an mdat.
+func (f *Fragment) Reset(seqNumber uint32) error {
+	moof, mdat := f.Moof, f.Mdat
+	if moof == nil || moof.Mfhd == nil || len(moof.Trafs) != 1 || mdat == nil {
+		return errors.New("reset needs a fragment with an mfhd, one traf and an mdat")
+	}
+	traf := moof.Traf
+	if traf.Tfhd == nil || traf.Tfdt == nil || len(traf.Truns) != 1 {
+		return errors.New("reset needs a traf with a tfhd, a tfdt and one trun")
+	}
+	mfhd, tfhd, tfdt, trun := moof.Mfhd, traf.Tfhd, traf.Tfdt, traf.Trun
+	spareSenc, spareSaiz, spareSaio := f.spareSenc, f.spareSaiz, f.spareSaio
+	if traf.Senc != nil {
+		spareSenc = traf.Senc
+	}
+	if traf.Saiz != nil {
+		spareSaiz = traf.Saiz
+	}
+	if traf.Saio != nil {
+		spareSaio = traf.Saio
+	}
+	var data []byte
+	if mdat.ownsData {
+		data = mdat.Data[:0]
+	}
+
+	*mfhd = *CreateMfhd(seqNumber)
+	*tfhd = *CreateTfhd(tfhd.TrackID)
+	*tfdt = TfdtBox{}
+	*trun = TrunBox{Version: 1, Flags: 0xf01, Samples: trun.Samples[:0]} // as CreateTrun(0)
+	*traf = TrafBox{Tfhd: tfhd, Tfdt: tfdt, Trun: trun, Truns: traf.Truns[:1],
+		Children: append(traf.Children[:0], tfhd, tfdt, trun)}
+	*moof = MoofBox{Mfhd: mfhd, Traf: traf, Trafs: moof.Trafs[:1], Children: append(moof.Children[:0], mfhd, traf)}
+	clear(mdat.DataParts)
+	*mdat = MdatBox{Data: data, DataParts: mdat.DataParts[:0], ownsData: data != nil}
+	*f = Fragment{Moof: moof, Mdat: mdat, Children: append(f.Children[:0], moof, mdat), nextTrunNr: 1,
+		EncOptimize: f.EncOptimize, spareSenc: spareSenc, spareSaiz: spareSaiz, spareSaio: spareSaio}
+	return nil
+}
+
+// takeSaiz returns the saiz box kept by Reset, emptied, or a new one.
+func (f *Fragment) takeSaiz(nrSamples int) *SaizBox {
+	s := f.spareSaiz
+	if s == nil {
+		return NewSaizBox(nrSamples)
+	}
+	f.spareSaiz = nil
+	*s = SaizBox{SampleInfo: s.SampleInfo[:0]}
+	return s
+}
+
+// takeSaio returns the saio box kept by Reset, as NewSaioBox makes it, or a new one.
+func (f *Fragment) takeSaio() *SaioBox {
+	s := f.spareSaio
+	if s == nil {
+		return NewSaioBox()
+	}
+	f.spareSaio = nil
+	*s = SaioBox{Offset: append(s.Offset[:0], -1)}
+	return s
+}
+
+// takeSenc returns the senc box kept by Reset, emptied but with its storage, or a new one.
+func (f *Fragment) takeSenc(ivCapacity, subSampleCapacity int) *SencBox {
+	s := f.spareSenc
+	if s == nil {
+		return NewSencBox(ivCapacity, subSampleCapacity)
+	}
+	f.spareSenc = nil
+	clear(s.IVs)
+	clear(s.SubSamples)
+	*s = SencBox{IVs: s.IVs[:0], SubSamples: s.SubSamples[:0], ivStore: s.ivStore[:0], sspStore: s.sspStore[:0]}
+	return s
 }
 
 // CreateMultiTrackFragment creates a multi-track fragment without trun boxes.

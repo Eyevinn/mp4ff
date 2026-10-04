@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Fragment.Reset` puts a single-track fragment back in the state `CreateFragment` returns, keeping `EncOptimize` and
+  its storage, so building, encrypting and encoding fragment after fragment in one `Fragment` reuses its boxes,
+  its encryption boxes and the sample data copied into it
+
 ## [0.58.0] - 2026-10-04
 
 ### Added

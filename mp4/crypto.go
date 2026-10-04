@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"slices"
 
 	"github.com/Eyevinn/mp4ff/av1"
 	"github.com/Eyevinn/mp4ff/avc"
@@ -760,16 +761,16 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 		return fmt.Errorf("only one trun supported")
 	}
 	nrSamples := int(f.Moof.Traf.Trun.SampleCount())
-	saiz := NewSaizBox(nrSamples)
+	saiz := f.takeSaiz(nrSamples)
 	_ = traf.AddChild(saiz)
-	saio := NewSaioBox()
+	saio := f.takeSaio()
 	_ = traf.AddChild(saio)
 	var senc *SencBox
 	switch ipd.Scheme {
 	case "cenc":
-		senc = NewSencBox(nrSamples, nrSamples)
+		senc = f.takeSenc(nrSamples, nrSamples)
 	case "cbcs":
-		senc = NewSencBox(0, nrSamples)
+		senc = f.takeSenc(0, nrSamples)
 	default:
 		return fmt.Errorf("unknown scheme %s", ipd.Scheme)
 	}
@@ -784,9 +785,9 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 	// is encoded, so they get fresh storage per fragment: one array each instead of one per sample.
 	var ivs []byte
 	if ipd.Scheme == "cenc" {
-		ivs = make([]byte, 0, len(fss)*len(iv))
+		ivs = slices.Grow(senc.ivStore[:0], len(fss)*len(iv))
 	}
-	ssps := make([]SubSamplePattern, 0, 2*len(fss))
+	ssps := slices.Grow(senc.sspStore[:0], 2*len(fss))
 	// The 16-byte CTR IV for an 8-byte per-sample IV: the high half is the sample IV, the low
 	// half stays zero. NewCTR copies the IV, so one buffer serves every sample.
 	iv16 := e.iv16[:]
@@ -861,10 +862,12 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 	}
 	e.iv = append(e.iv[:0], iv...)
 	clear(e.samples) // do not keep the fragment's sample data alive until the next call
+	senc.ivStore, senc.sspStore = ivs, ssps
 	if len(senc.IVs) == 0 && len(senc.SubSamples) == 0 {
 		// No sample auxiliary information (full-sample encryption with a constant IV): CMAF
 		// (ISO/IEC 23000-19 Section 8.2.2.1) recommends omitting the senc, saiz, and saio boxes.
 		_ = f.Moof.Traf.RemoveEncryptionBoxes()
+		f.spareSenc, f.spareSaiz, f.spareSaio = senc, saiz, saio
 		return nil
 	}
 	moof := f.Moof

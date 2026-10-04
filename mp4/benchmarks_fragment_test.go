@@ -167,5 +167,33 @@ func BenchmarkBuildAndEncodeFragment(b *testing.B) {
 				}
 			}
 		})
+		b.Run(layout+"/Reset+AddFullSample-loop", func(b *testing.B) {
+			b.ReportAllocs()
+			frag := newBenchFragment(b)
+			for i := 0; i < b.N; i++ {
+				if err := frag.Reset(1); err != nil {
+					b.Fatal(err)
+				}
+				for _, s := range samples {
+					frag.AddFullSample(s)
+				}
+				if err := frag.EncodeSW(bits.NewFixedSliceWriterFromSlice(out)); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+		b.Run(layout+"/Reset+AddFullSamples", func(b *testing.B) {
+			b.ReportAllocs()
+			frag := newBenchFragment(b)
+			for i := 0; i < b.N; i++ {
+				if err := frag.Reset(1); err != nil {
+					b.Fatal(err)
+				}
+				frag.AddFullSamples(samples)
+				if err := frag.EncodeSW(bits.NewFixedSliceWriterFromSlice(out)); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

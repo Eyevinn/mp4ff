@@ -23,6 +23,7 @@ type MdatBox struct {
 	DataParts    [][]byte
 	lazyDataSize uint64
 	LargeSize    bool
+	ownsData     bool // Data was allocated by AddSampleData, so Fragment.Reset may reuse it
 }
 
 const maxNormalPayloadSize = (1 << 32) - 1 - 8
@@ -34,7 +35,7 @@ func DecodeMdat(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	largeSize := hdr.Hdrlen > boxHeaderSize
-	return &MdatBox{startPos, data, nil, 0, largeSize}, nil
+	return &MdatBox{StartPos: startPos, Data: data, LargeSize: largeSize}, nil
 }
 
 // DecodeMdatSR decodes an mdat box
@@ -43,7 +44,7 @@ func DecodeMdat(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 // If not enough content, an accumulated error is stored in sr, though
 func DecodeMdatSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	largeSize := hdr.Hdrlen > boxHeaderSize
-	return &MdatBox{startPos, sr.ReadBytes(hdr.payloadLen()), nil, 0, largeSize}, nil
+	return &MdatBox{StartPos: startPos, Data: sr.ReadBytes(hdr.payloadLen()), LargeSize: largeSize}, nil
 }
 
 // IsLazy - is the mdat data handled lazily (with separate writer/reader).
@@ -55,7 +56,7 @@ func (m *MdatBox) IsLazy() bool {
 func DecodeMdatLazily(hdr BoxHeader, startPos uint64) (Box, error) {
 	largeSize := hdr.Hdrlen > boxHeaderSize
 	decLazyDataSize := hdr.Size - uint64(hdr.Hdrlen)
-	return &MdatBox{startPos, nil, nil, decLazyDataSize, largeSize}, nil
+	return &MdatBox{StartPos: startPos, lazyDataSize: decLazyDataSize, LargeSize: largeSize}, nil
 }
 
 // SetLazyDataSize - set size of mdat lazy data so that the data can be written separately
@@ -94,6 +95,9 @@ func (m *MdatBox) Size() uint64 {
 // AddSampleData - add sample data to an mdat box. The bytes are copied, so
 // the caller may reuse s. It is appended after any data parts already added.
 func (m *MdatBox) AddSampleData(s []byte) {
+	if m.Data == nil {
+		m.ownsData = true
+	}
 	m.Data = append(m.Data, s...)
 }
 
@@ -103,6 +107,7 @@ func (m *MdatBox) SetData(data []byte) {
 	m.Data = data
 	m.DataParts = nil
 	m.lazyDataSize = 0
+	m.ownsData = false
 }
 
 // AddSampleDataPart - add a data part (for output). The slice is referenced,
@@ -111,12 +116,13 @@ func (m *MdatBox) SetData(data []byte) {
 // AddSampleData is closed into a part first, so that this part is written
 // after it.
 func (m *MdatBox) AddSampleDataPart(s []byte) {
-	if len(m.DataParts) == 0 {
+	if cap(m.DataParts) == 0 {
 		m.DataParts = make([][]byte, 0, 8) // Reasonable size
 	}
 	if len(m.Data) != 0 {
 		m.DataParts = append(m.DataParts, m.Data)
 		m.Data = nil
+		m.ownsData = false
 	}
 	m.DataParts = append(m.DataParts, s)
 }

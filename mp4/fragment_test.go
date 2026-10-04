@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/binary"
+	"encoding/hex"
 	"io"
 	"os"
 	"slices"
@@ -811,5 +812,279 @@ func TestFragmentEncodeTopLevelBoxes(t *testing.T) {
 	}
 	if nrTruns != len(samples) {
 		t.Errorf("got %d truns, expected %d", nrTruns, len(samples))
+	}
+}
+
+// TestFragmentReset - a fragment that is reset and built again encodes as a new fragment from CreateFragment does,
+// whatever was added to it before: sample data as parts and as a tail, emsg and prft boxes, the boxes that
+// encryption adds, and an optimized trun.
+func TestFragmentReset(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	init, err := mp4.ReadMP4File("testdata/init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ipd, err := mp4.InitProtect(init.Init, key, iv, "cbcs", kid, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg, err := mp4.DecodeFile(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inFrag := seg.Segments[0].Fragments[0]
+	samples, err := inFrag.GetFullSamples(ipd.Trex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trackID := inFrag.Moof.Traf.Tfhd.TrackID
+	half := len(samples) / 2
+	// build adds the first half of the samples as data parts and the rest as copies, and encodes the fragment.
+	build := func(f *mp4.Fragment, ss []mp4.FullSample) []byte {
+		f.AddFullSamples(ss[:half])
+		for _, s := range ss[half:] {
+			f.AddFullSample(s)
+		}
+		var buf bytes.Buffer
+		if err := f.Encode(&buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.Bytes()
+	}
+	fresh, err := mp4.CreateFragment(2, trackID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh.EncOptimize = mp4.OptimizeTrun // Reset keeps the setting
+	want := build(fresh, samples)
+
+	f, err := mp4.CreateFragment(1, trackID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clones := make([]mp4.FullSample, len(samples)) // encryption is in place
+	for i, s := range samples {
+		clones[i] = s
+		clones[i].Data = bytes.Clone(s.Data)
+	}
+	f.AddEmsg(&mp4.EmsgBox{Version: 1, TimeScale: 1000, SchemeIDURI: "urn:mp4ff:test", Value: "1"})
+	f.AddChild(mp4.CreatePrftBox(1, 24, trackID, 0, 0))
+	f.EncOptimize = mp4.OptimizeTrun
+	_ = build(f, clones)
+	if _, err := mp4.EncryptFragment(f, key, iv, ipd); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Encode(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.Reset(2); err != nil {
+		t.Fatal(err)
+	}
+	if f.EncOptimize != mp4.OptimizeTrun {
+		t.Errorf("Reset changed EncOptimize to %d", f.EncOptimize)
+	}
+	if got := build(f, samples); !bytes.Equal(got, want) {
+		t.Error("a reset fragment encodes differently from a new one")
+	}
+}
+
+// TestFragmentResetReleasesData - Reset drops the references to sample data, and does not write later sample data
+// into a buffer that the mdat did not allocate.
+func TestFragmentResetReleasesData(t *testing.T) {
+	sample := func(data ...byte) mp4.FullSample {
+		return mp4.FullSample{Sample: mp4.Sample{Dur: 1, Size: uint32(len(data))}, Data: data}
+	}
+	t.Run("dataParts", func(t *testing.T) {
+		f, err := mp4.CreateFragment(1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.AddFullSamples([]mp4.FullSample{sample(1, 2, 3), sample(4, 5)})
+		if err := f.Reset(2); err != nil {
+			t.Fatal(err)
+		}
+		for i, p := range f.Mdat.DataParts[:cap(f.Mdat.DataParts)] {
+			if p != nil {
+				t.Errorf("data part %d still references %v after Reset", i, p)
+			}
+		}
+	})
+	t.Run("setData", func(t *testing.T) {
+		f, err := mp4.CreateFragment(1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		own := make([]byte, 0, 16)
+		f.Mdat.SetData(own)
+		f.AddFullSample(sample(1, 2, 3)) // appended in the spare capacity of own
+		if err := f.Reset(2); err != nil {
+			t.Fatal(err)
+		}
+		f.AddFullSample(sample(7, 8, 9))
+		if got := own[:3]; !bytes.Equal(got, []byte{1, 2, 3}) {
+			t.Errorf("sample data added after Reset overwrote the buffer given to SetData: %v", got)
+		}
+	})
+}
+
+// TestFragmentResetErrors - Reset refuses a fragment that is not single-track, and leaves it unchanged.
+func TestFragmentResetErrors(t *testing.T) {
+	if err := mp4.NewFragment().Reset(1); err == nil {
+		t.Error("Reset of an empty fragment gave no error")
+	}
+	f, err := mp4.CreateMultiTrackFragment(1, []uint32{1, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Reset(2); err == nil {
+		t.Error("Reset of a multi-track fragment gave no error")
+	}
+	if got := f.Moof.Mfhd.SequenceNumber; got != 1 {
+		t.Errorf("failed Reset changed the sequence number to %d", got)
+	}
+}
+
+// TestFragmentResetAllocations - building fragment after fragment in one Fragment with Reset and Encode does not
+// allocate, whether the samples are added as data parts with AddFullSamples or copied with AddFullSample, since
+// Reset keeps the payload that AddFullSample copies into.
+func TestFragmentResetAllocations(t *testing.T) {
+	buf := make([]byte, 4*7000)
+	samples := make([]mp4.FullSample, 4)
+	for i := range samples {
+		samples[i] = mp4.FullSample{
+			Sample:     mp4.Sample{Flags: mp4.SyncSampleFlags, Dur: 1024, Size: 7000},
+			DecodeTime: uint64(i) * 1024,
+			Data:       buf[i*7000 : (i+1)*7000],
+		}
+	}
+	adders := map[string]func(f *mp4.Fragment){
+		"AddFullSamples": func(f *mp4.Fragment) { f.AddFullSamples(samples) },
+		"AddFullSample": func(f *mp4.Fragment) {
+			for _, s := range samples {
+				f.AddFullSample(s)
+			}
+		},
+	}
+	for name, add := range adders {
+		t.Run(name, func(t *testing.T) {
+			f, err := mp4.CreateFragment(1, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			add(f) // Grow the storage that Reset keeps
+			allocs := testing.AllocsPerRun(100, func() {
+				if err := f.Reset(2); err != nil {
+					t.Fatal(err)
+				}
+				add(f)
+				if err := f.Encode(io.Discard); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if allocs != 0 {
+				t.Errorf("Reset, %s and Encode made %.0f allocations, want none", name, allocs)
+			}
+		})
+	}
+}
+
+// TestFragmentResetEncryption - fragments built and encrypted one after the other in one Fragment, whose senc,
+// saiz and saio boxes Reset keeps for the encryptor, encode as fragments built and encrypted from scratch, and
+// cbcs encryption then allocates nothing.
+func TestFragmentResetEncryption(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	raw, err := os.ReadFile("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, scheme := range []string{"cenc", "cbcs"} {
+		t.Run(scheme, func(t *testing.T) {
+			iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+			if scheme == "cenc" {
+				iv = iv[:8]
+			}
+			init, err := mp4.ReadMP4File("testdata/init.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ipd, err := mp4.InitProtect(init.Init, key, iv, scheme, kid, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			seg, err := mp4.DecodeFile(bytes.NewReader(raw))
+			if err != nil {
+				t.Fatal(err)
+			}
+			samples, err := seg.Segments[0].Fragments[0].GetFullSamples(ipd.Trex)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trackID := seg.Segments[0].Fragments[0].Moof.Traf.Tfhd.TrackID
+			// The samples are copied into the fragments, so encryption leaves them unchanged.
+			build := func(f *mp4.Fragment, e *mp4.FragmentEncryptor, ss []mp4.FullSample, w io.Writer) {
+				for _, s := range ss {
+					f.AddFullSample(s)
+				}
+				if err := e.EncryptFragment(f); err != nil {
+					t.Fatal(err)
+				}
+				if err := f.Encode(w); err != nil {
+					t.Fatal(err)
+				}
+			}
+			freshEnc, err := ipd.NewFragmentEncryptor(key, iv)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resetEnc, err := ipd.NewFragmentEncryptor(key, iv)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f, err := mp4.CreateFragment(1, trackID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Fragments of different sizes, so that the kept storage both grows and shrinks.
+			seqNr := uint32(1)
+			for start, n := 0, 7; start < len(samples); start, n = start+n, 3+(n+5)%11 {
+				ss := samples[start:min(start+n, len(samples))]
+				fresh, err := mp4.CreateFragment(seqNr, trackID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var want, got bytes.Buffer
+				build(fresh, freshEnc, ss, &want)
+				if seqNr > 1 {
+					if err := f.Reset(seqNr); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if build(f, resetEnc, ss, &got); !bytes.Equal(got.Bytes(), want.Bytes()) {
+					t.Fatalf("fragment %d: a reset fragment encrypts differently from a new one", seqNr)
+				}
+				seqNr++
+			}
+			if scheme != "cbcs" {
+				return // cenc makes a CTR stream per sample in crypto/cipher
+			}
+			ss := samples[:10]
+			allocs := testing.AllocsPerRun(20, func() {
+				if err := f.Reset(seqNr); err != nil {
+					t.Fatal(err)
+				}
+				build(f, resetEnc, ss, io.Discard)
+			})
+			if allocs != 0 {
+				t.Errorf("Reset, AddFullSample, cbcs encryption and Encode made %.0f allocations, want none", allocs)
+			}
+		})
 	}
 }
