@@ -64,6 +64,33 @@ func DecodeMoofSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &m, sr.AccError()
 }
 
+// decodeSRInto decodes a moof box from sr into m, as DecodeMoofSR does, decoding its children into those of m and
+// reusing the storage.
+func (m *MoofBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	children, err := decodeChildrenSRInto(hdr, startPos+8, startPos+hdr.Size, sr, m.Children)
+	if err != nil {
+		return err
+	}
+	if err := m.setChildren(children, startPos); err != nil {
+		return err
+	}
+	return sr.AccError()
+}
+
+// setChildren makes children, in the storage of which it keeps them, the children of m, reusing the storage of
+// the traf and pssh lists of m. AddChild appends each child once, in order, so children is refilled in place.
+func (m *MoofBox) setChildren(children []Box, startPos uint64) error {
+	clear(m.Trafs)
+	clear(m.Psshs)
+	*m = MoofBox{Trafs: m.Trafs[:0], Psshs: m.Psshs[:0], Children: children[:0], StartPos: startPos}
+	for _, c := range children {
+		if err := m.AddChild(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AddChild - add child box
 func (m *MoofBox) AddChild(child Box) error {
 	switch box := child.(type) {

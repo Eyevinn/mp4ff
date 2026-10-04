@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"io"
+	"slices"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -100,6 +101,41 @@ func DecodeSidxSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		b.SidxRefs = append(b.SidxRefs, ref)
 	}
 	return b, sr.AccError()
+}
+
+// decodeSRInto decodes a sidx box from sr into b, as DecodeSidxSR does, reusing the storage of its reference list.
+func (b *SidxBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	versionAndFlags := sr.ReadUint32()
+	version := byte(versionAndFlags >> 24)
+	refs := b.SidxRefs[:0]
+	*b = SidxBox{Version: version, Flags: versionAndFlags & flagsMask}
+	b.ReferenceID = sr.ReadUint32()
+	b.Timescale = sr.ReadUint32()
+	if version == 0 {
+		b.EarliestPresentationTime = uint64(sr.ReadUint32())
+		b.FirstOffset = uint64(sr.ReadUint32())
+	} else {
+		b.EarliestPresentationTime = sr.ReadUint64()
+		b.FirstOffset = sr.ReadUint64()
+	}
+	b.AnchorPoint = startPos + b.FirstOffset + hdr.Size
+	sr.SkipBytes(2)
+	refCount := int(sr.ReadUint16())
+	refs = slices.Grow(refs, refCount)
+	for i := 0; i < refCount; i++ {
+		ref := SidxRef{}
+		work := sr.ReadUint32()
+		ref.ReferenceType = uint8(work >> 31)
+		ref.ReferencedSize = work & 0x7fffffff
+		ref.SubSegmentDuration = sr.ReadUint32()
+		work = sr.ReadUint32()
+		ref.StartsWithSAP = uint8(work >> 31)
+		ref.SAPType = uint8((work >> 28) & 0x07)
+		ref.SAPDeltaTime = work & 0x0fffffff
+		refs = append(refs, ref)
+	}
+	b.SidxRefs = refs
+	return sr.AccError()
 }
 
 // CreateSidx - Create a new TfdtBox with baseMediaDecodeTime

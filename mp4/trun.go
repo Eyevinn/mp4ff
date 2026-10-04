@@ -135,6 +135,48 @@ func DecodeTrunSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return t, sr.AccError()
 }
 
+// decodeSRInto decodes a trun box from sr into t, as DecodeTrunSR does, reusing the storage of its sample list.
+func (t *TrunBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	versionAndFlags := sr.ReadUint32()
+	sampleCount := sr.ReadUint32()
+	samples := t.Samples[:0]
+	*t = TrunBox{Version: byte(versionAndFlags >> 24), Flags: versionAndFlags & flagsMask}
+	if hdr.Size != t.expectedSize(sampleCount) {
+		return fmt.Errorf("trun: expected size %d, got %d", t.expectedSize(sampleCount), hdr.Size)
+	}
+	if sampleCount > 1024 && !t.HasSampleDuration() && !t.HasSampleSize() && !t.HasSampleFlags() &&
+		!t.HasSampleCompositionTimeOffset() {
+		return fmt.Errorf("trun: sampleCount %d is big but no sample data present", sampleCount)
+	}
+	t.Samples = slices.Grow(samples, int(sampleCount))
+	if t.HasDataOffset() {
+		t.DataOffset = sr.ReadInt32()
+	}
+	if t.HasFirstSampleFlags() {
+		t.firstSampleFlags = sr.ReadUint32()
+	}
+	for i := uint32(0); i < sampleCount; i++ {
+		var dur, size, flags uint32
+		var cto int32
+		if t.HasSampleDuration() {
+			dur = sr.ReadUint32()
+		}
+		if t.HasSampleSize() {
+			size = sr.ReadUint32()
+		}
+		if t.HasSampleFlags() {
+			flags = sr.ReadUint32()
+		} else if t.HasFirstSampleFlags() && i == 0 {
+			flags = t.firstSampleFlags
+		}
+		if t.HasSampleCompositionTimeOffset() {
+			cto = sr.ReadInt32()
+		}
+		t.Samples = append(t.Samples, Sample{flags, dur, size, cto})
+	}
+	return sr.AccError()
+}
+
 // CreateTrun - create a TrunBox for filling up with samples.
 // writeOrderNr is only used for multi-trun offsets.
 func CreateTrun(writeOrderNr uint32) *TrunBox {

@@ -47,6 +47,12 @@ func DecodeMdatSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &MdatBox{StartPos: startPos, Data: sr.ReadBytes(hdr.payloadLen()), LargeSize: largeSize}, nil
 }
 
+// decodeSRInto decodes an mdat box from sr into m, as DecodeMdatSR does. Its Data views the slice of sr.
+func (m *MdatBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	*m = MdatBox{StartPos: startPos, Data: sr.ReadBytes(hdr.payloadLen()), LargeSize: hdr.Hdrlen > boxHeaderSize}
+	return nil
+}
+
 // IsLazy - is the mdat data handled lazily (with separate writer/reader).
 func (m *MdatBox) IsLazy() bool {
 	return m.lazyDataSize > 0

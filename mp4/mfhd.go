@@ -46,6 +46,13 @@ func DecodeMfhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	}, sr.AccError()
 }
 
+// decodeSRInto decodes an mfhd box from sr into m, as DecodeMfhdSR does.
+func (m *MfhdBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	versionAndFlags := sr.ReadUint32()
+	*m = MfhdBox{Version: byte(versionAndFlags >> 24), Flags: versionAndFlags & flagsMask, SequenceNumber: sr.ReadUint32()}
+	return sr.AccError()
+}
+
 // CreateMfhd - create an MfhdBox
 func CreateMfhd(sequenceNumber uint32) *MfhdBox {
 	return &MfhdBox{

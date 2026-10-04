@@ -52,6 +52,13 @@ func DecodeStypSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &StypBox{g}, nil
 }
 
+// decodeSRInto decodes a styp box from sr into b, as DecodeStypSR does. Its data views the slice of sr.
+func (b *StypBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	g, err := decodeGeneralTypeBoxSR(hdr, sr)
+	b.generalTypeBox = g
+	return err
+}
+
 // Type - return box type
 func (b *StypBox) Type() string {
 	return "styp"

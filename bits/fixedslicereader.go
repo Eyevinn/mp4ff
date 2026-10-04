@@ -26,6 +26,12 @@ func NewFixedSliceReader(data []byte) *FixedSliceReader {
 	}
 }
 
+// Reset makes s read data from its start, with no accumulated error, so that one reader serves buffer after buffer
+// without allocating.
+func (s *FixedSliceReader) Reset(data []byte) {
+	*s = FixedSliceReader{slice: data, len: len(data)}
+}
+
 // AccError - get accumulated error after read operations
 func (s *FixedSliceReader) AccError() error {
 	return s.err

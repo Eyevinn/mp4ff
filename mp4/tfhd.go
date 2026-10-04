@@ -70,6 +70,28 @@ func DecodeTfhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return t, sr.AccError()
 }
 
+// decodeSRInto decodes a tfhd box from sr into t, as DecodeTfhdSR does.
+func (t *TfhdBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	versionAndFlags := sr.ReadUint32()
+	*t = TfhdBox{Version: byte(versionAndFlags >> 24), Flags: versionAndFlags & flagsMask, TrackID: sr.ReadUint32()}
+	if t.HasBaseDataOffset() {
+		t.BaseDataOffset = sr.ReadUint64()
+	}
+	if t.HasSampleDescriptionIndex() {
+		t.SampleDescriptionIndex = sr.ReadUint32()
+	}
+	if t.HasDefaultSampleDuration() {
+		t.DefaultSampleDuration = sr.ReadUint32()
+	}
+	if t.HasDefaultSampleSize() {
+		t.DefaultSampleSize = sr.ReadUint32()
+	}
+	if t.HasDefaultSampleFlags() {
+		t.DefaultSampleFlags = sr.ReadUint32()
+	}
+	return sr.AccError()
+}
+
 // CreateTfhd - Create a new TfdtBox with baseMediaDecodeTime
 func CreateTfhd(trackID uint32) *TfhdBox {
 	// The only flag set is defaultBaseIsMoof
