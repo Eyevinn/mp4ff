@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fragment.Reset` puts a single-track fragment back in the state `CreateFragment` returns, keeping `EncOptimize` and
   its storage, so building, encrypting and encoding fragment after fragment in one `Fragment` reuses its boxes,
   its encryption boxes and the sample data copied into it
+- `FragmentDecoder` decodes fragment after fragment into the styp, sidx, moof and mdat boxes of the last one without
+  allocating, fed by `ReadFragmentBytes` from an `io.Reader`; `bits.FixedSliceReader.Reset` reuses a reader
 
 ## [0.58.0] - 2026-10-04
 

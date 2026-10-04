@@ -130,12 +130,16 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 
 // DecodeContainerChildrenSR decodes a container box
 func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
+	return decodeContainerChildrenSR(hdr, startPos, endPos, sr, make([]Box, 0, 8)) // Good initial size
+}
+
+// decodeContainerChildrenSR decodes the children of a container box, appending them to children.
+func decodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader, children []Box) ([]Box, error) {
 	// Guard before the unsigned subtractions below can wrap.
 	if startPos > endPos {
 		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
 			hdr.Name, hdr.Size, hdr.Size+(startPos-endPos))
 	}
-	children := make([]Box, 0, 8) // Good initial size
 	pos := startPos
 	initPos := sr.GetPos()
 	for {
@@ -159,6 +163,49 @@ func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.S
 		if int(pos-startPos) != relPosFromSize {
 			return nil, fmt.Errorf("child %s size mismatch in %s: %d - %d", child.Type(), hdr.Name, pos-startPos, relPosFromSize)
 		}
+	}
+	return children, nil
+}
+
+// decodeChildrenSRInto is DecodeContainerChildrenSR decoding each child into the box at the same place in old when
+// that box has the same type and can be decoded into, and returning the children in the storage of old.
+func decodeChildrenSRInto(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader, old []Box) ([]Box, error) {
+	// Guard before the unsigned subtractions below can wrap.
+	if startPos > endPos {
+		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
+			hdr.Name, hdr.Size, hdr.Size+(startPos-endPos))
+	}
+	children := old[:0]
+	pos := startPos
+	initPos := sr.GetPos()
+	for {
+		if pos > endPos {
+			msg := ""
+			for _, c := range children {
+				msg += fmt.Sprintf("%s:%d ", c.Type(), c.Size())
+			}
+			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, msg)
+		}
+		if pos == endPos {
+			break
+		}
+		var prev Box
+		if i := len(children); i < len(old) {
+			prev = old[i]
+		}
+		child, size, err := decodeBoxSRInto(pos, sr, prev)
+		if err != nil {
+			return children, err
+		}
+		children = append(children, child)
+		pos += size
+		relPosFromSize := sr.GetPos() - initPos
+		if int(pos-startPos) != relPosFromSize {
+			return nil, fmt.Errorf("child %s size mismatch in %s: %d - %d", child.Type(), hdr.Name, pos-startPos, relPosFromSize)
+		}
+	}
+	if len(children) < len(old) {
+		clear(old[len(children):])
 	}
 	return children, nil
 }

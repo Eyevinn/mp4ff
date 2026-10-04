@@ -58,6 +58,29 @@ func DecodeTrafSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return t, nil
 }
 
+// decodeSRInto decodes a traf box from sr into t, as DecodeTrafSR does, decoding its children into those of t and
+// reusing the storage.
+func (t *TrafBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	children, err := decodeChildrenSRInto(hdr, startPos+8, startPos+hdr.Size, sr, t.Children)
+	if err != nil {
+		return err
+	}
+	return t.setChildren(children)
+}
+
+// setChildren makes children, in the storage of which it keeps them, the children of t, reusing the storage of
+// the trun list of t. AddChild appends each child once, in order, so children is refilled in place.
+func (t *TrafBox) setChildren(children []Box) error {
+	clear(t.Truns)
+	*t = TrafBox{Truns: t.Truns[:0], Children: children[:0]}
+	for _, c := range children {
+		if err := t.AddChild(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ContainsSencBox - is there a senc box in traf and is it parsed
 // If not parsed, call ParseReadSenc to parse it
 func (t *TrafBox) ContainsSencBox() (ok, parsed bool) {

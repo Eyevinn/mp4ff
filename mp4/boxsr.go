@@ -286,6 +286,43 @@ func decodeHeaderSR(sr bits.SliceReader) (BoxHeader, BoxDecoderSR, error) {
 	return BoxHeader{boxType, size, headerLen}, decSR, sr.AccError()
 }
 
+// rawHeader is a box header whose type has not yet been turned into a string.
+type rawHeader struct {
+	typ    []byte
+	size   uint64
+	hdrLen int
+}
+
+// readRawHeaderSR reads a box header with the checks of decodeHeaderSR, but leaves the type as bytes, so that a box
+// to decode into can be matched without looking the type up.
+func readRawHeaderSR(sr bits.SliceReader) (rawHeader, error) {
+	if sr.NrRemainingBytes() < boxHeaderSize {
+		return rawHeader{}, fmt.Errorf("not enough bytes to read box header, need %d, have %d", boxHeaderSize,
+			sr.NrRemainingBytes())
+	}
+	h := rawHeader{size: uint64(sr.ReadUint32()), typ: sr.ReadBytes(4), hdrLen: boxHeaderSize}
+	switch h.size {
+	case 1: // size 1 means large size in next 8 bytes
+		if string(h.typ) != "mdat" {
+			return rawHeader{}, fmt.Errorf("extended size not supported for box type %s", h.typ)
+		}
+		h.size = sr.ReadUint64()
+		h.hdrLen += largeSizeLen
+	case 0: // size 0 means to end of file
+		return rawHeader{}, fmt.Errorf("Size 0, meaning to end of file, not supported")
+	}
+	if uint64(h.hdrLen) > h.size {
+		return rawHeader{}, fmt.Errorf("box header size %d exceeds box size %d", h.hdrLen, h.size)
+	}
+	return h, sr.AccError()
+}
+
+// lookup returns the BoxHeader and the decoder of the box type.
+func (h rawHeader) lookup() (BoxHeader, BoxDecoderSR) {
+	name, d := lookupBoxType(h.typ)
+	return BoxHeader{name, h.size, h.hdrLen}, d
+}
+
 // DecodeBoxBodySR - decode box body from SliceReader given BoxHeader
 func DecodeBoxBodySR(startPos uint64, hdr BoxHeader, sr bits.SliceReader) (Box, error) {
 	d, _ := decodersSR[hdr.Name]

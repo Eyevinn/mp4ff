@@ -289,3 +289,19 @@ func expVal(i, nrBytes int) (val uint64) {
 	}
 	return val
 }
+
+func TestFixedSliceReaderReset(t *testing.T) {
+	sr := bits.NewFixedSliceReader([]byte{1})
+	_ = sr.ReadUint32() // fails, so that Reset must also clear the error
+	if sr.AccError() == nil {
+		t.Fatal("expected an error reading past the end")
+	}
+	sr.Reset([]byte{0, 0, 0, 7, 9})
+	if got := sr.ReadUint32(); got != 7 || sr.AccError() != nil || sr.NrRemainingBytes() != 1 {
+		t.Errorf("after Reset: got %d, error %v and %d bytes left, want 7, nil and 1", got, sr.AccError(),
+			sr.NrRemainingBytes())
+	}
+	if allocs := testing.AllocsPerRun(10, func() { sr.Reset(nil) }); allocs != 0 {
+		t.Errorf("Reset made %.0f allocations, want none", allocs)
+	}
+}

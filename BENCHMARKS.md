@@ -27,7 +27,7 @@ The allocations are the heap allocations inside the benchmark loop. Most benchma
 |---|---|---|
 | `BenchmarkDecodeFile`, `BenchmarkEncodeFile` | `mp4/benchmarks_test.go` | Decoding and encoding `1.m4s` and `prog_8s.mp4` through `io.Reader` and `io.Writer` |
 | `BenchmarkDecodeFileSR`, `BenchmarkEncodeFileSW` | `mp4/benchmarks_srw_test.go` | The same through `bits.SliceReader` and `bits.SliceWriter` |
-| `BenchmarkDecodeFragments` | `mp4/benchmarks_decode_test.go` | Decoding `1.m4s` as 60 one-sample fragments, the layout of low-latency streams, with `DecodeFileSR`, `DecodeFile` and the stream decoder |
+| `BenchmarkDecodeFragments` | `mp4/benchmarks_decode_test.go` | Decoding `1.m4s` as 60 one-sample fragments, the layout of low-latency streams, with `DecodeFileSR`, `DecodeFile`, the stream decoder and `FragmentDecoder`, from a slice and fed by `ReadFragmentBytes` |
 | `BenchmarkEncodeFragments` | `mp4/benchmarks_encode_test.go` | Encoding the same 60 fragments with `Fragment.Encode` and `Fragment.EncodeSW` |
 | `BenchmarkEncryptFragment` | `mp4/benchmarks_crypto_test.go` | Encrypting one AVC fragment in place with cenc and cbcs |
 | `BenchmarkEncryptFragments` | `mp4/benchmarks_encrypt_test.go` | Encrypting `1.m4s` as one 60-sample fragment and as 60 one-sample fragments with one `FragmentEncryptor`, with cenc and cbcs |

@@ -58,6 +58,19 @@ func DecodeTfdtSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	return &b, sr.AccError()
 }
 
+// decodeSRInto decodes a tfdt box from sr into b, as DecodeTfdtSR does.
+func (b *TfdtBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceReader) error {
+	versionAndFlags := sr.ReadUint32()
+	version := byte(versionAndFlags >> 24)
+	*b = TfdtBox{Version: version, Flags: versionAndFlags & flagsMask}
+	if version == 0 {
+		b.baseMediaDecodeTime = uint64(sr.ReadUint32())
+	} else {
+		b.baseMediaDecodeTime = sr.ReadUint64()
+	}
+	return sr.AccError()
+}
+
 // CreateTfdt - Create a new TfdtBox with baseMediaDecodeTime
 func CreateTfdt(baseMediaDecodeTime uint64) *TfdtBox {
 	var version byte = 0
