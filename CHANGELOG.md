@@ -36,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stream decoder sets `Fragment.Emsgs` and `Fragment.Prfts`
 - `FragmentEncryptor.IV` returns a copy, so changing the returned IV no longer changes the next IV
 - `avc.ParseSliceHeader` no longer hangs on a huge `num_ref_idx_l0_active_minus1`,
-  and returns an error for a NAL unit that ends inside the slice header
+  nor `avc.ParseSPSNALUnit` on a huge VUI HRD `cpb_cnt_minus1`, and
+  `ParseSliceHeader` returns an error for a NAL unit that ends inside the slice header
 - `avc.ParseSPSNALUnit`, `ParsePPSNALUnit` and `ParseSliceHeader` reject
   out-of-range values (dimensions, cropping, bit depths, QPs and more), so
   cropping can no longer wrap `SPS.Width` and `SPS.Height` around

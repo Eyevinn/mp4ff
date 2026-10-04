@@ -410,6 +410,11 @@ func parseVUI(reader *bits.EBSPReader, parseVUIBeyondAspectRatio bool) *VUIParam
 func parseHrdParameters(r *bits.EBSPReader) *HrdParameters {
 	hp := &HrdParameters{}
 	hp.CpbCountMinus1 = r.ReadExpGolomb()
+	// cpb_cnt_minus1 shall be in the range 0 to 31 (E.2.2). A bogus value would
+	// otherwise make the loop below append CpbEntries until memory runs out.
+	if !checkMax(r, "cpb_cnt_minus1", hp.CpbCountMinus1, 31) {
+		return hp
+	}
 
 	hp.BitRateScale = r.Read(4)
 	hp.CpbSizeScale = r.Read(4)

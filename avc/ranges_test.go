@@ -22,6 +22,7 @@ type spsFields struct {
 	picWidthInMbsMinus1       uint
 	picHeightInMapUnitsMinus1 uint
 	crop                      []uint // left, right, top, bottom offsets, if cropping
+	nalHrdCpbCntMinus1        *uint  // cpb_cnt_minus1 of a VUI with NAL HRD parameters, if set
 }
 
 func defaultSPSFields() spsFields {
@@ -62,7 +63,31 @@ func writeSPS(t *testing.T, f spsFields) []byte {
 	} else {
 		w.Write(0, 1)
 	}
-	w.Write(0, 1) // vui_parameters_present_flag
+	if f.nalHrdCpbCntMinus1 != nil {
+		w.Write(1, 1) // vui_parameters_present_flag
+		w.Write(0, 5) // aspect_ratio_info, overscan_info, video_signal_type, chroma_loc_info, timing_info present flags
+		w.Write(1, 1) // nal_hrd_parameters_present_flag
+		cpbCntMinus1 := *f.nalHrdCpbCntMinus1
+		w.WriteExpGolomb(cpbCntMinus1)
+		w.Write(0, 4) // bit_rate_scale
+		w.Write(0, 4) // cpb_size_scale
+		// Write at most 32 entries, since the parser must stop at a larger count.
+		for i := uint(0); i <= min(cpbCntMinus1, 31); i++ {
+			w.WriteExpGolomb(0) // bit_rate_value_minus1
+			w.WriteExpGolomb(0) // cpb_size_value_minus1
+			w.Write(0, 1)       // cbr_flag
+		}
+		w.Write(23, 5) // initial_cpb_removal_delay_length_minus1
+		w.Write(23, 5) // cpb_removal_delay_length_minus1
+		w.Write(23, 5) // dpb_output_delay_length_minus1
+		w.Write(24, 5) // time_offset_length
+		w.Write(0, 1)  // vcl_hrd_parameters_present_flag
+		w.Write(0, 1)  // low_delay_hrd_flag
+		w.Write(0, 1)  // pic_struct_present_flag
+		w.Write(0, 1)  // bitstream_restriction_flag
+	} else {
+		w.Write(0, 1) // vui_parameters_present_flag
+	}
 	w.WriteRbspTrailingBits()
 	if w.AccError() != nil {
 		t.Fatal(w.AccError())
@@ -247,6 +272,34 @@ func TestSPSParserRanges(t *testing.T) {
 				t.Errorf("expected nil SPS on error, got %+v", sps)
 			}
 		})
+	}
+}
+
+// TestSPSParserHrdCpbCnt verifies that cpb_cnt_minus1 in the VUI HRD parameters
+// is limited to 31 (ISO/IEC 14496-10 Section E.2.2). A bogus value made the
+// parser append CPB entries until it ran out of memory, or forever for
+// 2^64-1. Found by fuzzing.
+func TestSPSParserHrdCpbCnt(t *testing.T) {
+	cases := []struct {
+		cpbCntMinus1 uint
+		wantErr      string
+	}{
+		{0, ""},
+		{31, ""},
+		{32, "cpb_cnt_minus1"},
+		{1 << 20, "cpb_cnt_minus1"},
+	}
+	for _, c := range cases {
+		f := defaultSPSFields()
+		f.nalHrdCpbCntMinus1 = &c.cpbCntMinus1
+		sps, err := ParseSPSNALUnit(writeSPS(t, f), true)
+		checkErr(t, err, c.wantErr)
+		if c.wantErr == "" && err == nil {
+			hrd := sps.VUI.NalHrdParameters
+			if hrd == nil || len(hrd.CpbEntries) != int(c.cpbCntMinus1)+1 || hrd.TimeOffsetLength != 24 {
+				t.Errorf("cpb_cnt_minus1 %d: got HRD parameters %+v", c.cpbCntMinus1, hrd)
+			}
+		}
 	}
 }
 
