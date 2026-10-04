@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of panicking or writing wrong bytes, with the new `TrakBox.CheckDataIsSelfContained`
 - `Fragment.GetFullSamples`, `Samples`, `GetSampleInterval` and `EncryptFragment` work on built fragments: with
   `AddFullSamples` data, after `Encode`, and for each track; `MdatBox.ReadData` and `CopyData` read `DataParts`
+- `avc.ExtractNalusFromByteStream`, `GetFirstAVCVideoNALUFromByteStream` and `ExtractNalusOfTypeFromByteStream` in
+  `avc` and `hevc` drop trailing zero bytes from the last NAL unit too, as they already did from the others
 
 ## [0.57.0] - 2026-09-29
 

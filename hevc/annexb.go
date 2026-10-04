@@ -8,15 +8,7 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 	for i := 0; i < n-4; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			if currNaluStart > 0 {
-				currNaluEnd := i
-				for j := i - 1; j > currNaluStart; j-- {
-					// Remove zeros from end of NAL unit
-					if data[j] == 0 {
-						currNaluEnd = j
-					} else {
-						break
-					}
-				}
+				currNaluEnd := trimTrailingZeros(data, currNaluStart, i)
 				switch naluType := GetNaluType(data[currNaluStart]); naluType {
 				case NALU_VPS:
 					vpss = append(vpss, data[currNaluStart:currNaluEnd])
@@ -65,15 +57,7 @@ func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo b
 	for i := 0; i < n-3; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			if currNaluStart > 0 {
-				currNaluEnd := i
-				for j := i - 1; j > currNaluStart; j-- {
-					// Remove zeros from end of NAL unit
-					if data[j] == 0 {
-						currNaluEnd = j
-					} else {
-						break
-					}
-				}
+				currNaluEnd := trimTrailingZeros(data, currNaluStart, i)
 				naluType := GetNaluType(data[currNaluStart])
 				if naluType == nType {
 					nalus = append(nalus, extractSlice(data, currNaluStart, currNaluEnd))
@@ -92,7 +76,7 @@ func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo b
 		return nil
 	}
 	if GetNaluType(data[currNaluStart]) == nType {
-		nalus = append(nalus, extractSlice(data, currNaluStart, n))
+		nalus = append(nalus, extractSlice(data, currNaluStart, trimTrailingZeros(data, currNaluStart, n)))
 	}
 	return nalus
 }
@@ -101,4 +85,13 @@ func extractSlice(data []byte, start, stop int) []byte {
 	sl := make([]byte, stop-start)
 	_ = copy(sl, data[start:stop])
 	return sl
+}
+
+// trimTrailingZeros returns the end of the NALU in data[start:end] without its trailing zero bytes.
+// They belong to the byte stream, since the last byte of a NALU is never zero. The first byte is kept.
+func trimTrailingZeros(data []byte, start, end int) int {
+	for end > start+1 && data[end-1] == 0 {
+		end--
+	}
+	return end
 }
