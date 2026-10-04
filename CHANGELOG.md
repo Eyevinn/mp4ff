@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.58.0] - 2026-10-04
+
 ### Added
 
 - `Fragment.Prfts` holds all `prft` boxes of a fragment, such as one per reference track or flags value, and
@@ -1423,7 +1425,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.57.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.58.0...HEAD
+[0.58.0]: https://github.com/Eyevinn/mp4ff/compare/v0.57.0...v0.58.0
 [0.57.0]: https://github.com/Eyevinn/mp4ff/compare/v0.56.0...v0.57.0
 [0.56.0]: https://github.com/Eyevinn/mp4ff/compare/v0.55.0...v0.56.0
 [0.55.0]: https://github.com/Eyevinn/mp4ff/compare/v0.54.0...v0.55.0
