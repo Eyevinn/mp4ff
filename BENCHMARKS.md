@@ -61,7 +61,7 @@ Master at f60dbde, Go 1.27.1, Apple M4 Pro, n=6:
 | `EncodeFile/1.m4s` | 880 ns | 88 B | 2 |
 | `EncodeFile/prog_8s.mp4` | 11.6 µs | 8.6 KiB | 87 |
 
-### Fewer allocations per fragment (unreleased)
+### Fewer allocations per fragment (v0.58.0)
 
 These changes reduce the fixed cost of every fragment and sample, which dominates for low-latency streams with fragments
 of one or a few samples. Apple M4 Pro, each compared with the code just before it:
