@@ -40,6 +40,11 @@ func TestNaluExtraction(t *testing.T) {
 			[]byte{0, 0, 1, 2, 0, 0, 0, 1, 1},
 			[][]byte{{2}, {1}},
 		},
+		{
+			"Trailing zero bytes after the last NALU",
+			[]byte{0, 0, 1, 2, 0, 0, 0, 1, 1, 0, 3, 0, 0},
+			[][]byte{{2}, {1, 0, 3}},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -198,6 +203,14 @@ func TestExtractNalusOfTypeFromByteStream(t *testing.T) {
 	}
 }
 
+func TestExtractNalusOfTypeDropsTrailingZeros(t *testing.T) {
+	data := []byte{0, 0, 0, 1, 7, 5, 4, 0, 0, 0, 1, 5, 2, 0, 0}
+	got := ExtractNalusOfTypeFromByteStream(NALU_IDR, data, false)
+	if diff := deep.Equal(got, [][]byte{{5, 2}}); diff != nil {
+		t.Error(diff)
+	}
+}
+
 func TestGetFirstAVCVideoNALUFromByteStream(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -208,6 +221,11 @@ func TestGetFirstAVCVideoNALUFromByteStream(t *testing.T) {
 			"Only IDR",
 			[]byte{0, 0, 0, 1, 5, 0, 1, 1, 1, 1},
 			[]byte{5, 0, 1, 1, 1, 1},
+		},
+		{
+			"Only IDR, with trailing zero bytes",
+			[]byte{0, 0, 0, 1, 5, 0, 1, 1, 0, 0},
+			[]byte{5, 0, 1, 1},
 		},
 		{
 			"NoVideo",

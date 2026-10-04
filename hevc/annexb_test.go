@@ -96,3 +96,12 @@ func TestExtractNalusOfTypeFromByteStream(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractNalusOfTypeDropsTrailingZeros(t *testing.T) {
+	data := []byte{0, 0, 0, 1, byte(NALU_SPS) << 1, 1, 7,
+		0, 0, 0, 1, byte(NALU_IDR_W_RADL) << 1, 1, 9, 0, 0}
+	got := ExtractNalusOfTypeFromByteStream(NALU_IDR_W_RADL, data, false)
+	if diff := deep.Equal(got, [][]byte{{byte(NALU_IDR_W_RADL) << 1, 1, 9}}); diff != nil {
+		t.Error(diff)
+	}
+}
