@@ -107,8 +107,9 @@ func (m *MdatBox) SetData(data []byte) {
 
 // AddSampleDataPart - add a data part (for output). The slice is referenced,
 // not copied, so the caller must keep it unmodified until the box has been
-// encoded. Any data added with AddSampleData is closed into a part first, so
-// that this part is written after it.
+// encoded, and EncryptFragment encrypts it in place. Any data added with
+// AddSampleData is closed into a part first, so that this part is written
+// after it.
 func (m *MdatBox) AddSampleDataPart(s []byte) {
 	if len(m.DataParts) == 0 {
 		m.DataParts = make([][]byte, 0, 8) // Reasonable size
