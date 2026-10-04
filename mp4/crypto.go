@@ -747,7 +747,8 @@ func (e *FragmentEncryptor) IV() []byte {
 }
 
 // EncryptFragment encrypts one fragment in place and advances the internal IV. Call it once per
-// fragment of the sequence, in decode order.
+// fragment of the sequence, in decode order. A fragment built with AddFullSamples references the
+// caller's sample buffers instead of copies, so those buffers are encrypted.
 func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 	ipd := e.ipd
 	iv := e.iv
@@ -891,7 +892,9 @@ func (e *FragmentEncryptor) EncryptFragment(f *Fragment) error {
 // EncryptFragments encrypts the fragments of one continuous decode sequence in place, in decode
 // order, sharing a single sample protector, and returns the next IV. The fragments must form one
 // decodable run starting at a random-access point. This is the correct entry point for AV1, whose
-// protection ranges depend on reference-frame state that spans the sequence's fragments.
+// protection ranges depend on reference-frame state that spans the sequence's fragments. A fragment
+// built with AddFullSamples references the caller's sample buffers instead of copies, so those
+// buffers are encrypted.
 func EncryptFragments(frags []*Fragment, key, iv []byte, ipd *InitProtectData) ([]byte, error) {
 	enc, err := ipd.NewFragmentEncryptor(key, iv)
 	if err != nil {
@@ -909,6 +912,8 @@ func EncryptFragments(frags []*Fragment, key, iv []byte, ipd *InitProtectData) (
 // begins at a random-access point) in place and returns the next IV, which can be chained into the
 // next call. For a multi-fragment decode sequence use EncryptFragments (or a FragmentEncryptor) so
 // that AV1 reference-frame state is carried across the fragments rather than reset for each one.
+// A fragment built with AddFullSamples references the caller's sample buffers instead of copies,
+// so those buffers are encrypted.
 func EncryptFragment(f *Fragment, key, iv []byte, ipd *InitProtectData) ([]byte, error) {
 	return EncryptFragments([]*Fragment{f}, key, iv, ipd)
 }

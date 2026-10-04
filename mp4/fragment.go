@@ -462,7 +462,9 @@ func (f *Fragment) AddFullSample(s FullSample) {
 // closed into a data part first, so samples may be added before or after with
 // AddFullSample and the mdat keeps the order in which data was added. Since
 // the samples are never copied, a caller that needs to reuse its buffers must
-// add those samples with AddFullSample instead.
+// add those samples with AddFullSample instead. The same holds for a fragment
+// that is encrypted, since EncryptFragment encrypts the sample data in place,
+// and so encrypts the caller's buffers.
 func (f *Fragment) AddFullSamples(ss []FullSample) {
 	if len(ss) == 0 {
 		return
