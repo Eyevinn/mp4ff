@@ -15,11 +15,13 @@ import (
 // Extends PlainTextSampleEntry which extends SampleEntry
 //
 // wvtc is the experimental paint-model variant. It has the same syntax as wvtt,
-// but a sample may also be a VttnBox. The 4CC is not registered with MP4RA.
+// but a sample may also be a VttnBox, and the entry carries a TtmaBox with the
+// maximum period of activation. The 4CC is not registered with MP4RA.
 type WvttBox struct {
 	VttC               *VttCBox
 	Vlab               *VlabBox
 	Btrt               *BtrtBox
+	Ttma               *TtmaBox // Mandatory in wvtc
 	Children           []Box
 	DataReferenceIndex uint16
 	name               string // wvtt unless set, e.g. to wvtc
@@ -44,6 +46,8 @@ func (b *WvttBox) AddChild(child Box) {
 		b.Vlab = box
 	case *BtrtBox:
 		b.Btrt = box
+	case *TtmaBox:
+		b.Ttma = box
 	default:
 		// Other box
 	}

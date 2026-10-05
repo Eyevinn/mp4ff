@@ -184,6 +184,7 @@ func init() {
 		"trex":    DecodeTrex,
 		"trgr":    DecodeTrgr,
 		"trun":    DecodeTrun,
+		"ttma":    DecodeTtma,
 		"ttmb":    DecodeTtmb,
 		"ttmn":    DecodeTtmn,
 		"twos":    DecodeQuickTimeAudioSampleEntry,

@@ -83,9 +83,9 @@ codec-specific boxes. The codecs and their boxes are
 | Audio | MPEG-H 3D Audio | mha1, mha2, mhm1, mhm2 | mhaC | btrt |
 | Audio | Encrypted | enca | sinf | btrt |
 | Subtitles | WebVTT | wvtt | vttC, vlab | vttc, vtte, vtta, vsid, ctim, iden, sttg, payl, btrt |
-| Subtitles | WebVTT paint model (experimental) | wvtc | vttC, vlab | vttn, and the wvtt boxes above |
+| Subtitles | WebVTT paint model (experimental) | wvtc | vttC, vlab, ttma | vttn, and the wvtt boxes above |
 | Subtitles | TTML | stpp | - | btrt |
-| Subtitles | TTML paint model (experimental) | stpc | - | ttmn, ttmb, btrt |
+| Subtitles | TTML paint model (experimental) | stpc | ttma | ttmn, ttmb, btrt |
 | Subtitles | Generic | evte | - | btrt |
 
 ## Open Source Cloud

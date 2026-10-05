@@ -414,26 +414,50 @@ func (t *TrakBox) SetStppDescriptor(namespace, schemaLocation, auxiliaryMimeType
 	return nil
 }
 
-// SetWvtcDescriptor - Set experimental paint-model wvtc descriptor with a vttC box.
-// config should start with WEBVTT or be empty.
+// SetWvtcDescriptor - Set experimental paint-model wvtc descriptor with a vttC box
+// and a ttma box. config should start with WEBVTT or be empty.
+// The ttma box gives a maximum period of activation of DefaultMaxActivationSeconds
+// in the track timescale, so the media header must be set first. Change it with
+// Stsd.Wvtc.Ttma.MaxActivationPeriod.
 func (t *TrakBox) SetWvtcDescriptor(config string) error {
+	ttma, err := t.defaultTtma()
+	if err != nil {
+		return err
+	}
 	if config == "" {
 		config = "WEBVTT"
 	}
 	wvtc := NewWvtcBox()
 	wvtc.AddChild(&VttCBox{Config: config})
+	wvtc.AddChild(ttma)
 	t.Mdia.Minf.Stbl.Stsd.AddChild(wvtc)
 	return nil
 }
 
 // SetStpcDescriptor - add experimental paint-model stpc box with utf8-lists
-// namespace, schemaLocation and auxiliaryMimeType.
-// The utf8-lists have space-separated items, but no zero-termination
+// namespace, schemaLocation and auxiliaryMimeType, and a ttma box.
+// The utf8-lists have space-separated items, but no zero-termination.
+// The ttma box gives a maximum period of activation of DefaultMaxActivationSeconds
+// in the track timescale, so the media header must be set first. Change it with
+// Stsd.Stpc.Ttma.MaxActivationPeriod.
 func (t *TrakBox) SetStpcDescriptor(namespace, schemaLocation, auxiliaryMimeTypes string) error {
+	ttma, err := t.defaultTtma()
+	if err != nil {
+		return err
+	}
 	if namespace == "" {
 		namespace = "http://www.w3.org/ns/ttml"
 	}
 	stpc := NewStpcBox(namespace, schemaLocation, auxiliaryMimeTypes)
+	stpc.AddChild(ttma)
 	t.Mdia.Minf.Stbl.Stsd.AddChild(stpc)
 	return nil
+}
+
+// defaultTtma - ttma box with DefaultMaxActivationSeconds in the track timescale
+func (t *TrakBox) defaultTtma() (*TtmaBox, error) {
+	if t.Mdia == nil || t.Mdia.Mdhd == nil || t.Mdia.Mdhd.Timescale == 0 {
+		return nil, fmt.Errorf("no media timescale for the ttma box")
+	}
+	return CreateTtma(DefaultMaxActivationSeconds * t.Mdia.Mdhd.Timescale), nil
 }
