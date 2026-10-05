@@ -12,7 +12,8 @@ import (
 //
 // stpc is the experimental paint-model variant. It has the same syntax as stpp,
 // and its document samples are byte-identical to stpp samples, but a sample may
-// instead be a TtmnBox or a TtmbBox. The 4CC is not registered with MP4RA.
+// instead be a TtmnBox or a TtmbBox, and the entry carries a TtmaBox with the
+// maximum period of activation. The 4CC is not registered with MP4RA.
 //
 // Contained in : Media Information Box (minf)
 type StppBox struct {
@@ -20,6 +21,7 @@ type StppBox struct {
 	SchemaLocation            string   // Optional
 	AuxiliaryMimeTypes        string   // Optional, but required if auxiliary types present
 	Btrt                      *BtrtBox // Optional
+	Ttma                      *TtmaBox // Mandatory in stpc
 	Children                  []Box
 	DataReferenceIndex        uint16
 	name                      string // stpp unless set, e.g. to stpc
@@ -58,6 +60,8 @@ func (b *StppBox) AddChild(child Box) {
 	switch box := child.(type) {
 	case *BtrtBox:
 		b.Btrt = box
+	case *TtmaBox:
+		b.Ttma = box
 	default:
 		// Other box
 	}

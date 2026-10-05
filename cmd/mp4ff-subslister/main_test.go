@@ -274,11 +274,13 @@ const paintModelDoc = `<?xml version="1.0" encoding="UTF-8"?>` +
 	`<tt xmlns="http://www.w3.org/ns/ttml"><body><p begin="00:00:00">now</p></body></tt>`
 
 var wantedStpcSamples = `Track 1, timescale = 1000
-  [stpc] size=44
+  [stpc] size=60
    - dataReferenceIndex: 1
    - nameSpace: "http://www.w3.org/ns/ttml"
    - schemaLocation: ""
    - auxiliaryMimeTypes: ""
+    [ttma] size=16 version=0 flags=000000
+     - maxActivationPeriod: 5000
 Sample 1, pts=0, dur=200
 ` + paintModelDoc + `Sample 2, pts=200, dur=200
 [ttmn] size=8
