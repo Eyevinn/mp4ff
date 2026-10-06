@@ -28,14 +28,8 @@ func NewMoovBox() *MoovBox {
 
 // AddChild - Add a child box
 func (m *MoovBox) AddChild(child Box) {
-	switch box := child.(type) {
-	case *MvhdBox:
-		m.Mvhd = box
-	case *TrakBox:
-		if m.Trak == nil {
-			m.Trak = box
-		}
-		m.Traks = append(m.Traks, box)
+	m.setChildField(child)
+	if box, ok := child.(*TrakBox); ok {
 		// Possibly re-order to keep traks together on same
 		// side of mvex or similar. Put this trak box after last previous trak
 		lastTrakIdx := 0
@@ -49,6 +43,20 @@ func (m *MoovBox) AddChild(child Box) {
 			m.Children[lastTrakIdx+1] = box
 			return
 		}
+	}
+	m.Children = append(m.Children, child)
+}
+
+// setChildField sets the field that refers to child, if there is one, without adding child to Children.
+func (m *MoovBox) setChildField(child Box) {
+	switch box := child.(type) {
+	case *MvhdBox:
+		m.Mvhd = box
+	case *TrakBox:
+		if m.Trak == nil {
+			m.Trak = box
+		}
+		m.Traks = append(m.Traks, box)
 	case *MvexBox:
 		m.Mvex = box
 	case *PsshBox:
@@ -57,7 +65,15 @@ func (m *MoovBox) AddChild(child Box) {
 		}
 		m.Psshs = append(m.Psshs, box)
 	}
-	m.Children = append(m.Children, child)
+}
+
+// moovWithChildren returns a moov box holding children in the given order, with the child fields set.
+func moovWithChildren(startPos uint64, children []Box) *MoovBox {
+	m := MoovBox{Children: children, StartPos: startPos}
+	for _, c := range children {
+		m.setChildField(c)
+	}
+	return &m
 }
 
 // DecodeMoov - box-specific decode
@@ -74,12 +90,7 @@ func DecodeMoov(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := MoovBox{Children: make([]Box, 0, len(children))}
-	m.StartPos = startPos
-	for _, c := range children {
-		m.AddChild(c)
-	}
-	return &m, err
+	return moovWithChildren(startPos, children), nil
 }
 
 // DecodeMoovSR - box-specific decode
@@ -88,12 +99,7 @@ func DecodeMoovSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if err != nil {
 		return nil, err
 	}
-	m := MoovBox{Children: make([]Box, 0, len(children))}
-	m.StartPos = startPos
-	for _, c := range children {
-		m.AddChild(c)
-	}
-	return &m, err
+	return moovWithChildren(startPos, children), nil
 }
 
 // Type - box type
