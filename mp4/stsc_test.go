@@ -3,6 +3,7 @@ package mp4_test
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
@@ -307,5 +308,35 @@ func TestGetContainingChunksWrappedEntries(t *testing.T) {
 	}
 	if _, err := stsc.GetContainingChunks(1, 101); err == nil {
 		t.Error("expected an error for 2863311565 chunks holding 101 samples")
+	}
+}
+
+// TestGetContainingChunksLastChunkNr checks that an interval ending in chunk 0xFFFFFFFF returns its chunks.
+func TestGetContainingChunksLastChunkNr(t *testing.T) {
+	stsc := &mp4.StscBox{}
+	if err := stsc.AddEntry(1, 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	type result struct {
+		chunks []mp4.Chunk
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		chunks, err := stsc.GetContainingChunks(0xFFFFFFFE, 0xFFFFFFFF)
+		done <- result{chunks, err}
+	}()
+	var r result
+	select {
+	case r = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("GetContainingChunks did not return within 5s for samples 0xFFFFFFFE-0xFFFFFFFF")
+	}
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	want := []mp4.Chunk{{0xFFFFFFFE, 0xFFFFFFFE, 1}, {0xFFFFFFFF, 0xFFFFFFFF, 1}}
+	if diff := deep.Equal(r.chunks, want); diff != nil {
+		t.Error(diff)
 	}
 }

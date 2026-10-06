@@ -250,17 +250,20 @@ func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chun
 
 	entryNr := startEntryNr
 	entry := b.Entries[entryNr]
-	for chunkNr := startChunkNr; chunkNr <= endChunkNr; chunkNr++ {
+	for chunkNr := startChunkNr; ; chunkNr++ {
 		chunk := Chunk{chunkNr, entry.FirstSampleNr + (chunkNr-entry.FirstChunk)*entry.SamplesPerChunk, entry.SamplesPerChunk}
 		chunks = append(chunks, chunk)
-		// Advance past every entry starting at the next chunk: of entries sharing a firstChunk, the last one
-		// applies, as in GetChunk.
+		// Stop at endChunkNr itself, since chunkNr wraps to 0 after chunk 0xFFFFFFFF.
+		if chunkNr == endChunkNr {
+			return chunks, nil
+		}
+		// Advance past every entry starting at or before the next chunk: of entries sharing a firstChunk,
+		// the last one applies, as in GetChunk.
 		for entryNr < nrEntries-1 && chunkNr+1 >= b.Entries[entryNr+1].FirstChunk {
 			entryNr++
 			entry = b.Entries[entryNr]
 		}
 	}
-	return chunks, nil
 }
 
 // GetChunk returns chunk for chunkNr (one-based).
