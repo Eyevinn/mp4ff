@@ -432,6 +432,6 @@ LoopBoxes:
 		lastBoxType = boxType
 		boxStartPos += boxSize
 	}
-	f.addTrailingPreMoofBoxes()
+	f.addFinalPreMoofBoxes()
 	return f, nil
 }

@@ -455,6 +455,9 @@ func TestDecodePreMoofBoxes(t *testing.T) {
 				if diff := deep.Equal(got, c.want); diff != nil {
 					t.Errorf("%s: got %q, diff %v", d.name, got, diff)
 				}
+				if len(f.MisplacedBoxes) > 0 {
+					t.Errorf("%s: misplaced boxes %v", d.name, f.MisplacedBoxes)
+				}
 				if d.name == "DecodeFile lazy" {
 					continue // mdat data is not read
 				}
@@ -697,12 +700,99 @@ func TestDecodeTrailingBoxes(t *testing.T) {
 				if diff := deep.Equal(got, c.want); diff != nil {
 					t.Errorf("%s: got %q, diff %v", d.name, got, diff)
 				}
+				if len(f.MisplacedBoxes) > 0 {
+					t.Errorf("%s: misplaced boxes %v", d.name, f.MisplacedBoxes)
+				}
 				var out bytes.Buffer
 				if err := f.Encode(&out); err != nil {
 					t.Fatalf("%s: encode: %v", d.name, err)
 				}
 				if !bytes.Equal(out.Bytes(), data) {
 					t.Errorf("%s: encoded %d bytes differ from the %d input bytes", d.name, out.Len(), len(data))
+				}
+			}
+		})
+	}
+}
+
+// TestDecodeMisplacedBoxes checks that the boxes that the segment structure has no place for at their position are
+// listed in MisplacedBoxes, once each, with their type and position.
+func TestDecodeMisplacedBoxes(t *testing.T) {
+	sidx := &mp4.SidxBox{ReferenceID: 1, Timescale: 1024, SidxRefs: []mp4.SidxRef{
+		{ReferencedSize: 1000, SubSegmentDuration: 1024, StartsWithSAP: 1, SAPType: 1}}}
+	mfra := &mp4.MfraBox{}
+	if err := mfra.AddChild(&mp4.TfraBox{Version: 1, TrackID: 1}); err != nil {
+		t.Fatal(err)
+	}
+	mfro := &mp4.MfroBox{}
+	if err := mfra.AddChild(mfro); err != nil {
+		t.Fatal(err)
+	}
+	mfro.ParentSize = uint32(mfra.Size())
+
+	cases := []struct {
+		desc      string
+		items     []mp4.BoxStructure
+		misplaced []int // indices of the misplaced items
+	}{
+		{
+			desc:      "between styp and sidx",
+			items:     []mp4.BoxStructure{mp4.CreateStyp(), testUUID(), sidx, preMoofFragment(t, 1)},
+			misplaced: []int{1},
+		},
+		{
+			desc:      "before the first styp",
+			items:     []mp4.BoxStructure{testUUID(), mp4.CreateStyp(), preMoofFragment(t, 1)},
+			misplaced: []int{0},
+		},
+		{
+			desc:      "before the first styp and its sidx",
+			items:     []mp4.BoxStructure{testUUID(), mp4.CreateStyp(), sidx, preMoofFragment(t, 1)},
+			misplaced: []int{0},
+		},
+		{
+			desc:      "before a file-level sidx",
+			items:     []mp4.BoxStructure{testUUID(), sidx, preMoofFragment(t, 1)},
+			misplaced: []int{0},
+		},
+		{
+			desc: "after a segment without fragment",
+			items: []mp4.BoxStructure{mp4.CreateStyp(), preMoofFragment(t, 1), mp4.CreateStyp(),
+				mp4.NewFreeBox([]byte("pad"))},
+			misplaced: []int{3},
+		},
+		{
+			desc:      "after mfra",
+			items:     []mp4.BoxStructure{preMoofFragment(t, 1), mfra, testUUID()},
+			misplaced: []int{2},
+		},
+		{
+			desc:  "none",
+			items: []mp4.BoxStructure{mp4.CreateStyp(), testUUID(), preMoofFragment(t, 1), mfra},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			data := encodeAll(t, c.items...)
+			var want []mp4.MisplacedBox
+			for _, i := range c.misplaced {
+				want = append(want, mp4.MisplacedBox{Type: c.items[i].(mp4.Box).Type(),
+					Pos: uint64(len(encodeAll(t, c.items[:i]...)))})
+			}
+			decoders := []struct {
+				name   string
+				decode func() (*mp4.File, error)
+			}{
+				{"DecodeFile", func() (*mp4.File, error) { return mp4.DecodeFile(bytes.NewReader(data)) }},
+				{"DecodeFileSR", func() (*mp4.File, error) { return mp4.DecodeFileSR(bits.NewFixedSliceReader(data)) }},
+			}
+			for _, d := range decoders {
+				f, err := d.decode()
+				if err != nil {
+					t.Fatalf("%s: %v", d.name, err)
+				}
+				if diff := deep.Equal(f.MisplacedBoxes, want); diff != nil {
+					t.Errorf("%s: got %v, diff %v", d.name, f.MisplacedBoxes, diff)
 				}
 			}
 		})
@@ -758,6 +848,9 @@ func TestDecodeInitBoxes(t *testing.T) {
 				}
 				if got := initSummary(f.Init); !slices.Equal(got, c.wantInit) {
 					t.Errorf("%s: init boxes %q, want %q", d.name, got, c.wantInit)
+				}
+				if len(f.MisplacedBoxes) > 0 {
+					t.Errorf("%s: misplaced boxes %v", d.name, f.MisplacedBoxes)
 				}
 				var frags []string
 				for _, seg := range f.Segments {

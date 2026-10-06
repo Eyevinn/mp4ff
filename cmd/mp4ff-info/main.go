@@ -87,6 +87,10 @@ func run(args []string, w io.Writer) error {
 		}
 		_, _ = fmt.Fprintf(os.Stderr, "Warning: could not parse input file completely: %v\n", parseErr)
 	}
+	for _, mb := range parsedMp4.MisplacedBoxes {
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: %s box at position %d has no place in the segment structure there, "+
+			"so re-encoding moves or drops it\n", mb.Type, mb.Pos)
+	}
 	if opts.brands {
 		if err := printBrandIssues(w, parsedMp4); err != nil {
 			return err

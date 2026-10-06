@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timescale, so they now need the media header set first. The 4CC is unregistered and may change
 - `WithTrailingBoxesCallback` passes the boxes after the last fragment of a stream to a callback instead of returning
   a `TrailingBoxesErrror`
+- `File.MisplacedBoxes` lists the top-level boxes that the segment structure has no place for at their position, such
+  as a box after the `mfra`, which `Encode` writes elsewhere or not at all, and `mp4ff-info` warns about them
 
 ### Fixed
 
