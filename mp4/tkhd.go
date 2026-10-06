@@ -125,7 +125,7 @@ func (b *TkhdBox) EncodeSW(sw bits.SliceWriter) error {
 	}
 	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
 	sw.WriteUint32(versionAndFlags)
-	if b.Version == 0 {
+	if b.Version != 1 { // as in decoding, every version but 1 has the version 0 layout
 		sw.WriteUint32(uint32(b.CreationTime))
 		sw.WriteUint32(uint32(b.ModificationTime))
 		sw.WriteUint32(b.TrackID)

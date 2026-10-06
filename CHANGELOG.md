@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its storage, so building, encrypting and encoding fragment after fragment in one `Fragment` reuses its boxes,
   its encryption boxes and the sample data copied into it
 
+### Fixed
+
+- `tkhd`, `mvhd` and `subs` boxes of a version above 1 encode and report their size with the version 0 layout their
+  decoders read them with. `tkhd` and `mvhd` failed to encode, and the size of a `subs` with subsamples did not
+  match its bytes, so decoding a `stbl` holding one failed with a size mismatch
+
 ## [0.58.0] - 2026-10-04
 
 ### Added

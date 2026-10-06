@@ -110,8 +110,8 @@ func (b *SubsBox) Size() uint64 {
 	for _, e := range b.Entries {
 		size += 6 // sample_delta + sub_sample_count
 		//  4 entries per subsample with different lengths for
-		// version 0 and 1
-		if b.Version == 0 {
+		// version 0 and 1. As in decoding, every version but 1 has the version 0 layout.
+		if b.Version != 1 {
 			size += len(e.SubSamples) * (2 + 1 + 1 + 4)
 		} else {
 			size += len(e.SubSamples) * (4 + 1 + 1 + 4)
