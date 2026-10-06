@@ -164,7 +164,8 @@ For fragmented files, the following high-level attributes are used:
    for the samples. Other top-level boxes before the `moof`, such as `emsg`, `prft`, `free` or a C2PA `uuid` box,
    belong to the fragment and are listed with it in `Children`, and the `emsg` and `prft` boxes are also available as
    `Emsgs` and `Prfts`. Boxes after the last `mdat` of a segment follow the `mdat` in the `Children` of its last
-   fragment.
+   fragment. Boxes that this structure has no place for at their position, such as a box after the `mfra`, are
+   listed in `MisplacedBoxes`.
 
 It should be noted that it is sometimes hard to decide what should belong to a Segment or Fragment.
 
