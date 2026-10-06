@@ -713,7 +713,7 @@ func TestTrailingBoxHandling(t *testing.T) {
 	// Process fragments and check for trailing boxes error
 	err = sf.ProcessFragments()
 	if err != nil {
-		trailingBoxes := &mp4.TrailingBoxesErrror{}
+		trailingBoxes := &mp4.TrailingBoxesError{}
 		if errors.As(err, &trailingBoxes) {
 			detectedTrailingBox = true
 			t.Logf("Detected trailing boxes: %v", trailingBoxes.BoxNames)
@@ -732,7 +732,7 @@ func TestTrailingBoxHandling(t *testing.T) {
 	}
 
 	if !detectedTrailingBox {
-		t.Error("Expected TrailingBoxesErrror but didn't get one")
+		t.Error("Expected TrailingBoxesError but didn't get one")
 	}
 
 	// Now test with the actual HTTP handler
@@ -770,5 +770,5 @@ func TestTrailingBoxHandling(t *testing.T) {
 		t.Error("Output file has no segments")
 	}
 
-	t.Logf("Successfully handled file with trailing skip box - TrailingBoxesErrror detected and handled gracefully")
+	t.Logf("Successfully handled file with trailing skip box - TrailingBoxesError detected and handled gracefully")
 }

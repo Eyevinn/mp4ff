@@ -526,13 +526,13 @@ func TestTrailingBoxesError(t *testing.T) {
 		t.Fatalf("InitDecodeStream failed: %v", err)
 	}
 
-	// ProcessFragments should return TrailingBoxesErrror
+	// ProcessFragments should return TrailingBoxesError
 	err = sf.ProcessFragments()
 
 	// Verify we get the expected error type
-	var trailingErr *mp4.TrailingBoxesErrror
+	var trailingErr *mp4.TrailingBoxesError
 	if !errors.As(err, &trailingErr) {
-		t.Fatalf("Expected TrailingBoxesErrror, got: %v", err)
+		t.Fatalf("Expected TrailingBoxesError, got: %v", err)
 	}
 
 	// Verify the error contains the free box
@@ -549,7 +549,7 @@ func TestTrailingBoxesError(t *testing.T) {
 }
 
 // TestTrailingBoxesCallback checks that the callback set with WithTrailingBoxesCallback gets the boxes after the
-// last fragment instead of a TrailingBoxesErrror, and that they are added to the children of that fragment.
+// last fragment instead of a TrailingBoxesError, and that they are added to the children of that fragment.
 func TestTrailingBoxesCallback(t *testing.T) {
 	data := encodeAll(t, preMoofFragment(t, 1), preMoofFragment(t, 2), testUUID())
 	var gotBoxes []string
