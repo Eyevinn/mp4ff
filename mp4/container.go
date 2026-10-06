@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -105,11 +106,7 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 	pos := startPos
 	for {
 		if pos > endPos {
-			msg := ""
-			for _, c := range children {
-				msg += fmt.Sprintf("%s:%d ", c.Type(), c.Size())
-			}
-			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, msg)
+			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, childSizes(children))
 		}
 		if pos == endPos {
 			return children, nil
@@ -128,6 +125,24 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 	}
 }
 
+// maxListedChildren is how many children the error for non-matching children box sizes lists.
+const maxListedChildren = 10
+
+// childSizes lists the type and size of the last maxListedChildren children, for the error when
+// their sizes do not add up to their parent's. Listing every child made that error quadratic in
+// their number.
+func childSizes(children []Box) string {
+	var b strings.Builder
+	if n := len(children); n > maxListedChildren {
+		fmt.Fprintf(&b, "(%d earlier children) ", n-maxListedChildren)
+		children = children[n-maxListedChildren:]
+	}
+	for _, c := range children {
+		fmt.Fprintf(&b, "%s:%d ", c.Type(), c.Size())
+	}
+	return b.String()
+}
+
 // DecodeContainerChildrenSR decodes a container box
 func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
 	return decodeContainerChildrenSR(hdr, startPos, endPos, sr, make([]Box, 0, 8)) // Good initial size
@@ -144,11 +159,7 @@ func decodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.S
 	initPos := sr.GetPos()
 	for {
 		if pos > endPos {
-			msg := ""
-			for _, c := range children {
-				msg += fmt.Sprintf("%s:%d ", c.Type(), c.Size())
-			}
-			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, msg)
+			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, childSizes(children))
 		}
 		if pos == endPos {
 			break
