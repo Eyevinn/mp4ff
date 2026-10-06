@@ -9,14 +9,19 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
-// TrailingBoxesErrror indicates that there are unexpected boxes after the last fragment.
-type TrailingBoxesErrror struct {
+// TrailingBoxesError indicates that there are unexpected boxes after the last fragment.
+type TrailingBoxesError struct {
 	BoxNames []string
 }
 
-func (e *TrailingBoxesErrror) Error() string {
+func (e *TrailingBoxesError) Error() string {
 	return fmt.Sprintf("trailing boxes found after last fragment: %v", e.BoxNames)
 }
+
+// TrailingBoxesErrror is an alias of TrailingBoxesError.
+//
+// Deprecated: Use TrailingBoxesError.
+type TrailingBoxesErrror = TrailingBoxesError
 
 // InitDecodeStream reads and parses only the init segment, which holds all boxes up to and including the moov.
 // Stops as soon as it peeks a box after the moov, or a box that belongs to a fragment (styp, sidx, moof, emsg,
@@ -196,7 +201,7 @@ func WithFragmentDone(cb FragmentDoneCallback) StreamOption {
 }
 
 // WithTrailingBoxesCallback sets the callback invoked with the boxes after the last fragment.
-// Without it, ProcessFragments returns a TrailingBoxesErrror for them.
+// Without it, ProcessFragments returns a TrailingBoxesError for them.
 func WithTrailingBoxesCallback(cb TrailingBoxesCallback) StreamOption {
 	return func(sf *StreamFile) { sf.onTrailingBoxes = cb }
 }
@@ -616,7 +621,7 @@ func (fsa *fragmentSampleAccessor) ReadMdatData(dst []byte) (int, error) {
 
 // ProcessFragments reads and processes fragments from the stream until EOF.
 // Boxes after the last fragment are passed to the callback set with WithTrailingBoxesCallback, or else returned
-// in a TrailingBoxesErrror. In a stream without fragments, they belong to the init segment.
+// in a TrailingBoxesError. In a stream without fragments, they belong to the init segment.
 func (sf *StreamFile) ProcessFragments() error {
 	// Collect boxes between fragments (styp, sidx, emsg, etc.)
 	preFragmentBoxes := sf.preFragmentBoxes
@@ -721,7 +726,7 @@ func (sf *StreamFile) ProcessFragments() error {
 		for _, box := range preFragmentBoxes {
 			names = append(names, box.Type())
 		}
-		return &TrailingBoxesErrror{BoxNames: names}
+		return &TrailingBoxesError{BoxNames: names}
 	}
 	return nil
 }

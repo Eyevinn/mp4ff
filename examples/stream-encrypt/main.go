@@ -139,7 +139,7 @@ func makeStreamHandler(opts options) http.HandlerFunc {
 		}
 
 		if err := sf.ProcessFragments(); err != nil {
-			trailingBoxes := &mp4.TrailingBoxesErrror{}
+			trailingBoxes := &mp4.TrailingBoxesError{}
 			if errors.As(err, &trailingBoxes) {
 				log.Printf("ProcessFragments warning: %v", err)
 			} else {
