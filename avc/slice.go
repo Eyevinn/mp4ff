@@ -375,10 +375,24 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 		sh.SliceQSDelta = int32(r.ReadSignedGolomb())
 	}
 	if pps.DeblockingFilterControlPresentFlag {
-		sh.DisableDeblockingFilterIDC = uint32(r.ReadExpGolomb())
+		// disable_deblocking_filter_idc must be in the range 0 to 2, and the
+		// offsets into the deblocking filter tables in the range -6 to +6 (7.4.3)
+		disableDeblockingFilterIDC := r.ReadExpGolomb()
+		if !checkMax(r, "disable_deblocking_filter_idc", disableDeblockingFilterIDC, 2) {
+			return r.AccError()
+		}
+		sh.DisableDeblockingFilterIDC = uint32(disableDeblockingFilterIDC)
 		if sh.DisableDeblockingFilterIDC != 1 {
-			sh.SliceAlphaC0OffsetDiv2 = int32(r.ReadSignedGolomb())
-			sh.SliceBetaOffsetDiv2 = int32(r.ReadSignedGolomb())
+			sliceAlphaC0OffsetDiv2 := r.ReadSignedGolomb()
+			if !checkRange(r, "slice_alpha_c0_offset_div2", sliceAlphaC0OffsetDiv2, -6, 6) {
+				return r.AccError()
+			}
+			sliceBetaOffsetDiv2 := r.ReadSignedGolomb()
+			if !checkRange(r, "slice_beta_offset_div2", sliceBetaOffsetDiv2, -6, 6) {
+				return r.AccError()
+			}
+			sh.SliceAlphaC0OffsetDiv2 = int32(sliceAlphaC0OffsetDiv2)
+			sh.SliceBetaOffsetDiv2 = int32(sliceBetaOffsetDiv2)
 		}
 	}
 	if pps.NumSliceGroupsMinus1 > 0 &&

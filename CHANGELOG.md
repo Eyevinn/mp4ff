@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   end of a segment, after the `mdat`, so re-encoding no longer drops or moves boxes such as C2PA `uuid` boxes
 - `InitSegment.Children` keeps the boxes between `ftyp` and `moov`, such as a C2PA manifest box, so re-encoding an
   init segment no longer drops them
+- `avc.ParseSliceHeader` rejects out-of-range `disable_deblocking_filter_idc`, `slice_alpha_c0_offset_div2`
+  and `slice_beta_offset_div2`, so decoders no longer index their deblocking tables out of range
 
 ## [0.58.0] - 2026-10-04
 

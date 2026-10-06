@@ -162,6 +162,21 @@ func paramSetMaps(t *testing.T, sf spsFields, pf ppsFields) (map[uint32]*SPS, ma
 // matching the parameter sets above, followed by one byte of slice data.
 func writeIDRSlice(t *testing.T, sliceQPDelta int) []byte {
 	t.Helper()
+	return writeIDRSliceDeblocking(t, sliceQPDelta, deblockingFields{disableDeblockingFilterIDC: 1})
+}
+
+// deblockingFields are the deblocking filter syntax elements of a slice header.
+// The offsets are only written if disableDeblockingFilterIDC is not 1.
+type deblockingFields struct {
+	disableDeblockingFilterIDC uint
+	sliceAlphaC0OffsetDiv2     int
+	sliceBetaOffsetDiv2        int
+}
+
+// writeIDRSliceDeblocking is writeIDRSlice with the given deblocking filter
+// syntax elements.
+func writeIDRSliceDeblocking(t *testing.T, sliceQPDelta int, d deblockingFields) []byte {
+	t.Helper()
 	buf := bytes.Buffer{}
 	w := bits.NewEBSPWriter(&buf)
 	w.Write(0x65, 8)    // NAL header: nal_ref_idc=3, nal_unit_type=5 (IDR)
@@ -174,8 +189,12 @@ func writeIDRSlice(t *testing.T, sliceQPDelta int) []byte {
 	w.Write(0, 1)       // no_output_of_prior_pics_flag
 	w.Write(0, 1)       // long_term_reference_flag
 	writeSignedGolomb(w, sliceQPDelta)
-	w.WriteExpGolomb(1) // disable_deblocking_filter_idc
-	w.Write(0xff, 8)    // slice data
+	w.WriteExpGolomb(d.disableDeblockingFilterIDC)
+	if d.disableDeblockingFilterIDC != 1 {
+		writeSignedGolomb(w, d.sliceAlphaC0OffsetDiv2)
+		writeSignedGolomb(w, d.sliceBetaOffsetDiv2)
+	}
+	w.Write(0xff, 8) // slice data
 	w.WriteRbspTrailingBits()
 	if w.AccError() != nil {
 		t.Fatal(w.AccError())
@@ -374,6 +393,47 @@ func TestParseSliceHeaderSliceQPY(t *testing.T) {
 			checkErr(t, err, c.wantErr)
 			if c.wantErr == "" && err == nil && int(sh.SliceQPDelta) != c.sliceQPDelta {
 				t.Errorf("got slice_qp_delta %d, want %d", sh.SliceQPDelta, c.sliceQPDelta)
+			}
+		})
+	}
+}
+
+// TestParseSliceHeaderDeblocking verifies that disable_deblocking_filter_idc is
+// limited to 0..2 and slice_alpha_c0_offset_div2 and slice_beta_offset_div2 to
+// -6..+6 (ISO/IEC 14496-10 Section 7.4.3). The offsets shift the indices into
+// the deblocking filter tables. The fuzzed values below made a decoder index
+// those tables out of range.
+func TestParseSliceHeaderDeblocking(t *testing.T) {
+	cases := []struct {
+		name    string
+		d       deblockingFields
+		wantErr string
+	}{
+		{"enabled", deblockingFields{0, 0, 0}, ""},
+		{"offsets -6", deblockingFields{0, -6, -6}, ""},
+		{"offsets 6", deblockingFields{0, 6, 6}, ""},
+		{"idc 2 offsets 6", deblockingFields{2, 6, -6}, ""},
+		{"alpha 7", deblockingFields{0, 7, 0}, "slice_alpha_c0_offset_div2"},
+		{"alpha -7", deblockingFields{0, -7, 0}, "slice_alpha_c0_offset_div2"},
+		{"beta 7", deblockingFields{0, 0, 7}, "slice_beta_offset_div2"},
+		{"beta -7", deblockingFields{0, 0, -7}, "slice_beta_offset_div2"},
+		{"idc 3", deblockingFields{3, 0, 0}, "disable_deblocking_filter_idc"},
+		{"idc 2^32-1", deblockingFields{math.MaxUint32, 0, 0}, "disable_deblocking_filter_idc"},
+		{"fuzzed", deblockingFields{5, 24, 771}, "disable_deblocking_filter_idc"},
+		{"fuzzed offsets", deblockingFields{0, 24, 771}, "slice_alpha_c0_offset_div2"},
+		{"fuzzed beta offset", deblockingFields{0, 0, 771}, "slice_beta_offset_div2"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			spsMap, ppsMap := paramSetMaps(t, defaultSPSFields(), ppsFields{})
+			sh, err := ParseSliceHeader(writeIDRSliceDeblocking(t, 0, c.d), spsMap, ppsMap)
+			checkErr(t, err, c.wantErr)
+			if c.wantErr != "" || err != nil {
+				return
+			}
+			if got := (deblockingFields{uint(sh.DisableDeblockingFilterIDC),
+				int(sh.SliceAlphaC0OffsetDiv2), int(sh.SliceBetaOffsetDiv2)}); got != c.d {
+				t.Errorf("got %+v, want %+v", got, c.d)
 			}
 		})
 	}
