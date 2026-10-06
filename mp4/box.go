@@ -243,6 +243,18 @@ func (b BoxHeader) payloadLen() int {
 	return int(b.Size) - b.Hdrlen
 }
 
+// checkPayloadRead returns sr's error, or an error unless a decoder that started reading at
+// payloadStart read exactly the box payload.
+func checkPayloadRead(hdr BoxHeader, sr bits.SliceReader, payloadStart int) error {
+	if err := sr.AccError(); err != nil {
+		return err
+	}
+	if read := sr.GetPos() - payloadStart; read != hdr.payloadLen() {
+		return fmt.Errorf("%s: decoded %d bytes of a %d-byte payload", hdr.Name, read, hdr.payloadLen())
+	}
+	return nil
+}
+
 // DecodeHeader decodes a box header (size + box type + possible largeSize)
 func DecodeHeader(r io.Reader) (BoxHeader, error) {
 	buf := make([]byte, boxHeaderSize)

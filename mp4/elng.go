@@ -50,7 +50,7 @@ func DecodeElngSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if plLen < 7 { // Less than 4 byte flag and version + 2 letters + 0 termination
 		b.missingFullBox = true
 		b.Language = string(sr.ReadZeroTerminatedString(plLen))
-		return &b, nil
+		return &b, sr.AccError()
 	}
 	versionAndFlags := sr.ReadUint32()
 	if versionAndFlags != 0 {
