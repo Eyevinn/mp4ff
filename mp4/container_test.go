@@ -161,3 +161,35 @@ func TestDecodeUndersizedEsdsNoSizeUnderflow(t *testing.T) {
 		})
 	}
 }
+
+// TestNonMatchingChildSizesErrorIsBounded checks that the error for children overrunning their
+// container lists only the last few of them, however many there are.
+func TestNonMatchingChildSizesErrorIsBounded(t *testing.T) {
+	for _, nrChildren := range []int{3, 100_000} {
+		var payload []byte
+		for range nrChildren {
+			payload = append(payload, 0, 0, 0, 8, 'f', 'r', 'e', 'e')
+		}
+		// The last child claims 16 bytes, overrunning the container by 8.
+		payload = append(payload, 0, 0, 0, 16, 'f', 'r', 'e', 'e')
+		data := make([]byte, 8, 8+len(payload)+8)
+		binary.BigEndian.PutUint32(data, uint32(8+len(payload)))
+		copy(data[4:], "udta")
+		data = append(append(data, payload...), make([]byte, 8)...)
+
+		_, errR := mp4.DecodeBox(0, bytes.NewReader(data))
+		_, errSR := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data))
+		for _, err := range []error{errR, errSR} {
+			if err == nil {
+				t.Fatalf("%d children: no error for children overrunning their container", nrChildren)
+			}
+			msg := err.Error()
+			if !strings.Contains(msg, "non-matching children box sizes") && !strings.Contains(msg, "size mismatch") {
+				t.Errorf("%d children: unexpected error %q", nrChildren, msg)
+			}
+			if len(msg) > 400 {
+				t.Errorf("%d children: error is %d bytes long", nrChildren, len(msg))
+			}
+		}
+	}
+}
