@@ -38,8 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error for children that overrun their container, so a crafted file can no longer make that error huge and slow
 - `TrakBox.GetSampleData` returns an error for an interval that ends before it starts
 - Decoding a `moov` box keeps its children in file order, so it re-encodes to the same bytes
-- `StscBox.GetContainingChunks` applies the last of several entries sharing a `firstChunk`, as `GetChunk` does, and
-  returns an error when entries whose first sample numbers wrapped give more chunks than samples
+- `StscBox.GetContainingChunks` applies the last of several entries sharing a `firstChunk`, as `GetChunk` does,
+  returns an error when the entries give more chunks than samples, and handles chunk number 0xFFFFFFFF
 
 ## [0.58.0] - 2026-10-04
 
