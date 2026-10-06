@@ -54,6 +54,10 @@ func TestTrakSampleFunctions(t *testing.T) {
 			t.Errorf("sample %d differs: got %+v, want %+v", i+2, s, first4Samples[i+1])
 		}
 	}
+	// An interval ending before it starts is an error.
+	if s, err := trak.GetSampleData(4, 2); err == nil {
+		t.Errorf("expected an error for samples 4-2, got %d samples", len(s))
+	}
 	ranges, err := trak.GetRangesForSampleInterval(1, 2)
 	if err != nil {
 		t.Fatal(err)

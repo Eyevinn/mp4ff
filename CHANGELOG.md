@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `slice_beta_offset_div2`, so decoders no longer index their deblocking tables out of range
 - `DecodeContainerChildren`, `DecodeContainerChildrenSR` and `FragmentDecoder` list only the last 10 children in the
   error for children that overrun their container, so a crafted file can no longer make that error huge and slow
+- `TrakBox.GetSampleData` returns an error for an interval that ends before it starts
 
 ## [0.58.0] - 2026-10-04
 
