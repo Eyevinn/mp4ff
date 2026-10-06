@@ -51,7 +51,6 @@ func DecodeMvhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeMvhdSR - box-specific decode
 func DecodeMvhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	payloadStart := sr.GetPos()
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
@@ -77,10 +76,7 @@ func DecodeMvhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	sr.SkipBytes(36) // Matrix patterndata
 	sr.SkipBytes(24) // Predefined 0
 	m.NextTrackID = sr.ReadUint32()
-	if err := checkPayloadRead(hdr, sr, payloadStart); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return m, sr.AccError()
 }
 
 // Type - return box type

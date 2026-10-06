@@ -344,10 +344,19 @@ func decodeBoxBodySR(startPos uint64, hdr BoxHeader, d BoxDecoderSR, sr bits.Sli
 
 	var b Box
 	var err error
+	payloadStart := sr.GetPos()
 	if d == nil {
 		b, err = DecodeUnknownSR(hdr, startPos, sr)
 	} else {
 		b, err = d(hdr, startPos, sr)
+	}
+	// The next box starts where this decoder stopped, so it must read exactly the payload.
+	// mdat is exempt, as it may extend beyond sr (see above).
+	if err == nil && hdr.Name != "mdat" {
+		err = sr.AccError()
+		if read := sr.GetPos() - payloadStart; err == nil && read != hdr.payloadLen() {
+			err = fmt.Errorf("decoded %d bytes of a %d-byte payload", read, hdr.payloadLen())
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("decode %s pos %d: %w", hdr.Name, startPos, err)

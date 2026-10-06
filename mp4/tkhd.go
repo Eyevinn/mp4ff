@@ -57,7 +57,6 @@ func DecodeTkhd(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeTkhdSR - box-specific decode
 func DecodeTkhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	payloadStart := sr.GetPos()
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 	flags := versionAndFlags & flagsMask
@@ -90,10 +89,8 @@ func DecodeTkhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	}
 	t.Width = Fixed32(sr.ReadUint32())
 	t.Height = Fixed32(sr.ReadUint32())
-	if err := checkPayloadRead(hdr, sr, payloadStart); err != nil {
-		return nil, err
-	}
-	return &t, nil
+
+	return &t, sr.AccError()
 }
 
 // Type - box type

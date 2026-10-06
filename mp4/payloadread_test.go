@@ -92,8 +92,8 @@ func TestDecodeColrUnknownTypeReadsOwnPayload(t *testing.T) {
 	}
 }
 
-// TestDecodeBoxesMustReadTheirPayload checks that subs, mvhd and tkhd boxes whose fields do not
-// fill their header's size are errors.
+// TestDecodeBoxesMustReadTheirPayload checks that boxes whose fields do not fill their header's
+// size are errors.
 func TestDecodeBoxesMustReadTheirPayload(t *testing.T) {
 	hiddenStss := rawBox("stss", u32(0), u32(1), u32(7)) // only sample 7 is a sync sample
 	realStss := rawBox("stss", u32(0), u32(1), u32(1))
@@ -119,6 +119,14 @@ func TestDecodeBoxesMustReadTheirPayload(t *testing.T) {
 			desc: "tkhd header covers a box after its fields",
 			data: rawBox("trak", withHeaderCovering(encodedBox(t, mp4.CreateTkhd()), rawBox("free"))),
 		},
+		{
+			desc: "mdhd header covers a box after its fields",
+			data: rawBox("mdia", withHeaderCovering(encodedBox(t, &mp4.MdhdBox{}), rawBox("free"))),
+		},
+		{
+			desc: "tfdt header covers a box after its fields",
+			data: rawBox("traf", withHeaderCovering(encodedBox(t, mp4.CreateTfdt(0)), rawBox("free"))),
+		},
 	}
 	for _, c := range cases {
 		if _, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(c.data)); err == nil {
@@ -133,5 +141,15 @@ func TestDecodeBoxesMustReadTheirPayload(t *testing.T) {
 		if got := topLevelTypes(t, append(bytes.Clone(ftyp), encodedBox(t, b)...)); len(got) != 2 {
 			t.Errorf("%s: got top-level boxes %v", b.Type(), got)
 		}
+	}
+}
+
+// TestDecodeFileSRTruncatedMdat checks that a file cut short inside its mdat still decodes, so the
+// start of a file can be fetched to read its init part.
+func TestDecodeFileSRTruncatedMdat(t *testing.T) {
+	mdat := rawBox("mdat", make([]byte, 100))
+	data := append(bytes.Clone(ftyp), mdat[:20]...)
+	if got := topLevelTypes(t, data); len(got) != 2 || got[1] != "mdat" {
+		t.Errorf("got top-level boxes %v, want [ftyp mdat]", got)
 	}
 }
