@@ -155,12 +155,16 @@ into a playable one-track asset. It can also have multiple tracks.
 For fragmented files, the following high-level attributes are used:
 
 * `Init` contains a `ftyp` and a `moov` box and provides the general metadata for a fragmented file.
-   It corresponds to a CMAF header. It can also contain one or more `sidx` boxes.
+   It corresponds to a CMAF header. It can also contain one or more `sidx` boxes, and keeps any boxes
+   between `ftyp` and `moov`, such as a C2PA manifest box.
 * `Segments` is a slice of `MediaSegment` which start with an optional `styp` box, possibly one or more `sidx`
    boxes and then one or more`Fragment`s.
 * `Fragment` is a mp4 fragment with exactly one `moof` box followed by a `mdat` box where the latter
    contains the media data. It can have one or more `trun` boxes containing the metadata
-   for the samples. The fragment can start with one or more `emsg` and `prft` boxes, available as `Emsgs` and `Prfts`.
+   for the samples. Other top-level boxes before the `moof`, such as `emsg`, `prft`, `free` or a C2PA `uuid` box,
+   belong to the fragment and are listed with it in `Children`, and the `emsg` and `prft` boxes are also available as
+   `Emsgs` and `Prfts`. Boxes after the last `mdat` of a segment follow the `mdat` in the `Children` of its last
+   fragment.
 
 It should be noted that it is sometimes hard to decide what should belong to a Segment or Fragment.
 

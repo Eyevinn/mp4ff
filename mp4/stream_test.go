@@ -547,3 +547,31 @@ func TestTrailingBoxesError(t *testing.T) {
 
 	t.Logf("Successfully detected trailing box: %v", trailingErr.BoxNames)
 }
+
+// TestTrailingBoxesCallback checks that the callback set with WithTrailingBoxesCallback gets the boxes after the
+// last fragment instead of a TrailingBoxesErrror, and that they are added to the children of that fragment.
+func TestTrailingBoxesCallback(t *testing.T) {
+	data := encodeAll(t, preMoofFragment(t, 1), preMoofFragment(t, 2), testUUID())
+	var gotBoxes []string
+	var lastFrag string
+	sf, err := mp4.InitDecodeStream(bytes.NewReader(data),
+		mp4.WithTrailingBoxesCallback(func(frag *mp4.Fragment, boxes []mp4.Box) error {
+			for _, b := range boxes {
+				gotBoxes = append(gotBoxes, b.Type())
+			}
+			lastFrag = fragmentSummary(frag)
+			return nil
+		}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sf.ProcessFragments(); err != nil {
+		t.Fatal(err)
+	}
+	if len(gotBoxes) != 1 || gotBoxes[0] != "uuid" {
+		t.Errorf("got trailing boxes %q, want [uuid]", gotBoxes)
+	}
+	if want := "moof mdat uuid"; lastFrag != want {
+		t.Errorf("got last fragment %q, want %q", lastFrag, want)
+	}
+}

@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Experimental `ttma` box (`TtmaBox`) with the maximum period of activation in `stpc` and `wvtc`
   sample entries. `SetStpcDescriptor` and `SetWvtcDescriptor` add it with 5 s in the track
   timescale, so they now need the media header set first. The 4CC is unregistered and may change
+- `WithTrailingBoxesCallback` passes the boxes after the last fragment of a stream to a callback instead of returning
+  a `TrailingBoxesErrror`
+
+### Fixed
+
+- File decoding keeps every top-level box with its fragment, not only `emsg` and `prft`, before the `moof` or, at the
+  end of a segment, after the `mdat`, so re-encoding no longer drops or moves boxes such as C2PA `uuid` boxes
+- `InitSegment.Children` keeps the boxes between `ftyp` and `moov`, such as a C2PA manifest box, so re-encoding an
+  init segment no longer drops them
 
 ## [0.58.0] - 2026-10-04
 

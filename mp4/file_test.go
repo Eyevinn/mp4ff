@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 
@@ -297,6 +298,15 @@ func testPrft(trackID, flags uint32) *mp4.PrftBox {
 	return mp4.CreatePrftBox(1, flags, trackID, 0xe9b2c1a5_80000000, 90000)
 }
 
+// testUUID returns a C2PA 'uuid' box with box_purpose merkle, as C2PA places before each moof of a fragmented file.
+func testUUID() *mp4.UUIDBox {
+	u := &mp4.UUIDBox{UnknownPayload: append([]byte{0, 0, 0, 0}, "merkle\x00\xa0"...)}
+	if err := u.SetUUID("d8fec3d6-1b0e-483c-9297-5828877ec481"); err != nil {
+		panic(err)
+	}
+	return u
+}
+
 // fragmentSummary lists the top-level boxes of frag, then the IDs of its Emsgs and the reference track IDs and flags
 // of its Prfts.
 func fragmentSummary(frag *mp4.Fragment) string {
@@ -319,9 +329,9 @@ func fragmentSummary(frag *mp4.Fragment) string {
 	return strings.Join(parts, " ")
 }
 
-// TestDecodePreMoofBoxes checks that emsg and prft boxes before a moof are added to the fragment of that moof, also
-// when there are several of them and in every fragment, and that the file encodes to the same bytes. Boxes that no
-// moof follows stay in the children of the last fragment, so that they are still encoded.
+// TestDecodePreMoofBoxes checks that boxes before a moof, such as emsg, prft, free and uuid, are added to the fragment
+// of that moof, also when there are several of them and in every fragment, and that the file encodes to the same
+// bytes. Boxes that no moof follows stay in the children of the last fragment, so that they are still encoded.
 func TestDecodePreMoofBoxes(t *testing.T) {
 	cases := []struct {
 		desc     string
@@ -371,6 +381,28 @@ func TestDecodePreMoofBoxes(t *testing.T) {
 			segments: [][][]mp4.Box{{{testPrft(1, 24)}}},
 			trailing: []mp4.Box{testEmsg(2), testPrft(1, 24)},
 			want:     [][]string{{"prft moof mdat emsg prft prft1/24"}},
+		},
+		{
+			desc:     "uuid",
+			segments: [][][]mp4.Box{{{testUUID()}, {testUUID()}}},
+			want:     [][]string{{"uuid moof mdat", "uuid moof mdat"}},
+		},
+		{
+			desc:     "free, uuid and prft",
+			segments: [][][]mp4.Box{{{mp4.NewFreeBox([]byte("pad")), testUUID(), testPrft(1, 24)}, {}}},
+			want:     [][]string{{"free uuid prft moof mdat prft1/24", "moof mdat"}},
+		},
+		{
+			desc:     "uuid in segments with styp",
+			styp:     true,
+			segments: [][][]mp4.Box{{{testUUID()}}, {{testUUID()}}},
+			want:     [][]string{{"uuid moof mdat"}, {"uuid moof mdat"}},
+		},
+		{
+			desc:     "trailing uuid",
+			segments: [][][]mp4.Box{{{}, {}}},
+			trailing: []mp4.Box{testUUID()},
+			want:     [][]string{{"moof mdat", "moof mdat uuid"}},
 		},
 	}
 	for _, c := range cases {
@@ -581,6 +613,187 @@ func TestDecodePreMoofBoxesSegmentIndex(t *testing.T) {
 			}
 			if !bytes.Equal(out.Bytes(), c.data) {
 				t.Errorf("encoded %d bytes differ from the %d input bytes", out.Len(), len(c.data))
+			}
+		})
+	}
+}
+
+// encodeAll writes the boxes and fragments in order, as the bytes of a file.
+func encodeAll(t *testing.T, items ...mp4.BoxStructure) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	for _, it := range items {
+		if err := it.Encode(&buf); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return buf.Bytes()
+}
+
+// segmentSummaries lists the styp and sidx boxes of each segment, followed by the fragmentSummary of its fragments.
+func segmentSummaries(f *mp4.File) [][]string {
+	var got [][]string
+	for _, seg := range f.Segments {
+		var parts []string
+		if seg.Styp != nil {
+			parts = append(parts, "styp")
+		}
+		for range seg.Sidxs {
+			parts = append(parts, "sidx")
+		}
+		for _, frag := range seg.Fragments {
+			parts = append(parts, fragmentSummary(frag))
+		}
+		got = append(got, parts)
+	}
+	return got
+}
+
+// TestDecodeTrailingBoxes checks that boxes after the last mdat of a segment, which no moof follows before the
+// styp or sidx that starts the next segment, trail the last fragment of their segment instead of moving to the
+// next one, and that the file encodes to the same bytes.
+func TestDecodeTrailingBoxes(t *testing.T) {
+	sidx := &mp4.SidxBox{ReferenceID: 1, Timescale: 1024, SidxRefs: []mp4.SidxRef{
+		{ReferencedSize: 1000, SubSegmentDuration: 1024, StartsWithSAP: 1, SAPType: 1}}}
+	cases := []struct {
+		desc  string
+		items []mp4.BoxStructure
+		want  [][]string
+	}{
+		{
+			desc: "before styp",
+			items: []mp4.BoxStructure{mp4.CreateStyp(), preMoofFragment(t, 1), testUUID(),
+				mp4.CreateStyp(), preMoofFragment(t, 2)},
+			want: [][]string{{"styp", "moof mdat uuid"}, {"styp", "moof mdat"}},
+		},
+		{
+			desc:  "before sidx",
+			items: []mp4.BoxStructure{preMoofFragment(t, 1), testUUID(), sidx, preMoofFragment(t, 2)},
+			want:  [][]string{{"moof mdat uuid"}, {"sidx", "moof mdat"}},
+		},
+		{
+			desc: "emsg before styp",
+			items: []mp4.BoxStructure{mp4.CreateStyp(), preMoofFragment(t, 1), testEmsg(1),
+				mp4.CreateStyp(), preMoofFragment(t, 2, testEmsg(2))},
+			want: [][]string{{"styp", "moof mdat emsg"}, {"styp", "emsg moof mdat emsg2"}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			data := encodeAll(t, c.items...)
+			decoders := []struct {
+				name   string
+				decode func() (*mp4.File, error)
+			}{
+				{"DecodeFile", func() (*mp4.File, error) { return mp4.DecodeFile(bytes.NewReader(data)) }},
+				{"DecodeFileSR", func() (*mp4.File, error) { return mp4.DecodeFileSR(bits.NewFixedSliceReader(data)) }},
+			}
+			for _, d := range decoders {
+				f, err := d.decode()
+				if err != nil {
+					t.Fatalf("%s: %v", d.name, err)
+				}
+				got := segmentSummaries(f)
+				if diff := deep.Equal(got, c.want); diff != nil {
+					t.Errorf("%s: got %q, diff %v", d.name, got, diff)
+				}
+				var out bytes.Buffer
+				if err := f.Encode(&out); err != nil {
+					t.Fatalf("%s: encode: %v", d.name, err)
+				}
+				if !bytes.Equal(out.Bytes(), data) {
+					t.Errorf("%s: encoded %d bytes differ from the %d input bytes", d.name, out.Len(), len(data))
+				}
+			}
+		})
+	}
+}
+
+// TestDecodeInitBoxes checks that the init segment keeps the boxes between ftyp and moov, such as a C2PA manifest
+// box, that boxes between the moov and the first moof go to the first fragment, and that an init segment without
+// fragments keeps the boxes after its moov, with both the file and the stream decoders.
+func TestDecodeInitBoxes(t *testing.T) {
+	init := mp4.CreateEmptyInit()
+	init.AddEmptyTrack(1000, "video", "und")
+	free := mp4.NewFreeBox([]byte("pad"))
+	cases := []struct {
+		desc      string
+		items     []mp4.BoxStructure
+		wantInit  []string
+		wantFrags []string
+	}{
+		{
+			desc:      "with fragments",
+			items:     []mp4.BoxStructure{init.Ftyp, testUUID(), init.Moov, free, preMoofFragment(t, 1)},
+			wantInit:  []string{"ftyp", "uuid", "moov"},
+			wantFrags: []string{"free moof mdat"},
+		},
+		{
+			desc:     "init only",
+			items:    []mp4.BoxStructure{init.Ftyp, testUUID(), init.Moov, free},
+			wantInit: []string{"ftyp", "uuid", "moov", "free"},
+		},
+	}
+	initSummary := func(is *mp4.InitSegment) []string {
+		var types []string
+		for _, c := range is.Children {
+			types = append(types, c.Type())
+		}
+		return types
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			data := encodeAll(t, c.items...)
+			decoders := []struct {
+				name   string
+				decode func() (*mp4.File, error)
+			}{
+				{"DecodeFile", func() (*mp4.File, error) { return mp4.DecodeFile(bytes.NewReader(data)) }},
+				{"DecodeFileSR", func() (*mp4.File, error) { return mp4.DecodeFileSR(bits.NewFixedSliceReader(data)) }},
+			}
+			for _, d := range decoders {
+				f, err := d.decode()
+				if err != nil {
+					t.Fatalf("%s: %v", d.name, err)
+				}
+				if got := initSummary(f.Init); !slices.Equal(got, c.wantInit) {
+					t.Errorf("%s: init boxes %q, want %q", d.name, got, c.wantInit)
+				}
+				var frags []string
+				for _, seg := range f.Segments {
+					for _, frag := range seg.Fragments {
+						frags = append(frags, fragmentSummary(frag))
+					}
+				}
+				if !slices.Equal(frags, c.wantFrags) {
+					t.Errorf("%s: fragments %q, want %q", d.name, frags, c.wantFrags)
+				}
+				var out bytes.Buffer
+				if err := f.Encode(&out); err != nil {
+					t.Fatalf("%s: encode: %v", d.name, err)
+				}
+				if !bytes.Equal(out.Bytes(), data) {
+					t.Errorf("%s: encoded %d bytes differ from the %d input bytes", d.name, out.Len(), len(data))
+				}
+			}
+
+			var frags []string
+			sf, err := mp4.InitDecodeStream(bytes.NewReader(data),
+				mp4.WithFragmentCallback(func(frag *mp4.Fragment, _ mp4.SampleAccessor) error {
+					frags = append(frags, fragmentSummary(frag))
+					return nil
+				}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := sf.ProcessFragments(); err != nil {
+				t.Fatal(err)
+			}
+			if got := initSummary(sf.Init); !slices.Equal(got, c.wantInit) {
+				t.Errorf("stream: init boxes %q, want %q", got, c.wantInit)
+			}
+			if !slices.Equal(frags, c.wantFrags) {
+				t.Errorf("stream: fragments %q, want %q", frags, c.wantFrags)
 			}
 		})
 	}

@@ -41,7 +41,7 @@ type File struct {
 	fileDecFlags DecFileFlags    // Bit field with flags for decoding
 	isFragmented bool
 	fileDecMode  DecFileMode
-	preMoofBoxes []Box  // emsg and prft boxes waiting for the moof of their fragment
+	preMoofBoxes []Box  // boxes outside the segment structure, such as emsg, prft and uuid, waiting for a moof
 	preMoofStart uint64 // Start position of the first of preMoofBoxes
 }
 
@@ -263,11 +263,17 @@ func (f *File) Size() uint64 {
 	return totSize
 }
 
-// AddChild - add child with start position
+// AddChild - add child with start position.
+//
+// In a fragmented file, boxes outside the segment structure (ftyp, moov, styp, sidx, moof, mdat, mfra), such as
+// emsg, prft, free or uuid, are kept with the boxes around them. Those before the moov belong to the init segment,
+// and the others to the fragment of the moof that follows them. Boxes that no moof follows before a styp, a sidx
+// that starts a segment, an mfra or the end of the file trail the mdat of the last fragment.
 func (f *File) AddChild(child Box, boxStartPos uint64) {
 	lastChildType := ""
-	if len(f.Children) > 0 {
-		lastChildType = f.Children[len(f.Children)-1].Type()
+	// The boxes waiting for a moof are the last children, so look at the box before them
+	if n := len(f.Children) - len(f.preMoofBoxes); n > 0 {
+		lastChildType = f.Children[n-1].Type()
 	}
 	switch box := child.(type) {
 	case *FtypBox:
@@ -281,12 +287,16 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 			f.Moov.Trak.Mdia.Minf.Stbl.Stts != nil &&
 			len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
 			f.isFragmented = true
+			// The init segment holds the boxes before the moov, such as a C2PA manifest box after the ftyp
 			f.Init = NewMP4Init()
-			if f.Ftyp != nil {
-				f.Init.AddChild(f.Ftyp)
+			for _, c := range f.Children {
+				if _, ok := c.(*FtypBox); ok || !isSegmentStructureBox(c) {
+					f.Init.AddChild(c)
+				}
 			}
 			f.Init.AddChild(f.Moov)
 		}
+		f.preMoofBoxes = nil // They belong to the init segment, or to the progressive file
 	case *SidxBox:
 		// sidx boxes are either added to the File or to a later media segment.
 		// Since sidx boxes for a segment come before the moof, it is important that a new
@@ -302,9 +312,11 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		// and testing such a solution, that track is not deemed worth the effort for now.
 		switch {
 		case len(f.Segments) == 0 && lastChildType != "mdat":
+			f.addTrailingPreMoofBoxes()
 			f.AddSidx(box)
 		case lastChildType == "mdat":
 			// Start a new segment since we cannot have sidx later in a segment
+			f.addTrailingPreMoofBoxes()
 			f.isFragmented = true
 			f.AddMediaSegment(&MediaSegment{Styp: nil, StartPos: boxStartPos})
 			fallthrough
@@ -314,14 +326,9 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		}
 	case *StypBox:
 		// Starts a new segment
+		f.addTrailingPreMoofBoxes()
 		f.isFragmented = true
 		f.AddMediaSegment(&MediaSegment{Styp: box, StartPos: boxStartPos})
-	case *EmsgBox, *PrftBox:
-		// emsg and prft boxes belong to the fragment of the moof that follows them
-		if len(f.preMoofBoxes) == 0 {
-			f.preMoofStart = boxStartPos
-		}
-		f.preMoofBoxes = append(f.preMoofBoxes, box)
 	case *MoofBox:
 		f.isFragmented = true
 		moof := box
@@ -359,21 +366,50 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 			currentFragment.AddChild(box)
 		}
 	case *MfraBox:
+		f.addTrailingPreMoofBoxes()
 		f.Mfra = box
+	default:
+		// Boxes of a progressive file need no attribution, since the file is encoded from its children
+		if f.Moov != nil && !f.isFragmented {
+			break
+		}
+		if len(f.preMoofBoxes) == 0 {
+			f.preMoofStart = boxStartPos
+		}
+		f.preMoofBoxes = append(f.preMoofBoxes, child)
 	}
 	f.Children = append(f.Children, child)
 }
 
-// addTrailingPreMoofBoxes adds emsg and prft boxes that no moof followed to the children of the last fragment, so
-// that they are still encoded. They are not added to its Emsgs or Prfts, since they belong to a missing fragment.
+// isSegmentStructureBox reports whether b is one of the top-level boxes that make up the init segment, media
+// segments and fragments of a fragmented file, as opposed to boxes such as emsg, prft, free or uuid that
+// accompany them.
+func isSegmentStructureBox(b Box) bool {
+	switch b.(type) {
+	case *FtypBox, *MoovBox, *StypBox, *SidxBox, *MoofBox, *MdatBox, *MfraBox:
+		return true
+	}
+	return false
+}
+
+// addTrailingPreMoofBoxes adds the boxes that no moof followed to the children of the last fragment, after its
+// mdat, so that they are still encoded. They are not added to its Emsgs or Prfts, which only hold the boxes before
+// the moof. Before the first fragment, they go to the init segment, and without one they keep waiting for a moof.
 func (f *File) addTrailingPreMoofBoxes() {
 	if len(f.preMoofBoxes) == 0 {
 		return
 	}
-	if seg := f.LastSegment(); seg != nil {
-		if frag := seg.LastFragment(); frag != nil {
-			frag.Children = append(frag.Children, f.preMoofBoxes...)
+	seg := f.LastSegment()
+	switch {
+	case seg != nil && seg.LastFragment() != nil:
+		frag := seg.LastFragment()
+		frag.Children = append(frag.Children, f.preMoofBoxes...)
+	case seg == nil && f.Init != nil:
+		for _, b := range f.preMoofBoxes {
+			f.Init.AddChild(b)
 		}
+	default:
+		return
 	}
 	f.preMoofBoxes = nil
 }
