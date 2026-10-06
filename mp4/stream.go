@@ -18,8 +18,9 @@ func (e *TrailingBoxesErrror) Error() string {
 	return fmt.Sprintf("trailing boxes found after last fragment: %v", e.BoxNames)
 }
 
-// InitDecodeStream reads and parses only the init segment.
-// Stops as soon as it peeks a box that belongs to a fragment (styp, sidx, moof, emsg, prft).
+// InitDecodeStream reads and parses only the init segment, which holds all boxes up to and including the moov.
+// Stops as soon as it peeks a box after the moov, or a box that belongs to a fragment (styp, sidx, moof, emsg,
+// prft) in a stream without moov.
 // Returns a StreamFile ready for ProcessFragments to consume fragments.
 func InitDecodeStream(r io.Reader, options ...StreamOption) (*StreamFile, error) {
 	f := NewFile()
@@ -44,6 +45,9 @@ func InitDecodeStream(r io.Reader, options ...StreamOption) (*StreamFile, error)
 		if err == io.EOF {
 			// Reached EOF before any fragments - file may be init-only
 			sf.streamPos = boxStartPos
+			if f.Moov != nil {
+				sf.finishInit()
+			}
 			break
 		}
 		if err != nil {
@@ -55,24 +59,22 @@ func InitDecodeStream(r io.Reader, options ...StreamOption) (*StreamFile, error)
 
 		// Check if this box belongs to fragments - if so, stop here
 		// The header is in the buffer, leave it there for ProcessFragments
+		fragmentBox := f.Moov != nil // Boxes after the moov belong to the fragments
 		switch boxType {
 		case "styp", "moof", "sidx", "emsg", "prft":
 			// These boxes indicate start of fragments
+			fragmentBox = true
+		case "mdat":
+			return nil, fmt.Errorf("unexpected mdat box at position %d before fragments", boxStartPos)
+		}
+		if fragmentBox {
 			// Header bytes are in buffer, currentPos points after header
 			// Reset currentPos to boxStartPos so ProcessFragments can re-peek
 			bsr.currentPos = boxStartPos
 			f.isFragmented = true
-			if f.Init == nil && f.Moov != nil {
-				f.Init = NewMP4Init()
-				if f.Ftyp != nil {
-					f.Init.AddChild(f.Ftyp)
-				}
-				f.Init.AddChild(f.Moov)
-			}
+			sf.finishInit()
 			sf.streamPos = boxStartPos
 			return sf, nil
-		case "mdat":
-			return nil, fmt.Errorf("unexpected mdat box at position %d before fragments", boxStartPos)
 		}
 
 		// This box is part of the init segment - read and parse it
@@ -116,15 +118,38 @@ func InitDecodeStream(r io.Reader, options ...StreamOption) (*StreamFile, error)
 	return sf, nil
 }
 
+// finishInit makes the init segment of all boxes read before the fragments, so that it also holds boxes such as
+// a C2PA manifest box between ftyp and moov. In a stream without moov, the boxes other than ftyp precede the first
+// moof instead, so they are kept for its fragment.
+func (sf *StreamFile) finishInit() {
+	f := sf.File
+	if f.Moov == nil {
+		for _, c := range f.Children {
+			if _, ok := c.(*FtypBox); !ok {
+				sf.preFragmentBoxes = append(sf.preFragmentBoxes, c)
+			}
+		}
+		return
+	}
+	if f.Init == nil {
+		f.Init = NewMP4Init()
+		for _, c := range f.Children {
+			f.Init.AddChild(c)
+		}
+	}
+}
+
 // StreamFile wraps File with streaming capabilities for processing fragments incrementally.
 type StreamFile struct {
 	*File
-	reader          io.Reader
-	boxSeekReader   *BoxSeekReader
-	onFragmentReady FragmentCallback
-	onFragmentDone  FragmentDoneCallback
-	maxFragments    int
-	streamPos       uint64
+	reader           io.Reader
+	boxSeekReader    *BoxSeekReader
+	onFragmentReady  FragmentCallback
+	onFragmentDone   FragmentDoneCallback
+	onTrailingBoxes  TrailingBoxesCallback
+	maxFragments     int
+	streamPos        uint64
+	preFragmentBoxes []Box // Boxes read by InitDecodeStream that precede the first moof
 }
 
 // FragmentCallback is called when a fragment's moof box has been parsed and mdat is ready to be accessed.
@@ -133,6 +158,10 @@ type FragmentCallback func(f *Fragment, sa SampleAccessor) error
 
 // FragmentDoneCallback is called after a fragment has been fully processed.
 type FragmentDoneCallback func(f *Fragment) error
+
+// TrailingBoxesCallback is called at the end of the stream with the boxes that follow the mdat of the last
+// fragment, such as a box that signs the whole segment. They are also added to the children of that fragment.
+type TrailingBoxesCallback func(lastFrag *Fragment, boxes []Box) error
 
 // SampleAccessor provides access to samples within a fragment.
 type SampleAccessor interface {
@@ -164,6 +193,12 @@ func WithFragmentCallback(cb FragmentCallback) StreamOption {
 // WithFragmentDone sets the callback invoked after fragment processing completes.
 func WithFragmentDone(cb FragmentDoneCallback) StreamOption {
 	return func(sf *StreamFile) { sf.onFragmentDone = cb }
+}
+
+// WithTrailingBoxesCallback sets the callback invoked with the boxes after the last fragment.
+// Without it, ProcessFragments returns a TrailingBoxesErrror for them.
+func WithTrailingBoxesCallback(cb TrailingBoxesCallback) StreamOption {
+	return func(sf *StreamFile) { sf.onTrailingBoxes = cb }
 }
 
 // WithMaxFragments sets the maximum number of fragments to retain in memory (sliding window).
@@ -580,10 +615,12 @@ func (fsa *fragmentSampleAccessor) ReadMdatData(dst []byte) (int, error) {
 }
 
 // ProcessFragments reads and processes fragments from the stream until EOF.
-// Returns a TrailingBoxesErrror if there are unexpected boxes after the last fragment.
+// Boxes after the last fragment are passed to the callback set with WithTrailingBoxesCallback, or else returned
+// in a TrailingBoxesErrror. In a stream without fragments, they belong to the init segment.
 func (sf *StreamFile) ProcessFragments() error {
 	// Collect boxes between fragments (styp, sidx, emsg, etc.)
-	var preFragmentBoxes []Box
+	preFragmentBoxes := sf.preFragmentBoxes
+	sf.preFragmentBoxes = nil
 
 	for {
 		// Peek at next box header to get type and size
@@ -662,16 +699,30 @@ func (sf *StreamFile) ProcessFragments() error {
 		sf.streamPos, _, _ = sf.boxSeekReader.GetBufferInfo()
 	}
 
-	if len(preFragmentBoxes) > 0 {
-		return &TrailingBoxesErrror{BoxNames: func() []string {
-			names := make([]string, 0, len(preFragmentBoxes))
-			for _, box := range preFragmentBoxes {
-				names = append(names, box.Type())
-			}
-			return names
-		}()}
+	if len(preFragmentBoxes) == 0 {
+		return nil
 	}
-
+	var lastFrag *Fragment
+	if seg := sf.LastSegment(); seg != nil {
+		lastFrag = seg.LastFragment()
+	}
+	switch {
+	case lastFrag == nil && sf.Init != nil:
+		for _, b := range preFragmentBoxes {
+			sf.Init.AddChild(b)
+		}
+	case lastFrag != nil && sf.onTrailingBoxes != nil:
+		lastFrag.Children = append(lastFrag.Children, preFragmentBoxes...)
+		if err := sf.onTrailingBoxes(lastFrag, preFragmentBoxes); err != nil {
+			return fmt.Errorf("trailing boxes callback: %w", err)
+		}
+	default:
+		names := make([]string, 0, len(preFragmentBoxes))
+		for _, box := range preFragmentBoxes {
+			names = append(names, box.Type())
+		}
+		return &TrailingBoxesErrror{BoxNames: names}
+	}
 	return nil
 }
 
