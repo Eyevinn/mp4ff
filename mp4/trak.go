@@ -133,6 +133,9 @@ func (t *TrakBox) GetSampleData(startSampleNr, endSampleNr uint32) ([]Sample, er
 	if startSampleNr < 1 || endSampleNr > nrSamples {
 		return nil, fmt.Errorf("sample interval %d-%d not inside available %d-%d", startSampleNr, endSampleNr, 1, nrSamples)
 	}
+	if endSampleNr < startSampleNr {
+		return nil, fmt.Errorf("sample interval %d-%d ends before it starts", startSampleNr, endSampleNr)
+	}
 	samples := make([]Sample, endSampleNr-startSampleNr+1)
 	stts := stbl.Stts
 	ctts := stbl.Ctts
