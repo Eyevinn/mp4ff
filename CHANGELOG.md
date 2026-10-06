@@ -34,9 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   init segment no longer drops them
 - `avc.ParseSliceHeader` rejects out-of-range `disable_deblocking_filter_idc`, `slice_alpha_c0_offset_div2`
   and `slice_beta_offset_div2`, so decoders no longer index their deblocking tables out of range
-- The error for children whose sizes overrun their container lists only the last 10 children. Listing every one
-  made building it quadratic in their number: a 0.8 MB container of 100,000 empty boxes allocated gigabytes for a
-  700 KB error message
+- `DecodeContainerChildren`, `DecodeContainerChildrenSR` and `FragmentDecoder` list only the last 10 children in the
+  error for children that overrun their container, so a crafted file can no longer make that error huge and slow
 
 ## [0.58.0] - 2026-10-04
 

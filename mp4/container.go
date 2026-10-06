@@ -129,8 +129,7 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 const maxListedChildren = 10
 
 // childSizes lists the type and size of the last maxListedChildren children, for the error when
-// their sizes do not add up to their parent's. Listing every child made that error quadratic in
-// their number.
+// their sizes do not add up to their parent's.
 func childSizes(children []Box) string {
 	var b strings.Builder
 	if n := len(children); n > maxListedChildren {
@@ -191,11 +190,7 @@ func decodeChildrenSRInto(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceR
 	initPos := sr.GetPos()
 	for {
 		if pos > endPos {
-			msg := ""
-			for _, c := range children {
-				msg += fmt.Sprintf("%s:%d ", c.Type(), c.Size())
-			}
-			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, msg)
+			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, childSizes(children))
 		}
 		if pos == endPos {
 			break
