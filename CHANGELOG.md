@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Decoding a `moov` box keeps its children in file order, so it re-encodes to the same bytes
 - `StscBox.GetContainingChunks` applies the last of several entries sharing a `firstChunk`, as `GetChunk` does,
   returns an error when the entries give more chunks than samples, and handles chunk number 0xFFFFFFFF
+- The `subs`, `mvhd` and `tkhd` decoders return an error unless they read exactly their box payload, an `elng`
+  without full box header returns its reader error, and a `colr` of an unknown colour type reads only its own
+  payload, so none of them can hide or swallow the boxes after it
 
 ## [0.58.0] - 2026-10-04
 

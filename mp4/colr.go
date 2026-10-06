@@ -60,7 +60,7 @@ func DecodeColrSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		c.TransferCharacteristics = sr.ReadUint16()
 		c.MatrixCoefficients = sr.ReadUint16()
 	default:
-		c.UnknownPayload = sr.RemainingBytes()
+		c.UnknownPayload = sr.ReadBytes(hdr.payloadLen() - colorTypeLen)
 	}
 	return &c, sr.AccError()
 }

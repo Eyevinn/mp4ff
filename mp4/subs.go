@@ -67,6 +67,7 @@ func DecodeSubs(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 
 // DecodeSubsSR - box-specific decode
 func DecodeSubsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	payloadStart := sr.GetPos()
 	versionAndFlags := sr.ReadUint32()
 	version := byte(versionAndFlags >> 24)
 
@@ -96,7 +97,10 @@ func DecodeSubsSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		}
 		b.Entries = append(b.Entries, e)
 	}
-	return &b, sr.AccError()
+	if err := checkPayloadRead(hdr, sr, payloadStart); err != nil {
+		return nil, err
+	}
+	return &b, nil
 }
 
 // Type - return box type
