@@ -26,3 +26,6 @@ External APIs use **1-based** sample numbers (sample 1 = first sample). Internal
 - Test roundtrips with `boxDiffAfterEncodeAndDecode(t, box)` helper
 - Test both io.Reader and SliceReader decode paths where possible
 - Primary spec: ISO/IEC 14496-12:2026 (8th edition)
+- History (what was broken, why, measurements) goes only in commit messages and PR descriptions.
+  Code comments, test comments and CHANGELOG entries describe current behaviour.
+- CHANGELOG entries are one or two lines saying what changed for users and naming the affected API.
