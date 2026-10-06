@@ -264,3 +264,48 @@ func TestStscGetSampleDescriptionIDOutOfRange(t *testing.T) {
 		}
 	}
 }
+
+// TestGetContainingChunksDuplicateFirstChunk checks that of entries sharing a firstChunk, the last
+// one applies to the chunks that follow, as in GetChunk.
+func TestGetContainingChunksDuplicateFirstChunk(t *testing.T) {
+	stsc := &mp4.StscBox{}
+	for _, e := range [][2]uint32{{1, 1}, {3, 100}, {3, 1}} {
+		if err := stsc.AddEntry(e[0], e[1], 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	chunks, err := stsc.GetContainingChunks(1, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(chunks) != 20 {
+		t.Fatalf("got %d chunks for samples 1-20, want 20", len(chunks))
+	}
+	for _, c := range chunks {
+		want, err := stsc.GetChunk(c.ChunkNr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c != want {
+			t.Errorf("GetContainingChunks gives %+v, GetChunk %+v", c, want)
+		}
+	}
+}
+
+// TestGetContainingChunksWrappedEntries checks that entries whose first sample numbers wrapped,
+// giving more chunks than samples, return an error.
+func TestGetContainingChunksWrappedEntries(t *testing.T) {
+	stsc := &mp4.StscBox{}
+	// 1 + (2863311565-1)*3 wraps uint32 to 101, so sample 101 is in chunk 2863311565.
+	for _, e := range [][2]uint32{{1, 3}, {2863311565, 1}} {
+		if err := stsc.AddEntry(e[0], e[1], 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if stsc.Entries[1].FirstSampleNr != 101 {
+		t.Fatalf("got first sample %d for the second entry, want the wrapped 101", stsc.Entries[1].FirstSampleNr)
+	}
+	if _, err := stsc.GetContainingChunks(1, 101); err == nil {
+		t.Error("expected an error for 2863311565 chunks holding 101 samples")
+	}
+}

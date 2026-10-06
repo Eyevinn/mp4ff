@@ -240,6 +240,11 @@ func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chun
 	if endChunkNr < startChunkNr {
 		return nil, fmt.Errorf("stsc entries give decreasing chunk range %d-%d", startChunkNr, endChunkNr)
 	}
+	// Every chunk holds at least one sample of the interval, so consistent entries give no more chunks than samples.
+	if endChunkNr-startChunkNr > endSampleNr-startSampleNr {
+		return nil, fmt.Errorf("stsc entries give %d chunks for %d samples", uint64(endChunkNr-startChunkNr)+1,
+			uint64(endSampleNr-startSampleNr)+1)
+	}
 
 	chunks := make([]Chunk, 0, endChunkNr-startChunkNr+1)
 
@@ -248,11 +253,11 @@ func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chun
 	for chunkNr := startChunkNr; chunkNr <= endChunkNr; chunkNr++ {
 		chunk := Chunk{chunkNr, entry.FirstSampleNr + (chunkNr-entry.FirstChunk)*entry.SamplesPerChunk, entry.SamplesPerChunk}
 		chunks = append(chunks, chunk)
-		if entryNr < nrEntries-1 {
-			if chunkNr+1 == b.Entries[entryNr+1].FirstChunk {
-				entryNr++
-				entry = b.Entries[entryNr]
-			}
+		// Advance past every entry starting at the next chunk: of entries sharing a firstChunk, the last one
+		// applies, as in GetChunk.
+		for entryNr < nrEntries-1 && chunkNr+1 >= b.Entries[entryNr+1].FirstChunk {
+			entryNr++
+			entry = b.Entries[entryNr]
 		}
 	}
 	return chunks, nil
