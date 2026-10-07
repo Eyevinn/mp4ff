@@ -417,15 +417,10 @@ func progressiveChunks(track *defragTrack, fileSize uint64) ([]*defragChunk, err
 }
 
 // stscEntrySDI returns the sample description ID of the 0-based stsc entry,
-// reading the decoded fields directly: GetSampleDescriptionID indexes
-// entries despite its chunk-number parameter name, and returns 0 for an
-// absent ID where the spec default 1 is wanted (matching the tfhd treatment).
+// or the spec default 1 for an absent ID (matching the tfhd treatment).
 func stscEntrySDI(stsc *StscBox, entryNr int) uint32 {
-	if stsc.singleSampleDescriptionID != 0 {
-		return stsc.singleSampleDescriptionID
-	}
-	if entryNr < len(stsc.SampleDescriptionID) {
-		return stsc.SampleDescriptionID[entryNr]
+	if sdi := stsc.entrySampleDescriptionID(uint32(entryNr)); sdi != 0 {
+		return sdi
 	}
 	return 1
 }

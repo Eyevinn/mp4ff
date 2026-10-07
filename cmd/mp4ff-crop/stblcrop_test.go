@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
+	"github.com/go-test/deep"
 )
 
 func TestSttsCrop(t *testing.T) {
@@ -52,5 +53,58 @@ func TestSttsCrop(t *testing.T) {
 				t.Errorf("Expected timeDelta %d to be %d, got %d", i, c.expectedTimeDeltas[i], stts.SampleTimeDelta[i])
 			}
 		}
+	}
+}
+
+// TestStscCrop checks that cropping keeps one sample description ID per entry, also for an entry
+// added for a partly kept chunk.
+func TestStscCrop(t *testing.T) {
+	cases := []struct {
+		desc         string
+		lastSampleNr uint32
+		wantEntries  []mp4.StscEntry
+		wantSDIDs    []uint32
+	}{
+		{
+			desc:         "whole chunks",
+			lastSampleNr: 8,
+			wantEntries: []mp4.StscEntry{{FirstChunk: 1, SamplesPerChunk: 2, FirstSampleNr: 1},
+				{FirstChunk: 3, SamplesPerChunk: 2, FirstSampleNr: 5}},
+			wantSDIDs: []uint32{1, 2},
+		},
+		{
+			desc:         "partly kept chunk",
+			lastSampleNr: 7,
+			wantEntries: []mp4.StscEntry{{FirstChunk: 1, SamplesPerChunk: 2, FirstSampleNr: 1},
+				{FirstChunk: 3, SamplesPerChunk: 2, FirstSampleNr: 5}, {FirstChunk: 4, SamplesPerChunk: 1, FirstSampleNr: 7}},
+			wantSDIDs: []uint32{1, 2, 2},
+		},
+		{
+			desc:         "partly kept chunk in last entry",
+			lastSampleNr: 11,
+			wantEntries: []mp4.StscEntry{{FirstChunk: 1, SamplesPerChunk: 2, FirstSampleNr: 1},
+				{FirstChunk: 3, SamplesPerChunk: 2, FirstSampleNr: 5}, {FirstChunk: 5, SamplesPerChunk: 2, FirstSampleNr: 9},
+				{FirstChunk: 6, SamplesPerChunk: 1, FirstSampleNr: 11}},
+			wantSDIDs: []uint32{1, 2, 3, 3},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			stsc := &mp4.StscBox{}
+			for _, e := range [][3]uint32{{1, 2, 1}, {3, 2, 2}, {5, 2, 3}} {
+				if err := stsc.AddEntry(e[0], e[1], e[2]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := cropStsc(stsc, c.lastSampleNr); err != nil {
+				t.Fatal(err)
+			}
+			if diff := deep.Equal(stsc.Entries, c.wantEntries); diff != nil {
+				t.Errorf("entries: %v", diff)
+			}
+			if diff := deep.Equal(stsc.SampleDescriptionID, c.wantSDIDs); diff != nil {
+				t.Errorf("sample description IDs: %v", diff)
+			}
+		})
 	}
 }

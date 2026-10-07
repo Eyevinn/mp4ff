@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -144,7 +145,7 @@ func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	if level >= 1 {
 		for i := range b.Entries {
 			bd.write(" - entry[%d]: firstChunk=%d samplesPerChunk=%d sampleDescriptionID=%d",
-				i+1, b.Entries[i].FirstChunk, b.Entries[i].SamplesPerChunk, b.GetSampleDescriptionID(i+1))
+				i+1, b.Entries[i].FirstChunk, b.Entries[i].SamplesPerChunk, b.entrySampleDescriptionID(uint32(i)))
 		}
 	}
 	return bd.err
@@ -178,16 +179,28 @@ func (b *StscBox) AddEntry(firstChunk, samplesPerChunk, sampleDescriptionID uint
 	return nil
 }
 
-// GetSampleDescriptionID returns the sample description ID from common or individual values for chunk.
+// GetSampleDescriptionID returns the sample description ID of the entry that chunkNr belongs to.
 // chunkNr is 1-based. Returns 0 (not a valid ID) if chunkNr is out of range.
 func (b *StscBox) GetSampleDescriptionID(chunkNr int) uint32 {
 	if b.singleSampleDescriptionID != 0 {
 		return b.singleSampleDescriptionID
 	}
-	if chunkNr < 1 || chunkNr > len(b.SampleDescriptionID) {
+	if chunkNr < 1 || uint64(chunkNr) > math.MaxUint32 {
 		return 0
 	}
-	return b.SampleDescriptionID[chunkNr-1]
+	return b.entrySampleDescriptionID(b.findEntryNrForChunkNr(uint32(chunkNr)))
+}
+
+// entrySampleDescriptionID returns the sample description ID of the 0-based entryNr,
+// or 0 (not a valid ID) if entryNr is out of range.
+func (b *StscBox) entrySampleDescriptionID(entryNr uint32) uint32 {
+	if b.singleSampleDescriptionID != 0 {
+		return b.singleSampleDescriptionID
+	}
+	if entryNr >= uint32(len(b.SampleDescriptionID)) {
+		return 0
+	}
+	return b.SampleDescriptionID[entryNr]
 }
 
 // SetSingleSampleDescriptionID - use this for efficiency if all samples have same sample description
