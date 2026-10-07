@@ -9,9 +9,10 @@ import (
 
 // Segmenter - segment the progressive inFIle
 type Segmenter struct {
-	inFile *mp4.File
-	tracks []*Track
-	nrSegs int //  target number of segments
+	inFile   *mp4.File
+	resolver mp4.DataResolver // reads sample data that the tracks' dref boxes place in other files
+	tracks   []*Track
+	nrSegs   int //  target number of segments
 }
 
 // Track - media track defined by inTrak
@@ -24,17 +25,15 @@ type Track struct {
 	segments  []sampleInterval
 }
 
-// NewSegmenter - create a Segmenter from inFile and fill in track information
-func NewSegmenter(inFile *mp4.File) (*Segmenter, error) {
+// NewSegmenter - create a Segmenter from inFile and fill in track information.
+// resolver reads sample data that the tracks' dref boxes place in other files.
+func NewSegmenter(inFile *mp4.File, resolver mp4.DataResolver) (*Segmenter, error) {
 	if inFile.IsFragmented() {
 		return nil, fmt.Errorf("segmented input file not supported")
 	}
-	s := Segmenter{inFile: inFile}
+	s := Segmenter{inFile: inFile, resolver: resolver}
 	traks := inFile.Moov.Traks
 	for _, trak := range traks {
-		if err := trak.CheckDataIsSelfContained(); err != nil {
-			return nil, err
-		}
 		track := &Track{trackType: "", lang: ""}
 		switch hdlrType := trak.Mdia.Hdlr.HandlerType; hdlrType {
 		case "vide":
@@ -147,22 +146,12 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 	rs io.ReadSeeker) ([]mp4.FullSample, error) {
 	stbl := tr.inTrak.Mdia.Minf.Stbl
 	samples := make([]mp4.FullSample, 0, endSampleNr-startSampleNr+1)
-	mdat := mp4f.Mdat
+	data, err := mp4f.ReadSampleData(tr.inTrak, startSampleNr, endSampleNr, rs, s.resolver)
+	if err != nil {
+		return nil, err
+	}
+	var pos uint32
 	for sampleNr := startSampleNr; sampleNr <= endSampleNr; sampleNr++ {
-		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(int(sampleNr))
-		if err != nil {
-			return nil, err
-		}
-		var offset int64
-		if stbl.Stco != nil {
-			offset = int64(stbl.Stco.ChunkOffset[chunkNr-1])
-		} else if stbl.Co64 != nil {
-			offset = int64(stbl.Co64.ChunkOffset[chunkNr-1])
-		}
-
-		for sNr := sampleNrAtChunkStart; sNr < int(sampleNr); sNr++ {
-			offset += int64(stbl.Stsz.GetSampleSize(sNr))
-		}
 		size := stbl.Stsz.GetSampleSize(int(sampleNr))
 		decTime, dur, err := stbl.Stts.GetDecodeTime(sampleNr)
 		if err != nil {
@@ -172,15 +161,6 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 		if stbl.Ctts != nil {
 			cto = stbl.Ctts.GetCompositionTimeOffset(sampleNr)
 		}
-		// Next find bytes as slice in mdat
-		sampleData, err := mdat.ReadData(offset, int64(size), rs)
-		if err != nil {
-			return nil, fmt.Errorf("sample %d: %w", sampleNr, err)
-		}
-
-		//presTime := uint64(int64(decTime) + int64(cto))
-		//One can either segment on presentationTime or DecodeTime
-		//presTimeMs := presTime * 1000 / uint64(tr.timeScale)
 		sc := mp4.FullSample{
 			Sample: mp4.Sample{
 				Flags:                 TranslateSampleFlagsForFragment(stbl, sampleNr),
@@ -189,10 +169,9 @@ func (s *Segmenter) GetFullSamplesForInterval(mp4f *mp4.File, tr *Track, startSa
 				CompositionTimeOffset: cto,
 			},
 			DecodeTime: decTime,
-			Data:       sampleData,
+			Data:       data[pos : pos+size],
 		}
-
-		//fmt.Printf("Sample %d times %d %d, sync %v, offset %d, size %d\n", sampleNr, decTime, cto, isSync, offset, size)
+		pos += size
 		samples = append(samples, sc)
 	}
 	return samples, nil

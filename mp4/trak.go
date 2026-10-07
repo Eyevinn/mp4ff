@@ -238,36 +238,60 @@ func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) 
 // sample data outside this file, for example a url entry with the location of
 // another file as in Unified Streaming's dref MP4 files. The chunk offsets of
 // such a track are offsets into the referenced data, so reading them from this
-// file's mdat box gives the wrong bytes. A missing dref box, or an index
-// outside it, is not reported, since nothing then says the data is elsewhere.
+// file's mdat box gives the wrong bytes. [File.ReadSampleData] reads such data
+// through a [DataResolver]. A missing dref box, or an index outside it, is not
+// reported, since nothing then says the data is elsewhere.
 func (t *TrakBox) CheckDataIsSelfContained() error {
-	if t.Mdia == nil || t.Mdia.Minf == nil {
+	if t.Mdia == nil || t.Mdia.Minf == nil || t.Mdia.Minf.Stbl == nil || t.Mdia.Minf.Stbl.Stsd == nil {
 		return nil
 	}
-	minf := t.Mdia.Minf
-	if minf.Dinf == nil || minf.Dinf.Dref == nil || minf.Stbl == nil || minf.Stbl.Stsd == nil {
-		return nil
-	}
-	dataEntries := minf.Dinf.Dref.Children
-	for i, sampleEntry := range minf.Stbl.Stsd.Children {
-		dataRefIdx, ok := sampleEntryDataReferenceIndex(sampleEntry)
-		if !ok || dataRefIdx == 0 || int(dataRefIdx) > len(dataEntries) {
+	for i, sampleEntry := range t.Mdia.Minf.Stbl.Stsd.Children {
+		dataEntry, dataRefIdx := t.externalDataEntry(uint32(i + 1))
+		if dataEntry == nil {
 			continue
-		}
-		dataEntry := dataEntries[dataRefIdx-1]
-		if dataEntryIsSelfContained(dataEntry) {
-			continue
-		}
-		where := fmt.Sprintf("%q entry", dataEntry.Type())
-		if u, ok := dataEntry.(*URLBox); ok {
-			where = fmt.Sprintf("url %q", u.Location)
 		}
 		var trackID uint32
 		if t.Tkhd != nil {
 			trackID = t.Tkhd.TrackID
 		}
 		return fmt.Errorf("track %d: sample description %d (%s) has its data outside this file (data reference %d: %s)",
-			trackID, i+1, sampleEntry.Type(), dataRefIdx, where)
+			trackID, i+1, sampleEntry.Type(), dataRefIdx, dataEntryDescription(dataEntry))
 	}
 	return nil
+}
+
+// externalDataEntry returns the data entry that the 1-based sample description sdID refers to
+// through its data_reference_index, and that index, if the entry puts the data outside this file.
+// It returns nil if the data is in this file, and also if the sample description, the dref box
+// or the data entry is missing, since nothing then says the data is elsewhere.
+func (t *TrakBox) externalDataEntry(sdID uint32) (Box, uint16) {
+	if t.Mdia == nil || t.Mdia.Minf == nil {
+		return nil, 0
+	}
+	minf := t.Mdia.Minf
+	if minf.Dinf == nil || minf.Dinf.Dref == nil || minf.Stbl == nil || minf.Stbl.Stsd == nil {
+		return nil, 0
+	}
+	sampleEntries := minf.Stbl.Stsd.Children
+	if sdID == 0 || uint64(sdID) > uint64(len(sampleEntries)) {
+		return nil, 0
+	}
+	dataRefIdx, ok := sampleEntryDataReferenceIndex(sampleEntries[sdID-1])
+	dataEntries := minf.Dinf.Dref.Children
+	if !ok || dataRefIdx == 0 || int(dataRefIdx) > len(dataEntries) {
+		return nil, 0
+	}
+	dataEntry := dataEntries[dataRefIdx-1]
+	if dataEntryIsSelfContained(dataEntry) {
+		return nil, 0
+	}
+	return dataEntry, dataRefIdx
+}
+
+// dataEntryDescription names a data entry by its location if it is a url entry, and else by its type.
+func dataEntryDescription(entry Box) string {
+	if u, ok := entry.(*URLBox); ok {
+		return fmt.Sprintf("url %q", u.Location)
+	}
+	return fmt.Sprintf("%q entry", entry.Type())
 }

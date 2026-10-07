@@ -69,6 +69,12 @@ func makeSingleTrackSegments(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.Re
 
 func makeSingleTrackSegmentsLazyWrite(segmenter *Segmenter, parsedMp4 *mp4.File, rs io.ReadSeeker, outFilePath string) error {
 	fileNameMap := map[string]string{"video": "_v", "audio": "_a"}
+	// copyMediaData copies from rs, so the sample data must be in this file.
+	for _, tr := range segmenter.tracks {
+		if err := tr.inTrak.CheckDataIsSelfContained(); err != nil {
+			return err
+		}
+	}
 	inits, err := segmenter.MakeInitSegments()
 	if err != nil {
 		return err

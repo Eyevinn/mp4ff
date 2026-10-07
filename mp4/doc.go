@@ -121,6 +121,19 @@ or
 Example code for this, including lazy writing of [mp4.MdatBox], can be found in [examples/segmenter]
 with the lazy mode set.
 
+# Sample data in other files
+
+The dref box of a track can place its sample data in other files, as in Unified Streaming dref MP4 files
+and files made with MP4Box -dref. [TrakBox.CheckDataIsSelfContained] reports such tracks.
+[File.ReadSampleData] reads sample data from the file itself or, through a [DataResolver]
+such as [LocalFileResolver], from the other files:
+
+	resolver := mp4.NewLocalFileResolver(filepath.Dir(path))
+	defer resolver.Close()
+	data, err := parsedMp4.ReadSampleData(trak, startSampleNr, endSampleNr, nil, resolver)
+
+[examples/segmenter] segments such files this way.
+
 # More efficient I/O using SliceReader and SliceWriter
 
 The use of the interfaces [io.Reader] and [io.Writer] for reading and writing boxes gives a lot of

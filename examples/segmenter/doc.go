@@ -14,6 +14,10 @@ or init.mp4 and media_<n>.m4s
 Codecs supported are AVC and HEVC for video and AAC
 and AC-3 for audio.
 
+Tracks whose sample data are in other files, as in Unified Streaming dref MP4 files,
+are read from those files, found relative to infile. The -lazy mode does not support
+this for single-track output.
+
 	Usage of segmenter:
 
 		segmenter [options] infile outfilePrefix
