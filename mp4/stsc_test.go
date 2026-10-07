@@ -2,6 +2,8 @@ package mp4_test
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -252,17 +254,46 @@ func TestStscGetChunkZero(t *testing.T) {
 	}
 }
 
-func TestStscGetSampleDescriptionIDOutOfRange(t *testing.T) {
+// TestStscGetSampleDescriptionID checks that the ID is that of the entry the chunk belongs to,
+// that the last entry continues to any later chunk, and that of entries sharing a firstChunk,
+// the last one applies, as in GetChunk.
+func TestStscGetSampleDescriptionID(t *testing.T) {
 	stsc := &mp4.StscBox{}
-	for _, e := range []struct{ firstChunk, samplesPerChunk, sdid uint32 }{{1, 2, 1}, {2, 2, 2}} {
+	for _, e := range []struct{ firstChunk, samplesPerChunk, sdid uint32 }{{1, 2, 1}, {3, 2, 2}, {5, 1, 3}, {5, 2, 4}} {
 		if err := stsc.AddEntry(e.firstChunk, e.samplesPerChunk, e.sdid); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for _, chunkNr := range []int{0, -1, 3, 1000} {
-		if sdid := stsc.GetSampleDescriptionID(chunkNr); sdid != 0 {
-			t.Errorf("chunkNr %d: got sampleDescriptionID %d instead of 0", chunkNr, sdid)
+	for chunkNr, wanted := range map[int]uint32{-1: 0, 0: 0, 1: 1, 2: 1, 3: 2, 4: 2, 5: 4, 6: 4, 1000: 4} {
+		if sdid := stsc.GetSampleDescriptionID(chunkNr); sdid != wanted {
+			t.Errorf("chunkNr %d: got sampleDescriptionID %d instead of %d", chunkNr, sdid, wanted)
 		}
+	}
+
+	var buf bytes.Buffer
+	if err := stsc.Info(&buf, "stsc:1", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	for i, wanted := range []uint32{1, 2, 3, 4} {
+		line := fmt.Sprintf("entry[%d]: firstChunk=%d samplesPerChunk=%d sampleDescriptionID=%d",
+			i+1, stsc.Entries[i].FirstChunk, stsc.Entries[i].SamplesPerChunk, wanted)
+		if !strings.Contains(buf.String(), line) {
+			t.Errorf("Info lacks %q:\n%s", line, buf.String())
+		}
+	}
+}
+
+// TestStscGetSampleDescriptionIDBeforeFirstEntry covers a chunkNr below the FirstChunk of the first entry.
+func TestStscGetSampleDescriptionIDBeforeFirstEntry(t *testing.T) {
+	stsc := &mp4.StscBox{
+		Entries:             []mp4.StscEntry{{FirstChunk: 5, SamplesPerChunk: 2, FirstSampleNr: 1}},
+		SampleDescriptionID: []uint32{2},
+	}
+	if sdid := stsc.GetSampleDescriptionID(4); sdid != 0 {
+		t.Errorf("chunkNr 4: got sampleDescriptionID %d instead of 0", sdid)
+	}
+	if sdid := stsc.GetSampleDescriptionID(5); sdid != 2 {
+		t.Errorf("chunkNr 5: got sampleDescriptionID %d instead of 2", sdid)
 	}
 }
 
