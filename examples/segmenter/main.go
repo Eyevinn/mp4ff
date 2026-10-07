@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/Eyevinn/mp4ff/mp4"
 )
@@ -27,6 +28,10 @@ media segments: <output>_a_<n>.m4s and <output>_v_<n>.m4s where n >= 1
 or init.mp4 and media_<n>.m4s
 
 Codecs supported are AVC and HEVC for video and AAC and AC-3 for audio.
+
+Tracks whose sample data are in other files, as in Unified Streaming dref MP4 files,
+are read from those files, found relative to infile. The -lazy mode does not support
+this for single-track output.
 
 Usage of %s:
 `
@@ -102,7 +107,10 @@ func run(args []string, outDir string) error {
 	if err != nil {
 		return fmt.Errorf("error decoding file: %w", err)
 	}
-	segmenter, err := NewSegmenter(parsedMp4)
+	// Sample data in other files, as in Unified Streaming dref MP4 files, are found relative to infile.
+	resolver := mp4.NewLocalFileResolver(filepath.Dir(fs.Arg(0)))
+	defer resolver.Close()
+	segmenter, err := NewSegmenter(parsedMp4, resolver)
 	if err != nil {
 		return fmt.Errorf("error creating segmenter: %w", err)
 	}
