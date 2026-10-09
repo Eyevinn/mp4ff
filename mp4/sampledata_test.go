@@ -234,6 +234,9 @@ func TestReadSampleDataErrors(t *testing.T) {
 	dref, _ := decodeTestFile(t, "testdata/prog_8s_dref.mp4")
 	fragmented, _ := decodeTestFile(t, "testdata/1.m4s")
 	errBoom := errors.New("boom")
+	// Closed before TempDir removes the directory, which Windows refuses while the resolver has it open.
+	emptyDirResolver := mp4.NewLocalFileResolver(t.TempDir())
+	t.Cleanup(func() { emptyDirResolver.Close() })
 	cases := []struct {
 		desc       string
 		f          *mp4.File
@@ -260,7 +263,7 @@ func TestReadSampleDataErrors(t *testing.T) {
 			wantErr:   `resolve url "prog_8s.mp4"`,
 			wantErrIs: errBoom},
 		{desc: "missing file", f: dref, trak: dref.Moov.Traks[0], start: 1, end: 1,
-			resolver: mp4.NewLocalFileResolver(t.TempDir()), wantErrIs: fs.ErrNotExist},
+			resolver: emptyDirResolver, wantErrIs: fs.ErrNotExist},
 		{desc: "data too short", f: dref, trak: dref.Moov.Traks[0], start: 1, end: 10,
 			resolver: resolverFunc(func(mp4.Box) (io.ReaderAt, error) {
 				return bytes.NewReader(make([]byte, 1000)), nil
