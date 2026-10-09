@@ -23,11 +23,13 @@ type DataResolver interface {
 // LocalFileResolver is a DataResolver for url entries whose location is a relative path,
 // which it opens as a file below its directory, typically the directory of the file with the moov box.
 // It rejects locations with a URL scheme or host, absolute paths, and paths that lead outside the
-// directory. The check is lexical, so a symbolic link below the directory is followed.
-// Opened files stay open for later calls until Close. It is safe for concurrent use.
+// directory. It opens files through an [os.Root], so a symbolic link that leads outside the directory
+// is rejected too. The directory and the opened files stay open for later calls until Close.
+// It is safe for concurrent use.
 type LocalFileResolver struct {
 	dir   string
 	mu    sync.Mutex
+	root  *os.Root
 	files map[string]*os.File
 }
 
@@ -51,7 +53,14 @@ func (r *LocalFileResolver) ResolveDataEntry(entry Box) (io.ReaderAt, error) {
 	if f, ok := r.files[name]; ok {
 		return f, nil
 	}
-	f, err := os.Open(filepath.Join(r.dir, name))
+	if r.root == nil {
+		root, err := os.OpenRoot(r.dir)
+		if err != nil {
+			return nil, err
+		}
+		r.root = root
+	}
+	f, err := r.root.Open(name)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +71,7 @@ func (r *LocalFileResolver) ResolveDataEntry(entry Box) (io.ReaderAt, error) {
 	return f, nil
 }
 
-// Close closes the files that the resolver has opened.
+// Close closes the files and the directory that the resolver has opened.
 func (r *LocalFileResolver) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -71,6 +80,10 @@ func (r *LocalFileResolver) Close() error {
 		errs = append(errs, f.Close())
 	}
 	r.files = nil
+	if r.root != nil {
+		errs = append(errs, r.root.Close())
+		r.root = nil
+	}
 	return errors.Join(errs...)
 }
 

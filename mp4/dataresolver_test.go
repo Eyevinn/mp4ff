@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -96,6 +97,55 @@ func TestLocalFileResolverReuse(t *testing.T) {
 	}
 	if _, err := first.ReadAt(make([]byte, 1), 0); !errors.Is(err, os.ErrClosed) {
 		t.Errorf("read after Close: got %v instead of %v", err, os.ErrClosed)
+	}
+	if _, err := res.ResolveDataEntry(&mp4.URLBox{Location: "prog_8s.mp4"}); err != nil {
+		t.Errorf("resolve after Close: %v", err)
+	}
+	if err := res.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
+// TestLocalFileResolverSymlinks checks that a symbolic link below the directory is followed
+// while it stays inside it, and rejected when it leads outside.
+func TestLocalFileResolverSymlinks(t *testing.T) {
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "media")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "inside.mp4"), []byte("inside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(parent, "outside.mp4")
+	if err := os.WriteFile(outside, []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("inside.mp4", filepath.Join(dir, "link-in.mp4")); err != nil {
+		t.Skipf("cannot create symbolic links: %v", err)
+	}
+	for name, target := range map[string]string{"link-out.mp4": filepath.Join("..", "outside.mp4"), "abs-out.mp4": outside} {
+		if err := os.Symlink(target, filepath.Join(dir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res := mp4.NewLocalFileResolver(dir)
+	defer res.Close()
+	ra, err := res.ResolveDataEntry(&mp4.URLBox{Location: "link-in.mp4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]byte, len("inside"))
+	if _, err := ra.ReadAt(got, 0); err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "inside" {
+		t.Errorf("link-in.mp4: read %q instead of %q", got, "inside")
+	}
+	for _, location := range []string{"link-out.mp4", "abs-out.mp4"} {
+		if _, err := res.ResolveDataEntry(&mp4.URLBox{Location: location}); err == nil {
+			t.Errorf("%s: expected error for a link that leads outside the directory", location)
+		}
 	}
 }
 
