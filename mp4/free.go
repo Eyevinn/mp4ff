@@ -10,6 +10,8 @@ import (
 type FreeBox struct {
 	Name       string
 	notDecoded []byte
+	// lazyPayloadSize is the payload size of a box decoded with DecModeLazyMdat, whose payload is not read
+	lazyPayloadSize uint64
 }
 
 // NewFreeBox creates a new FreeBox with arbitrary data payload.
@@ -22,7 +24,8 @@ func NewSkipBox(data []byte) *FreeBox {
 	return &FreeBox{Name: "skip", notDecoded: data}
 }
 
-// Payload returns the payload of the box (everything after the box header)
+// Payload returns the payload of the box (everything after the box header).
+// It is nil for a box decoded with DecModeLazyMdat, since that payload is not read.
 func (b *FreeBox) Payload() []byte {
 	return b.notDecoded
 }
@@ -48,27 +51,47 @@ func (b *FreeBox) Type() string {
 
 // Size - calculated size of box
 func (b *FreeBox) Size() uint64 {
-	return uint64(boxHeaderSize + len(b.notDecoded))
+	return uint64(boxHeaderSize+len(b.notDecoded)) + b.lazyPayloadSize
 }
 
-// Encode - write box to w
+// freeZeroChunkSize is the largest number of zero bytes written at a time for a lazily decoded payload.
+const freeZeroChunkSize = 64 * 1024
+
+// Encode - write box to w. The payload of a box decoded with DecModeLazyMdat is written as zero bytes.
 func (b *FreeBox) Encode(w io.Writer) error {
-	sw := bits.NewFixedSliceWriter(int(b.Size()))
-	err := b.EncodeSW(sw)
+	if b.lazyPayloadSize == 0 {
+		sw := bits.NewFixedSliceWriter(int(b.Size()))
+		err := b.EncodeSW(sw)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(sw.Bytes())
+		return err
+	}
+	err := EncodeHeader(b, w)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(sw.Bytes())
-	return err
+	zeros := make([]byte, min(b.lazyPayloadSize, freeZeroChunkSize))
+	for left := b.lazyPayloadSize; left > 0; {
+		n := min(left, uint64(len(zeros)))
+		if _, err := w.Write(zeros[:n]); err != nil {
+			return err
+		}
+		left -= n
+	}
+	return nil
 }
 
-// EncodeSW - box-specific encode to slicewriter
+// EncodeSW - box-specific encode to slicewriter.
+// The payload of a box decoded with DecModeLazyMdat is written as zero bytes.
 func (b *FreeBox) EncodeSW(sw bits.SliceWriter) error {
 	err := EncodeHeaderSW(b, sw)
 	if err != nil {
 		return err
 	}
 	sw.WriteBytes(b.notDecoded)
+	sw.WriteZeroBytes(int(b.lazyPayloadSize))
 	return sw.AccError()
 }
 

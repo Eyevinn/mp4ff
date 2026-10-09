@@ -122,3 +122,51 @@ func TestSgpdNoAmplification(t *testing.T) {
 			len(raw), allocated, maxAlloc)
 	}
 }
+
+// TestSgpdZeroLengthEntries checks that entries without fields, such as 'tsas' in
+// ISO/IEC 14496-15, decode and encode with per-entry descriptionLength 0.
+func TestSgpdZeroLengthEntries(t *testing.T) {
+	tsas := &mp4.UnknownSampleGroupEntry{Name: "tsas", Data: []byte{}}
+	for _, version := range []byte{1, 2} {
+		sgpd := &mp4.SgpdBox{Version: version, GroupingType: "tsas", DescriptionLengths: []uint32{0, 0},
+			SampleGroupEntries: []mp4.SampleGroupEntry{tsas, tsas}}
+		boxDiffAfterEncodeAndDecode(t, sgpd)
+	}
+}
+
+// TestSgpdBadDescriptionLength checks that an entry must be exactly descriptionLength
+// bytes long, and that per-entry lengths that run out stop the decoding.
+func TestSgpdBadDescriptionLength(t *testing.T) {
+	// sgpd version 1 with per-entry lengths
+	sgpdBox := func(groupingType string, entryCount uint32, entries []byte) []byte {
+		body := make([]byte, 0, 16+len(entries))
+		body = binary.BigEndian.AppendUint32(body, 0x01000000) // version 1, flags 0
+		body = append(body, []byte(groupingType)...)
+		body = binary.BigEndian.AppendUint32(body, 0) // defaultLength
+		body = binary.BigEndian.AppendUint32(body, entryCount)
+		body = append(body, entries...)
+		box := make([]byte, 0, 8+len(body))
+		box = binary.BigEndian.AppendUint32(box, uint32(8+len(body)))
+		box = append(box, []byte("sgpd")...)
+		return append(box, body...)
+	}
+
+	cases := []struct {
+		desc string
+		raw  []byte
+	}{
+		{"roll entry with descriptionLength 0", sgpdBox("roll", 1, []byte{0, 0, 0, 0, 0xff, 0xff})},
+		{"roll entry with descriptionLength 3", sgpdBox("roll", 1, []byte{0, 0, 0, 3, 0xff, 0xff, 0})},
+		{"more entries than lengths", sgpdBox("tsas", 0xffffffff, []byte{0, 0, 0, 0})},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			if _, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(c.raw)); err == nil {
+				t.Error("DecodeBoxSR: expected error, got nil")
+			}
+			if _, err := mp4.DecodeBox(0, bytes.NewReader(c.raw)); err == nil {
+				t.Error("DecodeBox: expected error, got nil")
+			}
+		})
+	}
+}

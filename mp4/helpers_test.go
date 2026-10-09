@@ -218,6 +218,39 @@ func (sr *testReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	return int64(sr.pos), nil
 }
 
+// countingReadSeeker counts the bytes read and the Read and Seek calls. With maxOps > 0, the calls fail
+// after maxOps of them, so that a decode loop that never ends fails a test instead of hanging it.
+type countingReadSeeker struct {
+	io.ReadSeeker
+	nrBytesRead int
+	nrOps       int
+	maxOps      int
+}
+
+func (r *countingReadSeeker) countOp() error {
+	r.nrOps++
+	if r.maxOps > 0 && r.nrOps > r.maxOps {
+		return fmt.Errorf("more than %d Read and Seek calls", r.maxOps)
+	}
+	return nil
+}
+
+func (r *countingReadSeeker) Read(p []byte) (int, error) {
+	if err := r.countOp(); err != nil {
+		return 0, err
+	}
+	n, err := r.ReadSeeker.Read(p)
+	r.nrBytesRead += n
+	return n, err
+}
+
+func (r *countingReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	if err := r.countOp(); err != nil {
+		return 0, err
+	}
+	return r.ReadSeeker.Seek(offset, whence)
+}
+
 func createLazyMdat(t *testing.T, data []byte) (*mp4.MdatBox, io.ReadSeeker) {
 	t.Helper()
 	fullData := make([]byte, 8+len(data))

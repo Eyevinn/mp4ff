@@ -1247,3 +1247,38 @@ func TestWriteToFile(t *testing.T) {
 		})
 	}
 }
+
+// TestDecodeFileLazyMdatSizeAboveMaxInt64 checks that a lazy mdat whose size does not fit in an int64 is an error.
+// As a seek offset, this size goes back to the moof before the mdat, which would then be decoded over and over.
+func TestDecodeFileLazyMdatSizeAboveMaxInt64(t *testing.T) {
+	initData, err := os.ReadFile("testdata/init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag, err := mp4.CreateFragment(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag.AddFullSample(mp4.FullSample{
+		Sample: mp4.Sample{Flags: mp4.SyncSampleFlags, Dur: 1000, Size: 4},
+		Data:   []byte{1, 2, 3, 4},
+	})
+	var fragData bytes.Buffer
+	if err := frag.Encode(&fragData); err != nil {
+		t.Fatal(err)
+	}
+	var data bytes.Buffer
+	data.Write(initData)
+	moofStart := data.Len()
+	data.Write(fragData.Bytes()[:frag.Moof.Size()])
+	mdatSize := uint64(int64(moofStart - data.Len()))
+	if err := mp4.EncodeHeaderWithSize("mdat", mdatSize, true, &data); err != nil {
+		t.Fatal(err)
+	}
+
+	r := &countingReadSeeker{ReadSeeker: bytes.NewReader(data.Bytes()), maxOps: 1000}
+	_, err = mp4.DecodeFile(r, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
+	if err == nil || !strings.Contains(err.Error(), "larger than the largest file offset") {
+		t.Errorf("got error %v, want one about the mdat size", err)
+	}
+}
