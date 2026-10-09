@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Go 1.24 is the minimum Go version
+
 ### Fixed
 
 - `StscBox.GetSampleDescriptionID` returns the ID of the entry that the chunk belongs to, and `mp4ff-crop` keeps
