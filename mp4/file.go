@@ -72,7 +72,7 @@ type DecFileMode byte
 const (
 	// DecModeNormal - read Mdat data into memory during file decoding.
 	DecModeNormal DecFileMode = iota
-	// DecModeLazyMdat - do not read mdat data into memory.
+	// DecModeLazyMdat - do not read the payload of mdat, free and skip boxes into memory.
 	// Thus, decode process requires less memory and faster.
 	DecModeLazyMdat
 )
@@ -1011,11 +1011,4 @@ func insertSidx(inFile *File, segDatas []segData, sidx *SidxBox) error {
 	inFile.Sidx = sidx
 	inFile.Sidxs = []*SidxBox{sidx}
 	return nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

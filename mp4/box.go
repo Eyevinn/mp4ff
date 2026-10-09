@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -398,7 +399,7 @@ func DecodeBoxBody(startPos uint64, hdr BoxHeader, r io.Reader) (Box, error) {
 	return b, nil
 }
 
-// DecodeBoxLazyMdat decodes a box but doesn't read mdat into memory
+// DecodeBoxLazyMdat decodes a box but doesn't read the payload of mdat, free or skip into memory
 func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 	h, err := DecodeHeader(r)
 	if err != nil {
@@ -408,13 +409,13 @@ func DecodeBoxLazyMdat(startPos uint64, r io.ReadSeeker) (Box, error) {
 
 }
 
+// DecodeBoxBodyLazily decodes the body of a box whose header h has just been read from r.
+// The payload of mdat, free and skip is not read, but seeked past.
 func DecodeBoxBodyLazily(startPos uint64, h BoxHeader, r io.ReadSeeker) (Box, error) {
 	var err error
 	var b Box
 
 	d, ok := decoders[h.Name]
-
-	remainingLength := int64(h.Size) - int64(h.Hdrlen)
 
 	if !ok {
 		b, err = DecodeUnknown(h, startPos, r)
@@ -423,8 +424,11 @@ func DecodeBoxBodyLazily(startPos uint64, h BoxHeader, r io.ReadSeeker) (Box, er
 		case "mdat":
 			b, err = DecodeMdatLazily(h, startPos)
 			if err == nil {
-				_, err = r.Seek(remainingLength, io.SeekCurrent)
+				err = seekPastBoxBody(h, r)
 			}
+		case "free", "skip":
+			b = &FreeBox{Name: h.Name, lazyPayloadSize: h.Size - uint64(h.Hdrlen)}
+			err = seekPastBoxBody(h, r)
 		default:
 			b, err = d(h, startPos, r)
 		}
@@ -434,6 +438,16 @@ func DecodeBoxBodyLazily(startPos uint64, h BoxHeader, r io.ReadSeeker) (Box, er
 	}
 
 	return b, nil
+}
+
+// seekPastBoxBody seeks r from the end of header h to the end of the box.
+// A box size above math.MaxInt64 is an error, since it would make the seek go backwards.
+func seekPastBoxBody(h BoxHeader, r io.ReadSeeker) error {
+	if h.Size > math.MaxInt64 {
+		return fmt.Errorf("box size %d is larger than the largest file offset", h.Size)
+	}
+	_, err := r.Seek(int64(h.Size-uint64(h.Hdrlen)), io.SeekCurrent)
+	return err
 }
 
 // Fixed16 - An 8.8 fixed point number

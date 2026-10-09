@@ -51,10 +51,14 @@ func DecodeSgpdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	for i := uint32(0); i < entryCount; i++ {
 		var descriptionLength = b.DefaultLength
 		if b.Version >= 1 && b.DefaultLength == 0 {
+			// A descriptionLength of 0 is valid, since some entries, such as
+			// 'tsas' and 'stsa' in ISO/IEC 14496-15, have no fields.
 			descriptionLength = sr.ReadUint32()
+			if err := sr.AccError(); err != nil {
+				return nil, fmt.Errorf("sgpd: descriptionLength of entry %d: %w", i, err)
+			}
 			b.DescriptionLengths = append(b.DescriptionLengths, descriptionLength)
-		}
-		if descriptionLength == 0 {
+		} else if descriptionLength == 0 {
 			return nil, fmt.Errorf("sgpd: invalid descriptionLength of 0")
 		}
 		// An entry cannot be longer than what is left of the box. The sample
@@ -66,9 +70,14 @@ func DecodeSgpdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 			return nil, fmt.Errorf("sgpd: descriptionLength %d of entry %d exceeds %d bytes left in box",
 				descriptionLength, i, bytesLeft)
 		}
+		entryStart := sr.GetPos()
 		sgEntry, err := decodeSampleGroupEntry(b.GroupingType, descriptionLength, sr)
 		if err != nil {
 			return nil, err
+		}
+		if nrRead := sr.GetPos() - entryStart; nrRead != int(descriptionLength) {
+			return nil, fmt.Errorf("sgpd: entry %d of type %q read %d bytes instead of descriptionLength %d",
+				i, b.GroupingType, nrRead, descriptionLength)
 		}
 		b.SampleGroupEntries = append(b.SampleGroupEntries, sgEntry)
 	}

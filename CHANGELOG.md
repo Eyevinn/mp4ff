@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `DecModeLazyMdat` also skips the payload of `free` and `skip` boxes; `FreeBox.Payload` is then nil and
+  `FreeBox.Encode` writes zeros of the original payload size
+
 ### Fixed
 
 - `ExtractInitProtectData` accepts `avc3` and `hev1` sample entries, as `InitProtect` already does
+- `DecodeFile` with `DecModeLazyMdat` returns an error for an mdat size above `math.MaxInt64` instead of looping
+- `SgpdBox` decodes entries with `descriptionLength` 0, such as `tsas`, and checks that every entry is exactly
+  `descriptionLength` bytes
 
 ## [0.60.0] - 2026-10-13
 
