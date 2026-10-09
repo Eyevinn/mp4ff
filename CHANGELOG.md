@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `StscBox.GetSampleDescriptionID` returns the ID of the entry that the chunk belongs to, and `mp4ff-crop` keeps
   the right sample description ID in a cropped `stsc` with several of them
+- The segmenter example includes the last sample of each track in its last segment
 
 ## [0.59.0] - 2026-10-07
 
