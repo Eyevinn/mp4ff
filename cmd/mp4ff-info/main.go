@@ -65,7 +65,7 @@ func run(args []string, w io.Writer) error {
 	}
 
 	if opts.version {
-		fmt.Printf("%s %s\n", appName, internal.GetVersion())
+		fmt.Printf("%s %s\n", appName, internal.Version())
 		return nil
 	}
 

@@ -52,7 +52,7 @@ func run(args []string, w io.Writer) error {
 	case "add":
 		return runAdd(args[1:], w)
 	case "version", "-version", "--version":
-		fmt.Fprintf(w, "%s %s\n", appName, internal.GetVersion())
+		fmt.Fprintf(w, "%s %s\n", appName, internal.Version())
 		return nil
 	default:
 		fmt.Fprintf(os.Stderr, usg, appName, appName)
