@@ -7,15 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `File.ReadSampleData` reads a progressive track's samples, through a `DataResolver` such as `LocalFileResolver`
+  also from the files that its `dref` names, as in Unified Streaming dref MP4s; the segmenter example uses it
+
 ### Changed
 
 - Go 1.24 is the minimum Go version
 - The tools' `-version` reports the version that Go embeds from git, which names the commit between releases.
   Builds from a source archive set it with `-ldflags "-X github.com/Eyevinn/mp4ff/internal.commitVersion=vX.Y.Z"`
-### Added
-
-- `File.ReadSampleData` reads a progressive track's samples, through a `DataResolver` such as `LocalFileResolver`
-  also from the files that its `dref` names, as in Unified Streaming dref MP4s; the segmenter example uses it
 
 ### Fixed
 
