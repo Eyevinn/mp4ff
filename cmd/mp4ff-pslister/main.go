@@ -78,7 +78,7 @@ func run(args []string, stdout io.Writer) error {
 	}
 
 	if o.version {
-		fmt.Fprintf(stdout, "%s %s\n", appName, internal.GetVersion())
+		fmt.Fprintf(stdout, "%s %s\n", appName, internal.Version())
 		return nil
 	}
 

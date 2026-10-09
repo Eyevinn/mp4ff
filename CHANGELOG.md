@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Go 1.24 is the minimum Go version
+- The tools' `-version` reports the version that Go embeds from git, which names the commit between releases.
+  Builds from a source archive set it with `-ldflags "-X github.com/Eyevinn/mp4ff/internal.commitVersion=vX.Y.Z"`
 
 ### Fixed
 

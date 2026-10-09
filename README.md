@@ -45,6 +45,12 @@ Install a tool directly from the repo (repeat for each tool you want), or run
     go install github.com/Eyevinn/mp4ff/cmd/mp4ff-info@latest
     go install github.com/Eyevinn/mp4ff/cmd/mp4ff-encrypt@latest
 
+The tools report the version that Go embeds when it builds them from a git checkout or
+with `go install`. A build from a source archive, without git, reports `(devel)` unless
+the version is set at link time:
+
+    go build -ldflags "-X github.com/Eyevinn/mp4ff/internal.commitVersion=vX.Y.Z" ./cmd/mp4ff-info
+
 ### Linux packages (Debian/Ubuntu, Fedora/RHEL, Alpine)
 
 Each release attaches `.deb`, `.rpm` and `.apk` packages (all tools in a single
