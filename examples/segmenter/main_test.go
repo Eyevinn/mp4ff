@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/mp4"
 )
 
 func TestCommandLines(t *testing.T) {
@@ -117,6 +119,58 @@ func TestDataInOtherFile(t *testing.T) {
 			}
 			if nrMediaSegs == 0 {
 				t.Error("no media segments")
+			}
+		})
+	}
+}
+
+// TestAllSamplesInSegments checks that the media segments hold every sample of the input tracks.
+func TestAllSamplesInSegments(t *testing.T) {
+	testIn := "../../mp4/testdata/bbb_prog_10s.mp4"
+	inFile, err := mp4.ReadMP4File(testIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wantNrSamples uint32
+	var wantNrBytes uint64
+	for _, trak := range inFile.Moov.Traks {
+		nrSamples := trak.GetNrSamples()
+		nrBytes, err := trak.Mdia.Minf.Stbl.Stsz.GetTotalSampleSize(1, nrSamples)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantNrSamples += nrSamples
+		wantNrBytes += nrBytes
+	}
+	for _, mode := range [][]string{{}, {"-lazy"}, {"-m"}} {
+		t.Run(strings.Join(append([]string{"mode"}, mode...), " "), func(t *testing.T) {
+			dir := t.TempDir()
+			args := append(append([]string{appName, "-d", "2000"}, mode...), testIn, "seg")
+			if err := run(args, dir); err != nil {
+				t.Fatal(err)
+			}
+			var nrSamples uint32
+			var nrBytes uint64
+			for _, name := range getFileNames(t, dir, "seg") {
+				if !strings.HasSuffix(name, ".m4s") {
+					continue
+				}
+				seg, err := mp4.ReadMP4File(filepath.Join(dir, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, frag := range seg.Segments[0].Fragments {
+					for _, traf := range frag.Moof.Trafs {
+						for _, trun := range traf.Truns {
+							nrSamples += trun.SampleCount()
+						}
+					}
+					nrBytes += frag.Mdat.Size() - frag.Mdat.HeaderSize()
+				}
+			}
+			if nrSamples != wantNrSamples || nrBytes != wantNrBytes {
+				t.Errorf("segments hold %d samples of %d bytes, want %d samples of %d bytes",
+					nrSamples, nrBytes, wantNrSamples, wantNrBytes)
 			}
 		})
 	}

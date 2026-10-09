@@ -267,7 +267,7 @@ func getSegmentIntervals(syncTimescale uint32, syncPoints []syncPoint, trak *mp4
 			startSampleNr = nextStartSampleNr
 		}
 		if i == len(syncPoints)-1 {
-			endSampleNr = totNrSamples - 1
+			endSampleNr = totNrSamples
 		} else {
 			nextSyncStart := syncPoints[i+1].decodeTime
 			nextStartTime := nextSyncStart * uint64(trak.Mdia.Mdhd.Timescale) / uint64(syncTimescale)
