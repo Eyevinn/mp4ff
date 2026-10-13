@@ -3,6 +3,7 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -87,7 +88,22 @@ func TestDecodeMdirHandler(t *testing.T) {
 	if mdirHdlr.Name != "" {
 		t.Errorf("Expected empty name, but got %s", mdirHdlr.Name)
 	}
-	// Note. There is a name "appl", but is is placed right at start after
-	// the header, so it is not read by DecodeHdlrSR, which assumes 12 bytes of zero
-	// first following the ISO/IEC 14496-12:2022 standard.
+	if mdirHdlr.Reserved != [3]uint32{0x6170706c, 0, 0} { // "appl"
+		t.Errorf("Expected reserved [appl 0 0], but got %08x", mdirHdlr.Reserved)
+	}
+	out := bytes.Buffer{}
+	if err := mdirHdlr.Encode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), byteData) {
+		t.Errorf("Encoded %x instead of %x", out.Bytes(), byteData)
+	}
+	boxDiffAfterEncodeAndDecode(t, mdirHdlr)
+	info := bytes.Buffer{}
+	if err := mdirHdlr.Info(&info, "", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(info.String(), " - reserved: 6170706c 00000000 00000000") {
+		t.Errorf("Info lacks the reserved words: %s", info.String())
+	}
 }
