@@ -329,11 +329,33 @@ func (s *InitSegment) TweakSingleTrakLive() error {
 // SetAACDescriptor - Modify a TrakBox by adding AAC SampleDescriptor
 // objType is one of AAClc, HEAACv1, HEAACv2
 // For HEAAC, the samplingFrequency is the base frequency (normally 24000)
+// The channel configuration is stereo, or for HEAACv2 the mono channel that parametric stereo builds on.
+// SetAACDescriptorWithChannelConfig sets other channel configurations.
 func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
+	var channelConfiguration byte = 2
+	if objType == aac.HEAACv2 {
+		channelConfiguration = 1
+	}
+	return t.SetAACDescriptorWithChannelConfig(objType, channelConfiguration, samplingFrequency)
+}
+
+// SetAACDescriptorWithChannelConfig modifies a TrakBox by adding an AAC SampleDescriptor
+// with a channelConfiguration from ISO/IEC 14496-3, such as 1 (mono), 2 (stereo), 6 (5.1) or 7 (7.1).
+// The channel count of the sample entry is the number of channels of that configuration (see aac.NrChannels).
+// objType is one of AAClc, HEAACv1, HEAACv2, and HEAACv2 needs channelConfiguration 1.
+// For HEAAC, the samplingFrequency is the base frequency (normally 24000)
+func (t *TrakBox) SetAACDescriptorWithChannelConfig(objType, channelConfiguration byte, samplingFrequency int) error {
+	nrChannels := aac.NrChannels(channelConfiguration)
+	if nrChannels == 0 {
+		return fmt.Errorf("AAC channel configuration %d has no fixed channel layout", channelConfiguration)
+	}
+	if objType == aac.HEAACv2 && channelConfiguration != 1 {
+		return fmt.Errorf("HE-AACv2 needs channel configuration 1, not %d", channelConfiguration)
+	}
 	stsd := t.Mdia.Minf.Stbl.Stsd
 	asc := &aac.AudioSpecificConfig{
 		ObjectType:           objType,
-		ChannelConfiguration: 2,
+		ChannelConfiguration: channelConfiguration,
 		SamplingFrequency:    samplingFrequency,
 		ExtensionFrequency:   0,
 		SBRPresentFlag:       false,
@@ -346,7 +368,6 @@ func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
 	case aac.HEAACv2:
 		asc.ExtensionFrequency = 2 * samplingFrequency
 		asc.SBRPresentFlag = true
-		asc.ChannelConfiguration = 1
 		asc.PSPresentFlag = true
 	}
 
@@ -358,7 +379,7 @@ func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
 	ascBytes := buf.Bytes()
 	esds := CreateEsdsBox(ascBytes)
 	mp4a := CreateAudioSampleEntryBox("mp4a",
-		uint16(asc.ChannelConfiguration),
+		uint16(nrChannels),
 		16, uint16(samplingFrequency), esds)
 	stsd.AddChild(mp4a)
 	return nil

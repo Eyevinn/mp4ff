@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `File.ReadSampleData` reads a progressive track's samples, through a `DataResolver` such as `LocalFileResolver`
   also from the files that its `dref` names, as in Unified Streaming dref MP4s; the segmenter example uses it
 - `avc.ParseSliceHeaderInto` parses a slice header into a caller's `SliceHeader` without allocating
+- `TrakBox.SetAACDescriptorWithChannelConfig` sets an AAC sample entry with any fixed channel configuration,
+  such as 5.1 or 7.1, and `aac.NrChannels` gives the number of channels of a configuration
 
 ### Changed
 

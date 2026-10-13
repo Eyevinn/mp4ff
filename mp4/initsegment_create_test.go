@@ -306,3 +306,65 @@ func createSubtitlesStppInitSegment() (*mp4.InitSegment, error) {
 	}
 	return init, nil
 }
+
+func TestSetAACDescriptorWithChannelConfig(t *testing.T) {
+	cases := []struct {
+		desc                 string
+		objType              byte
+		channelConfiguration byte
+		wantChannelCount     uint16
+		wantErr              bool
+	}{
+		{"mono", aac.AAClc, 1, 1, false},
+		{"5.1", aac.AAClc, 6, 6, false},
+		{"7.1 front", aac.AAClc, 7, 8, false},
+		{"22.2", aac.AAClc, 13, 24, false},
+		{"HE-AACv1 5.1", aac.HEAACv1, 6, 6, false},
+		{"HE-AACv2 mono core", aac.HEAACv2, 1, 1, false},
+		{"HE-AACv2 stereo core", aac.HEAACv2, 2, 0, true},
+		{"layout in program config element", aac.AAClc, 0, 0, true},
+		{"reserved", aac.AAClc, 8, 0, true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			init := mp4.CreateEmptyInit()
+			trak := init.AddEmptyTrack(48000, "audio", "en")
+			err := trak.SetAACDescriptorWithChannelConfig(c.objType, c.channelConfiguration, 48000)
+			if c.wantErr {
+				if err == nil {
+					t.Error("expected an error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			mp4a := trak.Mdia.Minf.Stbl.Stsd.Mp4a
+			if mp4a.ChannelCount != c.wantChannelCount {
+				t.Errorf("got channel count %d, want %d", mp4a.ChannelCount, c.wantChannelCount)
+			}
+			asc, err := aac.DecodeAudioSpecificConfig(bytes.NewReader(mp4a.Esds.DecConfigDescriptor.DecSpecificInfo.DecConfig))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if asc.ObjectType != c.objType || asc.ChannelConfiguration != c.channelConfiguration {
+				t.Errorf("got object type %d and channel configuration %d, want %d and %d",
+					asc.ObjectType, asc.ChannelConfiguration, c.objType, c.channelConfiguration)
+			}
+		})
+	}
+}
+
+// TestSetAACDescriptorChannels checks the stereo default of SetAACDescriptor, and the mono core of HE-AACv2.
+func TestSetAACDescriptorChannels(t *testing.T) {
+	for objType, want := range map[byte]uint16{aac.AAClc: 2, aac.HEAACv1: 2, aac.HEAACv2: 1} {
+		init := mp4.CreateEmptyInit()
+		trak := init.AddEmptyTrack(24000, "audio", "en")
+		if err := trak.SetAACDescriptor(objType, 24000); err != nil {
+			t.Fatal(err)
+		}
+		if got := trak.Mdia.Minf.Stbl.Stsd.Mp4a.ChannelCount; got != want {
+			t.Errorf("object type %d: got channel count %d, want %d", objType, got, want)
+		}
+	}
+}
