@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The segmenter example includes the last sample of each track in its last segment
 - `avc.ParseSliceHeader` and `avc.ParseSliceHeaderInto` set `SliceHeader.SeqParamID` to the ID of the SPS that the
   slice's PPS refers to
+- `aac.DecodeADTSHeader` returns an error for a `frame_length` shorter than the header, instead of a wrapped
+  `PayloadLength` close to 65535
 
 ## [0.59.0] - 2026-10-07
 
