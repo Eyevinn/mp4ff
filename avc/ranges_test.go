@@ -14,6 +14,7 @@ import (
 // High profile with pic_order_cnt_type 0, frame_mbs_only_flag 1, no scaling
 // matrix and no VUI.
 type spsFields struct {
+	seqParameterSetID         uint
 	chromaFormatIDC           uint
 	bitDepthLumaMinus8        uint
 	bitDepthChromaMinus8      uint
@@ -37,7 +38,7 @@ func writeSPS(t *testing.T, f spsFields) []byte {
 	w.Write(100, 8)  // profile_idc (High)
 	w.Write(0, 8)    // constraint_set flags
 	w.Write(40, 8)   // level_idc
-	w.WriteExpGolomb(0)
+	w.WriteExpGolomb(f.seqParameterSetID)
 	w.WriteExpGolomb(f.chromaFormatIDC)
 	if f.chromaFormatIDC == 3 {
 		w.Write(0, 1) // separate_colour_plane_flag
@@ -98,6 +99,7 @@ func writeSPS(t *testing.T, f spsFields) []byte {
 // ppsFields are the PPS syntax elements varied by the range tests. The PPS uses
 // CAVLC and has deblocking_filter_control_present_flag set.
 type ppsFields struct {
+	seqParameterSetID              uint
 	numRefIdxL0DefaultActiveMinus1 uint
 	numRefIdxL1DefaultActiveMinus1 uint
 	weightedPredFlag               bool
@@ -113,7 +115,7 @@ func writePPS(t *testing.T, f ppsFields) []byte {
 	w := bits.NewEBSPWriter(&buf)
 	w.Write(0x68, 8)    // NAL header: nal_ref_idc=3, nal_unit_type=8 (PPS)
 	w.WriteExpGolomb(0) // pic_parameter_set_id
-	w.WriteExpGolomb(0) // seq_parameter_set_id
+	w.WriteExpGolomb(f.seqParameterSetID)
 	w.Write(0, 1)       // entropy_coding_mode_flag
 	w.Write(0, 1)       // bottom_field_pic_order_in_frame_present_flag
 	w.WriteExpGolomb(0) // num_slice_groups_minus1

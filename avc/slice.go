@@ -173,10 +173,10 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 	if !ok {
 		return fmt.Errorf("pps ID %d unknown", sh.PicParamID)
 	}
-	spsID := pps.SeqParameterSetID
-	sps, ok := spsMap[uint32(spsID)]
+	sh.SeqParamID = pps.SeqParameterSetID
+	sps, ok := spsMap[sh.SeqParamID]
 	if !ok {
-		return fmt.Errorf("sps ID %d unknown", spsID)
+		return fmt.Errorf("sps ID %d unknown", sh.SeqParamID)
 	}
 	if sps.SeparateColourPlaneFlag {
 		sh.ColorPlaneID = uint32(r.Read(2))
