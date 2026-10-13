@@ -61,17 +61,36 @@ var ReverseFrequencies = map[int]byte{
 	7350:  12,
 }
 
-/* Channel configurations according to table 1.19 in ISO/IEC 14496-3
-0: Defined in AOT Specific Config
-1: 1 channel: front-center
-2: 2 channels: front-left, front-right
-3: 3 channels: front-center, front-left, front-right
-4: 4 channels: front-center, front-left, front-right, back-center
-5: 5 channels: front-center, front-left, front-right, back-left, back-right
-6: 6 channels: front-center, front-left, front-right, back-left, back-right, LFE-channel
-7: 8 channels: front-center, front-left, front-right, side-left, side-right, back-left, back-right, LFE-channel
-8-15: Reserved
-*/
+// NrChannels returns the number of channels of a channelConfiguration value
+// according to ISO/IEC 14496-3:2019 Table 1.23, or 0 for values without a
+// fixed layout: 0 (layout given by a program_config_element) and the
+// reserved values 8-10 and 15.
+//
+//	1: 1 channel (mono)
+//	2: 2 channels (stereo)
+//	3: 3 channels
+//	4: 4 channels
+//	5: 5 channels
+//	6: 6 channels (5.1)
+//	7: 8 channels (7.1 front)
+//	11: 7 channels (6.1)
+//	12: 8 channels (7.1 back)
+//	13: 24 channels (22.2)
+//	14: 8 channels (7.1 top)
+func NrChannels(channelConfiguration byte) int {
+	switch channelConfiguration {
+	case 1, 2, 3, 4, 5, 6:
+		return int(channelConfiguration)
+	case 7, 12, 14:
+		return 8
+	case 11:
+		return 7
+	case 13:
+		return 24
+	default:
+		return 0
+	}
+}
 
 // AudioSpecificConfigHeader - the leading fields shared by every audio
 // object type in an AudioSpecificConfig (ISO/IEC 14496-3 Table 1.15).

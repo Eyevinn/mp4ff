@@ -192,3 +192,13 @@ func TestVariousInputs(t *testing.T) {
 		}
 	})
 }
+
+func TestNrChannels(t *testing.T) {
+	want := map[byte]int{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 8, 8: 0, 9: 0, 10: 0,
+		11: 7, 12: 8, 13: 24, 14: 8, 15: 0, 16: 0}
+	for cc, n := range want {
+		if got := NrChannels(cc); got != n {
+			t.Errorf("NrChannels(%d) = %d, want %d", cc, got, n)
+		}
+	}
+}
