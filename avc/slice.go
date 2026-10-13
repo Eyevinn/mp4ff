@@ -134,6 +134,14 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	return sh, nil
 }
 
+// ParseSliceHeaderInto parses the slice header of nalu into sh like ParseSliceHeader, but without
+// allocating, so one SliceHeader can be reused for every slice of a stream. All fields of sh are
+// overwritten. On error, sh holds the fields parsed before the error.
+func ParseSliceHeaderInto(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) error {
+	*sh = SliceHeader{}
+	return parseSliceHeader(sh, nalu, spsMap, ppsMap)
+}
+
 // SliceHeaderSize returns the size in bytes of the slice header of nalu, as ParseSliceHeader
 // would set it in SliceHeader.Size, without allocating.
 func SliceHeaderSize(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PPS) (int, error) {

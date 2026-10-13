@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -168,16 +169,17 @@ func TestParseSliceHeaderLength(t *testing.T) {
 	}
 }
 
-// TestSliceHeaderSize checks that SliceHeaderSize returns the Size and the error of ParseSliceHeader, for the
-// NAL units of the test streams and for slices that are truncated, use weighted prediction or refer to an
-// unknown PPS.
-func TestSliceHeaderSize(t *testing.T) {
-	type sliceCase struct {
-		name   string
-		nalu   []byte
-		spsMap map[uint32]*SPS
-		ppsMap map[uint32]*PPS
-	}
+type sliceCase struct {
+	name   string
+	nalu   []byte
+	spsMap map[uint32]*SPS
+	ppsMap map[uint32]*PPS
+}
+
+// sliceHeaderCases returns the NAL units of the test streams and slices that are truncated, use weighted
+// prediction or refer to an unknown PPS, each with the parameter sets to parse it with.
+func sliceHeaderCases(t *testing.T) []sliceCase {
+	t.Helper()
 	var cases []sliceCase
 	for _, file := range []struct {
 		name       string
@@ -222,9 +224,13 @@ func TestSliceHeaderSize(t *testing.T) {
 	cases = append(cases, sliceCase{"IDR slice, unknown PPS", idr, spsMap, map[uint32]*PPS{}})
 	wpSPSMap, wpPPSMap := paramSetMaps(t, defaultSPSFields(), ppsFields{weightedPredFlag: true})
 	cases = append(cases, sliceCase{"P slice with pred_weight_table", writePSlice(t, 2, true), wpSPSMap, wpPPSMap})
+	return cases
+}
 
+// TestSliceHeaderSize checks that SliceHeaderSize returns the Size and the error of ParseSliceHeader.
+func TestSliceHeaderSize(t *testing.T) {
 	nrOK := 0
-	for _, c := range cases {
+	for _, c := range sliceHeaderCases(t) {
 		sh, err := ParseSliceHeader(c.nalu, c.spsMap, c.ppsMap)
 		size, sizeErr := SliceHeaderSize(c.nalu, c.spsMap, c.ppsMap)
 		if fmt.Sprint(sizeErr) != fmt.Sprint(err) {
@@ -249,6 +255,69 @@ func TestSliceHeaderSizeAllocations(t *testing.T) {
 	nalu := writePSlice(t, 2, true)
 	allocs := testing.AllocsPerRun(10, func() {
 		if _, err := SliceHeaderSize(nalu, spsMap, ppsMap); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("got %.0f allocations, want 0", allocs)
+	}
+}
+
+// TestParseSliceHeaderInto checks that ParseSliceHeaderInto returns the header and the error of
+// ParseSliceHeader when it reuses a SliceHeader whose fields are all set.
+func TestParseSliceHeaderInto(t *testing.T) {
+	nrOK := 0
+	var sh SliceHeader
+	for _, c := range sliceHeaderCases(t) {
+		want, err := ParseSliceHeader(c.nalu, c.spsMap, c.ppsMap)
+		setAllFields(t, &sh)
+		intoErr := ParseSliceHeaderInto(&sh, c.nalu, c.spsMap, c.ppsMap)
+		if fmt.Sprint(intoErr) != fmt.Sprint(err) {
+			t.Errorf("%s: ParseSliceHeaderInto error %v, ParseSliceHeader error %v", c.name, intoErr, err)
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		nrOK++
+		if diff := deep.Equal(sh, *want); diff != nil {
+			t.Errorf("%s: ParseSliceHeaderInto differs from ParseSliceHeader: %v", c.name, diff)
+		}
+	}
+	if nrOK < 4 {
+		t.Errorf("only %d slices parsed", nrOK)
+	}
+}
+
+// setAllFields sets every field of sh to a non-zero value.
+func setAllFields(t *testing.T, sh *SliceHeader) {
+	t.Helper()
+	v := reflect.ValueOf(sh).Elem()
+	for i := range v.NumField() {
+		f := v.Field(i)
+		switch f.Kind() {
+		case reflect.Bool:
+			f.SetBool(true)
+		case reflect.Uint, reflect.Uint32:
+			f.SetUint(99)
+		case reflect.Int32:
+			f.SetInt(-99)
+		case reflect.Array:
+			for j := range f.Len() {
+				f.Index(j).SetInt(-99)
+			}
+		default:
+			t.Fatalf("field %s has unhandled kind %s", v.Type().Field(i).Name, f.Kind())
+		}
+	}
+}
+
+func TestParseSliceHeaderIntoAllocations(t *testing.T) {
+	spsMap, ppsMap := paramSetMaps(t, defaultSPSFields(), ppsFields{weightedPredFlag: true})
+	nalu := writePSlice(t, 2, true)
+	var sh SliceHeader
+	allocs := testing.AllocsPerRun(10, func() {
+		if err := ParseSliceHeaderInto(&sh, nalu, spsMap, ppsMap); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -283,6 +352,15 @@ func BenchmarkParseNALUnits(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			if _, err := ParseSliceHeader(nalu, spsMap, ppsMap); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("ParseSliceHeaderInto", func(b *testing.B) {
+		b.ReportAllocs()
+		var sh SliceHeader
+		for i := 0; i < b.N; i++ {
+			if err := ParseSliceHeaderInto(&sh, nalu, spsMap, ppsMap); err != nil {
 				b.Fatal(err)
 			}
 		}
