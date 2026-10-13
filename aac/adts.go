@@ -107,7 +107,6 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	ah.ChannelConfig = byte(br.Read(3))
 	_ = br.Read(4) // ignore original/copy, home, copyright
 	frameLength := br.Read(13)
-	ah.PayloadLength = uint16(frameLength) - uint16(ah.HeaderLength)
 	ah.BufferFullness = uint16(br.Read(11))
 	nrRawBlocksMinus1 := br.Read(2)
 	if nrRawBlocksMinus1 != 0 {
@@ -120,6 +119,10 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	if br.AccError() != nil {
 		return nil, 0, br.AccError()
 	}
+	if frameLength < uint(ah.HeaderLength) {
+		return nil, 0, fmt.Errorf("frame length %d is shorter than the %d-byte header", frameLength, ah.HeaderLength)
+	}
+	ah.PayloadLength = uint16(frameLength) - uint16(ah.HeaderLength)
 
 	return ah, offset, nil
 }
