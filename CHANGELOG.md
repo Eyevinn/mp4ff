@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-10-13
+
 ### Added
 
 - `File.ReadSampleData` reads a progressive track's samples, through a `DataResolver` such as `LocalFileResolver`
@@ -1489,7 +1491,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.59.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.60.0...HEAD
+[0.60.0]: https://github.com/Eyevinn/mp4ff/compare/v0.59.0...v0.60.0
 [0.59.0]: https://github.com/Eyevinn/mp4ff/compare/v0.58.0...v0.59.0
 [0.58.0]: https://github.com/Eyevinn/mp4ff/compare/v0.57.0...v0.58.0
 [0.57.0]: https://github.com/Eyevinn/mp4ff/compare/v0.56.0...v0.57.0
