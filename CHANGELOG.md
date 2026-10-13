@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   slice's PPS refers to
 - `aac.DecodeADTSHeader` returns an error for a `frame_length` shorter than the header, instead of a wrapped
   `PayloadLength` close to 65535
+- `HdlrBox` keeps its reserved words in `Reserved`, so a QuickTime or iTunes `mdir` handler with the "appl"
+  manufacturer, as ffmpeg writes, encodes as it was decoded
 
 ## [0.59.0] - 2026-10-07
 

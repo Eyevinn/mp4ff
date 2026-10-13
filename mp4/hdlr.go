@@ -19,8 +19,9 @@ type HdlrBox struct {
 	Flags                uint32
 	PreDefined           uint32
 	HandlerType          string
-	Name                 string // Null-terminated UTF-8 string according to ISO/IEC 14496-12 Sec. 8.4.3.3
-	LacksNullTermination bool   // This should be false, but we allow true as well
+	Reserved             [3]uint32 // Zero in ISO/IEC 14496-12. QuickTime: manufacturer (e.g. "appl"), flags, flags mask
+	Name                 string    // Null-terminated UTF-8 string according to ISO/IEC 14496-12 Sec. 8.4.3.3
+	LacksNullTermination bool      // This should be false, but we allow true as well
 }
 
 // CreateHdlr - create mediaType-specific hdlr box
@@ -78,7 +79,9 @@ func DecodeHdlrSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		PreDefined:  sr.ReadUint32(),
 		HandlerType: sr.ReadFixedLengthString(4),
 	}
-	sr.SkipBytes(12) // 12 bytes of zero
+	for i := range h.Reserved {
+		h.Reserved[i] = sr.ReadUint32()
+	}
 	nrBytesLeft := hdr.payloadLen() - 24
 	if nrBytesLeft > 0 {
 		bytesLeft := sr.ReadBytes(nrBytesLeft)
@@ -130,7 +133,9 @@ func (b *HdlrBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteUint32(versionAndFlags)
 	sw.WriteUint32(b.PreDefined)
 	sw.WriteString(b.HandlerType, false)
-	sw.WriteZeroBytes(12)
+	for _, r := range b.Reserved {
+		sw.WriteUint32(r)
+	}
 	sw.WriteString(b.Name, !b.LacksNullTermination)
 	return sw.AccError()
 }
@@ -139,6 +144,9 @@ func (b *HdlrBox) EncodeSW(sw bits.SliceWriter) error {
 func (b *HdlrBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - handlerType: %s", b.HandlerType)
+	if b.Reserved != [3]uint32{} {
+		bd.write(" - reserved: %08x %08x %08x", b.Reserved[0], b.Reserved[1], b.Reserved[2])
+	}
 	bd.write(" - handlerName: %q", b.Name)
 	return bd.err
 }
