@@ -169,6 +169,20 @@ func TestParseSliceHeaderLength(t *testing.T) {
 	}
 }
 
+// TestParseSliceHeaderSeqParamID checks that a slice header has the ID of the SPS that its PPS refers to.
+func TestParseSliceHeaderSeqParamID(t *testing.T) {
+	sf := defaultSPSFields()
+	sf.seqParameterSetID = 3
+	spsMap, ppsMap := paramSetMaps(t, sf, ppsFields{seqParameterSetID: 3})
+	sh, err := ParseSliceHeader(writeIDRSlice(t, 0), spsMap, ppsMap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sh.SeqParamID != 3 {
+		t.Errorf("got SeqParamID %d, want 3", sh.SeqParamID)
+	}
+}
+
 type sliceCase struct {
 	name   string
 	nalu   []byte
