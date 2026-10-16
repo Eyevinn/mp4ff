@@ -331,7 +331,8 @@ func (s *InitSegment) TweakSingleTrakLive() error {
 }
 
 // SetAACDescriptor - Modify a TrakBox by adding AAC SampleDescriptor
-// objType is one of AAClc, HEAACv1, HEAACv2
+// objType is one of AACMain, AAClc, HEAACv1, HEAACv2.
+// Use SetAACDescriptorFromConfig to preserve non-default GA fields or sync extensions.
 // For HEAAC, the samplingFrequency is the base frequency (normally 24000)
 // The channel configuration is stereo, or for HEAACv2 the mono channel that parametric stereo builds on.
 // SetAACDescriptorWithChannelConfig sets other channel configurations.
@@ -356,7 +357,6 @@ func (t *TrakBox) SetAACDescriptorWithChannelConfig(objType, channelConfiguratio
 	if objType == aac.HEAACv2 && channelConfiguration != 1 {
 		return fmt.Errorf("HE-AACv2 needs channel configuration 1, not %d", channelConfiguration)
 	}
-	stsd := t.Mdia.Minf.Stbl.Stsd
 	asc := &aac.AudioSpecificConfig{
 		ObjectType:           objType,
 		ChannelConfiguration: channelConfiguration,
@@ -375,6 +375,16 @@ func (t *TrakBox) SetAACDescriptorWithChannelConfig(objType, channelConfiguratio
 		asc.PSPresentFlag = true
 	}
 
+	return t.SetAACDescriptorFromConfig(asc)
+}
+
+// SetAACDescriptorFromConfig creates an AAC sample entry using all fields in asc.
+// Channel configuration zero (Program Config Element) and future GA syntax are unsupported.
+func (t *TrakBox) SetAACDescriptorFromConfig(asc *aac.AudioSpecificConfig) error {
+	if asc == nil {
+		return fmt.Errorf("nil AudioSpecificConfig")
+	}
+	stsd := t.Mdia.Minf.Stbl.Stsd
 	buf := &bytes.Buffer{}
 	err := asc.Encode(buf)
 	if err != nil {
@@ -383,8 +393,8 @@ func (t *TrakBox) SetAACDescriptorWithChannelConfig(objType, channelConfiguratio
 	ascBytes := buf.Bytes()
 	esds := CreateEsdsBox(ascBytes)
 	mp4a := CreateAudioSampleEntryBox("mp4a",
-		uint16(nrChannels),
-		16, uint16(samplingFrequency), esds)
+		uint16(aac.NrChannels(asc.ChannelConfiguration)),
+		16, uint16(asc.SamplingFrequency), esds)
 	stsd.AddChild(mp4a)
 	return nil
 }
