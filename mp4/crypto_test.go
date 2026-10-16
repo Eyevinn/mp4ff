@@ -131,6 +131,8 @@ func TestEncryptDecrypt(t *testing.T) {
 		scheme  string
 		iv      string
 		hasPssh bool
+		// entryType renames the video sample entry before protection, keeping its configuration
+		entryType string
 	}{
 		{desc: "video AVC cenc iv8", init: videoAVCInit, seg: videoAVCSeg, scheme: "cenc", iv: ivHex8},
 		{desc: "video AVC cbcs iv8", init: videoAVCInit, seg: videoAVCSeg, scheme: "cbcs", iv: ivHex8},
@@ -138,6 +140,12 @@ func TestEncryptDecrypt(t *testing.T) {
 		{desc: "video HEVC cenc iv8", init: videoHEVCInit, seg: videoHEVCSeg, scheme: "cenc", iv: ivHex8},
 		{desc: "video HEVC cbcs iv8", init: videoHEVCInit, seg: videoHEVCSeg, scheme: "cbcs", iv: ivHex8},
 		{desc: "video HEVC cbcs iv16", init: videoHEVCInit, seg: videoHEVCSeg, scheme: "cbcs", iv: ivHex16},
+		{desc: "video AVC avc3 cenc iv8", init: videoAVCInit, seg: videoAVCSeg, scheme: "cenc", iv: ivHex8,
+			entryType: "avc3"},
+		{desc: "video AVC avc3 cbcs iv16", init: videoAVCInit, seg: videoAVCSeg, scheme: "cbcs", iv: ivHex16,
+			entryType: "avc3"},
+		{desc: "video HEVC hev1 cenc iv8", init: videoHEVCInit, seg: videoHEVCSeg, scheme: "cenc", iv: ivHex8,
+			entryType: "hev1"},
 		{desc: "video AV1 cenc iv8", init: videoAV1Init, seg: videoAV1Seg, scheme: "cenc", iv: ivHex8},
 		{desc: "video AV1 cenc iv16", init: videoAV1Init, seg: videoAV1Seg, scheme: "cenc", iv: ivHex16},
 		{desc: "video AV1 cbcs iv8", init: videoAV1Init, seg: videoAV1Seg, scheme: "cbcs", iv: ivHex8},
@@ -153,6 +161,9 @@ func TestEncryptDecrypt(t *testing.T) {
 			ifh.Close()
 			if err != nil {
 				t.Fatal(err)
+			}
+			if c.entryType != "" {
+				init.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.Children[0].(*mp4.VisualSampleEntryBox).SetType(c.entryType)
 			}
 			iv, err := hex.DecodeString(c.iv)
 			if err != nil {
