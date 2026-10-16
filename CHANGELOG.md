@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `ExtractInitProtectData` accepts `avc3` and `hev1` sample entries, as `InitProtect` already does
+
 ## [0.60.0] - 2026-10-13
 
 ### Added

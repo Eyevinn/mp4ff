@@ -447,6 +447,8 @@ type InitProtectData struct {
 // The stsd sample entry is rewritten in place (avc1 -> encv etc.), so if the init segment shares boxes
 // with another structure (for example a trak of a cached progressive file), clone the shared parts
 // first (see [CloneBox]) or the other structure is silently modified too.
+// For cbcs, AVC and HEVC slice headers are parsed with the SPS and PPS of the sample entry, so a stream
+// whose in-band parameter sets differ from those, as avc3 and hev1 streams may have, is not supported.
 func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, psshBoxes []*PsshBox) (*InitProtectData, error) {
 	ipd := InitProtectData{Scheme: scheme}
 	moov := init.Moov
@@ -1230,7 +1232,8 @@ func decryptSamplesInPlace(schemeType string, samples []FullSample, key []byte, 
 	return nil
 }
 
-// ExtractInitProtectData extracts protection data from init segment
+// ExtractInitProtectData extracts protection data from init segment.
+// For cbcs, it has the same parameter set limitation as [InitProtect].
 func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 	if len(inSeg.Moov.Traks) != 1 {
 		return nil, fmt.Errorf("only one track supported")
@@ -1246,12 +1249,12 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 			sinf = box.Sinf
 			frma := sinf.Frma
 			switch frma.DataFormat {
-			case "avc1":
+			case "avc1", "avc3":
 				ipd.newProtector, err = newAVCProtectorFactory(box.AvcC)
 				if err != nil {
 					return nil, fmt.Errorf("get AVC protector: %w", err)
 				}
-			case "hvc1", "dvh1", "dvhe":
+			case "hvc1", "hev1", "dvh1", "dvhe":
 				ipd.newProtector, err = newHEVCProtectorFactory(box.HvcC)
 				if err != nil {
 					return nil, fmt.Errorf("get HEVC protector: %w", err)
