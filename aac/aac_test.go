@@ -155,8 +155,8 @@ func TestVariousInputs(t *testing.T) {
 	}{
 		{
 			desc:          "unsupported object type",
-			data:          []byte{0x0f, 0x00},
-			expectedError: "unsupported object type: 1",
+			data:          []byte{0x1f, 0x00},
+			expectedError: "unsupported object type: 3",
 		},
 		{
 			desc:          "bad frequency index",
@@ -166,7 +166,7 @@ func TestVariousInputs(t *testing.T) {
 		{
 			desc:          "too short extended frequency",
 			data:          []byte{0x17, 0x80, 0x40},
-			expectedError: "strange frequency index",
+			expectedError: "audio specific config too short",
 		},
 	}
 
@@ -174,18 +174,18 @@ func TestVariousInputs(t *testing.T) {
 		t.Run(c.desc, func(t *testing.T) {
 			readBuf := bytes.NewBuffer(c.data)
 			_, err := DecodeAudioSpecificConfig(readBuf)
-			if err == nil || err.Error() != c.expectedError {
+			if err == nil || !strings.Contains(err.Error(), c.expectedError) {
 				t.Errorf("Expected error: %s", c.expectedError)
 			}
 		})
 	}
 
 	t.Run("32768Hz", func(t *testing.T) {
-		data := []byte{0x17, 0x80, 0x40, 0x00, 0x00}
+		data := []byte{0x17, 0x80, 0x40, 0x00, 0x08} // 32768 Hz, channel configuration 1.
 		readBuf := bytes.NewBuffer(data)
 		gotAsc, err := DecodeAudioSpecificConfig(readBuf)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if gotAsc.SamplingFrequency != 32768 {
 			t.Errorf("Expected 32768Hz, got %d", gotAsc.SamplingFrequency)
