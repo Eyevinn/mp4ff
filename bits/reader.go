@@ -14,9 +14,9 @@ type Reader struct {
 	off   int           // offset of the next byte in data
 	slice bool          // created by NewReaderFromSlice
 	err   error
-	n     int  // current number of bits
-	value uint // current accumulated value
-	pos   int  // current position in reader (in bytes)
+	n     int    // current number of bits
+	value uint64 // current accumulated value, 64 bits so that up to 32 bits can be read at any bit position
+	pos   int    // current position in reader (in bytes)
 }
 
 // AccError - accumulated error is first error that occurred
@@ -77,7 +77,8 @@ func (b *byteReader) ReadByte() (byte, error) {
 	return b.buf[0], err
 }
 
-// Read - read n bits. Return 0, if error now or previously
+// Read - read n bits. Return 0, if error now or previously.
+// Where uint has 32 bits, n must be at most 32.
 func (r *Reader) Read(n int) uint {
 	if r.err != nil {
 		return 0
@@ -91,16 +92,16 @@ func (r *Reader) Read(n int) uint {
 			return 0
 		}
 		r.pos++
-		r.value |= uint(newByte)
+		r.value |= uint64(newByte)
 
 		r.n += 8
 	}
 	value := r.value >> uint(r.n-n)
 
 	r.n -= n
-	r.value &= Mask(r.n)
+	r.value &= uint64(Mask(r.n))
 
-	return value
+	return uint(value)
 }
 
 // ReadSigned reads a 2-complemented signed int with n bits.

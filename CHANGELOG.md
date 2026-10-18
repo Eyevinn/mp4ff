@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DecodeFile` with `DecModeLazyMdat` returns an error for an mdat size above `math.MaxInt64` instead of looping
 - `SgpdBox` decodes entries with `descriptionLength` 0, such as `tsas`, and checks that every entry is exactly
   `descriptionLength` bytes
+### Fixed
+
+- On 32-bit architectures, `hevc.ParseSPSNALUnit` and `hevc.ParseVPSNALUnit` read the 48-bit constraint flags of
+  the profile, tier and level, and `bits.Reader.Read` and `bits.EBSPReader.Read` read up to 32 bits at any bit position
 
 ## [0.60.0] - 2026-10-13
 
