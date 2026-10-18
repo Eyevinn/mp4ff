@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   position
 - `bits.FixedSliceReader.SkipBytes` and `bits.EBSPReader.ReadBytes` set an error for a negative or too large length
   instead of moving backwards or panicking
+### Fixed
+
+- `hevc.DecodeHEVCDecConfRec` and `hevc.DecodeLHEVCDecConfRec` stop at the end of the record, instead of adding an
+  empty NAL unit for each one that the record announces but does not hold
 
 ## [0.60.0] - 2026-10-13
 
