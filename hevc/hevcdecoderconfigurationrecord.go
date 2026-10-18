@@ -138,13 +138,13 @@ func DecodeHEVCDecConfRec(data []byte) (DecConfRec, error) {
 		return hdcr, ErrLengthSize
 	}
 	numArrays := sr.ReadUint8()
-	for j := 0; j < int(numArrays); j++ {
+	for j := 0; j < int(numArrays) && sr.AccError() == nil; j++ {
 		array := NaluArray{
 			completeAndType: sr.ReadUint8(),
 			Nalus:           nil,
 		}
 		numNalus := int(sr.ReadUint16())
-		for i := 0; i < numNalus; i++ {
+		for i := 0; i < numNalus && sr.AccError() == nil; i++ {
 			naluLength := int(sr.ReadUint16())
 			array.Nalus = append(array.Nalus, sr.ReadBytes(naluLength))
 		}
@@ -248,13 +248,13 @@ func DecodeLHEVCDecConfRec(data []byte) (DecConfRec, error) {
 		return hdcr, err
 	}
 	numArrays := sr.ReadUint8()
-	for j := 0; j < int(numArrays); j++ {
+	for j := 0; j < int(numArrays) && sr.AccError() == nil; j++ {
 		array := NaluArray{
 			completeAndType: sr.ReadUint8(),
 			Nalus:           nil,
 		}
 		numNalus := int(sr.ReadUint16())
-		for i := 0; i < numNalus; i++ {
+		for i := 0; i < numNalus && sr.AccError() == nil; i++ {
 			naluLength := int(sr.ReadUint16())
 			array.Nalus = append(array.Nalus, sr.ReadBytes(naluLength))
 		}

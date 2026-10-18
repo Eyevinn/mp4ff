@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 func TestCreateDecConfRec(t *testing.T) {
@@ -133,6 +135,32 @@ func TestDecodeConfRec(t *testing.T) {
 	err = hdcr.Encode(&out)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+// TestDecodeConfRecStopsAtEndOfData checks that a record announcing more NAL units than it holds gives an error
+// without one allocation per announced NAL unit.
+func TestDecodeConfRecStopsAtEndOfData(t *testing.T) {
+	testCases := []struct {
+		name    string
+		hexData string // up to and including numNalus = 0xffff of the first array, and nothing after it
+		decode  func([]byte) (DecConfRec, error)
+	}{
+		{"hvcC", "010160000000900000000000" + "5df000fcfdf8f800000f" + "0120ffff", DecodeHEVCDecConfRec},
+		{"lhvC", "01f000fcff" + "0120ffff", DecodeLHEVCDecConfRec},
+	}
+	for _, tc := range testCases {
+		data, err := hex.DecodeString(tc.hexData)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tc.decode(data); !errors.Is(err, bits.ErrSliceRead) {
+			t.Errorf("%s: got error %v, want %v", tc.name, err, bits.ErrSliceRead)
+		}
+		allocs := testing.AllocsPerRun(10, func() { _, _ = tc.decode(data) })
+		if allocs > 5 {
+			t.Errorf("%s: %.0f allocations for a %d-byte record", tc.name, allocs, len(data))
+		}
 	}
 }
 
