@@ -121,6 +121,12 @@ type SubLayer struct {
 	LayerIDC                  byte
 }
 
+// read48 reads 48 bits in two parts, since Read returns a uint, which has 32 bits on some architectures.
+func read48(r *bits.EBSPReader) uint64 {
+	hi := uint64(r.Read(16))
+	return hi<<32 | uint64(r.Read(32))
+}
+
 func flagFrom(flags uint64, bitNr uint) bool {
 	return (flags & (1 << bitNr)) != 0
 }
@@ -133,7 +139,7 @@ func parseProfileTierLevel(r *bits.EBSPReader, profilePresentFlag bool, maxNumSu
 		ptl.GeneralTierFlag = r.ReadFlag()
 		ptl.GeneralProfileIDC = byte(r.Read(5))
 		ptl.GeneralProfileCompatibilityFlags = uint32(r.Read(32))
-		ptl.GeneralConstraintIndicatorFlags = uint64(r.Read(48))
+		ptl.GeneralConstraintIndicatorFlags = read48(r)
 		ptl.GeneralProgressiveSourceFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 47)
 		ptl.GeneralInterlacedSourceFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 46)
 		ptl.GeneralNonPackedConstraintFlag = flagFrom(ptl.GeneralConstraintIndicatorFlags, 45)
@@ -156,7 +162,7 @@ func parseProfileTierLevel(r *bits.EBSPReader, profilePresentFlag bool, maxNumSu
 				ptl.SubLayers[i].TierFlag = r.ReadFlag()
 				ptl.SubLayers[i].ProfileIDC = byte(r.Read(5))
 				ptl.SubLayers[i].ProfileCompatibilityFlags = uint32(r.Read(32))
-				ptl.SubLayers[i].ConstraintFlags = uint64(r.Read(48)) // Including 4 flags from ProgressiveSourceFlag and forward
+				ptl.SubLayers[i].ConstraintFlags = read48(r) // Including 4 flags from ProgressiveSourceFlag and forward
 				ptl.SubLayers[i].ProgressiveSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 47)
 				ptl.SubLayers[i].InterlacedSourceFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 46)
 				ptl.SubLayers[i].NonPackedConstraintFlag = flagFrom(ptl.SubLayers[i].ConstraintFlags, 45)

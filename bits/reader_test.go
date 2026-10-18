@@ -300,6 +300,28 @@ func TestByteAlign(t *testing.T) {
 	})
 }
 
+// TestRead32BitsNotByteAligned checks that 32 bits read after 7 bits keep their first bit, also where uint is
+// 32 bits wide.
+func TestRead32BitsNotByteAligned(t *testing.T) {
+	data := []byte{0x01, 0x23, 0x45, 0x67, 0x89} // 0000000 1 00100011 01000101 01100111 1000100 1
+	readers := []struct {
+		name string
+		read func(n int) uint
+	}{
+		{"Reader", bits.NewReaderFromSlice(data).Read},
+		{"EBSPReader", bits.NewEBSPReaderFromSlice(data).Read},
+	}
+	for _, r := range readers {
+		_ = r.read(7)
+		if got := r.read(32); got != 0x91a2b3c4 {
+			t.Errorf("%s: Read(32)=%#x, want 0x91a2b3c4", r.name, got)
+		}
+		if got := r.read(1); got != 1 {
+			t.Errorf("%s: last Read(1)=%d, want 1", r.name, got)
+		}
+	}
+}
+
 func TestReaderExpGolomb(t *testing.T) {
 	cases := []struct {
 		input  byte

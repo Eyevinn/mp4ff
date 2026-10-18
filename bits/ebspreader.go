@@ -23,8 +23,8 @@ type EBSPReader struct {
 	data      []byte        // the bytes to read when created by NewEBSPReaderFromSlice
 	fromSlice bool
 	err       error
-	n         int  // current number of bits
-	v         uint // current accumulated value
+	n         int    // current number of bits
+	v         uint64 // current accumulated value, 64 bits so that up to 32 bits can be read at any bit position
 	pos       int
 	zeroCount int // Count number of zero bytes read
 }
@@ -85,6 +85,7 @@ func (r *EBSPReader) NrBitsReadInCurrentByte() int {
 }
 
 // Read reads n bits and respects and accumulates errors. If error, returns 0.
+// Where uint has 32 bits, n must be at most 32.
 func (r *EBSPReader) Read(n int) uint {
 	if r.err != nil {
 		return 0
@@ -113,16 +114,16 @@ func (r *EBSPReader) Read(n int) uint {
 		} else {
 			r.zeroCount++
 		}
-		r.v |= uint(b)
+		r.v |= uint64(b)
 
 		r.n += 8
 	}
 	v := r.v >> uint(r.n-n)
 
 	r.n -= n
-	r.v &= Mask(r.n)
+	r.v &= uint64(Mask(r.n))
 
-	return v
+	return uint(v)
 }
 
 // ReadBytes read n bytes and return nil if new or accumulated error.
