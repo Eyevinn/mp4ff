@@ -3,7 +3,10 @@ package vvc
 import (
 	"bytes"
 	"errors"
+	"runtime"
 	"testing"
+
+	"github.com/Eyevinn/mp4ff/bits"
 )
 
 func TestDecConfRec(t *testing.T) {
@@ -369,5 +372,21 @@ func TestDecConfRecLengthSize(t *testing.T) {
 	// reserved(5) = '11111'b, LengthSizeMinusOne(2) = 2, ptl_present_flag(1) = 0, then numOfArrays = 0
 	if _, err := DecodeVVCDecConfRec([]byte{0xfc, 0x00}); !errors.Is(err, ErrInvalidLengthSize) {
 		t.Errorf("LengthSizeMinusOne 2: got error %v, want ErrInvalidLengthSize", err)
+	}
+}
+
+// TestDecodeVVCDecConfRecStopsAtEndOfData checks that a record announcing more NAL units than it holds gives an
+// error without allocating for every announced NAL unit.
+func TestDecodeVVCDecConfRecStopsAtEndOfData(t *testing.T) {
+	data := []byte{0xfe, 0x01, 0x01, 0xff, 0xff} // no PTL, one array with numNalus 0xffff, and nothing after it
+	if _, err := DecodeVVCDecConfRec(data); !errors.Is(err, bits.ErrSliceRead) {
+		t.Errorf("got error %v, want %v", err, bits.ErrSliceRead)
+	}
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	_, _ = DecodeVVCDecConfRec(data)
+	runtime.ReadMemStats(&after)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 4096 {
+		t.Errorf("%d bytes allocated for a %d-byte record", allocated, len(data))
 	}
 }
