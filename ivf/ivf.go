@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 const (
@@ -93,6 +94,9 @@ func (rd *Reader) ReadFrame() (Frame, error) {
 		return Frame{}, err // io.EOF at a clean frame boundary
 	}
 	size := binary.LittleEndian.Uint32(fh[0:4])
+	if uint64(size) > math.MaxInt {
+		return Frame{}, fmt.Errorf("frame size %d does not fit in an int", size)
+	}
 	ts := binary.LittleEndian.Uint64(fh[4:12])
 	data := make([]byte, size)
 	if _, err := io.ReadFull(rd.r, data); err != nil {

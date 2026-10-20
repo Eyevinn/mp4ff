@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"io"
 	"math"
 	"testing"
@@ -538,5 +539,21 @@ func TestLazyMdatPayload(t *testing.T) {
 	lazyMdat, _ := createLazyMdat(t, []byte{0, 1, 2})
 	if got := lazyMdat.Payload(); got != nil {
 		t.Errorf("Payload of lazy mdat is %v, expected nil", got)
+	}
+}
+
+// TestDecodeMdatSRBeyondSlice checks an mdat with a largesize of 2^32+1016 bytes, of which only 1000 payload bytes
+// are in the slice. The size modulo 2^32 matches the data, but the payload must not be read.
+func TestDecodeMdatSRBeyondSlice(t *testing.T) {
+	data := make([]byte, 16+1000)
+	copy(data, []byte{0, 0, 0, 1, 'm', 'd', 'a', 't'})
+	binary.BigEndian.PutUint64(data[8:16], 1<<32+1016)
+	sr := bits.NewFixedSliceReader(data)
+	box, err := mp4.DecodeBoxSR(0, sr)
+	if err == nil && sr.AccError() == nil {
+		t.Fatal("expected an error")
+	}
+	if mdat, ok := box.(*mp4.MdatBox); ok && len(mdat.Data) != 0 {
+		t.Errorf("got %d bytes of mdat data, want 0", len(mdat.Data))
 	}
 }

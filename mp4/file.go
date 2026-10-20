@@ -803,15 +803,15 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 					return fmt.Errorf("wrote %d instead of %d bytes", n, size)
 				}
 			} else {
-				nrLeft := int(size)
+				nrLeft := size
 				nrRead := 0
 				for {
-					end := min(workLen, workPos+nrLeft)
+					end := workPos + int(min(int64(workLen-workPos), nrLeft))
 					n, err := rs.Read(workSpace[workPos:end])
 					if err != nil {
 						return err
 					}
-					nrLeft -= n
+					nrLeft -= int64(n)
 					workPos += n
 					nrRead += n
 					if nrLeft == 0 {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"strconv"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -756,5 +757,15 @@ func TestPeekBoxHeaderLargeSizeInvalid(t *testing.T) {
 	_, _, err := bsr.PeekBoxHeader()
 	if err == nil {
 		t.Error("PeekBoxHeader should fail when largesize is less than header length")
+	}
+}
+
+func TestBoxSeekReaderSeekBeyondInt(t *testing.T) {
+	if strconv.IntSize > 32 {
+		t.Skip("the seek distance fits in an int")
+	}
+	bsr := mp4.NewBoxSeekReader(bytes.NewReader(make([]byte, 100)), 0)
+	if _, err := bsr.Seek(1<<32+10, io.SeekStart); err == nil {
+		t.Error("expected an error for a seek of more than math.MaxInt bytes ahead")
 	}
 }

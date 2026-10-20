@@ -240,8 +240,9 @@ type BoxHeader struct {
 	Hdrlen int
 }
 
+// payloadLen returns the payload size, or math.MaxInt if it does not fit in an int.
 func (b BoxHeader) payloadLen() int {
-	return int(b.Size) - b.Hdrlen
+	return int(min(b.Size-uint64(b.Hdrlen), math.MaxInt))
 }
 
 // DecodeHeader decodes a box header (size + box type + possible largeSize)

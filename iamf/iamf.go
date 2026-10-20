@@ -2,6 +2,7 @@ package iamf
 
 import (
 	"errors"
+	"math"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -57,4 +58,9 @@ func Leb128Size(value uint64) int {
 		value >>= 7
 	}
 	return size
+}
+
+// skipBytes skips n bytes of sr. An n that does not fit in an int is beyond the end of sr and gives an error in sr.
+func skipBytes(sr bits.SliceReader, n uint64) {
+	sr.SkipBytes(int(min(n, math.MaxInt)))
 }
