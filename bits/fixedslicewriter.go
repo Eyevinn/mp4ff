@@ -7,8 +7,8 @@ type FixedSliceWriter struct {
 	accError error
 	buf      []byte
 	off      int
-	n        int  // current number of bits
-	v        uint // current accumulated value for bits
+	n        int    // current number of bits
+	v        uint64 // current accumulated value for bits, 64 bits so that up to 32 bits can be written at any bit position
 }
 
 // NewFixedSliceWriterFromSlice - create writer around slice.
@@ -218,14 +218,14 @@ func (sw *FixedSliceWriter) WriteBits(bits uint, n int) {
 		return
 	}
 	sw.v <<= uint(n)
-	sw.v |= bits & Mask(n)
+	sw.v |= uint64(bits & Mask(n))
 	sw.n += n
 	for sw.n >= 8 {
-		b := byte((sw.v >> (uint(sw.n) - 8)) & Mask(8))
+		b := byte((sw.v >> (uint(sw.n) - 8)) & uint64(Mask(8)))
 		sw.WriteUint8(b)
 		sw.n -= 8
 	}
-	sw.v &= Mask(8)
+	sw.v &= uint64(Mask(8))
 }
 
 // WriteExpGolomb writes an unsigned exponential Golomb code ue(v).
@@ -233,13 +233,9 @@ func (sw *FixedSliceWriter) WriteExpGolomb(n uint) {
 	if sw.accError != nil {
 		return
 	}
-	leadingZeroBits := 0
-	v := n + 1
-	for v > 1 {
-		v >>= 1
-		leadingZeroBits++
-	}
-	sw.WriteBits(n+1, 2*leadingZeroBits+1)
+	leadingZeroBits, suffix := expGolombSplit(n)
+	sw.WriteBits(1, leadingZeroBits+1)
+	sw.WriteBits(suffix, leadingZeroBits)
 }
 
 // WriteSignedGolomb writes a signed exponential Golomb code se(v).
@@ -272,7 +268,7 @@ func (sw *FixedSliceWriter) FlushBits() {
 		return
 	}
 	if sw.n != 0 {
-		b := byte((sw.v << (8 - uint(sw.n))) & Mask(8))
+		b := byte((sw.v << (8 - uint(sw.n))) & uint64(Mask(8)))
 		sw.WriteUint8(b)
 	}
 }
