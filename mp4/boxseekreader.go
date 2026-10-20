@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 // BoxSeekReader wraps an io.Reader and provides limited io.ReadSeeker functionality.
@@ -218,6 +219,9 @@ func (bsr *BoxSeekReader) Seek(offset int64, whence int) (int64, error) {
 
 		// Grow buffer to accommodate the data we need to read
 		currentLen := len(bsr.buffer)
+		if toRead > int64(math.MaxInt-currentLen) {
+			return 0, fmt.Errorf("seek of %d bytes ahead does not fit in buffer of %d bytes", toRead, currentLen)
+		}
 		neededLen := currentLen + int(toRead)
 		if cap(bsr.buffer) < neededLen {
 			// Need to grow capacity

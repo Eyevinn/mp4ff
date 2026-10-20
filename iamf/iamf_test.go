@@ -3,6 +3,7 @@ package iamf
 import (
 	"encoding/hex"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
@@ -956,5 +957,15 @@ func TestToChannelLayoutCustom(t *testing.T) {
 	}
 	if got := out.ChannelMap["0"]; got != "CH0" {
 		t.Errorf("ChannelMap[0] = %q, want CH0", got)
+	}
+}
+
+func TestSkipBytesBeyondInt(t *testing.T) {
+	for _, n := range []uint64{5, 1<<32 + 1, math.MaxUint64} {
+		sr := bits.NewFixedSliceReader(make([]byte, 4))
+		skipBytes(sr, n)
+		if sr.AccError() == nil {
+			t.Errorf("skipBytes(%d): expected error", n)
+		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
@@ -369,5 +370,17 @@ func TestGetContainingChunksLastChunkNr(t *testing.T) {
 	want := []mp4.Chunk{{0xFFFFFFFE, 0xFFFFFFFE, 1}, {0xFFFFFFFF, 0xFFFFFFFF, 1}}
 	if diff := deep.Equal(r.chunks, want); diff != nil {
 		t.Error(diff)
+	}
+}
+
+// TestStscEntryCountOverflow checks an entry count whose size in bytes, 16 + 12*0x15555556, is 24 modulo 2^32.
+func TestStscEntryCountOverflow(t *testing.T) {
+	raw := []byte{0x00, 0x00, 0x00, 0x18, 's', 't', 's', 'c', 0x00, 0x00, 0x00, 0x00, 0x15, 0x55, 0x55, 0x56,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	if _, err := mp4.DecodeBox(0, bytes.NewBuffer(raw)); err == nil {
+		t.Error("DecodeBox: expected invalid size error")
+	}
+	if _, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(raw)); err == nil {
+		t.Error("DecodeBoxSR: expected invalid size error")
 	}
 }

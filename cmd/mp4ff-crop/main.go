@@ -98,14 +98,14 @@ func run(args []string, stdout io.Writer) error {
 	defer ofh.Close()
 
 	ow := bufio.NewWriter(ofh)
-	err = cropMP4(parsedMp4, int(o.durationMS), ow, ifh)
+	err = cropMP4(parsedMp4, o.durationMS, ow, ifh)
 	if err != nil {
 		return fmt.Errorf("error cropping mp4 file: %w", err)
 	}
 	return ow.Flush()
 }
 
-func cropMP4(inMP4 *mp4.File, durationMS int, w io.Writer, ifh io.ReadSeeker) error {
+func cropMP4(inMP4 *mp4.File, durationMS uint, w io.Writer, ifh io.ReadSeeker) error {
 	if inMP4.IsFragmented() {
 		return fmt.Errorf("only progressive files are supported")
 	}
@@ -128,7 +128,7 @@ func cropMP4(inMP4 *mp4.File, durationMS int, w io.Writer, ifh io.ReadSeeker) er
 }
 
 // findEndTime - find closest video sync frame, or audio frame if no video
-func findEndTime(moov *mp4.MoovBox, durationMS int) (endTime, endTimescale uint64, err error) {
+func findEndTime(moov *mp4.MoovBox, durationMS uint) (endTime, endTimescale uint64, err error) {
 	var syncTrak *mp4.TrakBox
 	for _, trak := range moov.Traks {
 		if trak.Mdia.Hdlr.HandlerType == "vide" {

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `descriptionLength` bytes
 - On 32-bit architectures, `hevc.ParseSPSNALUnit` and `hevc.ParseVPSNALUnit` read the 48-bit constraint flags of
   the profile, tier and level, and the `bits` readers and writers handle up to 32 bits at any bit position
+- On 32-bit architectures, `File.CopySampleData` copies chunks of 2 GiB or more, and sizes beyond the `int` range in
+  `mdat`, `stsc`, `BoxSeekReader.Seek`, `ivf.Reader.ReadFrame` and the IAMF parser give errors instead of wrong data
 - `bits.EBSPWriter.WriteExpGolomb` and `bits.FixedSliceWriter.WriteExpGolomb` write values up to 2^32-1 at any bit
   position
 - `bits.FixedSliceReader.SkipBytes` and `bits.EBSPReader.ReadBytes` set an error for a negative or too large length

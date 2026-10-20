@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strconv"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/ivf"
@@ -68,5 +69,23 @@ func TestBadSignature(t *testing.T) {
 func TestBadFourCC(t *testing.T) {
 	if _, err := ivf.NewWriter(&bytes.Buffer{}, ivf.FileHeader{FourCC: "AV1"}); err == nil {
 		t.Error("expected error for non-4-character FourCC")
+	}
+}
+
+func TestReadFrameSizeBeyondInt(t *testing.T) {
+	if strconv.IntSize > 32 {
+		t.Skip("a 32-bit frame size fits in an int")
+	}
+	var buf bytes.Buffer
+	if _, err := ivf.NewWriter(&buf, ivf.FileHeader{FourCC: ivf.CodecAV1, Rate: 25, Scale: 1}); err != nil {
+		t.Fatal(err)
+	}
+	buf.Write([]byte{0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0})
+	rd, err := ivf.NewReader(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rd.ReadFrame(); err == nil {
+		t.Error("expected an error for frame size 0xffffffff")
 	}
 }

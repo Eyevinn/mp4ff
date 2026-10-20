@@ -1066,7 +1066,7 @@ func audioElementObu(sr bits.SliceReader, ctx *IamfContext) error {
 			if err != nil {
 				return err
 			}
-			sr.SkipBytes(int(paramDefinitionSize))
+			skipBytes(sr, paramDefinitionSize)
 		}
 	}
 
@@ -1171,7 +1171,7 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 			if err != nil {
 				return err
 			}
-			sr.SkipBytes(int(renderingConfigExtSize))
+			skipBytes(sr, renderingConfigExtSize)
 
 			elementMixGain, err := paramParse(sr, ctx, ParamDefinitionMixGain, audioElement)
 			if err != nil {
@@ -1255,7 +1255,7 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 				if err != nil {
 					return err
 				}
-				sr.SkipBytes(int(infoTypeSize))
+				skipBytes(sr, infoTypeSize)
 			}
 
 			submixLayouts[j] = &SubmixLayout{

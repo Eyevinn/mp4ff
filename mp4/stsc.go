@@ -51,7 +51,7 @@ func DecodeStscSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		Version: byte(versionAndFlags >> 24),
 		Flags:   versionAndFlags & flagsMask,
 	}
-	if hdr.Size != b.expectedSize(int(entryCount)) {
+	if hdr.Size != b.expectedSize(entryCount) {
 		return nil, fmt.Errorf("invalid stsc box size")
 	}
 
@@ -96,11 +96,11 @@ func (b *StscBox) Type() string {
 
 // Size - box-specific size
 func (b *StscBox) Size() uint64 {
-	return b.expectedSize(len(b.Entries))
+	return b.expectedSize(uint32(len(b.Entries)))
 }
 
-func (b *StscBox) expectedSize(nrEntries int) uint64 {
-	return uint64(boxHeaderSize + 8 + nrEntries*12)
+func (b *StscBox) expectedSize(entryCount uint32) uint64 {
+	return boxHeaderSize + 8 + uint64(entryCount)*12
 }
 
 // Encode - write box to w
