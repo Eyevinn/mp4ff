@@ -1,6 +1,7 @@
 package mp4_test
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -118,6 +119,54 @@ func TestGetSampleDataShortTables(t *testing.T) {
 			}
 			if len(samples) != 10 {
 				t.Errorf("got %d samples instead of 10", len(samples))
+			}
+		})
+	}
+}
+
+func TestTrakSampleMethodsMissingMandatoryBoxes(t *testing.T) {
+	cases := []struct {
+		boxType             string
+		wantZeroSamples     bool
+		wantSampleDataError bool
+		wantRangesError     bool
+	}{
+		{boxType: "mdia", wantZeroSamples: true, wantSampleDataError: true, wantRangesError: true},
+		{boxType: "minf", wantZeroSamples: true, wantSampleDataError: true, wantRangesError: true},
+		{boxType: "stbl", wantZeroSamples: true, wantSampleDataError: true, wantRangesError: true},
+		{boxType: "stsz", wantZeroSamples: true, wantSampleDataError: true, wantRangesError: true},
+		{boxType: "stts", wantSampleDataError: true},
+		{boxType: "stsc", wantRangesError: true},
+	}
+	for _, c := range cases {
+		t.Run(c.boxType, func(t *testing.T) {
+			data, err := os.ReadFile("testdata/prog_8s.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			idx := bytes.Index(data, []byte(c.boxType))
+			if idx < 0 {
+				t.Fatalf("box %q not found in test file", c.boxType)
+			}
+			copy(data[idx:idx+4], "free")
+			f, err := mp4.DecodeFile(bytes.NewReader(data))
+			if err != nil {
+				t.Fatalf("DecodeFile: %v", err)
+			}
+			if len(f.Moov.Traks) == 0 {
+				t.Fatal("decoded file has no tracks")
+			}
+			trak := f.Moov.Traks[0]
+			if got := trak.GetNrSamples(); (got == 0) != c.wantZeroSamples {
+				t.Errorf("GetNrSamples() = %d, want zero samples: %t", got, c.wantZeroSamples)
+			}
+			_, err = trak.GetSampleData(1, 1)
+			if (err != nil) != c.wantSampleDataError {
+				t.Errorf("GetSampleData() error = %v, want error: %t", err, c.wantSampleDataError)
+			}
+			_, err = trak.GetRangesForSampleInterval(1, 1)
+			if (err != nil) != c.wantRangesError {
+				t.Errorf("GetRangesForSampleInterval() error = %v, want error: %t", err, c.wantRangesError)
 			}
 		})
 	}

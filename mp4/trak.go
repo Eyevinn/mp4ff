@@ -119,16 +119,47 @@ func (t *TrakBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	return ContainerInfo(t, w, specificBoxLevels, indent, indentStep)
 }
 
+// getSampleTable returns the sample table for this track, or an error when a
+// required parent box is missing.
+func (t *TrakBox) getSampleTable() (*StblBox, error) {
+	if t == nil {
+		return nil, fmt.Errorf("track is nil")
+	}
+	if t.Mdia == nil {
+		return nil, fmt.Errorf("track has no mdia box")
+	}
+	if t.Mdia.Minf == nil {
+		return nil, fmt.Errorf("track has no minf box")
+	}
+	if t.Mdia.Minf.Stbl == nil {
+		return nil, fmt.Errorf("track has no stbl box")
+	}
+	return t.Mdia.Minf.Stbl, nil
+}
+
 // GetNrSamples - get number of samples for this track defined in the parent moov box.
+// It returns 0 when the track has no sample table or sample size box.
 func (t *TrakBox) GetNrSamples() uint32 {
-	stbl := t.Mdia.Minf.Stbl
+	stbl, err := t.getSampleTable()
+	if err != nil || stbl.Stsz == nil {
+		return 0
+	}
 	return stbl.Stsz.GetNrSamples()
 }
 
 // GetSampleData - get sample metadata for a specific interval of samples defined in moov.
 // If going outside the range of available samples, an error is returned.
 func (t *TrakBox) GetSampleData(startSampleNr, endSampleNr uint32) ([]Sample, error) {
-	stbl := t.Mdia.Minf.Stbl
+	stbl, err := t.getSampleTable()
+	if err != nil {
+		return nil, err
+	}
+	if stbl.Stsz == nil {
+		return nil, fmt.Errorf("track has no stsz box")
+	}
+	if stbl.Stts == nil {
+		return nil, fmt.Errorf("track has no stts box")
+	}
 	nrSamples := stbl.Stsz.GetNrSamples()
 	if startSampleNr < 1 || endSampleNr > nrSamples {
 		return nil, fmt.Errorf("sample interval %d-%d not inside available %d-%d", startSampleNr, endSampleNr, 1, nrSamples)
@@ -186,7 +217,16 @@ type DataRange struct {
 
 // GetRangesForSampleInterval - get ranges inside file for sample range [startSampleNr, endSampleNr]
 func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) ([]DataRange, error) {
-	stbl := t.Mdia.Minf.Stbl
+	stbl, err := t.getSampleTable()
+	if err != nil {
+		return nil, err
+	}
+	if stbl.Stsz == nil {
+		return nil, fmt.Errorf("track has no stsz box")
+	}
+	if stbl.Stsc == nil {
+		return nil, fmt.Errorf("track has no stsc box")
+	}
 	stsc := stbl.Stsc
 	stco := stbl.Stco
 	co64 := stbl.Co64
