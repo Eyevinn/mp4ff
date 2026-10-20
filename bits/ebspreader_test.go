@@ -518,3 +518,10 @@ func TestEBSPReaderAllocations(t *testing.T) {
 		t.Errorf("plain io.Reader: got %.0f allocations for 100 bytes, want 0", allocs)
 	}
 }
+
+func TestEBSPReaderReadNegativeNrBytes(t *testing.T) {
+	r := bits.NewEBSPReaderFromSlice([]byte{1, 2, 3})
+	if got := r.ReadBytes(-1); got != nil || r.AccError() == nil {
+		t.Errorf("ReadBytes(-1)=%v, err %v; want nil and an error", got, r.AccError())
+	}
+}

@@ -256,8 +256,12 @@ func (s *FixedSliceReader) SkipBytes(n int) {
 	if s.err != nil {
 		return
 	}
-	if s.pos+n > s.Length() {
-		s.err = fmt.Errorf("attempt to skip bytes to pos %d beyond slice len %d", s.pos+n, s.len)
+	if n < 0 {
+		s.err = fmt.Errorf("attempt to skip negative number of bytes: %d", n)
+		return
+	}
+	if n > s.len-s.pos {
+		s.err = fmt.Errorf("attempt to skip %d bytes from pos %d beyond slice len %d", n, s.pos, s.len)
 		return
 	}
 	s.pos += n
