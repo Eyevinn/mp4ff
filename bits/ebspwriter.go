@@ -12,9 +12,9 @@ type EBSPWriter struct {
 	err error     // The first error caused by any write operation
 	out []byte    // Slice of length 1 to avoid allocation at output
 
-	n   int  // current number of bits
-	v   uint // current accumulated value
-	nr0 int  // Number preceding zero bytes
+	n   int    // current number of bits
+	v   uint64 // current accumulated value, 64 bits so that up to 32 bits can be written at any bit position
+	nr0 int    // Number preceding zero bytes
 
 }
 
@@ -32,10 +32,10 @@ func (w *EBSPWriter) Write(bits uint, n int) {
 		return
 	}
 	w.v <<= uint(n)
-	w.v |= bits & Mask(n)
+	w.v |= uint64(bits & Mask(n))
 	w.n += n
 	for w.n >= 8 {
-		b := (w.v >> (uint(w.n) - 8)) & Mask(8)
+		b := (w.v >> (uint(w.n) - 8)) & uint64(Mask(8))
 		if w.nr0 == 2 && b <= 3 {
 			w.out[0] = 0x3 // start code emulation prevention
 			_, err := w.wr.Write(w.out)
@@ -58,27 +58,15 @@ func (w *EBSPWriter) Write(bits uint, n int) {
 		}
 		w.n -= 8
 	}
-	w.v &= Mask(8)
+	w.v &= uint64(Mask(8))
 }
 
 // WriteExpGolomb - write an exponential Golomb code
 func (w *EBSPWriter) WriteExpGolomb(nr uint) {
-	offset := uint(0)
-	prefixLen := uint(0)
-	delta := uint(0)
-	max := uint(0)
-	for {
-		if nr <= max {
-			delta = nr - offset
-			break
-		}
-		offset += 1 << prefixLen
-		prefixLen++
-		max = offset + (1 << prefixLen) - 1
-	}
-	w.Write(1, int(prefixLen+1))
-	if prefixLen > 0 {
-		w.Write(delta, int(prefixLen))
+	leadingZeroBits, suffix := expGolombSplit(nr)
+	w.Write(1, leadingZeroBits+1)
+	if leadingZeroBits > 0 {
+		w.Write(suffix, leadingZeroBits)
 	}
 }
 
@@ -120,5 +108,5 @@ func (w *EBSPWriter) NrBitsInBuffer() uint {
 
 // BitsInBuffer - n bits written in buffer byte, not written to underlying writer
 func (w *EBSPWriter) BitsInBuffer() (bits, n uint) {
-	return w.v, uint(w.n)
+	return uint(w.v), uint(w.n)
 }
