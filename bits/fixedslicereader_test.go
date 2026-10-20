@@ -2,6 +2,7 @@ package bits_test
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -303,5 +304,18 @@ func TestFixedSliceReaderReset(t *testing.T) {
 	}
 	if allocs := testing.AllocsPerRun(10, func() { sr.Reset(nil) }); allocs != 0 {
 		t.Errorf("Reset made %.0f allocations, want none", allocs)
+	}
+}
+
+func TestFixedSliceReaderSkipBytesOutOfRange(t *testing.T) {
+	for _, n := range []int{-1, 5, math.MaxInt} {
+		sr := bits.NewFixedSliceReader(make([]byte, 4))
+		sr.SkipBytes(n)
+		if sr.AccError() == nil {
+			t.Errorf("SkipBytes(%d): expected error", n)
+		}
+		if sr.GetPos() != 0 {
+			t.Errorf("SkipBytes(%d): pos %d, want 0", n, sr.GetPos())
+		}
 	}
 }

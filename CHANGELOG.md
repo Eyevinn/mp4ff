@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the profile, tier and level, and the `bits` readers and writers handle up to 32 bits at any bit position
 - `bits.EBSPWriter.WriteExpGolomb` and `bits.FixedSliceWriter.WriteExpGolomb` write values up to 2^32-1 at any bit
   position
+- `bits.FixedSliceReader.SkipBytes` and `bits.EBSPReader.ReadBytes` set an error for a negative or too large length
+  instead of moving backwards or panicking
 
 ## [0.60.0] - 2026-10-13
 

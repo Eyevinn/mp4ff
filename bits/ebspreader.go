@@ -131,6 +131,10 @@ func (r *EBSPReader) ReadBytes(n int) []byte {
 	if r.err != nil {
 		return nil
 	}
+	if n < 0 {
+		r.err = fmt.Errorf("attempt to read negative number of bytes: %d", n)
+		return nil
+	}
 	payload := make([]byte, n)
 	for i := 0; i < n; i++ {
 		b := byte(r.Read(8))
