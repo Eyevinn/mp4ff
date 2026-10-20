@@ -34,3 +34,27 @@ jobs:
       - name: Test
         run: go test -v ./...
 
+  test-386:
+    # 32-bit int and uint. linux/amd64 runs 386 binaries natively.
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: "386"
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download Go dependencies
+        run: go mod download
+        env:
+          GOPROXY: "https://proxy.golang.org"
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test ./...
