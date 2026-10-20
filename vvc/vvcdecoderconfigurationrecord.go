@@ -378,7 +378,7 @@ func DecodeVVCDecConfRec(data []byte) (DecConfRec, error) {
 	numOfArrays := sr.ReadUint8()
 
 	// NAL unit arrays
-	for i := 0; i < int(numOfArrays); i++ {
+	for i := 0; i < int(numOfArrays) && sr.AccError() == nil; i++ {
 		// arrayCompleteness (1 bit) + reserved (2 bits) + NALUnitType (5 bits)
 		arrayByte := sr.ReadUint8()
 		array := NaluArray{
@@ -390,10 +390,11 @@ func DecodeVVCDecConfRec(data []byte) (DecConfRec, error) {
 		if array.NaluType != NALU_DCI && array.NaluType != NALU_OPI {
 			numNalus = sr.ReadUint16()
 		}
-		array.Nalus = make([][]byte, numNalus)
-		for j := 0; j < int(numNalus); j++ {
+		// Each NAL unit takes at least its 2-byte length, so the bytes left bound the capacity
+		array.Nalus = make([][]byte, 0, min(int(numNalus), sr.NrRemainingBytes()/2))
+		for j := 0; j < int(numNalus) && sr.AccError() == nil; j++ {
 			naluLength := sr.ReadUint16()
-			array.Nalus[j] = sr.ReadBytes(int(naluLength))
+			array.Nalus = append(array.Nalus, sr.ReadBytes(int(naluLength)))
 		}
 
 		d.NaluArrays = append(d.NaluArrays, array)
