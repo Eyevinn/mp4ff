@@ -32,12 +32,9 @@ func DecodeTraf(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &TrafBox{Children: children[:0]} // AddChild appends each child once, in order, so the slice is refilled in place
-	for _, child := range children {
-		err := t.AddChild(child)
-		if err != nil {
-			return nil, err
-		}
+	t := &TrafBox{}
+	if err := t.setChildren(children); err != nil {
+		return nil, err
 	}
 	return t, nil
 }
@@ -48,12 +45,9 @@ func DecodeTrafSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if err != nil {
 		return nil, err
 	}
-	t := &TrafBox{Children: children[:0]} // AddChild appends each child once, in order, so the slice is refilled in place
-	for _, child := range children {
-		err := t.AddChild(child)
-		if err != nil {
-			return nil, err
-		}
+	t := &TrafBox{}
+	if err := t.setChildren(children); err != nil {
+		return nil, err
 	}
 	return t, nil
 }
@@ -70,6 +64,7 @@ func (t *TrafBox) decodeSRInto(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 
 // setChildren makes children, in the storage of which it keeps them, the children of t, reusing the storage of
 // the trun list of t. AddChild appends each child once, in order, so children is refilled in place.
+// A traf has exactly one tfhd, so it is an error if children hold none.
 func (t *TrafBox) setChildren(children []Box) error {
 	clear(t.Truns)
 	*t = TrafBox{Truns: t.Truns[:0], Children: children[:0]}
@@ -77,6 +72,9 @@ func (t *TrafBox) setChildren(children []Box) error {
 		if err := t.AddChild(c); err != nil {
 			return err
 		}
+	}
+	if t.Tfhd == nil {
+		return errors.New("traf without tfhd")
 	}
 	return nil
 }

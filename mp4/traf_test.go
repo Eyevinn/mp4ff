@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 )
 
@@ -75,6 +76,40 @@ func TestTrafTrunWithoutOptimization(t *testing.T) {
 		runEncodeDecode(t, test, optimization)
 	}
 }
+
+// TestTrafWithoutTfhd checks that a traf decodes only with its tfhd, with DecodeBox and DecodeBoxSR as in a
+// fragment that a FragmentDecoder decodes.
+func TestTrafWithoutTfhd(t *testing.T) {
+	traf := &mp4.TrafBox{}
+	if err := traf.AddChild(mp4.CreateTfdt(0)); err != nil {
+		t.Fatal(err)
+	}
+	var trafBuf bytes.Buffer
+	if err := traf.Encode(&trafBuf); err != nil {
+		t.Fatal(err)
+	}
+	assertBoxDecodeError(t, trafBuf.Bytes(), 0, "decode traf pos 0: traf without tfhd")
+
+	moof := &mp4.MoofBox{}
+	if err := moof.AddChild(&mp4.MfhdBox{SequenceNumber: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := moof.AddChild(traf); err != nil {
+		t.Fatal(err)
+	}
+	var fragBuf bytes.Buffer
+	for _, b := range []mp4.Box{moof, &mp4.MdatBox{}} {
+		if err := b.Encode(&fragBuf); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var d mp4.FragmentDecoder
+	_, err := d.DecodeSR(bits.NewFixedSliceReader(fragBuf.Bytes()), 0)
+	if want := "decode moof pos 0: decode traf pos 24: traf without tfhd"; err == nil || err.Error() != want {
+		t.Errorf("FragmentDecoder: got error %v, want %q", err, want)
+	}
+}
+
 func TestRemoveEncryptionBoxes(t *testing.T) {
 	// Create a traf box with various child boxes
 	traf := &mp4.TrafBox{}
