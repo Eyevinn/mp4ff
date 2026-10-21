@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `InitProtect` and `ExtractInitProtectData` support VP9 (`vp09`) with scheme cenc, and `GetVP9ProtectRanges`
+  gives the subsample protection ranges of a VP9 sample
+
 ### Changed
 
 - `DecModeLazyMdat` also skips the payload of `free` and `skip` boxes; `FreeBox.Payload` is then nil and

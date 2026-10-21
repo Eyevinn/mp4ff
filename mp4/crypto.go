@@ -12,6 +12,7 @@ import (
 	"github.com/Eyevinn/mp4ff/av1"
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/hevc"
+	"github.com/Eyevinn/mp4ff/vp9"
 )
 
 type cryptoDir int
@@ -213,6 +214,102 @@ func appendAV1ProtectRanges(ssps []SubSamplePattern, dec *av1.FrameHeaderDecoder
 		ssps = AppendProtectRange(ssps, uint32(clearAccum), 0)
 	}
 	return ssps, nil
+}
+
+// vp9ClearPrefixBytes is the number of leading bytes of each VP9 frame that are left clear so that
+// the uncompressed frame header stays readable.
+const vp9ClearPrefixBytes = 96
+
+// GetVP9ProtectRanges computes common-encryption protection ranges for a VP9 sample (a frame or a
+// superframe). Only the cenc scheme is supported.
+//
+// Each frame's first 96 bytes are left clear, followed by a protected range of whole 16-byte
+// blocks. Bytes that do not fill a whole block are added to that frame's clear prefix. This keeps
+// every uncompressed frame header clear and each frame's protected data block-aligned, as required
+// by the VP Codec ISO Media File Format Binding's Common Encryption section. A superframe index
+// (VP9 Bitstream Specification Annex B) is left clear as a trailing subsample. A sample with no
+// whole block to protect yields a single all-clear subsample.
+//
+// Each frame must start with a valid VP9 uncompressed frame header. Superframe sizes must account
+// for all frame data before the index.
+func GetVP9ProtectRanges(sample []byte, scheme string) ([]SubSamplePattern, error) {
+	return appendVP9ProtectRanges(nil, sample, scheme)
+}
+
+// appendVP9ProtectRanges is GetVP9ProtectRanges appending to ssps.
+func appendVP9ProtectRanges(ssps []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error) {
+	if scheme != "cenc" {
+		return nil, fmt.Errorf("vp9 protection requires scheme cenc, got %s", scheme)
+	}
+	if len(sample) == 0 {
+		return nil, fmt.Errorf("empty vp9 sample")
+	}
+	var frameSizes [8]int
+	frameSizes[0] = len(sample)
+	nrFrames := 1
+	indexLen := vp9SuperframeIndexLen(sample)
+	if indexLen > 0 {
+		marker := sample[len(sample)-1]
+		bytesPerFrameSize := int((marker>>3)&0x03) + 1
+		nrFrames = int(marker&0x07) + 1
+		indexPos := len(sample) - indexLen + 1
+		remaining := len(sample) - indexLen
+		for i := 0; i < nrFrames; i++ {
+			var size uint32
+			for j := 0; j < bytesPerFrameSize; j++ {
+				size |= uint32(sample[indexPos]) << (8 * j)
+				indexPos++
+			}
+			if size == 0 || uint64(size) > uint64(remaining) {
+				return nil, fmt.Errorf("vp9 superframe frame %d: size %d exceeds remaining data %d or is zero",
+					i, size, remaining)
+			}
+			frameSizes[i] = int(size)
+			remaining -= int(size)
+		}
+		if remaining != 0 {
+			return nil, fmt.Errorf("vp9 superframe sizes leave %d bytes before index", remaining)
+		}
+	}
+
+	pos, clearBytes := 0, 0
+	for _, size := range frameSizes[:nrFrames] {
+		if _, err := vp9.ParseFrameHeader(sample[pos : pos+size]); err != nil {
+			return nil, fmt.Errorf("vp9 frame header at offset %d: %w", pos, err)
+		}
+		protected := max(0, size-vp9ClearPrefixBytes) &^ 0x0f // whole 16-byte blocks
+		clearBytes += size - protected
+		if protected > 0 {
+			ssps = AppendProtectRange(ssps, uint32(clearBytes), uint32(protected))
+			clearBytes = 0
+		}
+		pos += size
+	}
+	clearBytes += indexLen
+	if clearBytes > 0 {
+		ssps = AppendProtectRange(ssps, uint32(clearBytes), 0)
+	}
+	return ssps, nil
+}
+
+// vp9SuperframeIndexLen returns the size of the superframe index at the end of sample, or 0 if
+// there is none. The index starts and ends with the same marker byte
+// 0b110[bytes_per_framesize_minus_1:2][frames_in_superframe_minus_1:3].
+func vp9SuperframeIndexLen(sample []byte) int {
+	if len(sample) < 2 {
+		return 0
+	}
+	marker := sample[len(sample)-1]
+	if marker&0xe0 != 0xc0 {
+		return 0
+	}
+	bytesPerFrameSize := int((marker>>3)&0x03) + 1
+	nrFrames := int(marker&0x07) + 1
+	indexLen := 2 + nrFrames*bytesPerFrameSize
+	if indexLen > len(sample) || sample[len(sample)-indexLen] != marker {
+		return 0
+	}
+	return indexLen
 }
 
 // AppendProtectRange appends a SubSamplePattern to a slice of SubSamplePattern, splitting into multiple if needed.
@@ -495,6 +592,11 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 			if err != nil {
 				return nil, fmt.Errorf("get av1 protector: %w", err)
 			}
+		case "vp09":
+			if scheme != "cenc" {
+				return nil, fmt.Errorf("vp09 protection requires scheme cenc, got %s", scheme)
+			}
+			ipd.newProtector = vp9ProtectorFactory
 		default:
 			return nil, fmt.Errorf("visual sample entry type %s not yet supported", veType)
 		}
@@ -589,6 +691,9 @@ var audioProtectorFactory = statelessFactory(funcProtector(
 	func(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error) {
 		return dst, nil // full-sample encryption: no subsamples
 	}))
+
+// vp9ProtectorFactory protects VP9 samples; the ranges depend on each sample alone, so it is stateless.
+var vp9ProtectorFactory = statelessFactory(funcProtector(appendVP9ProtectRanges))
 
 func newAVCProtectorFactory(avcC *AvcCBox) (sampleProtectorFactory, error) {
 	spsMap, ppsMap, err := getAVCPSMaps(avcC.SPSnalus, avcC.PPSnalus)
@@ -1243,6 +1348,7 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 	stsd := inSeg.Moov.Trak.Mdia.Minf.Stbl.Stsd
 	var sinf *SinfBox
 	var err error
+	isVP9 := false
 	for _, c := range stsd.Children {
 		switch box := c.(type) {
 		case *VisualSampleEntryBox:
@@ -1264,6 +1370,9 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 				if err != nil {
 					return nil, fmt.Errorf("get AV1 protector: %w", err)
 				}
+			case "vp09":
+				ipd.newProtector = vp9ProtectorFactory
+				isVP9 = true
 			default:
 				return nil, fmt.Errorf("unsupported video codec descriptor %s", frma.DataFormat)
 			}
@@ -1283,6 +1392,9 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 				continue
 			}
 		}
+	}
+	if isVP9 && ipd.Scheme != "cenc" {
+		return nil, fmt.Errorf("vp09 protection requires scheme cenc, got %s", ipd.Scheme)
 	}
 
 	return &ipd, nil
