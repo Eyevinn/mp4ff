@@ -89,6 +89,9 @@ func TestRsot(t *testing.T) {
 // which is what a reader of a fragment with a continued first sample needs.
 func TestRsotInTraf(t *testing.T) {
 	traf := &mp4.TrafBox{}
+	if err := traf.AddChild(mp4.CreateTfhd(1)); err != nil {
+		t.Fatal(err)
+	}
 	if err := traf.AddChild(mp4.CreateRsotBox(0, 500)); err != nil {
 		t.Fatal(err)
 	}

@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of moving backwards or panicking
 - `hevc.DecodeHEVCDecConfRec`, `hevc.DecodeLHEVCDecConfRec` and `vvc.DecodeVVCDecConfRec` stop at the end of the
   record, instead of adding or allocating an empty NAL unit for each one that the record announces but does not hold
+- Decoding a `traf` without `tfhd`, with `DecodeBox`, `DecodeBoxSR`, `DecodeFile` or `FragmentDecoder`, returns an
+  error instead of a `TrafBox` with a nil `Tfhd`
 
 ## [0.60.0] - 2026-10-13
 
