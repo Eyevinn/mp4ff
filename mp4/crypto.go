@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/Eyevinn/mp4ff/av1"
@@ -26,15 +27,117 @@ const (
 // GetAVCProtectRanges for common encryption from a sample with 4-byte NALU lengths.
 // THe spsMap and ppsMap are only needed for CBCS mode.
 // For scheme cenc, protection ranges must be a multiple of 16 bytes leaving header and some more in the clear
-// For scheme cbcs, protection range must start after the slice header.
+// For scheme cbcs, protection range must start after the slice header. An SPS or PPS in the sample replaces the one
+// with the same ID for the slices after it; spsMap and ppsMap are not changed.
 func GetAVCProtectRanges(spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS, sample []byte,
 	scheme string) ([]SubSamplePattern, error) {
-	return appendAVCProtectRanges(nil, spsMap, ppsMap, sample, scheme)
+	ps := avcParameterSets{sps: spsMap, pps: ppsMap}
+	return appendAVCProtectRanges(nil, &ps, sample, scheme)
 }
 
-// appendAVCProtectRanges is GetAVCProtectRanges appending to ssps.
-func appendAVCProtectRanges(ssps []SubSamplePattern, spsMap map[uint32]*avc.SPS, ppsMap map[uint32]*avc.PPS,
-	sample []byte, scheme string) ([]SubSamplePattern, error) {
+// avcParameterSets are the SPSs and PPSs that slice headers are parsed with: those of the decoder configuration
+// record, each replaced by an SPS or PPS with the same ID that a sample carries. The maps it starts from may be
+// shared, so the first replacement copies them.
+type avcParameterSets struct {
+	sps map[uint32]*avc.SPS
+	pps map[uint32]*avc.PPS
+	// spsNalus and ppsNalus hold the NAL units of sps and pps, so that a repeated one is recognized without parsing
+	spsNalus map[uint32][]byte
+	ppsNalus map[uint32][]byte
+	owned    bool
+}
+
+// newAVCParameterSets parses the SPS and PPS NAL units of a decoder configuration record.
+func newAVCParameterSets(spss, ppss [][]byte) (avcParameterSets, error) {
+	ps := avcParameterSets{
+		sps:      make(map[uint32]*avc.SPS, len(spss)),
+		pps:      make(map[uint32]*avc.PPS, len(ppss)),
+		spsNalus: make(map[uint32][]byte, len(spss)),
+		ppsNalus: make(map[uint32][]byte, len(ppss)),
+		owned:    true,
+	}
+	for _, nalu := range spss {
+		if err := ps.addSPS(nalu); err != nil {
+			return avcParameterSets{}, err
+		}
+	}
+	for _, nalu := range ppss {
+		if err := ps.addPPS(nalu); err != nil {
+			return avcParameterSets{}, err
+		}
+	}
+	return ps, nil
+}
+
+// update takes an SPS or PPS NAL unit of a sample into ps, unless it repeats the current one.
+func (ps *avcParameterSets) update(nalu []byte, naluType avc.NaluType) error {
+	switch naluType {
+	case avc.NALU_SPS:
+		if !containsNalu(ps.spsNalus, nalu) {
+			ps.own()
+			return ps.addSPS(nalu)
+		}
+	case avc.NALU_PPS:
+		if !containsNalu(ps.ppsNalus, nalu) {
+			ps.own()
+			return ps.addPPS(nalu)
+		}
+	}
+	return nil
+}
+
+func (ps *avcParameterSets) addSPS(nalu []byte) error {
+	sps, err := avc.ParseSPSNALUnit(nalu, false)
+	if err != nil {
+		return fmt.Errorf("sps: %w", err)
+	}
+	ps.sps[sps.ParameterID] = sps
+	ps.spsNalus[sps.ParameterID] = bytes.Clone(nalu)
+	return nil
+}
+
+func (ps *avcParameterSets) addPPS(nalu []byte) error {
+	pps, err := avc.ParsePPSNALUnit(nalu, ps.sps)
+	if err != nil {
+		return fmt.Errorf("pps: %w", err)
+	}
+	ps.pps[pps.PicParameterSetID] = pps
+	ps.ppsNalus[pps.PicParameterSetID] = bytes.Clone(nalu)
+	return nil
+}
+
+// own makes the maps of ps its own copies, so that changing them leaves the ones it started from unchanged.
+func (ps *avcParameterSets) own() {
+	if ps.owned {
+		return
+	}
+	ps.sps = cloneMap(ps.sps)
+	ps.pps = cloneMap(ps.pps)
+	ps.spsNalus = cloneMap(ps.spsNalus)
+	ps.ppsNalus = cloneMap(ps.ppsNalus)
+	ps.owned = true
+}
+
+// cloneMap returns a copy of m, which is non-nil also when m is nil.
+func cloneMap[K comparable, V any](m map[K]V) map[K]V {
+	c := make(map[K]V, len(m)+1)
+	maps.Copy(c, m)
+	return c
+}
+
+func containsNalu(nalus map[uint32][]byte, nalu []byte) bool {
+	for _, n := range nalus {
+		if bytes.Equal(n, nalu) {
+			return true
+		}
+	}
+	return false
+}
+
+// appendAVCProtectRanges is GetAVCProtectRanges appending to ssps, with the parameter sets in ps, which takes in the
+// SPSs and PPSs of the sample for cbcs.
+func appendAVCProtectRanges(ssps []SubSamplePattern, ps *avcParameterSets, sample []byte,
+	scheme string) ([]SubSamplePattern, error) {
 	origLen := len(ssps)
 	length := len(sample)
 	if length < 4 {
@@ -53,6 +156,11 @@ func appendAVCProtectRanges(ssps []SubSamplePattern, spsMap map[uint32]*avc.SPS,
 		naluType := avc.GetNaluType(sample[pos])
 		var bytesToProtect uint32 = 0
 		clearEnd = pos + naluLength
+		if scheme == "cbcs" && (naluType == avc.NALU_SPS || naluType == avc.NALU_PPS) {
+			if err := ps.update(sample[pos:pos+naluLength], naluType); err != nil {
+				return nil, fmt.Errorf("parameter set in sample: %w", err)
+			}
+		}
 		if avc.IsVideoNaluType(naluType) {
 			nalu := sample[pos : pos+naluLength]
 			switch scheme {
@@ -65,7 +173,7 @@ func appendAVCProtectRanges(ssps []SubSamplePattern, spsMap map[uint32]*avc.SPS,
 					}
 				}
 			case "cbcs":
-				shSize, err := avc.SliceHeaderSize(nalu, spsMap, ppsMap)
+				shSize, err := avc.SliceHeaderSize(nalu, ps.sps, ps.pps)
 				if err != nil {
 					return nil, err
 				}
@@ -570,26 +678,6 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 	return &ipd, nil
 }
 
-func getAVCPSMaps(spss [][]byte, ppss [][]byte) (map[uint32]*avc.SPS, map[uint32]*avc.PPS, error) {
-	spsMap := make(map[uint32]*avc.SPS, 1)
-	for _, spsNalu := range spss {
-		sps, err := avc.ParseSPSNALUnit(spsNalu, false)
-		if err != nil {
-			return nil, nil, err
-		}
-		spsMap[sps.ParameterID] = sps
-	}
-	ppsMap := make(map[uint32]*avc.PPS, 1)
-	for _, ppsNalu := range ppss {
-		pps, err := avc.ParsePPSNALUnit(ppsNalu, spsMap)
-		if err != nil {
-			return nil, nil, err
-		}
-		ppsMap[pps.PicParameterSetID] = pps
-	}
-	return spsMap, ppsMap, nil
-}
-
 // funcProtector adapts a stateless protection-range function to the sampleProtector interface.
 // It carries no mutable state, so a single instance is safe to reuse and share.
 type funcProtector func(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error)
@@ -610,17 +698,27 @@ var audioProtectorFactory = statelessFactory(funcProtector(
 		return dst, nil // full-sample encryption: no subsamples
 	}))
 
+// avcProtector parses the slice headers of a sequence with the parameter sets of the decoder configuration record,
+// each replaced by one with the same ID that the samples carry, from that sample on.
+type avcProtector struct {
+	ps avcParameterSets
+}
+
+func (p *avcProtector) appendProtectRanges(dst []SubSamplePattern, sample []byte, scheme string) (
+	[]SubSamplePattern, error) {
+	return appendAVCProtectRanges(dst, &p.ps, sample, scheme)
+}
+
 func newAVCProtectorFactory(avcC *AvcCBox) (sampleProtectorFactory, error) {
-	spsMap, ppsMap, err := getAVCPSMaps(avcC.SPSnalus, avcC.PPSnalus)
+	ps, err := newAVCParameterSets(avcC.SPSnalus, avcC.PPSnalus)
 	if err != nil {
 		return nil, fmt.Errorf("get avc ps maps: %w", err)
 	}
-	// AVC subsample ranges are computed per sample from immutable parameter sets, so the
-	// protector is stateless and can be shared across sequences and goroutines.
-	p := funcProtector(func(dst []SubSamplePattern, sample []byte, scheme string) ([]SubSamplePattern, error) {
-		return appendAVCProtectRanges(dst, spsMap, ppsMap, sample, scheme)
-	})
-	return statelessFactory(p), nil
+	// Every protector starts from the same parameter set maps and copies them before it changes them.
+	ps.owned = false
+	return func() (sampleProtector, error) {
+		return &avcProtector{ps: ps}, nil
+	}, nil
 }
 
 func getHEVCPSMaps(arrays []hevc.NaluArray) (map[uint32]*hevc.SPS, map[uint32]*hevc.PPS, error) {

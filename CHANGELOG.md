@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error instead of panicking on a file without video track or without a box it needs
 - `hevc.ParseSPSNALUnit` refuses a coding tree block outside 16x16..64x64 or a picture size that is not a multiple of
   the minimum coding block, and `hevc.ParseSliceHeader` gives an error instead of dividing by zero on such an SPS
+- cbcs encryption of AVC parses slice headers with the SPS and PPS that the samples carry, where they replace those of
+  the decoder configuration record, in `GetAVCProtectRanges` for the rest of the sample and in `FragmentEncryptor` and
+  `EncryptFragment` also for the later samples
 
 ## [0.60.0] - 2026-10-13
 
