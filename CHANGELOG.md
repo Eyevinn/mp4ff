@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of moving backwards or panicking
 - `hevc.DecodeHEVCDecConfRec`, `hevc.DecodeLHEVCDecConfRec` and `vvc.DecodeVVCDecConfRec` stop at the end of the
   record, instead of adding or allocating an empty NAL unit for each one that the record announces but does not hold
+- cbcs encryption of AVC parses slice headers with the SPS and PPS that the samples carry, where they replace those of
+  the decoder configuration record, in `GetAVCProtectRanges` for the rest of the sample and in `FragmentEncryptor` and
+  `EncryptFragment` also for the later samples
 
 ## [0.60.0] - 2026-10-13
 
