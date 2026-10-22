@@ -98,6 +98,139 @@ func TestFindAVCSubsampleRanges(t *testing.T) {
 	}
 }
 
+// TestAVCProtectRangesWithParameterSetsInSamples checks that cbcs protection ranges are computed with the SPS and
+// PPS that the samples carry, here in place of other parameter sets with the same IDs in the decoder configuration
+// record: by GetAVCProtectRanges for the slices after them in the sample, and by FragmentEncryptor also for the
+// slices of the later samples.
+func TestAVCProtectRangesWithParameterSetsInSamples(t *testing.T) {
+	// The first sample of 1.m4s carries the SPS and PPS of init.mp4. init_prog.mp4 has another SPS and PPS with the
+	// same IDs.
+	init, err := mp4.ReadMP4File("testdata/init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := mp4.ReadMP4File("testdata/init_prog.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg, err := mp4.ReadMP4File("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	avcC := init.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.AvcX.AvcC
+	otherAvcC := other.Moov.Trak.Mdia.Minf.Stbl.Stsd.AvcX.AvcC
+	parameterSets := func(avcC *mp4.AvcCBox) (map[uint32]*avc.SPS, map[uint32]*avc.PPS) {
+		t.Helper()
+		spsMap, ppsMap := map[uint32]*avc.SPS{}, map[uint32]*avc.PPS{}
+		for _, nalu := range avcC.SPSnalus {
+			sps, err := avc.ParseSPSNALUnit(nalu, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			spsMap[sps.ParameterID] = sps
+		}
+		for _, nalu := range avcC.PPSnalus {
+			pps, err := avc.ParsePPSNALUnit(nalu, spsMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ppsMap[pps.PicParameterSetID] = pps
+		}
+		return spsMap, ppsMap
+	}
+	spsMap, ppsMap := parameterSets(avcC)
+	otherSPSMap, otherPPSMap := parameterSets(otherAvcC)
+	otherSPS, otherPPS := otherSPSMap[0], otherPPSMap[0]
+
+	frag := seg.Segments[0].Fragments[0]
+	fss, err := frag.GetFullSamples(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want [][]mp4.SubSamplePattern
+	differ := false
+	for i, fs := range fss {
+		ssps, err := mp4.GetAVCProtectRanges(spsMap, ppsMap, fs.Data, "cbcs")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want = append(want, ssps)
+		if i > 0 {
+			otherSSPs, err := mp4.GetAVCProtectRanges(otherSPSMap, otherPPSMap, fs.Data, "cbcs")
+			differ = differ || err != nil || deep.Equal(otherSSPs, ssps) != nil
+		}
+	}
+	if !differ {
+		t.Fatal("the parameter sets of init_prog.mp4 give the same ranges for the samples of 1.m4s")
+	}
+
+	// Each sample, preceded by the SPS and PPS of the first one.
+	spss, ppss := avc.GetParameterSets(fss[0].Data)
+	var prefix []byte
+	for _, nalu := range append(spss, ppss...) {
+		prefix = binary.BigEndian.AppendUint32(prefix, uint32(len(nalu)))
+		prefix = append(prefix, nalu...)
+	}
+	for i, fs := range fss {
+		sample := append(bytes.Clone(prefix), fs.Data...)
+		wantSSPs, err := mp4.GetAVCProtectRanges(spsMap, ppsMap, sample, "cbcs")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := mp4.GetAVCProtectRanges(otherSPSMap, otherPPSMap, sample, "cbcs")
+		if err != nil {
+			t.Errorf("GetAVCProtectRanges of sample %d: %v", i+1, err)
+			continue
+		}
+		if diff := deep.Equal(got, wantSSPs); diff != nil {
+			t.Errorf("GetAVCProtectRanges of sample %d: %v", i+1, diff)
+		}
+	}
+	if otherSPSMap[0] != otherSPS || otherPPSMap[0] != otherPPS {
+		t.Error("GetAVCProtectRanges changed the parameter set maps passed to it")
+	}
+
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	for _, c := range []struct {
+		name       string
+		sampleType string
+		spss, ppss [][]byte
+	}{
+		{"avc1 with the parameter sets of init_prog.mp4", "avc1", otherAvcC.SPSnalus, otherAvcC.PPSnalus},
+		{"avc3 without parameter sets", "avc3", nil, nil},
+	} {
+		init, err := mp4.ReadMP4File("testdata/init.mp4")
+		if err != nil {
+			t.Fatal(err)
+		}
+		avcX := init.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.AvcX
+		avcX.SetType(c.sampleType)
+		avcX.AvcC.SPSnalus, avcX.AvcC.PPSnalus = c.spss, c.ppss
+		ipd, err := mp4.InitProtect(init.Init, key, iv, "cbcs", kid, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e, err := ipd.NewFragmentEncryptor(key, iv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seg, err := mp4.ReadMP4File("testdata/1.m4s")
+		if err != nil {
+			t.Fatal(err)
+		}
+		frag := seg.Segments[0].Fragments[0]
+		if err := e.EncryptFragment(frag); err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if diff := deep.Equal(frag.Moof.Traf.Senc.SubSamples, want); diff != nil {
+			t.Errorf("%s: FragmentEncryptor: %v", c.name, diff)
+		}
+	}
+}
+
 func TestEncryptDecrypt(t *testing.T) {
 	videoAVCInit := "testdata/init.mp4"
 	videoAVCSeg := "testdata/1.m4s"
