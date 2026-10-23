@@ -154,6 +154,8 @@ The top-level packages in the mp4ff module are
 9. [vp8](vp8) parses the VP8 frame tag and key-frame header (key-frame detection and size).
 10. [ivf](ivf) reads and writes the IVF container used for raw VP8/VP9/AV1 bitstreams.
 11. [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
+12. [boxtree](boxtree) decodes the box tree of a file with the position of each box, and keeps going after
+    errors, reporting them for the smallest box that fails.
 
 ## Structure and usage
 
