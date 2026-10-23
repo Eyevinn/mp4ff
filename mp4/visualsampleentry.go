@@ -375,6 +375,9 @@ func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 	if b.ColorTableID != VisualSampleEntryDefaultColorTableID {
 		bd.write(" - colorTableID: %d", b.ColorTableID)
 	}
+	if len(b.TrailingBytes) > 0 {
+		bd.write(" - trailingBytes: %x", b.TrailingBytes)
+	}
 	if bd.err != nil {
 		return bd.err
 	}
@@ -384,9 +387,6 @@ func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 		if err != nil {
 			return err
 		}
-	}
-	if len(b.TrailingBytes) > 0 {
-		bd.write(" - trailingBytes: %x", b.TrailingBytes)
 	}
 	return nil
 }
