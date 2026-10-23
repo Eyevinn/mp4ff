@@ -336,6 +336,11 @@ func (a *AudioSampleEntryBox) Type() string {
 	return a.name
 }
 
+// GetChildren - list of child boxes
+func (a *AudioSampleEntryBox) GetChildren() []Box {
+	return a.Children
+}
+
 // SetType sets the type (name) of the box
 func (a *AudioSampleEntryBox) SetType(name string) {
 	a.name = name

@@ -78,6 +78,11 @@ func (b *EvteBox) Type() string {
 	return "evte"
 }
 
+// GetChildren - list of child boxes
+func (b *EvteBox) GetChildren() []Box {
+	return b.Children
+}
+
 func (b *EvteBox) Size() uint64 {
 	size := uint64(boxHeaderSize + 8)
 	for _, child := range b.Children {

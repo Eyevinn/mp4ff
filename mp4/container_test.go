@@ -206,3 +206,28 @@ func TestNonMatchingChildSizesErrorIsBounded(t *testing.T) {
 		}
 	}
 }
+
+// TestContainerBoxReachesSampleEntryChildren checks that walking the tree with ContainerBox.GetChildren
+// reaches the boxes inside dref, stsd and the visual and audio sample entries.
+func TestContainerBoxReachesSampleEntryChildren(t *testing.T) {
+	f, err := mp4.ReadMP4File("testdata/prog_8s.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	var walk func(boxes []mp4.Box)
+	walk = func(boxes []mp4.Box) {
+		for _, b := range boxes {
+			found[b.Type()] = true
+			if c, ok := b.(mp4.ContainerBox); ok {
+				walk(c.GetChildren())
+			}
+		}
+	}
+	walk(f.Children)
+	for _, boxType := range []string{"url ", "avc1", "avcC", "mp4a", "esds"} {
+		if !found[boxType] {
+			t.Errorf("%q not reached", boxType)
+		}
+	}
+}

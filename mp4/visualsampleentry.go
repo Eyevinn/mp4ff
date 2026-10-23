@@ -245,6 +245,11 @@ func (b *VisualSampleEntryBox) Type() string {
 	return b.name
 }
 
+// GetChildren - list of child boxes
+func (b *VisualSampleEntryBox) GetChildren() []Box {
+	return b.Children
+}
+
 // SetType sets the type (name) of the box
 func (b *VisualSampleEntryBox) SetType(name string) {
 	b.name = name
