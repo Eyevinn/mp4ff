@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   playback information of `iTunSMPB`
 - `boxtree` package that decodes the box tree of a file with box positions, and keeps going after errors,
   reporting them for the smallest box that fails
+- `mp4ff-info -tree` and `-json` print the box tree with box positions and errors, as text or JSON,
+  and files that cannot be decoded completely get that tree instead of a partial box list
 - `StsdBox`, `DrefBox`, `VisualSampleEntryBox`, `AudioSampleEntryBox`, `StppBox`, `WvttBox`, `TrepBox` and
   `EvteBox` implement `ContainerBox`
 
