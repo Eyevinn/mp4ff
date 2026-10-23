@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the QuickTime `tmcd` and `chap`
 - `IlstBox` decodes items whose type mp4ff does not know, such as `trkn`, `covr` and the key indices of QuickTime
   metadata, as `GenericContainerBox` with their data boxes, instead of as `UnknownBox`
+- `VisualSampleEntryBox.Info` prints `trailingBytes` before the child boxes
 
 ### Fixed
 
