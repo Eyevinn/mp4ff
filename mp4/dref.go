@@ -98,6 +98,11 @@ func (d *DrefBox) Type() string {
 	return "dref"
 }
 
+// GetChildren - list of child boxes
+func (d *DrefBox) GetChildren() []Box {
+	return d.Children
+}
+
 // Size - calculated size of box
 func (d *DrefBox) Size() uint64 {
 	return containerSize(d.Children) + 8

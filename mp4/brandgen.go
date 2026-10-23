@@ -133,15 +133,8 @@ func boxBrandNeed(b Box, parentType string) brandNeed {
 // childBoxes returns the children of b, including the sample entries of stsd
 // and the boxes inside visual and audio sample entries.
 func childBoxes(b Box) []Box {
-	switch box := b.(type) {
-	case *StsdBox:
-		return box.Children
-	case *VisualSampleEntryBox:
-		return box.Children
-	case *AudioSampleEntryBox:
-		return box.Children
-	case ContainerBox:
-		return box.GetChildren()
+	if c, ok := b.(ContainerBox); ok {
+		return c.GetChildren()
 	}
 	return nil
 }

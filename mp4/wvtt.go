@@ -98,6 +98,11 @@ func (b *WvttBox) Type() string {
 	return b.name
 }
 
+// GetChildren - list of child boxes
+func (b *WvttBox) GetChildren() []Box {
+	return b.Children
+}
+
 // Size - return calculated size
 func (b *WvttBox) Size() uint64 {
 	totalSize := uint64(nrWvttBytesBeforeChildren)

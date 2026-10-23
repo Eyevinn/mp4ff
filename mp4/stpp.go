@@ -136,6 +136,11 @@ func (b *StppBox) Type() string {
 	return b.name
 }
 
+// GetChildren - list of child boxes
+func (b *StppBox) GetChildren() []Box {
+	return b.Children
+}
+
 // Size - return calculated size
 func (b *StppBox) Size() uint64 {
 	nrSampleEntryBytes := 8

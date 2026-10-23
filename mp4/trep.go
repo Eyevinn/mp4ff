@@ -57,6 +57,11 @@ func (b *TrepBox) Type() string {
 	return "trep"
 }
 
+// GetChildren - list of child boxes
+func (b *TrepBox) GetChildren() []Box {
+	return b.Children
+}
+
 // Size - box-specific type
 func (b *TrepBox) Size() uint64 {
 	return containerSize(b.Children) + 8

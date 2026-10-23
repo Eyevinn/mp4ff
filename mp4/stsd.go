@@ -249,6 +249,11 @@ func (s *StsdBox) Type() string {
 	return "stsd"
 }
 
+// GetChildren - list of child boxes
+func (s *StsdBox) GetChildren() []Box {
+	return s.Children
+}
+
 // Size - box-specific type
 func (s *StsdBox) Size() uint64 {
 	return containerSize(s.Children) + 8
