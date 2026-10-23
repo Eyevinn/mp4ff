@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ChplBox` for the Nero chapter list `chpl` in `udta`, which Nero, ffmpeg and GPAC write
 - `DataBox.Meaning` tells what a metadata value means, such as `track 2 of 21` for `trkn`, an integer, or the gapless
   playback information of `iTunSMPB`
+- `boxtree` package that decodes the box tree of a file with box positions, and keeps going after errors,
+  reporting them for the smallest box that fails
 - `StsdBox`, `DrefBox`, `VisualSampleEntryBox`, `AudioSampleEntryBox`, `StppBox`, `WvttBox`, `TrepBox` and
   `EvteBox` implement `ContainerBox`
 
