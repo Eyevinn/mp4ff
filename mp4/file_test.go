@@ -1282,3 +1282,43 @@ func TestDecodeFileLazyMdatSizeAboveMaxInt64(t *testing.T) {
 		t.Errorf("got error %v, want one about the mdat size", err)
 	}
 }
+
+// withBoxRenamed returns a copy of data in which the first occurrence of boxType, which must be the type of a box,
+// is replaced by free, so that the box is missing for the decoder.
+func withBoxRenamed(t *testing.T, data []byte, boxType string) []byte {
+	t.Helper()
+	i := bytes.Index(data, []byte(boxType))
+	if i < 4 {
+		t.Fatalf("no %s box", boxType)
+	}
+	out := bytes.Clone(data)
+	copy(out[i:], "free")
+	return out
+}
+
+// TestDecodeEncryptedFragmentsWithIncompleteTrak - encrypted fragments decode when the moov track lacks a box on
+// the way to its sample entry. The track does not count as encrypted then, so its senc is parsed as without moov.
+func TestDecodeEncryptedFragmentsWithIncompleteTrak(t *testing.T) {
+	orig, err := os.ReadFile("testdata/prog_8s_enc_dashinit.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, boxType := range []string{"tkhd", "mdia", "minf", "stbl", "stsd"} {
+		t.Run(boxType, func(t *testing.T) {
+			data := withBoxRenamed(t, orig, boxType)
+			if _, err := mp4.DecodeFile(bytes.NewReader(data)); err != nil {
+				t.Errorf("DecodeFile: %v", err)
+			}
+			f, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(data))
+			if err != nil {
+				t.Fatalf("DecodeFileSR: %v", err)
+			}
+			d := mp4.FragmentDecoder{Moov: f.Moov}
+			n := 0
+			decodeAllFragments(t, &d, data[bytes.Index(data, []byte("moof"))-4:], func(int, *mp4.Fragment) { n++ })
+			if n == 0 {
+				t.Error("FragmentDecoder decoded no fragment")
+			}
+		})
+	}
+}

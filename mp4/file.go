@@ -293,12 +293,7 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		f.Ftyp = box
 	case *MoovBox:
 		f.Moov = box
-		if f.Moov.Trak != nil &&
-			f.Moov.Trak.Mdia != nil &&
-			f.Moov.Trak.Mdia.Minf != nil &&
-			f.Moov.Trak.Mdia.Minf.Stbl != nil &&
-			f.Moov.Trak.Mdia.Minf.Stbl.Stts != nil &&
-			len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
+		if stts := f.Moov.firstTrackStts(); stts != nil && len(stts.SampleCount) == 0 {
 			f.isFragmented = true
 			// The init segment holds the boxes before the moov, such as a C2PA manifest box after the ftyp
 			f.Init = NewMP4Init()

@@ -106,11 +106,14 @@ func InitDecodeStream(r io.Reader, options ...StreamOption) (*StreamFile, error)
 		case "moov":
 			f.Moov = box.(*MoovBox)
 			f.Children = append(f.Children, box)
-			if len(f.Moov.Trak.Mdia.Minf.Stbl.Stts.SampleCount) == 0 {
-				f.isFragmented = true
-			} else {
+			stts := f.Moov.firstTrackStts()
+			switch {
+			case stts == nil:
+				return nil, fmt.Errorf("moov has no track, or its first track has no stts box")
+			case len(stts.SampleCount) != 0:
 				return nil, fmt.Errorf("file is progressive, not supported for streaming")
 			}
+			f.isFragmented = true
 		default:
 			// Unknown boxes in init segment - keep them
 			f.Children = append(f.Children, box)

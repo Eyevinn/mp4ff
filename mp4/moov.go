@@ -151,36 +151,60 @@ func (m *MoovBox) RemovePsshs() []*PsshBox {
 	return psshs
 }
 
+// GetSinf returns the sinf box of the first sample entry of the track with trackID,
+// or nil if there is no such track, sample entry or sinf box.
 func (m *MoovBox) GetSinf(trackID uint32) *SinfBox {
 	for _, trak := range m.Traks {
-		if trak.Tkhd.TrackID == trackID {
-			stsd := trak.Mdia.Minf.Stbl.Stsd
-			sd := stsd.Children[0] // Get first (and only)
-			switch box := sd.(type) {
-			case *VisualSampleEntryBox:
-				return box.Sinf
-			case *AudioSampleEntryBox:
-				return box.Sinf
-			}
+		if trak.Tkhd == nil || trak.Tkhd.TrackID != trackID {
+			continue
+		}
+		switch box := firstSampleEntry(trak).(type) {
+		case *VisualSampleEntryBox:
+			return box.Sinf
+		case *AudioSampleEntryBox:
+			return box.Sinf
 		}
 	}
 	return nil
 }
 
-// IsEncrypted returns true if SampleEntryBox is "encv" or "enca"
+// IsEncrypted returns true if the first sample entry of the track with trackID is "encv" or "enca".
+// It returns false if there is no such track, or it has no sample entry.
 func (m *MoovBox) IsEncrypted(trackID uint32) bool {
 	for _, trak := range m.Traks {
-		if trak.Tkhd.TrackID == trackID {
-			stsd := trak.Mdia.Minf.Stbl.Stsd
-			sd := stsd.Children[0] // Get first (and only)
-			switch box := sd.(type) {
-			case *VisualSampleEntryBox:
-				return box.Type() == "encv"
-			case *AudioSampleEntryBox:
-				return box.Type() == "enca"
-			}
+		if trak.Tkhd == nil || trak.Tkhd.TrackID != trackID {
+			continue
+		}
+		switch box := firstSampleEntry(trak).(type) {
+		case *VisualSampleEntryBox:
+			return box.Type() == "encv"
+		case *AudioSampleEntryBox:
+			return box.Type() == "enca"
 		}
 	}
 	return false
+}
 
+// firstSampleEntry returns the first sample entry of trak, or nil if it has none
+// or any of the mdia, minf, stbl and stsd boxes that hold it is missing.
+func firstSampleEntry(trak *TrakBox) Box {
+	if trak.Mdia == nil || trak.Mdia.Minf == nil || trak.Mdia.Minf.Stbl == nil {
+		return nil
+	}
+	stsd := trak.Mdia.Minf.Stbl.Stsd
+	if stsd == nil || len(stsd.Children) == 0 {
+		return nil
+	}
+	return stsd.Children[0]
+}
+
+// firstTrackStts returns the stts box of the first track, or nil if there is no track
+// or any of the mdia, minf, stbl and stts boxes is missing.
+// An stts without entries means that the samples are in movie fragments.
+func (m *MoovBox) firstTrackStts() *SttsBox {
+	t := m.Trak
+	if t == nil || t.Mdia == nil || t.Mdia.Minf == nil || t.Mdia.Minf.Stbl == nil {
+		return nil
+	}
+	return t.Mdia.Minf.Stbl.Stts
 }

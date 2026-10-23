@@ -2,7 +2,9 @@ package mp4_test
 
 import (
 	"bytes"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -216,5 +218,65 @@ func runEncodeDecode(t *testing.T, test testSamples, withOptimization bool) {
 	if !reflect.DeepEqual(outSamples, test.samples) {
 		t.Errorf("Case %s optimization=%v failed. Got %v instead of %v",
 			test.name, withOptimization, outSamples, test.samples)
+	}
+}
+
+// TestDecodeSencWithEmptySaioOrSgpd - an encrypted fragment decodes when its saio has no offset, or its seig sgpd
+// has no entry. Without an offset, the senc is parsed without checking its position. Without a seig entry, it is
+// left unparsed, and ParseReadSenc reports the missing entry.
+func TestDecodeSencWithEmptySaioOrSgpd(t *testing.T) {
+	orig, err := os.ReadFile("testdata/moof_enc.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name       string
+		empty      func(traf *mp4.TrafBox)
+		wantParsed bool
+	}{
+		{"saio without offset", func(traf *mp4.TrafBox) { traf.Saio.Offset = nil }, true},
+		{"seig sgpd without entry", func(traf *mp4.TrafBox) {
+			size := traf.Sgpd.Size()
+			traf.Sgpd.SampleGroupEntries = nil
+			// The senc follows the sgpd, so the offset to it moves with the removed entry.
+			traf.Saio.Offset[0] -= int64(size - traf.Sgpd.Size())
+		}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f, err := mp4.DecodeFile(bytes.NewReader(orig))
+			if err != nil {
+				t.Fatal(err)
+			}
+			moof := f.Segments[0].Fragments[0].Moof
+			c.empty(moof.Traf)
+			// The file has no mdat, so add an empty one to make a fragment of the changed moof.
+			var buf bytes.Buffer
+			for _, box := range []mp4.Box{moof, &mp4.MdatBox{}} {
+				if err := box.Encode(&buf); err != nil {
+					t.Fatal(err)
+				}
+			}
+			data := buf.Bytes()
+			if _, err := mp4.DecodeFile(bytes.NewReader(data)); err != nil {
+				t.Errorf("DecodeFile: %v", err)
+			}
+			var d mp4.FragmentDecoder
+			decodeAllFragments(t, &d, data, func(int, *mp4.Fragment) {})
+			f, err = mp4.DecodeFileSR(bits.NewFixedSliceReader(data))
+			if err != nil {
+				t.Fatalf("DecodeFileSR: %v", err)
+			}
+			moof = f.Segments[0].Fragments[0].Moof
+			if _, parsed := moof.Traf.ContainsSencBox(); parsed != c.wantParsed {
+				t.Fatalf("senc parsed: %t, want %t", parsed, c.wantParsed)
+			}
+			if !c.wantParsed {
+				err := moof.Traf.ParseReadSenc(0, moof.StartPos)
+				if err == nil || !strings.Contains(err.Error(), "seig") {
+					t.Errorf("ParseReadSenc: got error %v, want one about the seig entry", err)
+				}
+			}
+		})
 	}
 }
