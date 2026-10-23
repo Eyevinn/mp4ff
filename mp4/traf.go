@@ -123,8 +123,8 @@ func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 	} else {
 		senc = t.UUIDSenc.Senc
 	}
-	if t.Saio != nil {
-		// saio should be present, but we try without it, if it doesn't exist
+	if t.Saio != nil && len(t.Saio.Offset) > 0 {
+		// saio should be present, but we try without it, if it doesn't exist or has no offset
 		posFromSaio := t.Saio.Offset[0] + int64(moofStartPos)
 		if uint64(posFromSaio) != senc.StartPos+16 {
 			//TODO. Re-enable
@@ -143,6 +143,9 @@ func (t *TrafBox) ParseReadSenc(defaultIVSize byte, moofStartPos uint64) error {
 		sgpdEntryNr := sbgp.GroupDescriptionIndices[0]
 		if sgpdEntryNr != sbgpInsideOffset+1 {
 			return fmt.Errorf("sgpd entry number must be first inside = 65536 + 1")
+		}
+		if len(sgpd.SampleGroupEntries) == 0 {
+			return fmt.Errorf("sgpd has no seig entry")
 		}
 		sgpdEntry := sgpd.SampleGroupEntries[sgpdEntryNr-sbgpInsideOffset-1]
 		seigEntry := sgpdEntry.(*SeigSampleGroupEntry)

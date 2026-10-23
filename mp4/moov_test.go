@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -72,5 +73,44 @@ func TestMoovAddChildKeepsTraksTogether(t *testing.T) {
 	}
 	if len(types) != 4 || types[1] != "trak" || types[2] != "trak" || types[3] != "mvex" {
 		t.Errorf("got children %v, want [mvhd trak trak mvex]", types)
+	}
+}
+
+// TestMoovEncryptionOfIncompleteTrak - IsEncrypted and GetSinf report no encryption for a track that lacks a box
+// on the way to its sample entry.
+func TestMoovEncryptionOfIncompleteTrak(t *testing.T) {
+	data, err := os.ReadFile("testdata/init_cenc.cmfv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name          string
+		remove        func(trak *mp4.TrakBox)
+		wantEncrypted bool
+	}{
+		{"complete", func(*mp4.TrakBox) {}, true},
+		{"no tkhd", func(trak *mp4.TrakBox) { trak.Tkhd = nil }, false},
+		{"no mdia", func(trak *mp4.TrakBox) { trak.Mdia = nil }, false},
+		{"no minf", func(trak *mp4.TrakBox) { trak.Mdia.Minf = nil }, false},
+		{"no stbl", func(trak *mp4.TrakBox) { trak.Mdia.Minf.Stbl = nil }, false},
+		{"no stsd", func(trak *mp4.TrakBox) { trak.Mdia.Minf.Stbl.Stsd = nil }, false},
+		{"empty stsd", func(trak *mp4.TrakBox) { trak.Mdia.Minf.Stbl.Stsd.Children = nil }, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f, err := mp4.DecodeFile(bytes.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			moov := f.Moov
+			trackID := moov.Trak.Tkhd.TrackID
+			c.remove(moov.Trak)
+			if got := moov.IsEncrypted(trackID); got != c.wantEncrypted {
+				t.Errorf("IsEncrypted = %t, want %t", got, c.wantEncrypted)
+			}
+			if got := moov.GetSinf(trackID) != nil; got != c.wantEncrypted {
+				t.Errorf("GetSinf returned a sinf: %t, want %t", got, c.wantEncrypted)
+			}
+		})
 	}
 }

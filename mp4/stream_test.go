@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -573,5 +574,31 @@ func TestTrailingBoxesCallback(t *testing.T) {
 	}
 	if want := "moof mdat uuid"; lastFrag != want {
 		t.Errorf("got last fragment %q, want %q", lastFrag, want)
+	}
+}
+
+// TestInitDecodeStreamIncompleteFirstTrack - a stream whose moov has no track, or a first track that lacks a box
+// on the way to its stts, gives an error.
+func TestInitDecodeStreamIncompleteFirstTrack(t *testing.T) {
+	orig, err := os.ReadFile("testdata/prog_8s_dec_dashinit.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputs := make(map[string][]byte)
+	for _, boxType := range []string{"mdia", "minf", "stbl", "stts"} {
+		inputs["no "+boxType] = withBoxRenamed(t, orig, boxType)
+	}
+	var buf bytes.Buffer
+	if err := mp4.CreateEmptyInit().Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	inputs["no trak"] = buf.Bytes()
+	for name, data := range inputs {
+		t.Run(name, func(t *testing.T) {
+			_, err := mp4.InitDecodeStream(bytes.NewReader(data))
+			if err == nil || !strings.Contains(err.Error(), "stts") {
+				t.Errorf("got error %v, want one about the stts box", err)
+			}
+		})
 	}
 }

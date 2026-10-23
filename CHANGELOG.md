@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   record, instead of adding or allocating an empty NAL unit for each one that the record announces but does not hold
 - Decoding a `traf` without `tfhd`, with `DecodeBox`, `DecodeBoxSR`, `DecodeFile` or `FragmentDecoder`, returns an
   error instead of a `TrafBox` with a nil `Tfhd`
+- `MoovBox.IsEncrypted`, `MoovBox.GetSinf`, `DecodeFile`, `DecodeFileSR`, `FragmentDecoder` and `InitDecodeStream` no
+  longer panic on a track without the boxes down to its sample entry or stts, or on an empty `saio` or seig `sgpd`
 
 ## [0.60.0] - 2026-10-13
 
