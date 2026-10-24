@@ -104,6 +104,10 @@ func runInfo(args []string, w io.Writer) error {
 	}
 
 	for i, trak := range parsedMp4.Moov.Traks {
+		if trak.Tkhd == nil || trak.Mdia == nil || trak.Mdia.Mdhd == nil || trak.Mdia.Minf == nil {
+			fmt.Fprintf(w, "Track %d: no tkhd, mdia, mdhd or minf box, skipped\n", i+1)
+			continue
+		}
 		fmt.Fprintf(w, "Track %d (ID=%d):\n", i+1, trak.Tkhd.TrackID)
 		stbl := trak.Mdia.Minf.Stbl
 		if stbl == nil || stbl.Stsd == nil {
@@ -630,6 +634,9 @@ func parseMp4Input(inPath string, w io.Writer) (*mvhevcInput, error) {
 	}
 	if trak == nil {
 		return nil, fmt.Errorf("no video track found")
+	}
+	if trak.Mdia.Mdhd == nil || trak.Mdia.Minf == nil {
+		return nil, fmt.Errorf("video track has no mdhd or minf box")
 	}
 	stbl := trak.Mdia.Minf.Stbl
 	if stbl == nil || stbl.Stsd == nil {

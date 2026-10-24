@@ -435,3 +435,14 @@ func TestBadSubSamplePattern(t *testing.T) {
 		t.Error("expected error for subsample data outside sample, got nil")
 	}
 }
+
+// TestInitFileWithoutInit checks that an init file without an init segment gives an error.
+func TestInitFileWithoutInit(t *testing.T) {
+	segFile := "testdata/PIFF/audio/segment-1.0001.m4s"
+	outFile := path.Join(t.TempDir(), "out.mp4")
+	args := []string{"mp4ff-decrypt", "-init", segFile, "-key", "602a9289bfb9b1995b75ac63f123fc86", segFile, outFile}
+	err := run(args)
+	if err == nil || !strings.Contains(err.Error(), "no init segment in init file") {
+		t.Errorf("got error %v, want one about no init segment", err)
+	}
+}

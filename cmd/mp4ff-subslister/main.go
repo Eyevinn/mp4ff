@@ -107,8 +107,16 @@ func run(args []string, stdout io.Writer) error {
 	return nil
 }
 
+// findTrack returns the track with trackID, or if trackID is 0, the first track with handler type hdlrType.
+// Tracks without tkhd, mdia or hdlr are passed over.
 func findTrack(moov *mp4.MoovBox, hdlrType string, trackID uint32) (*mp4.TrakBox, error) {
+	if moov == nil {
+		return nil, fmt.Errorf("no moov box found")
+	}
 	for _, inTrak := range moov.Traks {
+		if inTrak.Tkhd == nil || inTrak.Mdia == nil || inTrak.Mdia.Hdlr == nil {
+			continue
+		}
 		if trackID != 0 {
 			if inTrak.Tkhd.TrackID != trackID {
 				continue
@@ -121,6 +129,16 @@ func findTrack(moov *mp4.MoovBox, hdlrType string, trackID uint32) (*mp4.TrakBox
 		return inTrak, nil
 	}
 	return nil, fmt.Errorf("no matching track found")
+}
+
+// subtitleSampleDescriptions returns the stsd box of subsTrak, after checking that subsTrak has the
+// boxes that listing its header needs.
+func subtitleSampleDescriptions(subsTrak *mp4.TrakBox) (*mp4.StsdBox, error) {
+	mdia := subsTrak.Mdia
+	if mdia.Mdhd == nil || mdia.Minf == nil || mdia.Minf.Stbl == nil || mdia.Minf.Stbl.Stsd == nil {
+		return nil, fmt.Errorf("track %d has no mdhd, minf, stbl or stsd box", subsTrak.Tkhd.TrackID)
+	}
+	return mdia.Minf.Stbl.Stsd, nil
 }
 
 type subtitleTrack struct {
@@ -140,30 +158,17 @@ func parseProgressiveMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples 
 		return err
 	}
 	stbl := subsTrak.trak.Mdia.Minf.Stbl
+	if stbl.Stsz == nil || stbl.Stts == nil {
+		return fmt.Errorf("subtitle track has no stsz or stts box")
+	}
 	nrSamples := stbl.Stsz.SampleNumber
-	mdat := f.Mdat
 	for sampleNr := 1; sampleNr <= int(nrSamples); sampleNr++ {
-		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(sampleNr)
-		if err != nil {
-			return err
-		}
-		var offset int64
-		if stbl.Stco != nil {
-			offset = int64(stbl.Stco.ChunkOffset[chunkNr-1])
-		} else if stbl.Co64 != nil {
-			offset = int64(stbl.Co64.ChunkOffset[chunkNr-1])
-		}
-		for sNr := sampleNrAtChunkStart; sNr < sampleNr; sNr++ {
-			offset += int64(stbl.Stsz.GetSampleSize(sNr))
-		}
-		size := stbl.Stsz.GetSampleSize(sampleNr)
 		decTime, dur, err := stbl.Stts.GetDecodeTime(uint32(sampleNr))
 		if err != nil {
 			return fmt.Errorf("sample %d: %w", sampleNr, err)
 		}
 		// Skip checking compositionTimeOffset since not uset for subtitles
-		// Next find sample bytes as slice in mdat
-		sample, err := mdat.ReadData(offset, int64(size), nil)
+		sample, err := f.ReadSampleData(subsTrak.trak, uint32(sampleNr), uint32(sampleNr), nil, nil)
 		if err != nil {
 			return fmt.Errorf("sample %d: %w", sampleNr, err)
 		}
@@ -189,19 +194,24 @@ func findWvttTrack(moov *mp4.MoovBox, w io.Writer, trackID uint32) (*subtitleTra
 		return nil, err
 	}
 
-	stbl := subsTrak.Mdia.Minf.Stbl
-	entry := stbl.Stsd.Wvtt
+	stsd, err := subtitleSampleDescriptions(subsTrak)
+	if err != nil {
+		return nil, err
+	}
+	entry := stsd.Wvtt
 	if entry == nil {
-		entry = stbl.Stsd.Wvtc
+		entry = stsd.Wvtc
 	}
 	if entry == nil {
 		return nil, fmt.Errorf("no wvtt or wvtc track found")
 	}
 
 	fmt.Fprintf(w, "Track %d, timescale = %d\n", subsTrak.Tkhd.TrackID, subsTrak.Mdia.Mdhd.Timescale)
-	err = entry.VttC.Info(os.Stdout, "", "  ", "  ")
-	if err != nil {
-		return nil, err
+	if entry.VttC != nil {
+		err = entry.VttC.Info(os.Stdout, "", "  ", "  ")
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &subtitleTrack{
 		variant: entry.Type(),
@@ -215,10 +225,13 @@ func findStppTrack(moov *mp4.MoovBox, w io.Writer, trackID uint32) (*subtitleTra
 		return nil, err
 	}
 
-	stbl := subsTrak.Mdia.Minf.Stbl
-	entry := stbl.Stsd.Stpp
+	stsd, err := subtitleSampleDescriptions(subsTrak)
+	if err != nil {
+		return nil, err
+	}
+	entry := stsd.Stpp
 	if entry == nil {
-		entry = stbl.Stsd.Stpc
+		entry = stsd.Stpc
 	}
 	if entry == nil {
 		return nil, fmt.Errorf("no stpp or stpc track found")
@@ -247,9 +260,12 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 				return fmt.Errorf("no subtitle track found: %w", err)
 			}
 		}
-		for _, trex := range f.Init.Moov.Mvex.Trexs {
-			if trex.TrackID == subsTrak.trak.Tkhd.TrackID {
-				subsTrex = trex
+		subsTrex = &mp4.TrexBox{TrackID: subsTrak.trak.Tkhd.TrackID}
+		if f.Init.Moov.Mvex != nil {
+			for _, trex := range f.Init.Moov.Mvex.Trexs {
+				if trex.TrackID == subsTrak.trak.Tkhd.TrackID {
+					subsTrex = trex
+				}
 			}
 		}
 	}
@@ -257,7 +273,7 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 	for _, iSeg := range f.Segments {
 		for _, iFrag := range iSeg.Fragments {
 			var tfraTime uint64
-			if f.Mfra != nil {
+			if f.Mfra != nil && iFrag.Moof.Traf != nil {
 				moofOffset := iFrag.Moof.StartPos
 				entry := f.Mfra.FindEntry(moofOffset, iFrag.Moof.Traf.Tfhd.TrackID)
 				if entry != nil {
@@ -268,7 +284,7 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 			if err != nil {
 				return err
 			}
-			if tfraTime != 0 && fSamples[0].DecodeTime == 0 {
+			if tfraTime != 0 && len(fSamples) > 0 && fSamples[0].DecodeTime == 0 {
 				for i := range fSamples {
 					fSamples[i].DecodeTime += tfraTime
 				}
@@ -281,7 +297,7 @@ func parseFragmentedMp4(f *mp4.File, w io.Writer, trackID uint32, maxNrSamples i
 			return fmt.Errorf("no subtitle samples found")
 		}
 		variant := "stpp"
-		if iSamples[0].Data[0] == 0 { // Only wvtt start with a length field.
+		if len(iSamples[0].Data) > 0 && iSamples[0].Data[0] == 0 { // Only wvtt start with a length field.
 			variant = "wvtt"
 		}
 

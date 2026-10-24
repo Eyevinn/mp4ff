@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Encode`, `GetSampleInterval`, `GetSampleNrFromTime` and `AddSampleInterval` handle missing boxes instead of panicking
 - `InitProtect`, `ExtractInitProtectData`, `DecryptInit`, `DecryptSegment`, `DecryptFragment` and `RemoveEncryption`
   return an error instead of panicking when a box they need is missing, or `ExtractInitProtectData` gets a clear init
+- `mp4ff-crop`, `mp4ff-decrypt`, `mp4ff-mvhevc`, `mp4ff-nallister`, `mp4ff-pslister` and `mp4ff-subslister` give an
+  error, or skip the track, instead of panicking on a file without a box they need
 
 ## [0.60.0] - 2026-10-13
 
