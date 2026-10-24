@@ -175,3 +175,91 @@ func TestAllSamplesInSegments(t *testing.T) {
 		})
 	}
 }
+
+// TestSegmentWithoutStss checks that a video track without stss box, in which every sample is a
+// sync sample, gets a segment start at the first sample at or after each segment duration.
+func TestSegmentWithoutStss(t *testing.T) {
+	raw, err := os.ReadFile("../../mp4/testdata/bbb_prog_10s.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stssPos := bytes.Index(raw, []byte("stss"))
+	if stssPos < 0 {
+		t.Fatal("no stss box found")
+	}
+	copy(raw[stssPos:stssPos+4], "free")
+	inFile := filepath.Join(t.TempDir(), "no_stss.mp4")
+	if err := os.WriteFile(inFile, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		mode   []string
+		prefix string
+	}{
+		{mode: []string{}, prefix: "seg_v1_"},
+		{mode: []string{"-lazy"}, prefix: "seg_v1_"},
+		{mode: []string{"-m"}, prefix: "seg_media_"},
+	}
+	for _, c := range cases {
+		t.Run(strings.Join(append([]string{"mode"}, c.mode...), " "), func(t *testing.T) {
+			dir := t.TempDir()
+			args := append(append([]string{appName, "-d", "1000"}, c.mode...), inFile, "seg")
+			if err := run(args, dir); err != nil {
+				t.Fatal(err)
+			}
+			nrMediaSegs := 0
+			for _, name := range getFileNames(t, dir, c.prefix) {
+				if strings.HasSuffix(name, ".m4s") {
+					nrMediaSegs++
+				}
+			}
+			if nrMediaSegs != 10 {
+				t.Errorf("got %d media segments, want 10", nrMediaSegs)
+			}
+		})
+	}
+}
+
+// TestMissingBoxes checks that a file with a track that lacks a box that segmenting needs, or
+// without video track, gives an error.
+func TestMissingBoxes(t *testing.T) {
+	cases := []struct {
+		boxType string
+		wantErr string
+	}{
+		{boxType: "moov", wantErr: "no moov box with an mvhd box"},
+		{boxType: "mvhd", wantErr: "no moov box with an mvhd box"},
+		{boxType: "trak", wantErr: "no video track"},
+		{boxType: "mdia", wantErr: "track 1 has no mdia box"},
+		{boxType: "mdhd", wantErr: "track 1 has no mdhd box"},
+		{boxType: "hdlr", wantErr: "track 1 has no hdlr box"},
+		{boxType: "minf", wantErr: "track 1 has no minf box"},
+		{boxType: "stbl", wantErr: "track 1 has no stbl box"},
+		{boxType: "stsd", wantErr: "track 1 has no stsd box"},
+		{boxType: "stts", wantErr: "track 1 has no stts box"},
+		{boxType: "stsc", wantErr: "track 1 has no stsc box"},
+		{boxType: "stsz", wantErr: "track 1 has no stsz box"},
+		{boxType: "stco", wantErr: "track 1 has no stco or co64 box"},
+	}
+	for _, c := range cases {
+		t.Run(c.boxType, func(t *testing.T) {
+			raw, err := os.ReadFile("../../mp4/testdata/bbb_prog_10s.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			pos := bytes.Index(raw, []byte(c.boxType))
+			if pos < 0 {
+				t.Fatalf("no %s box found", c.boxType)
+			}
+			copy(raw[pos:pos+4], "free")
+			inFile := filepath.Join(t.TempDir(), "in.mp4")
+			if err := os.WriteFile(inFile, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			err = run([]string{appName, "-d", "2000", inFile, "seg"}, t.TempDir())
+			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("got error %v, want one containing %q", err, c.wantErr)
+			}
+		})
+	}
+}

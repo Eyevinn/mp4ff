@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   return an error instead of panicking when a box they need is missing, or `ExtractInitProtectData` gets a clear init
 - `mp4ff-crop`, `mp4ff-decrypt`, `mp4ff-mvhevc`, `mp4ff-nallister`, `mp4ff-pslister` and `mp4ff-subslister` give an
   error, or skip the track, instead of panicking on a file without a box they need
+- The segmenter example segments a video track without `stss`, in which every sample is a sync sample, and gives an
+  error instead of panicking on a file without video track or without a box it needs
 
 ## [0.60.0] - 2026-10-13
 

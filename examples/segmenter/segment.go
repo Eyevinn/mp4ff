@@ -222,16 +222,25 @@ func getSegmentStartsFromVideo(parsedMp4 *mp4.File, segDurMS uint32) (timeScale 
 		}
 	}
 	if refTrak == nil {
-		panic("Cannot handle case with no video track yet")
+		return 0, nil, fmt.Errorf("no video track found")
 	}
 	timeScale = refTrak.Mdia.Mdhd.Timescale
-	stts := refTrak.Mdia.Minf.Stbl.Stts
-	stss := refTrak.Mdia.Minf.Stbl.Stss
-	ctts := refTrak.Mdia.Minf.Stbl.Ctts
-	syncPoints = make([]syncPoint, 0, stss.EntryCount())
+	stbl := refTrak.Mdia.Minf.Stbl
+	stts := stbl.Stts
+	ctts := stbl.Ctts
+	var syncSampleNrs []uint32
+	if stbl.Stss != nil {
+		syncSampleNrs = stbl.Stss.SampleNumber
+	} else { // Without stss, every sample is a sync sample
+		syncSampleNrs = make([]uint32, stbl.Stsz.GetNrSamples())
+		for i := range syncSampleNrs {
+			syncSampleNrs[i] = uint32(i + 1)
+		}
+	}
+	syncPoints = make([]syncPoint, 0, len(syncSampleNrs))
 	var segmentStep = uint32(uint64(segDurMS) * uint64(timeScale) / 1000)
 	var nextSegmentStart uint32 = 0
-	for _, sampleNr := range stss.SampleNumber {
+	for _, sampleNr := range syncSampleNrs {
 		decodeTime, _, err := stts.GetDecodeTime(sampleNr)
 		if err != nil {
 			return 0, nil, err

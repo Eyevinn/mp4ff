@@ -31,9 +31,15 @@ func NewSegmenter(inFile *mp4.File, resolver mp4.DataResolver) (*Segmenter, erro
 	if inFile.IsFragmented() {
 		return nil, fmt.Errorf("segmented input file not supported")
 	}
+	if inFile.Moov == nil || inFile.Moov.Mvhd == nil {
+		return nil, fmt.Errorf("no moov box with an mvhd box found")
+	}
 	s := Segmenter{inFile: inFile, resolver: resolver}
 	traks := inFile.Moov.Traks
-	for _, trak := range traks {
+	for i, trak := range traks {
+		if missing := missingTrakBox(trak); missing != "" {
+			return nil, fmt.Errorf("track %d has no %s box", i+1, missing)
+		}
 		track := &Track{trackType: "", lang: ""}
 		switch hdlrType := trak.Mdia.Hdlr.HandlerType; hdlrType {
 		case "vide":
@@ -52,6 +58,37 @@ func NewSegmenter(inFile *mp4.File, resolver mp4.DataResolver) (*Segmenter, erro
 		s.tracks = append(s.tracks, track)
 	}
 	return &s, nil
+}
+
+// missingTrakBox returns the type of the first box that segmenting trak needs and trak lacks,
+// or "" if trak has them all.
+func missingTrakBox(trak *mp4.TrakBox) string {
+	switch {
+	case trak.Mdia == nil:
+		return "mdia"
+	case trak.Mdia.Mdhd == nil:
+		return "mdhd"
+	case trak.Mdia.Hdlr == nil:
+		return "hdlr"
+	case trak.Mdia.Minf == nil:
+		return "minf"
+	case trak.Mdia.Minf.Stbl == nil:
+		return "stbl"
+	}
+	stbl := trak.Mdia.Minf.Stbl
+	switch {
+	case stbl.Stsd == nil:
+		return "stsd"
+	case stbl.Stts == nil:
+		return "stts"
+	case stbl.Stsc == nil:
+		return "stsc"
+	case stbl.Stsz == nil:
+		return "stsz"
+	case stbl.Stco == nil && stbl.Co64 == nil:
+		return "stco or co64"
+	}
+	return ""
 }
 
 // SetTargetSegmentation - set segment start points
