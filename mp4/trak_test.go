@@ -137,6 +137,7 @@ func TestTrakSampleMethodsMissingMandatoryBoxes(t *testing.T) {
 		{boxType: "stsz", wantZeroSamples: true, wantSampleDataError: true, wantRangesError: true},
 		{boxType: "stts", wantSampleDataError: true},
 		{boxType: "stsc", wantRangesError: true},
+		{boxType: "stco", wantRangesError: true},
 	}
 	for _, c := range cases {
 		t.Run(c.boxType, func(t *testing.T) {

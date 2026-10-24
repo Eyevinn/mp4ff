@@ -227,6 +227,9 @@ func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) 
 	if stbl.Stsc == nil {
 		return nil, fmt.Errorf("track has no stsc box")
 	}
+	if stbl.Stco == nil && stbl.Co64 == nil {
+		return nil, fmt.Errorf("track has no stco or co64 box")
+	}
 	stsc := stbl.Stsc
 	stco := stbl.Stco
 	co64 := stbl.Co64
@@ -245,7 +248,7 @@ func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) 
 		var offset uint64
 		if stco != nil {
 			offset, err = stco.GetOffset(int(chunk.ChunkNr))
-		} else if stbl.Co64 != nil {
+		} else {
 			offset, err = co64.GetOffset(int(chunk.ChunkNr))
 		}
 		if err != nil {

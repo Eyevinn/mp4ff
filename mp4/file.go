@@ -746,6 +746,9 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 		return fmt.Errorf("trak does not have a complete mdia/minf/stbl structure")
 	}
 	stbl := trak.Mdia.Minf.Stbl
+	if stbl.Stsc == nil || stbl.Stsz == nil {
+		return fmt.Errorf("trak has no stsc or stsz box")
+	}
 	chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
 	if err != nil {
 		return err

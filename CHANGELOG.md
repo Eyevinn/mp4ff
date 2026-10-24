@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error instead of a `TrafBox` with a nil `Tfhd`
 - `MoovBox.IsEncrypted`, `MoovBox.GetSinf`, `DecodeFile`, `DecodeFileSR`, `FragmentDecoder` and `InitDecodeStream` no
   longer panic on a track without the boxes down to its sample entry or stts, or on an empty `saio` or seig `sgpd`
+- `TrakBox.GetNrSamples`, `GetSampleData`, `GetRangesForSampleInterval` and `File.CopySampleData` return 0 or an
+  error instead of panicking or using chunk offset 0 when the track lacks a box of its sample table
 
 ## [0.60.0] - 2026-10-13
 
