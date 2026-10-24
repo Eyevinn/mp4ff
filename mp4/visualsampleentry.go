@@ -338,6 +338,9 @@ func (b *VisualSampleEntryBox) RemoveEncryption() (*SinfBox, error) {
 	if sinf == nil {
 		return nil, fmt.Errorf("does not have sinf box")
 	}
+	if sinf.Frma == nil {
+		return nil, fmt.Errorf("sinf box does not have frma box")
+	}
 	for i := range b.Children {
 		if b.Children[i].Type() == "sinf" {
 			b.Children = append(b.Children[:i], b.Children[i+1:]...)

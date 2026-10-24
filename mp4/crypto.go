@@ -452,10 +452,20 @@ type InitProtectData struct {
 func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, psshBoxes []*PsshBox) (*InitProtectData, error) {
 	ipd := InitProtectData{Scheme: scheme}
 	moov := init.Moov
+	if moov == nil {
+		return nil, fmt.Errorf("init segment has no moov box")
+	}
 	if len(moov.Traks) != 1 {
 		return nil, fmt.Errorf("only one track supported")
 	}
-	stsd := moov.Trak.Mdia.Minf.Stbl.Stsd
+	stbl, err := moov.Trak.getSampleTable()
+	if err != nil {
+		return nil, err
+	}
+	stsd := stbl.Stsd
+	if stsd == nil {
+		return nil, fmt.Errorf("track has no stsd box")
+	}
 	if len(stsd.Children) != 1 {
 		return nil, fmt.Errorf("only one stsd child supported")
 	}
@@ -467,8 +477,9 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 		iv = make([]byte, 16)
 		copy(iv, iv8)
 	}
-	var err error
-	ipd.Trex = moov.Mvex.Trex
+	if moov.Mvex != nil {
+		ipd.Trex = moov.Mvex.Trex
+	}
 	sinf := SinfBox{}
 	var mediaType string
 	switch se := stsd.Children[0].(type) {
@@ -481,16 +492,25 @@ func InitProtect(init *InitSegment, key, iv []byte, scheme string, kid UUID, pss
 		se.AddChild(&sinf)
 		switch veType {
 		case "avc1", "avc3":
+			if se.AvcC == nil {
+				return nil, fmt.Errorf("%s sample entry has no avcC box", veType)
+			}
 			ipd.newProtector, err = newAVCProtectorFactory(se.AvcC)
 			if err != nil {
 				return nil, fmt.Errorf("get avc protector: %w", err)
 			}
 		case "hvc1", "hev1", "dvh1", "dvhe":
+			if se.HvcC == nil {
+				return nil, fmt.Errorf("%s sample entry has no hvcC box", veType)
+			}
 			ipd.newProtector, err = newHEVCProtectorFactory(se.HvcC)
 			if err != nil {
 				return nil, fmt.Errorf("get hevc protector: %w", err)
 			}
 		case "av01":
+			if se.Av1C == nil {
+				return nil, fmt.Errorf("%s sample entry has no av1C box", veType)
+			}
 			ipd.newProtector, err = newAV1ProtectorFactory(se.Av1C)
 			if err != nil {
 				return nil, fmt.Errorf("get av1 protector: %w", err)
@@ -975,37 +995,44 @@ func normalizePiffScheme(sinf *SinfBox) error {
 // DecryptInit modifies init segment in place and returns decryption info and a clean init segment.
 func DecryptInit(init *InitSegment) (DecryptInfo, error) {
 	moov := init.Moov
+	if moov == nil {
+		return DecryptInfo{}, fmt.Errorf("init segment has no moov box")
+	}
 	di := DecryptInfo{
 		TrackInfos: make([]DecryptTrackInfo, 0, len(moov.Traks)),
 	}
-	for _, trak := range moov.Traks {
+	for i, trak := range moov.Traks {
+		if trak.Tkhd == nil {
+			return di, fmt.Errorf("track %d has no tkhd box", i+1)
+		}
 		trackID := trak.Tkhd.TrackID
-		stsd := trak.Mdia.Minf.Stbl.Stsd
-		var encv *VisualSampleEntryBox
-		var enca *AudioSampleEntryBox
+		stbl, err := trak.getSampleTable()
+		if err != nil {
+			return di, fmt.Errorf("trackID=%d: %w", trackID, err)
+		}
+		stsd := stbl.Stsd
+		if stsd == nil {
+			return di, fmt.Errorf("trackID=%d: track has no stsd box", trackID)
+		}
 		var schemeType string
-		var err error
 
 		for _, child := range stsd.Children {
 			var sinf *SinfBox
 			switch child.Type() {
 			case "encv":
-				encv = child.(*VisualSampleEntryBox)
-				sinf, err = encv.RemoveEncryption()
-				if err != nil {
-					return di, err
-				}
-				schemeType = sinf.Schm.SchemeType
+				sinf, err = child.(*VisualSampleEntryBox).RemoveEncryption()
 			case "enca":
-				enca = child.(*AudioSampleEntryBox)
-				sinf, err = enca.RemoveEncryption()
-				if err != nil {
-					return di, err
-				}
-				schemeType = sinf.Schm.SchemeType
+				sinf, err = child.(*AudioSampleEntryBox).RemoveEncryption()
 			default:
 				continue
 			}
+			if err != nil {
+				return di, err
+			}
+			if sinf.Schm == nil {
+				return di, fmt.Errorf("missing schm for trackID=%d", trackID)
+			}
+			schemeType = sinf.Schm.SchemeType
 			if schemeType == "piff" {
 				if err := normalizePiffScheme(sinf); err != nil {
 					return di, err
@@ -1029,11 +1056,13 @@ func DecryptInit(init *InitSegment) (DecryptInfo, error) {
 		}
 	}
 
-	for _, trex := range moov.Mvex.Trexs {
-		for i := range di.TrackInfos {
-			if di.TrackInfos[i].TrackID == trex.TrackID {
-				di.TrackInfos[i].Trex = trex
-				break
+	if moov.Mvex != nil {
+		for _, trex := range moov.Mvex.Trexs {
+			for i := range di.TrackInfos {
+				if di.TrackInfos[i].TrackID == trex.TrackID {
+					di.TrackInfos[i].Trex = trex
+					break
+				}
 			}
 		}
 	}
@@ -1117,9 +1146,15 @@ func DecryptFragmentWithKeys(frag *Fragment, di DecryptInfo, key []byte, keysByK
 	for _, traf := range moof.Trafs {
 		ti := di.findTrackInfo(traf.Tfhd.TrackID)
 		if ti.Sinf != nil {
+			if ti.Sinf.Schm == nil {
+				return fmt.Errorf("missing schm for trackID=%d", ti.TrackID)
+			}
 			schemeType := ti.Sinf.Schm.SchemeType
 			if schemeType != "cenc" && schemeType != "cbcs" {
 				return fmt.Errorf("scheme type %s not supported", schemeType)
+			}
+			if ti.Sinf.Schi == nil || ti.Sinf.Schi.Tenc == nil {
+				return fmt.Errorf("missing tenc for trackID=%d", ti.TrackID)
 			}
 			tenc := ti.Sinf.Schi.Tenc
 			hasSenc, isParsed := traf.ContainsSencBox()
@@ -1128,13 +1163,12 @@ func DecryptFragmentWithKeys(frag *Fragment, di DecryptInfo, key []byte, keysByK
 				// constant IV (no sample auxiliary information); CMAF
 				// (ISO/IEC 23000-19 Section 8.2.2.1) recommends omitting
 				// senc, saiz, and saio in that case.
-				if tenc == nil || tenc.DefaultPerSampleIVSize != 0 || len(tenc.DefaultConstantIV) == 0 {
+				if tenc.DefaultPerSampleIVSize != 0 || len(tenc.DefaultConstantIV) == 0 {
 					return fmt.Errorf("no senc box in traf")
 				}
 			}
 			if hasSenc && !isParsed {
-				defaultPerSampleIVSize := ti.Sinf.Schi.Tenc.DefaultPerSampleIVSize
-				err := traf.ParseReadSenc(defaultPerSampleIVSize, moof.StartPos)
+				err := traf.ParseReadSenc(tenc.DefaultPerSampleIVSize, moof.StartPos)
 				if err != nil {
 					return fmt.Errorf("parseReadSenc: %w", err)
 				}
@@ -1169,7 +1203,7 @@ func DecryptFragmentWithKeys(frag *Fragment, di DecryptInfo, key []byte, keysByK
 			trun.DataOffset -= int32(nrBytesRemoved)
 		}
 	}
-	if frag.Mdat.StartPos > frag.Moof.StartPos {
+	if frag.Mdat != nil && frag.Mdat.StartPos > frag.Moof.StartPos {
 		frag.Mdat.StartPos -= nrBytesRemoved
 	}
 
@@ -1233,33 +1267,60 @@ func decryptSamplesInPlace(schemeType string, samples []FullSample, key []byte, 
 }
 
 // ExtractInitProtectData extracts protection data from init segment.
+// It returns an error if no sample entry has a sinf box with schm and tenc boxes.
 // For cbcs, it has the same parameter set limitation as [InitProtect].
 func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
-	if len(inSeg.Moov.Traks) != 1 {
+	moov := inSeg.Moov
+	if moov == nil {
+		return nil, fmt.Errorf("init segment has no moov box")
+	}
+	if len(moov.Traks) != 1 {
 		return nil, fmt.Errorf("only one track supported")
 	}
+	stbl, err := moov.Trak.getSampleTable()
+	if err != nil {
+		return nil, err
+	}
+	if stbl.Stsd == nil {
+		return nil, fmt.Errorf("track has no stsd box")
+	}
 	ipd := InitProtectData{}
-	ipd.Trex = inSeg.Moov.Mvex.Trex
-	stsd := inSeg.Moov.Trak.Mdia.Minf.Stbl.Stsd
+	if moov.Mvex != nil {
+		ipd.Trex = moov.Mvex.Trex
+	}
 	var sinf *SinfBox
-	var err error
-	for _, c := range stsd.Children {
+	for _, c := range stbl.Stsd.Children {
 		switch box := c.(type) {
 		case *VisualSampleEntryBox:
+			if box.Sinf == nil {
+				continue
+			}
 			sinf = box.Sinf
 			frma := sinf.Frma
+			if frma == nil {
+				return nil, fmt.Errorf("sinf box has no frma box")
+			}
 			switch frma.DataFormat {
 			case "avc1", "avc3":
+				if box.AvcC == nil {
+					return nil, fmt.Errorf("%s sample entry has no avcC box", frma.DataFormat)
+				}
 				ipd.newProtector, err = newAVCProtectorFactory(box.AvcC)
 				if err != nil {
 					return nil, fmt.Errorf("get AVC protector: %w", err)
 				}
 			case "hvc1", "hev1", "dvh1", "dvhe":
+				if box.HvcC == nil {
+					return nil, fmt.Errorf("%s sample entry has no hvcC box", frma.DataFormat)
+				}
 				ipd.newProtector, err = newHEVCProtectorFactory(box.HvcC)
 				if err != nil {
 					return nil, fmt.Errorf("get HEVC protector: %w", err)
 				}
 			case "av01":
+				if box.Av1C == nil {
+					return nil, fmt.Errorf("%s sample entry has no av1C box", frma.DataFormat)
+				}
 				ipd.newProtector, err = newAV1ProtectorFactory(box.Av1C)
 				if err != nil {
 					return nil, fmt.Errorf("get AV1 protector: %w", err)
@@ -1268,6 +1329,9 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 				return nil, fmt.Errorf("unsupported video codec descriptor %s", frma.DataFormat)
 			}
 		case *AudioSampleEntryBox:
+			if box.Sinf == nil {
+				continue
+			}
 			sinf = box.Sinf
 			ipd.newProtector = audioProtectorFactory
 		default:
@@ -1285,5 +1349,13 @@ func ExtractInitProtectData(inSeg *InitSegment) (*InitProtectData, error) {
 		}
 	}
 
+	switch {
+	case sinf == nil:
+		return nil, fmt.Errorf("no sample entry with a sinf box")
+	case ipd.Scheme == "":
+		return nil, fmt.Errorf("sinf box has no schm box")
+	case ipd.Tenc == nil:
+		return nil, fmt.Errorf("sinf box has no tenc box")
+	}
 	return &ipd, nil
 }
