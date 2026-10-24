@@ -292,7 +292,11 @@ func (t *TrakBox) SetMJpegDescriptor(width, height uint16, jpegPrefix []byte) er
 }
 
 // GetMediaType - should return video or audio (at present)
+// It returns "unknown" when the first track or its hdlr box is missing.
 func (s *InitSegment) GetMediaType() string {
+	if s.Moov == nil || s.Moov.Trak == nil || s.Moov.Trak.Mdia == nil || s.Moov.Trak.Mdia.Hdlr == nil {
+		return "unknown"
+	}
 	switch s.Moov.Trak.Mdia.Hdlr.HandlerType {
 	case "soun":
 		return "audio"

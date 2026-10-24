@@ -692,7 +692,7 @@ func (f *Fragment) Encode(w io.Writer) error {
 		return fmt.Errorf("moof not set in fragment")
 	}
 	traf := f.Moof.Traf
-	if f.EncOptimize&OptimizeTrun != 0 {
+	if f.EncOptimize&OptimizeTrun != 0 && traf != nil {
 		err := traf.OptimizeTfhdTrun()
 		if err != nil {
 			return err
@@ -775,7 +775,7 @@ func (f *Fragment) EncodeSW(sw bits.SliceWriter) error {
 		return fmt.Errorf("moof not set in fragment")
 	}
 	traf := f.Moof.Traf
-	if f.EncOptimize&OptimizeTrun != 0 {
+	if f.EncOptimize&OptimizeTrun != 0 && traf != nil {
 		err := traf.OptimizeTfhdTrun()
 		if err != nil {
 			return err
@@ -843,7 +843,8 @@ func (f *Fragment) SetTrunDataOffsets() {
 	}
 }
 
-// GetSampleNrFromTime - look up sample number from a specified time. Return error if no matching time
+// GetSampleNrFromTime - look up sample number from a specified time. Return error if no matching time.
+// A traf without tfdt has its first sample at decode time 0, as in GetFullSamples.
 func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32, error) {
 	if len(f.Moof.Trafs) != 1 {
 		return 0, fmt.Errorf("not exactly one traf")
@@ -852,7 +853,10 @@ func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32
 	if len(traf.Truns) != 1 {
 		return 0, fmt.Errorf("not exactly one trun")
 	}
-	baseDecodeTime := traf.Tfdt.BaseMediaDecodeTime()
+	var baseDecodeTime uint64
+	if traf.Tfdt != nil {
+		baseDecodeTime = traf.Tfdt.BaseMediaDecodeTime()
+	}
 	if baseDecodeTime > sampleTime {
 		return 0, fmt.Errorf("sampleTime %d less that baseMediaDecodeTime %d", sampleTime, baseDecodeTime)
 	}
@@ -867,7 +871,8 @@ func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32
 	return traf.Trun.GetSampleNrForRelativeTime(deltaTime, defaultSampleDuration)
 }
 
-// GetSampleInterval - get SampleInterval for a fragment with only one track
+// GetSampleInterval - get SampleInterval for a fragment with only one track.
+// A traf without tfdt has its first sample at decode time 0, as in GetFullSamples.
 func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr uint32) (SampleInterval, error) {
 	moof := f.Moof
 	if len(moof.Trafs) != 1 {
@@ -886,19 +891,28 @@ func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr u
 	if offsetInMdat > math.MaxUint32 {
 		return SampleInterval{}, fmt.Errorf("trun offset %d in mdat does not fit in 32 bits", offsetInMdat)
 	}
-	return trun.GetSampleInterval(startSampleNr, endSampleNr, traf.Tfdt.BaseMediaDecodeTime(), f.Mdat,
-		uint32(offsetInMdat))
+	var baseDecodeTime uint64
+	if traf.Tfdt != nil {
+		baseDecodeTime = traf.Tfdt.BaseMediaDecodeTime()
+	}
+	return trun.GetSampleInterval(startSampleNr, endSampleNr, baseDecodeTime, f.Mdat, uint32(offsetInMdat))
 }
 
 // AddSampleInterval - add SampleInterval for a fragment with only one track
 func (f *Fragment) AddSampleInterval(sItvl SampleInterval) error {
 	moof := f.Moof
-	traf := moof.Traf
-	trun := traf.Trun
-	if len(moof.Trafs) != 1 || len(traf.Truns) != 1 {
+	if len(moof.Trafs) != 1 || len(moof.Traf.Truns) != 1 {
 		return fmt.Errorf("not exactly one track and one trun in fragment")
 	}
+	traf := moof.Traf
+	trun := traf.Trun
+	if f.Mdat == nil {
+		return fmt.Errorf("mdat not set in fragment")
+	}
 	if trun.SampleCount() == 0 {
+		if traf.Tfdt == nil {
+			return fmt.Errorf("traf has no tfdt box for the decode time")
+		}
 		traf.Tfdt.SetBaseMediaDecodeTime(sItvl.FirstDecodeTime)
 	}
 	trun.AddSamples(sItvl.Samples)

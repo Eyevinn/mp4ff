@@ -13,6 +13,7 @@ import (
 
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
+	"github.com/go-test/deep"
 )
 
 func TestCreateMultiTrackFragment(t *testing.T) {
@@ -1084,6 +1085,154 @@ func TestFragmentResetEncryption(t *testing.T) {
 			})
 			if allocs != 0 {
 				t.Errorf("Reset, AddFullSample, cbcs encryption and Encode made %.0f allocations, want none", allocs)
+			}
+		})
+	}
+}
+
+// TestFragmentWithoutTfdt - GetSampleInterval and GetSampleNrFromTime take the first sample of a traf without tfdt
+// to be at decode time 0.
+func TestFragmentWithoutTfdt(t *testing.T) {
+	orig, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The tfdt of the second fragment has a non-zero baseMediaDecodeTime.
+	first := bytes.Index(orig, []byte("tfdt"))
+	second := first + 4 + bytes.Index(orig[first+4:], []byte("tfdt"))
+	data := bytes.Clone(orig)
+	copy(data[second:], "free")
+	decoders := []struct {
+		name   string
+		decode func([]byte) (*mp4.File, error)
+	}{
+		{"DecodeFile", func(d []byte) (*mp4.File, error) { return mp4.DecodeFile(bytes.NewReader(d)) }},
+		{"DecodeFileSR", func(d []byte) (*mp4.File, error) { return mp4.DecodeFileSR(bits.NewFixedSliceReader(d)) }},
+	}
+	for _, dec := range decoders {
+		t.Run(dec.name, func(t *testing.T) {
+			fOrig, err := dec.decode(orig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f, err := dec.decode(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trex := f.Init.Moov.Mvex.Trex
+			origFrag, frag := fOrig.Segments[1].Fragments[0], f.Segments[1].Fragments[0]
+			if frag.Moof.Traf.Tfdt != nil {
+				t.Fatal("traf still has a tfdt")
+			}
+			baseTime := origFrag.Moof.Traf.Tfdt.BaseMediaDecodeTime()
+			if baseTime == 0 {
+				t.Fatal("test needs a fragment with non-zero baseMediaDecodeTime")
+			}
+			nrSamples := frag.Moof.Traf.Trun.SampleCount()
+			want, err := origFrag.GetSampleInterval(trex, 1, nrSamples)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := frag.GetSampleInterval(trex, 1, nrSamples)
+			if err != nil {
+				t.Fatalf("GetSampleInterval: %v", err)
+			}
+			if got.FirstDecodeTime != 0 {
+				t.Errorf("got FirstDecodeTime %d, want 0", got.FirstDecodeTime)
+			}
+			want.FirstDecodeTime = 0
+			if diff := deep.Equal(got, want); diff != nil {
+				t.Errorf("sample interval differs: %v", diff)
+			}
+			samples, err := origFrag.GetFullSamples(trex)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sampleTime := samples[9].DecodeTime
+			nr, err := frag.GetSampleNrFromTime(trex, sampleTime-baseTime)
+			if err != nil {
+				t.Fatalf("GetSampleNrFromTime: %v", err)
+			}
+			if nr != 10 {
+				t.Errorf("got sample %d at time %d, want 10", nr, sampleTime-baseTime)
+			}
+		})
+	}
+}
+
+// TestMoofWithoutTraf - a moof without traf encodes and decodes, alone, in a fragment and in a file.
+func TestMoofWithoutTraf(t *testing.T) {
+	moof := &mp4.MoofBox{}
+	if err := moof.AddChild(&mp4.MfhdBox{SequenceNumber: 3}); err != nil {
+		t.Fatal(err)
+	}
+	boxDiffAfterEncodeAndDecode(t, moof)
+
+	orig, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := withBoxRenamed(t, orig, "traf")
+	f, err := mp4.DecodeFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := f.Encode(&buf); err != nil {
+		t.Fatalf("File.Encode: %v", err)
+	}
+	if !bytes.Equal(buf.Bytes(), data) {
+		t.Error("File.Encode output differs from input")
+	}
+	f, err = mp4.DecodeFileSR(bits.NewFixedSliceReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sw := bits.NewFixedSliceWriter(len(data))
+	if err := f.EncodeSW(sw); err != nil {
+		t.Fatalf("File.EncodeSW: %v", err)
+	}
+	if !bytes.Equal(sw.Bytes(), data) {
+		t.Error("File.EncodeSW output differs from input")
+	}
+	frag := f.Segments[0].Fragments[0]
+	if len(frag.Moof.Trafs) != 0 {
+		t.Fatalf("fragment has %d trafs, want 0", len(frag.Moof.Trafs))
+	}
+	frag.EncOptimize = mp4.OptimizeTrun
+	if err := frag.Encode(io.Discard); err != nil {
+		t.Errorf("Fragment.Encode with OptimizeTrun: %v", err)
+	}
+	if err := frag.EncodeSW(bits.NewFixedSliceWriter(int(frag.Size()))); err != nil {
+		t.Errorf("Fragment.EncodeSW with OptimizeTrun: %v", err)
+	}
+}
+
+// TestAddSampleIntervalIncompleteFragment - AddSampleInterval returns an error, and leaves the fragment unchanged,
+// when the fragment has no traf, or no tfdt or mdat to put the interval in.
+func TestAddSampleIntervalIncompleteFragment(t *testing.T) {
+	itvl := mp4.SampleInterval{FirstDecodeTime: 1000, Samples: []mp4.Sample{mp4.NewSample(0, 100, 2, 0)},
+		Data: []byte{1, 2}}
+	cases := []struct {
+		desc   string
+		modify func(f *mp4.Fragment)
+	}{
+		{"no traf", func(f *mp4.Fragment) { f.Moof = &mp4.MoofBox{Mfhd: f.Moof.Mfhd} }},
+		{"no tfdt", func(f *mp4.Fragment) { f.Moof.Traf.Tfdt = nil }},
+		{"no mdat", func(f *mp4.Fragment) { f.Mdat = nil }},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			frag, err := mp4.CreateFragment(1, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.modify(frag)
+			if err := frag.AddSampleInterval(itvl); err == nil {
+				t.Error("expected an error")
+			}
+			if frag.Moof.Traf != nil && frag.Moof.Traf.Trun.SampleCount() != 0 {
+				t.Error("samples were added")
 			}
 		})
 	}

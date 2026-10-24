@@ -1347,3 +1347,46 @@ func TestDecodeEncryptedFragmentsWithIncompleteTrak(t *testing.T) {
 		})
 	}
 }
+
+// TestUpdateSidxMissingBoxes - UpdateSidx returns an error when the reference track has no tkhd or mdhd, and takes
+// the base decode time of a traf without tfdt to be 0.
+func TestUpdateSidxMissingBoxes(t *testing.T) {
+	orig, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, boxType := range []string{"tkhd", "mdhd"} {
+		t.Run(boxType, func(t *testing.T) {
+			f, err := mp4.DecodeFile(bytes.NewReader(withBoxRenamed(t, orig, boxType)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := f.UpdateSidx(true, true); err == nil || !strings.Contains(err.Error(), boxType) {
+				t.Errorf("got error %v, want one about %s", err, boxType)
+			}
+		})
+	}
+	t.Run("tfdt", func(t *testing.T) {
+		// The first tfdt of the file has baseMediaDecodeTime 0, so the sidx is the same without it.
+		want, err := mp4.DecodeFile(bytes.NewReader(orig))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := want.UpdateSidx(true, true); err != nil {
+			t.Fatal(err)
+		}
+		f, err := mp4.DecodeFile(bytes.NewReader(withBoxRenamed(t, orig, "tfdt")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Segments[0].Fragments[0].Moof.Traf.Tfdt != nil {
+			t.Fatal("first traf still has a tfdt")
+		}
+		if err := f.UpdateSidx(true, true); err != nil {
+			t.Fatal(err)
+		}
+		if diff := deep.Equal(f.Sidx, want.Sidx); diff != nil {
+			t.Errorf("sidx differs: %v", diff)
+		}
+	})
+}

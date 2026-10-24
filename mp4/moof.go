@@ -123,10 +123,8 @@ func (m *MoofBox) Size() uint64 {
 
 // Encode - write moof after updating trun dataoffset
 func (m *MoofBox) Encode(w io.Writer) error {
-	for _, trun := range m.Traf.Truns {
-		if trun.HasDataOffset() && trun.DataOffset == 0 {
-			return fmt.Errorf("dataoffset in trun not set")
-		}
+	if err := m.checkTrunDataOffsets(); err != nil {
+		return err
 	}
 	err := EncodeHeader(m, w)
 	if err != nil {
@@ -143,10 +141,8 @@ func (m *MoofBox) Encode(w io.Writer) error {
 
 // EncodeSW - write moof after updating trun dataoffset
 func (m *MoofBox) EncodeSW(sw bits.SliceWriter) error {
-	for _, trun := range m.Traf.Truns {
-		if trun.HasDataOffset() && trun.DataOffset == 0 {
-			return fmt.Errorf("dataoffset in trun not set")
-		}
+	if err := m.checkTrunDataOffsets(); err != nil {
+		return err
 	}
 	err := EncodeHeaderSW(m, sw)
 	if err != nil {
@@ -156,6 +152,20 @@ func (m *MoofBox) EncodeSW(sw bits.SliceWriter) error {
 		err = c.EncodeSW(sw)
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// checkTrunDataOffsets returns an error if a trun of the first traf has a data offset that is not set.
+// A moof without traf has nothing to check.
+func (m *MoofBox) checkTrunDataOffsets() error {
+	if m.Traf == nil {
+		return nil
+	}
+	for _, trun := range m.Traf.Truns {
+		if trun.HasDataOffset() && trun.DataOffset == 0 {
+			return fmt.Errorf("dataoffset in trun not set")
 		}
 	}
 	return nil

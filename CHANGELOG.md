@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer panic on a track without the boxes down to its sample entry or stts, or on an empty `saio` or seig `sgpd`
 - `TrakBox.GetNrSamples`, `GetSampleData`, `GetRangesForSampleInterval` and `File.CopySampleData` return 0 or an
   error instead of panicking or using chunk offset 0 when the track lacks a box of its sample table
+- `MoofBox.Encode`, `File.UpdateSidx`, `MediaSegment.Fragmentify`, `InitSegment.GetMediaType` and the `Fragment` methods
+  `Encode`, `GetSampleInterval`, `GetSampleNrFromTime` and `AddSampleInterval` handle missing boxes instead of panicking
 
 ## [0.60.0] - 2026-10-13
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -261,5 +262,33 @@ func TestCommonSampleDuration(t *testing.T) {
 				t.Errorf("case %s: got commonDur %d, wanted %d", c.inFile, gotCommonDur, c.wantedCommonDur)
 			}
 		}
+	}
+}
+
+// TestFragmentifyMissingBoxes - Fragmentify skips a fragment without traf, which has no samples, and returns an error
+// for one without mfhd.
+func TestFragmentifyMissingBoxes(t *testing.T) {
+	orig, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := mp4.DecodeFile(bytes.NewReader(withBoxRenamed(t, orig, "traf")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	trex := f.Init.Moov.Mvex.Trex
+	frags, err := f.Segments[0].Fragmentify(90000, trex, 90000)
+	if err != nil {
+		t.Errorf("Fragmentify without traf: %v", err)
+	}
+	if len(frags) != 0 {
+		t.Errorf("got %d fragments, want 0", len(frags))
+	}
+	f, err = mp4.DecodeFile(bytes.NewReader(withBoxRenamed(t, orig, "mfhd")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Segments[0].Fragmentify(90000, trex, 90000); err == nil || !strings.Contains(err.Error(), "mfhd") {
+		t.Errorf("got error %v, want one about mfhd", err)
 	}
 }
