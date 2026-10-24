@@ -163,49 +163,28 @@ func run(args []string, stdout io.Writer) error {
 }
 
 func parseProgressiveMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
+	if f.Moov == nil {
+		return fmt.Errorf("no moov box found")
+	}
 	videoTrak, ok := findFirstVideoTrak(f.Moov)
 	if !ok {
 		return fmt.Errorf("no video track found")
 	}
 
-	var avcSPS *avc.SPS
-	var err error
-	stbl := videoTrak.Mdia.Minf.Stbl
-	if stbl.Stsd.AvcX != nil {
-		codec = "avc"
-		if stbl.Stsd.AvcX.AvcC != nil {
-			avcSPS, err = avc.ParseSPSNALUnit(stbl.Stsd.AvcX.AvcC.SPSnalus[0], true)
-			if err != nil {
-				return fmt.Errorf("error parsing SPS: %s", err)
-			}
-		}
-	} else if stbl.Stsd.HvcX != nil {
-		codec = "hevc"
-	} else if stbl.Stsd.VvcX != nil {
-		codec = "vvc"
-		if err := checkVVCLengthSize(stbl.Stsd.VvcX); err != nil {
-			return err
-		}
+	codec, avcSPS, err := videoCodec(videoTrak, codec)
+	if err != nil {
+		return err
 	}
 	if err := videoTrak.CheckDataIsSelfContained(); err != nil {
 		return err
 	}
+	stbl := videoTrak.Mdia.Minf.Stbl
+	if stbl.Stsz == nil || stbl.Stts == nil {
+		return fmt.Errorf("video track has no stsz or stts box")
+	}
 	nrSamples := stbl.Stsz.SampleNumber
-	mdat := f.Mdat
 
 	for sampleNr := 1; sampleNr <= int(nrSamples); sampleNr++ {
-		chunkNr, sampleNrAtChunkStart, err := stbl.Stsc.ChunkNrFromSampleNr(sampleNr)
-		if err != nil {
-			return err
-		}
-		offset, err := getChunkOffset(stbl, chunkNr)
-		if err != nil {
-			return err
-		}
-		for sNr := sampleNrAtChunkStart; sNr < sampleNr; sNr++ {
-			offset += int64(stbl.Stsz.GetSampleSize(sNr))
-		}
-		size := stbl.Stsz.GetSampleSize(sampleNr)
 		decTime, _, err := stbl.Stts.GetDecodeTime(uint32(sampleNr))
 		if err != nil {
 			return fmt.Errorf("sample %d: %w", sampleNr, err)
@@ -214,8 +193,7 @@ func parseProgressiveMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec strin
 		if stbl.Ctts != nil {
 			cto = int64(stbl.Ctts.GetCompositionTimeOffset(uint32(sampleNr)))
 		}
-		// Next find sample bytes as slice in mdat
-		sample, err := mdat.ReadData(offset, int64(size), nil)
+		sample, err := f.ReadSampleData(videoTrak, uint32(sampleNr), uint32(sampleNr), nil, nil)
 		if err != nil {
 			return fmt.Errorf("sample %d: %w", sampleNr, err)
 		}
@@ -264,10 +242,13 @@ func checkVVCLengthSize(vvcX *mp4.VisualSampleEntryBox) error {
 	return nil
 }
 
+// findFirstVideoTrak returns the first track with handler type vide, passing over tracks without mdia or hdlr.
 func findFirstVideoTrak(moov *mp4.MoovBox) (*mp4.TrakBox, bool) {
+	if moov == nil {
+		return nil, false
+	}
 	for _, inTrak := range moov.Traks {
-		hdlrType := inTrak.Mdia.Hdlr.HandlerType
-		if hdlrType != "vide" {
+		if inTrak.Mdia == nil || inTrak.Mdia.Hdlr == nil || inTrak.Mdia.Hdlr.HandlerType != "vide" {
 			continue
 		}
 		return inTrak, true
@@ -275,14 +256,33 @@ func findFirstVideoTrak(moov *mp4.MoovBox) (*mp4.TrakBox, bool) {
 	return nil, false
 }
 
-func getChunkOffset(stbl *mp4.StblBox, chunkNr int) (int64, error) {
-	if stbl.Stco != nil {
-		return int64(stbl.Stco.ChunkOffset[chunkNr-1]), nil
+// videoCodec returns the codec of the sample entries of videoTrak, or codec if they are not AVC, HEVC or VVC,
+// and the first SPS of an avcC box, if there is one.
+func videoCodec(videoTrak *mp4.TrakBox, codec string) (string, *avc.SPS, error) {
+	minf := videoTrak.Mdia.Minf
+	if minf == nil || minf.Stbl == nil || minf.Stbl.Stsd == nil {
+		return "", nil, fmt.Errorf("video track has no minf, stbl or stsd box")
 	}
-	if stbl.Co64 != nil {
-		return int64(stbl.Co64.ChunkOffset[chunkNr-1]), nil
+	stsd := minf.Stbl.Stsd
+	switch {
+	case stsd.AvcX != nil:
+		if stsd.AvcX.AvcC == nil || len(stsd.AvcX.AvcC.SPSnalus) == 0 {
+			return "avc", nil, nil
+		}
+		avcSPS, err := avc.ParseSPSNALUnit(stsd.AvcX.AvcC.SPSnalus[0], true)
+		if err != nil {
+			return "", nil, fmt.Errorf("error parsing SPS: %s", err)
+		}
+		return "avc", avcSPS, nil
+	case stsd.HvcX != nil:
+		return "hevc", nil, nil
+	case stsd.VvcX != nil:
+		if err := checkVVCLengthSize(stsd.VvcX); err != nil {
+			return "", nil, err
+		}
+		return "vvc", nil, nil
 	}
-	return 0, fmt.Errorf("neither stco nor co64 is present")
+	return codec, nil, nil
 }
 
 func parseFragmentedMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec string, seiLevel int, parameterSets bool, nrRaw int) error {
@@ -296,25 +296,24 @@ func parseFragmentedMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec string
 		if !ok {
 			return fmt.Errorf("no video track found")
 		}
-		stbl := videoTrak.Mdia.Minf.Stbl
-		if stbl.Stsd.AvcX != nil {
-			codec = "avc"
-			if stbl.Stsd.AvcX.AvcC != nil {
-				avcSPS, err = avc.ParseSPSNALUnit(stbl.Stsd.AvcX.AvcC.SPSnalus[0], true)
-				if err != nil {
-					return fmt.Errorf("error parsing SPS: %s", err)
-				}
-			}
-		} else if stbl.Stsd.HvcX != nil {
-			codec = "hevc"
-		} else if stbl.Stsd.VvcX != nil {
-			codec = "vvc"
-			if err := checkVVCLengthSize(stbl.Stsd.VvcX); err != nil {
-				return err
+		codec, avcSPS, err = videoCodec(videoTrak, codec)
+		if err != nil {
+			return err
+		}
+		if videoTrak.Tkhd == nil {
+			return fmt.Errorf("video track has no tkhd box")
+		}
+		trackID := videoTrak.Tkhd.TrackID
+		trex = &mp4.TrexBox{TrackID: trackID}
+		if moov.Mvex != nil {
+			if t, ok := moov.Mvex.GetTrex(trackID); ok {
+				trex = t
 			}
 		}
-		trex, _ = moov.Mvex.GetTrex(videoTrak.Tkhd.TrackID)
-		editListOffset = getVideoListOffset(moov, videoTrak)
+		editListOffset, err = getVideoListOffset(moov, videoTrak)
+		if err != nil {
+			return err
+		}
 	}
 	iSamples := make([]mp4.FullSample, 0)
 	for _, iSeg := range f.Segments {
@@ -352,7 +351,8 @@ func parseFragmentedMp4(w io.Writer, f *mp4.File, maxNrSamples int, codec string
 	return nil
 }
 
-func getVideoListOffset(moov *mp4.MoovBox, videoTrak *mp4.TrakBox) int64 {
+// getVideoListOffset returns the duration of an empty edit of videoTrak in the track timescale.
+func getVideoListOffset(moov *mp4.MoovBox, videoTrak *mp4.TrakBox) (int64, error) {
 	editListOffset := int64(0)
 	for _, ch := range videoTrak.Children {
 		if ch.Type() == "edts" {
@@ -360,13 +360,16 @@ func getVideoListOffset(moov *mp4.MoovBox, videoTrak *mp4.TrakBox) int64 {
 			for _, el := range edts.Elst {
 				for _, entry := range el.Entries {
 					if entry.MediaTime < 0 {
+						if videoTrak.Mdia.Mdhd == nil || moov.Mvhd == nil || moov.Mvhd.Timescale == 0 {
+							return 0, fmt.Errorf("empty edit, but no mdhd box or no mvhd box with a timescale")
+						}
 						editListOffset = int64(entry.SegmentDuration) * int64(videoTrak.Mdia.Mdhd.Timescale) / int64(moov.Mvhd.Timescale)
 					}
 				}
 			}
 		}
 	}
-	return editListOffset
+	return editListOffset, nil
 }
 
 func printAVCNalus(w io.Writer, avcSPS *avc.SPS, nalus [][]byte, nr int, pts int64, seiLevel int, parameterSets bool, nrRaw int) error {

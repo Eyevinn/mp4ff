@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -84,4 +86,59 @@ func getExpected(t *testing.T, filename string) string {
 	}
 	r := bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))
 	return string(r)
+}
+
+// TestMissingBoxes checks that a file whose video track lacks a box that listing needs gives an error,
+// and that parameter sets missing from the sample entry are taken from the first sample.
+func TestMissingBoxes(t *testing.T) {
+	cases := []struct {
+		inFile  string
+		boxType string
+		wantErr string
+	}{
+		{inFile: "../../mp4/testdata/init.mp4", boxType: "moov", wantErr: "no moov box"},
+		{inFile: "../../mp4/testdata/init.mp4", boxType: "tkhd", wantErr: "no parsable video track"},
+		{inFile: "../../mp4/testdata/init.mp4", boxType: "mdia", wantErr: "no parsable video track"},
+		{inFile: "../../mp4/testdata/init.mp4", boxType: "minf", wantErr: "no parsable video track"},
+		{inFile: "../../mp4/testdata/init.mp4", boxType: "stsd", wantErr: "no parsable video track"},
+		{inFile: "../../mp4/testdata/init.mp4", boxType: "avcC", wantErr: "no moov or fragment"},
+		{inFile: "../../mp4/testdata/prog_8s.mp4", boxType: "avcC"},
+		{inFile: "../../mp4/testdata/ed_hevc.mp4", boxType: "hvcC", wantErr: "no HEVC SPS"},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.inFile)+" without "+c.boxType, func(t *testing.T) {
+			inFile := writeWithFreeBox(t, c.inFile, c.boxType)
+			err := run([]string{appName, "-i", inFile}, &bytes.Buffer{})
+			if c.wantErr == "" {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("got error %v, want one containing %q", err, c.wantErr)
+			}
+		})
+	}
+}
+
+// writeWithFreeBox writes the file at inPath to a temporary file with the first occurrence of
+// boxType changed to free, and returns its path. In the test files, that occurrence is the type
+// of the first box of that type.
+func writeWithFreeBox(t *testing.T, inPath, boxType string) string {
+	t.Helper()
+	raw, err := os.ReadFile(inPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pos := bytes.Index(raw, []byte(boxType))
+	if pos < 0 {
+		t.Fatalf("no %s box in %s", boxType, inPath)
+	}
+	copy(raw[pos:pos+4], "free")
+	outPath := filepath.Join(t.TempDir(), filepath.Base(inPath))
+	if err := os.WriteFile(outPath, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return outPath
 }

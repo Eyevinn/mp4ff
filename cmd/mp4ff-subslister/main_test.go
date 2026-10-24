@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -322,4 +323,64 @@ func TestSubsListerPaintModel(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMissingBoxes checks that a file whose subtitle track lacks a box that listing needs gives an error,
+// and that a fragmented file without mvex, vttC or traf is listed.
+func TestMissingBoxes(t *testing.T) {
+	cases := []struct {
+		inFile  string
+		boxType string
+		wantErr string
+	}{
+		{inFile: "testdata/stpp_prog.mp4", boxType: "moov", wantErr: "no moov box"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "tkhd", wantErr: "no matching track"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "mdia", wantErr: "no matching track"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "mdhd", wantErr: "no mdhd, minf, stbl or stsd box"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "minf", wantErr: "no mdhd, minf, stbl or stsd box"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "stbl", wantErr: "no mdhd, minf, stbl or stsd box"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "stsd", wantErr: "no mdhd, minf, stbl or stsd box"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "stts", wantErr: "no stsz or stts box"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "stsz", wantErr: "no stsz or stts box"},
+		{inFile: "testdata/stpp_prog.mp4", boxType: "stsc", wantErr: "no stsc or stsz box"},
+		{inFile: "testdata/stpp_combined.mp4", boxType: "mvex"},
+		{inFile: "testdata/sample_short.ismt", boxType: "vttC"},
+		{inFile: "testdata/sample_short.ismt", boxType: "traf"},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.inFile)+" without "+c.boxType, func(t *testing.T) {
+			inFile := writeWithFreeBox(t, c.inFile, c.boxType)
+			err := run([]string{appName, inFile}, &bytes.Buffer{})
+			if c.wantErr == "" {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("got error %v, want one containing %q", err, c.wantErr)
+			}
+		})
+	}
+}
+
+// writeWithFreeBox writes the file at inPath to a temporary file with the first occurrence of
+// boxType changed to free, and returns its path. In the test files, that occurrence is the type
+// of the first box of that type.
+func writeWithFreeBox(t *testing.T, inPath, boxType string) string {
+	t.Helper()
+	raw, err := os.ReadFile(inPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pos := bytes.Index(raw, []byte(boxType))
+	if pos < 0 {
+		t.Fatalf("no %s box in %s", boxType, inPath)
+	}
+	copy(raw[pos:pos+4], "free")
+	outPath := filepath.Join(t.TempDir(), filepath.Base(inPath))
+	if err := os.WriteFile(outPath, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return outPath
 }

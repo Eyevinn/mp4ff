@@ -229,22 +229,15 @@ func parseMp4File(w io.Writer, r io.Reader, codec string, verbose bool) error {
 		return nil
 	}
 	// Non-fragmented mp4 file with PS in samples
+	if parsedMp4.Moov == nil {
+		return fmt.Errorf("no moov box found")
+	}
 	for _, trak := range parsedMp4.Moov.Traks {
-		if trak.Tkhd.TrackID == trackID {
+		if trak.Tkhd != nil && trak.Tkhd.TrackID == trackID {
 			if err := trak.CheckDataIsSelfContained(); err != nil {
 				return err
 			}
-			stbl := trak.Mdia.Minf.Stbl
-			var offset int64
-			if stbl.Stco != nil {
-				offset = int64(stbl.Stco.ChunkOffset[0])
-			} else if stbl.Co64 != nil {
-				offset = int64(stbl.Co64.ChunkOffset[0])
-			}
-			size := stbl.Stsz.GetSampleSize(1)
-			// Next find bytes as slice in mdat
-			mdat := parsedMp4.Mdat
-			sampleData, err := mdat.ReadData(offset, int64(size), nil)
+			sampleData, err := parsedMp4.ReadSampleData(trak, 1, 1, nil, nil)
 			if err != nil {
 				return fmt.Errorf("read sample 1: %w", err)
 			}
@@ -271,6 +264,10 @@ func parseMp4File(w io.Writer, r io.Reader, codec string, verbose bool) error {
 
 func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint32, codec string, foundPS bool, err error) {
 	for _, trak := range parsedMp4.Moov.Traks {
+		if trak.Tkhd == nil || trak.Mdia == nil || trak.Mdia.Hdlr == nil || trak.Mdia.Minf == nil ||
+			trak.Mdia.Minf.Stbl == nil || trak.Mdia.Minf.Stbl.Stsd == nil {
+			continue
+		}
 		if trak.Mdia.Hdlr.HandlerType == "vide" {
 			stsd := trak.Mdia.Minf.Stbl.Stsd
 			if stsd.AvcX != nil {
@@ -294,6 +291,9 @@ func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint3
 				err := printAv1PS(w, &stsd.Av01.Av1C.CodecConfRec, verbose)
 				return trackID, codec, true, err
 			case "avc":
+				if stsd.AvcX.AvcC == nil {
+					return trackID, codec, false, nil
+				}
 				spsNalus := stsd.AvcX.AvcC.SPSnalus
 				ppsNalus := stsd.AvcX.AvcC.PPSnalus
 				if len(spsNalus) == 0 {
@@ -302,6 +302,9 @@ func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint3
 				err := printAvcPS(w, spsNalus, ppsNalus, verbose)
 				return trackID, codec, true, err
 			case "hevc":
+				if stsd.HvcX.HvcC == nil {
+					return trackID, codec, false, nil
+				}
 				vpsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_VPS)
 				spsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_SPS)
 				ppsNalus := stsd.HvcX.HvcC.GetNalusForType(hevc.NALU_PPS)

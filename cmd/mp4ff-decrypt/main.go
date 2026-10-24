@@ -193,6 +193,9 @@ func decryptFileWithKeyMap(r, initR io.Reader, w io.Writer, key []byte, keysByKI
 		if err != nil {
 			return fmt.Errorf("could not decode init file: %w", err)
 		}
+		if iSeg.Init == nil {
+			return fmt.Errorf("no init segment in init file")
+		}
 		init = iSeg.Init
 	}
 

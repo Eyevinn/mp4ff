@@ -386,3 +386,56 @@ func TestVersion(t *testing.T) {
 		t.Errorf("version output = %q", buf.String())
 	}
 }
+
+// TestMissingBoxes checks that info skips a track that lacks a box it needs, and that add gives an
+// error for an input video track that lacks one.
+func TestMissingBoxes(t *testing.T) {
+	cases := []struct {
+		cmd     string
+		boxType string
+		wantErr string
+	}{
+		{cmd: "info", boxType: "tkhd"},
+		{cmd: "info", boxType: "mdia"},
+		{cmd: "info", boxType: "mdhd"},
+		{cmd: "info", boxType: "minf"},
+		{cmd: "add", boxType: "mdhd", wantErr: "no mdhd or minf box"},
+		{cmd: "add", boxType: "minf", wantErr: "no mdhd or minf box"},
+	}
+	for _, c := range cases {
+		t.Run(c.cmd+" without "+c.boxType, func(t *testing.T) {
+			raw, err := os.ReadFile("../../mp4/testdata/ed_hevc.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			pos := bytes.Index(raw, []byte(c.boxType))
+			if pos < 0 {
+				t.Fatalf("no %s box found", c.boxType)
+			}
+			copy(raw[pos:pos+4], "free")
+			dir := t.TempDir()
+			inFile := filepath.Join(dir, "in.mp4")
+			if err := os.WriteFile(inFile, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{appName, c.cmd, inFile}
+			if c.cmd == "add" {
+				args = append(args, filepath.Join(dir, "out.mp4"))
+			}
+			var buf bytes.Buffer
+			err = run(args, &buf)
+			if c.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+					t.Errorf("got error %v, want one containing %q", err, c.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !strings.Contains(buf.String(), "skipped") {
+				t.Errorf("track not reported as skipped:\n%s", buf.String())
+			}
+		})
+	}
+}

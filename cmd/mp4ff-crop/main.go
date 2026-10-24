@@ -110,6 +110,9 @@ func cropMP4(inMP4 *mp4.File, durationMS uint, w io.Writer, ifh io.ReadSeeker) e
 		return fmt.Errorf("only progressive files are supported")
 	}
 	inMoov := inMP4.Moov
+	if err := checkMoov(inMoov); err != nil {
+		return err
+	}
 	inMoovDur := float64(inMoov.Mvhd.Duration) / float64(inMoov.Mvhd.Timescale)
 	fmt.Printf("input moov duration = %.3fs\n", inMoovDur)
 
@@ -125,6 +128,56 @@ func cropMP4(inMP4 *mp4.File, durationMS uint, w io.Writer, ifh io.ReadSeeker) e
 	fmt.Printf("wrote output with endTime=%dms\n", (endTime*1000)/endTimescale)
 	return nil
 
+}
+
+// checkMoov returns an error if moov lacks a box that cropping needs, or has a track with timescale 0.
+func checkMoov(moov *mp4.MoovBox) error {
+	if moov == nil {
+		return fmt.Errorf("no moov box found")
+	}
+	if moov.Mvhd == nil {
+		return fmt.Errorf("no mvhd box found")
+	}
+	for i, trak := range moov.Traks {
+		if missing := missingTrakBox(trak); missing != "" {
+			return fmt.Errorf("track %d has no %s box", i+1, missing)
+		}
+		if trak.Mdia.Mdhd.Timescale == 0 {
+			return fmt.Errorf("track %d has timescale 0", i+1)
+		}
+	}
+	return nil
+}
+
+// missingTrakBox returns the type of the first box that cropping trak needs and trak lacks,
+// or "" if trak has them all.
+func missingTrakBox(trak *mp4.TrakBox) string {
+	switch {
+	case trak.Tkhd == nil:
+		return "tkhd"
+	case trak.Mdia == nil:
+		return "mdia"
+	case trak.Mdia.Mdhd == nil:
+		return "mdhd"
+	case trak.Mdia.Hdlr == nil:
+		return "hdlr"
+	case trak.Mdia.Minf == nil:
+		return "minf"
+	case trak.Mdia.Minf.Stbl == nil:
+		return "stbl"
+	}
+	stbl := trak.Mdia.Minf.Stbl
+	switch {
+	case stbl.Stts == nil:
+		return "stts"
+	case stbl.Stsc == nil:
+		return "stsc"
+	case stbl.Stsz == nil:
+		return "stsz"
+	case stbl.Stco == nil && stbl.Co64 == nil:
+		return "stco or co64"
+	}
+	return ""
 }
 
 // findEndTime - find closest video sync frame, or audio frame if no video
@@ -163,7 +216,11 @@ func findEndTime(moov *mp4.MoovBox, durationMS uint) (endTime, endTimescale uint
 	stss := stbl.Stss
 	if stss != nil {
 		foundSyncFrame := false
-		for sampleNr := lastSampleNr; sampleNr <= stss.SampleNumber[len(stss.SampleNumber)-1]; sampleNr++ {
+		var lastSyncSampleNr uint32
+		if len(stss.SampleNumber) > 0 {
+			lastSyncSampleNr = stss.SampleNumber[len(stss.SampleNumber)-1]
+		}
+		for sampleNr := lastSampleNr; sampleNr <= lastSyncSampleNr; sampleNr++ {
 			if stss.IsSyncSample(sampleNr) {
 				lastSampleNr = sampleNr - 1
 				foundSyncFrame = true
