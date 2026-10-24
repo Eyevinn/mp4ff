@@ -8,6 +8,8 @@ import (
 )
 
 const (
+	// AACMain - AAC Main
+	AACMain = 1
 	// AAClc - AAC-LC Low Complexity
 	AAClc = 2
 	// HEAACv1 - HE-AAC version 1 with SBR
@@ -19,12 +21,28 @@ const (
 // AudioSpecificConfig according to ISO/IEC 14496-3
 // Syntax specified in Table 1.15
 type AudioSpecificConfig struct {
-	ObjectType           byte
-	ChannelConfiguration byte // Defined in Table 1.19
-	SamplingFrequency    int
-	ExtensionFrequency   int
-	SBRPresentFlag       bool
-	PSPresentFlag        bool
+	ObjectType             byte
+	ChannelConfiguration   byte // Defined in Table 1.19
+	SamplingFrequency      int
+	ExtensionFrequency     int
+	SBRPresentFlag         bool
+	PSPresentFlag          bool
+	FrameLengthFlag        bool // 960 core samples per frame instead of 1024.
+	DependsOnCoreCoder     bool
+	CoreCoderDelay         uint16 // 14 bits; present only with DependsOnCoreCoder.
+	ExtensionFlag          bool
+	ExtensionFlag3         bool // Future GA extensions are unsupported.
+	SyncExtensionPresent   bool // Backward-compatible SBR signaling after GA config.
+	PSSyncExtensionPresent bool // Explicit PS presence bit in a sync extension.
+}
+
+// CoreSamplesPerFrame returns the duration in core sampling-frequency units.
+// SBR output samples use the extension frequency instead.
+func (a *AudioSpecificConfig) CoreSamplesPerFrame() uint32 {
+	if a.FrameLengthFlag {
+		return 960
+	}
+	return 1024
 }
 
 // FrequencyTable maps frequency index to sample rate in Hz
@@ -127,80 +145,223 @@ func DecodeAudioSpecificConfigHeader(r io.Reader) (*AudioSpecificConfigHeader, e
 	return hdr, nil
 }
 
-// DecodeAudioSpecificConfig -
+// DecodeAudioSpecificConfig reads one complete AudioSpecificConfig, including
+// backward-compatible SBR/PS sync extensions. r must end at the end of the
+// configuration (for example, a reader over an esds DecConfig slice).
+// Channel configuration zero requires a Program Config Element and is unsupported.
 func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
-	br := bits.NewReader(r)
-
-	asc := &AudioSpecificConfig{}
-	audioObjectType := byte(br.Read(5))
-	asc.ObjectType = audioObjectType
-	switch audioObjectType {
-	case AAClc:
-		// do nothing
+	const maxConfigSize = 1 << 20
+	data, err := io.ReadAll(io.LimitReader(r, maxConfigSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxConfigSize {
+		return nil, fmt.Errorf("audio specific config exceeds %d bytes", maxConfigSize)
+	}
+	br := bits.NewReaderFromSlice(data)
+	asc := &AudioSpecificConfig{ObjectType: byte(br.Read(5))}
+	if br.AccError() != nil {
+		return nil, fmt.Errorf("audio specific config too short: %w", br.AccError())
+	}
+	switch asc.ObjectType {
+	case AACMain, AAClc:
 	case HEAACv1:
 		asc.SBRPresentFlag = true
 	case HEAACv2:
-		asc.SBRPresentFlag = true
-		asc.PSPresentFlag = true
+		asc.SBRPresentFlag, asc.PSPresentFlag = true, true
 	default:
-		return asc, fmt.Errorf("unsupported object type: %d", audioObjectType)
+		return nil, fmt.Errorf("unsupported object type: %d", asc.ObjectType)
 	}
-	frequency, ok := getFrequency(br)
-	if !ok {
-		return asc, fmt.Errorf("strange frequency index")
+	frequency, err := readFrequency(br)
+	if err != nil {
+		return nil, err
 	}
 	asc.SamplingFrequency = frequency
 	asc.ChannelConfiguration = byte(br.Read(4))
-	switch audioObjectType {
-	case HEAACv1, HEAACv2:
-		extFrequency, ok := getFrequency(br)
-		if !ok {
-			return asc, fmt.Errorf("strange frequency index")
+	if br.AccError() != nil {
+		return nil, fmt.Errorf("audio specific config too short: %w", br.AccError())
+	}
+	if asc.ChannelConfiguration == 0 {
+		return nil, fmt.Errorf("channel configuration zero requires an unsupported Program Config Element")
+	}
+	if asc.ObjectType == HEAACv1 || asc.ObjectType == HEAACv2 {
+		asc.ExtensionFrequency, err = readFrequency(br)
+		if err != nil {
+			return nil, err
 		}
-		asc.ExtensionFrequency = extFrequency
-		audioObjectType = byte(br.Read(5)) // Shall be set to AAC-LC here again
+		baseType := br.Read(5)
+		if br.AccError() != nil {
+			return nil, fmt.Errorf("audio specific config too short: %w", br.AccError())
+		}
+		if baseType != AAClc {
+			return nil, fmt.Errorf("base audioObjectType is %d instead of AAC-LC (2)", baseType)
+		}
 	}
-	if audioObjectType != AAClc {
-		return nil, fmt.Errorf("base audioObjectType is %d instead of AAC-LC (2)", audioObjectType)
+	asc.FrameLengthFlag = br.ReadFlag()
+	asc.DependsOnCoreCoder = br.ReadFlag()
+	if asc.DependsOnCoreCoder {
+		asc.CoreCoderDelay = uint16(br.Read(14))
 	}
-	//GASpecificConfig()
-	_ = br.Read(3) //GASpecificConfig
-	// Done (there may be trailing bits)
+	asc.ExtensionFlag = br.ReadFlag()
+	if asc.ExtensionFlag {
+		// Main and LC add only extensionFlag3 here; ER and scalable types
+		// have different syntax and remain outside this parser's profile set.
+		asc.ExtensionFlag3 = br.ReadFlag()
+	}
+	if br.AccError() != nil {
+		return nil, fmt.Errorf("GA specific config too short: %w", br.AccError())
+	}
+	if asc.ExtensionFlag3 {
+		return nil, fmt.Errorf("extensionFlag3 requires unsupported future GA syntax")
+	}
+	remaining := func() int { return len(data)*8 - br.NrBitsRead() }
+	if remaining() > 7 {
+		if asc.ObjectType == HEAACv1 || asc.ObjectType == HEAACv2 || br.Read(11) != 0x2b7 {
+			return nil, fmt.Errorf("unsupported audio specific config extension")
+		}
+		asc.SyncExtensionPresent = true
+		if br.Read(5) != HEAACv1 {
+			return nil, fmt.Errorf("unsupported sync extension object type")
+		}
+		asc.SBRPresentFlag = br.ReadFlag()
+		if asc.SBRPresentFlag {
+			asc.ExtensionFrequency, err = readFrequency(br)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if remaining() > 7 {
+			if br.Read(11) != 0x548 {
+				return nil, fmt.Errorf("unsupported PS sync extension")
+			}
+			asc.PSSyncExtensionPresent = true
+			asc.PSPresentFlag = br.ReadFlag()
+		}
+	}
+	if br.AccError() != nil {
+		return nil, fmt.Errorf("sync extension too short: %w", br.AccError())
+	}
+	if remaining() > 7 || br.Read(remaining()) != 0 {
+		return nil, fmt.Errorf("invalid audio specific config padding")
+	}
+	if err := asc.validate(); err != nil {
+		return nil, err
+	}
 	return asc, nil
 }
 
-// Encode - write AudioSpecificConfig to w for AAC-LC and HE-AAC
+// Encode writes Main, LC or HE-AAC configuration, including GA and sync extensions.
 func (a *AudioSpecificConfig) Encode(w io.Writer) error {
-	switch a.ObjectType {
-	case AAClc, HEAACv1, HEAACv2:
-		// fine
-	default:
-		return fmt.Errorf("audioObjectType %d not supported", a.ObjectType)
+	if err := a.validate(); err != nil {
+		return err
 	}
 	bw := bits.NewWriter(w)
 	bw.Write(uint(a.ObjectType), 5)
-	samplingIndex, ok := ReverseFrequencies[a.SamplingFrequency]
-	if ok {
-		bw.Write(uint(samplingIndex), 4)
-	} else {
-		bw.Write(0x0f, 4)
-		bw.Write(uint(a.SamplingFrequency), 24)
-	}
+	writeFrequency(bw, a.SamplingFrequency)
 	bw.Write(uint(a.ChannelConfiguration), 4)
-	switch a.ObjectType {
-	case HEAACv1, HEAACv2:
-		samplingIndex, ok := ReverseFrequencies[a.ExtensionFrequency]
-		if ok {
-			bw.Write(uint(samplingIndex), 4)
-		} else {
-			bw.Write(0x0f, 4)
-			bw.Write(uint(a.ExtensionFrequency), 24)
-		}
-		bw.Write(AAClc, 5) // base audioObjectType
+	if a.ObjectType == HEAACv1 || a.ObjectType == HEAACv2 {
+		writeFrequency(bw, a.ExtensionFrequency)
+		bw.Write(AAClc, 5)
 	}
-	bw.Write(0x00, 3) // GASpecificConfig
+	writeFlag(bw, a.FrameLengthFlag)
+	writeFlag(bw, a.DependsOnCoreCoder)
+	if a.DependsOnCoreCoder {
+		bw.Write(uint(a.CoreCoderDelay), 14)
+	}
+	writeFlag(bw, a.ExtensionFlag)
+	if a.ExtensionFlag {
+		writeFlag(bw, a.ExtensionFlag3)
+	}
+	if a.SyncExtensionPresent {
+		bw.Write(0x2b7, 11)
+		bw.Write(HEAACv1, 5)
+		writeFlag(bw, a.SBRPresentFlag)
+		if a.SBRPresentFlag {
+			writeFrequency(bw, a.ExtensionFrequency)
+		}
+		if a.PSSyncExtensionPresent {
+			bw.Write(0x548, 11)
+			writeFlag(bw, a.PSPresentFlag)
+		}
+	}
 	bw.Flush()
 	return bw.AccError()
+}
+
+func (a *AudioSpecificConfig) validate() error {
+	switch a.ObjectType {
+	case AACMain, AAClc, HEAACv1, HEAACv2:
+	default:
+		return fmt.Errorf("audioObjectType %d not supported", a.ObjectType)
+	}
+	if a.ChannelConfiguration == 0 {
+		return fmt.Errorf("channel configuration zero requires an unsupported Program Config Element")
+	}
+	if a.ChannelConfiguration > 15 {
+		return fmt.Errorf("channel configuration %d does not fit in four bits", a.ChannelConfiguration)
+	}
+	if a.SamplingFrequency <= 0 || a.SamplingFrequency > 0xffffff {
+		return fmt.Errorf("invalid sampling frequency %d", a.SamplingFrequency)
+	}
+	explicitHE := a.ObjectType == HEAACv1 || a.ObjectType == HEAACv2
+	if explicitHE && a.SyncExtensionPresent {
+		return fmt.Errorf("explicit HE-AAC cannot also carry an SBR sync extension")
+	}
+	if explicitHE || a.SBRPresentFlag {
+		if a.ExtensionFrequency <= 0 || a.ExtensionFrequency > 0xffffff {
+			return fmt.Errorf("invalid extension frequency %d", a.ExtensionFrequency)
+		}
+	} else if a.ExtensionFrequency != 0 {
+		return fmt.Errorf("extension frequency requires SBR signaling")
+	}
+	if !explicitHE && a.SBRPresentFlag && !a.SyncExtensionPresent {
+		return fmt.Errorf("SBR presence requires a sync extension")
+	}
+	if a.PSSyncExtensionPresent && !a.SyncExtensionPresent {
+		return fmt.Errorf("PS sync extension requires an SBR sync extension")
+	}
+	if a.PSPresentFlag && a.ObjectType != HEAACv2 &&
+		(!a.PSSyncExtensionPresent || !a.SBRPresentFlag) {
+		return fmt.Errorf("PS presence requires SBR and explicit PS signaling")
+	}
+	if a.CoreCoderDelay > 0x3fff || (!a.DependsOnCoreCoder && a.CoreCoderDelay != 0) {
+		return fmt.Errorf("core coder delay requires dependsOnCoreCoder and a 14-bit value")
+	}
+	if a.ExtensionFlag3 {
+		return fmt.Errorf("extensionFlag3 requires unsupported future GA syntax")
+	}
+	return nil
+}
+
+func readFrequency(br *bits.Reader) (int, error) {
+	frequency, ok := getFrequency(br)
+	if br.AccError() != nil {
+		return 0, fmt.Errorf("audio specific config too short: %w", br.AccError())
+	}
+	if !ok {
+		return 0, fmt.Errorf("strange frequency index")
+	}
+	if frequency == 0 {
+		return 0, fmt.Errorf("invalid sampling frequency zero")
+	}
+	return frequency, nil
+}
+
+func writeFrequency(bw *bits.Writer, frequency int) {
+	if index, ok := ReverseFrequencies[frequency]; ok {
+		bw.Write(uint(index), 4)
+	} else {
+		bw.Write(0x0f, 4)
+		bw.Write(uint(frequency), 24)
+	}
+}
+
+func writeFlag(bw *bits.Writer, flag bool) {
+	if flag {
+		bw.Write(1, 1)
+	} else {
+		bw.Write(0, 1)
+	}
 }
 
 // getFrequency - either from 4-bit index or 24-bit value
