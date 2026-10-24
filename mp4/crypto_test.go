@@ -1287,3 +1287,228 @@ func TestFragmentEncryptorAllocations(t *testing.T) {
 		t.Errorf("encrypting %d samples made %.0f allocations, want fewer than one per sample", nrSamples, encAllocs)
 	}
 }
+
+// decodeInitForTest decodes the file at path after renaming the first box of type rename, if not empty, to free.
+// It then applies change, if not nil, to the init segment.
+func decodeInitForTest(t *testing.T, path, rename string, change func(init *mp4.InitSegment)) *mp4.InitSegment {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rename != "" {
+		data = withBoxRenamed(t, data, rename)
+	}
+	f, err := mp4.DecodeFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Init == nil {
+		t.Fatal("no init segment")
+	}
+	if change != nil {
+		change(f.Init)
+	}
+	return f.Init
+}
+
+func stblOf(init *mp4.InitSegment) *mp4.StblBox {
+	return init.Moov.Trak.Mdia.Minf.Stbl
+}
+
+// trakChanges lists changes that remove the moov box or a box of the first track that the crypto functions need.
+var trakChanges = []struct {
+	name   string
+	change func(init *mp4.InitSegment)
+}{
+	{"no moov", func(init *mp4.InitSegment) { init.Moov = nil }},
+	{"no mdia", func(init *mp4.InitSegment) { init.Moov.Trak.Mdia = nil }},
+	{"no minf", func(init *mp4.InitSegment) { init.Moov.Trak.Mdia.Minf = nil }},
+	{"no stbl", func(init *mp4.InitSegment) { init.Moov.Trak.Mdia.Minf.Stbl = nil }},
+	{"no stsd", func(init *mp4.InitSegment) { stblOf(init).Stsd = nil }},
+}
+
+// TestInitProtectIncompleteTrak - InitProtect returns an error for a track that lacks a box on the way to its sample
+// entry or its decoder configuration, and accepts a moov without mvex.
+func TestInitProtectIncompleteTrak(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("0011223344556677")
+	kid, _ := mp4.NewUUIDFromString("00112233445566778899aabbccddeeff")
+	type testCase struct {
+		name    string
+		file    string
+		change  func(init *mp4.InitSegment)
+		wantErr bool
+	}
+	var cases []testCase
+	for _, c := range trakChanges {
+		cases = append(cases, testCase{c.name, "testdata/init.mp4", c.change, true})
+	}
+	cases = append(cases,
+		testCase{"no avcC", "testdata/init.mp4", func(init *mp4.InitSegment) { stblOf(init).Stsd.AvcX.AvcC = nil }, true},
+		testCase{"no hvcC", "testdata/hvc1_init.mp4", func(init *mp4.InitSegment) { stblOf(init).Stsd.HvcX.HvcC = nil }, true},
+		testCase{"no av1C", "testdata/av1_init.mp4", func(init *mp4.InitSegment) { stblOf(init).Stsd.Av01.Av1C = nil }, true},
+		testCase{"no mvex video", "testdata/init.mp4", func(init *mp4.InitSegment) { init.Moov.Mvex = nil }, false},
+		testCase{"no mvex audio", "testdata/aac_init.mp4", func(init *mp4.InitSegment) { init.Moov.Mvex = nil }, false},
+	)
+	for _, c := range cases {
+		for _, scheme := range []string{"cenc", "cbcs"} {
+			t.Run(c.name+" "+scheme, func(t *testing.T) {
+				init := decodeInitForTest(t, c.file, "", c.change)
+				ipd, err := mp4.InitProtect(init, key, iv, scheme, kid, nil)
+				if (err != nil) != c.wantErr {
+					t.Fatalf("got error %v, want error: %t", err, c.wantErr)
+				}
+				if err == nil && ipd.Trex != nil {
+					t.Error("got a trex without mvex")
+				}
+			})
+		}
+	}
+}
+
+// TestExtractInitProtectDataIncompleteTrak - ExtractInitProtectData returns an error for an init segment without
+// protected sample entry, and for a track that lacks a box that it needs.
+func TestExtractInitProtectDataIncompleteTrak(t *testing.T) {
+	type testCase struct {
+		name    string
+		file    string
+		rename  string
+		change  func(init *mp4.InitSegment)
+		wantErr bool
+	}
+	cases := []testCase{
+		{name: "complete", file: "testdata/init_cenc.cmfv"},
+		{name: "clear video", file: "testdata/init.mp4", wantErr: true},
+		{name: "clear audio", file: "testdata/aac_init.mp4", wantErr: true},
+		{name: "no sinf", file: "testdata/init_cenc.cmfv", rename: "sinf", wantErr: true},
+		{name: "no frma", file: "testdata/init_cenc.cmfv", rename: "frma", wantErr: true},
+		{name: "no schm", file: "testdata/init_cenc.cmfv", rename: "schm", wantErr: true},
+		{name: "no schi", file: "testdata/init_cenc.cmfv", rename: "schi", wantErr: true},
+		{name: "no tenc", file: "testdata/init_cenc.cmfv", rename: "tenc", wantErr: true},
+		{name: "no schm audio", file: "testdata/cbcs_audio.mp4", rename: "schm", wantErr: true},
+		{name: "no tenc audio", file: "testdata/cbcs_audio.mp4", rename: "tenc", wantErr: true},
+		{name: "no avcC", file: "testdata/init_cenc.cmfv", rename: "avcC", wantErr: true},
+		{name: "no mvex", file: "testdata/init_cenc.cmfv",
+			change: func(init *mp4.InitSegment) { init.Moov.Mvex = nil }},
+	}
+	for _, c := range trakChanges {
+		cases = append(cases, testCase{name: c.name, file: "testdata/init_cenc.cmfv", change: c.change, wantErr: true})
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			init := decodeInitForTest(t, c.file, c.rename, c.change)
+			ipd, err := mp4.ExtractInitProtectData(init)
+			if (err != nil) != c.wantErr {
+				t.Fatalf("got error %v, want error: %t", err, c.wantErr)
+			}
+			if err == nil && (ipd.Scheme != "cenc" || ipd.Tenc == nil) {
+				t.Errorf("got scheme %q and tenc %v, want cenc and a tenc", ipd.Scheme, ipd.Tenc)
+			}
+		})
+	}
+}
+
+// TestDecryptInitIncompleteTrak - DecryptInit returns an error for a track that lacks a box that it needs, and accepts
+// a moov without mvex.
+func TestDecryptInitIncompleteTrak(t *testing.T) {
+	encv := func(init *mp4.InitSegment) *mp4.VisualSampleEntryBox { return stblOf(init).Stsd.Encv }
+	type testCase struct {
+		name    string
+		rename  string
+		change  func(init *mp4.InitSegment)
+		wantErr bool
+	}
+	cases := []testCase{
+		{name: "complete"},
+		{name: "no tkhd", change: func(init *mp4.InitSegment) { init.Moov.Trak.Tkhd = nil }, wantErr: true},
+		{name: "no frma", rename: "frma", wantErr: true},
+		{name: "no frma field", change: func(init *mp4.InitSegment) { encv(init).Sinf.Frma = nil }, wantErr: true},
+		{name: "no schm", rename: "schm", wantErr: true},
+		{name: "no mvex", change: func(init *mp4.InitSegment) { init.Moov.Mvex = nil }},
+	}
+	for _, c := range trakChanges {
+		cases = append(cases, testCase{name: c.name, change: c.change, wantErr: true})
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			init := decodeInitForTest(t, "testdata/prog_8s_enc_dashinit.mp4", c.rename, c.change)
+			di, err := mp4.DecryptInit(init)
+			if (err != nil) != c.wantErr {
+				t.Fatalf("got error %v, want error: %t", err, c.wantErr)
+			}
+			if err == nil && len(di.TrackInfos) != 2 {
+				t.Errorf("got %d track infos, want 2", len(di.TrackInfos))
+			}
+		})
+	}
+}
+
+// TestRemoveEncryptionWithoutFrma - RemoveEncryption returns an error for a sinf box without frma box, and leaves the
+// sample entry unchanged.
+func TestRemoveEncryptionWithoutFrma(t *testing.T) {
+	init := decodeInitForTest(t, "testdata/prog_8s_enc_dashinit.mp4", "", nil)
+	encv := init.Moov.Traks[0].Mdia.Minf.Stbl.Stsd.Encv
+	encv.Sinf.Frma = nil
+	if _, err := encv.RemoveEncryption(); err == nil {
+		t.Error("RemoveEncryption of encv: got no error")
+	}
+	if encv.Type() != "encv" || encv.Sinf == nil {
+		t.Errorf("encv changed to %s with sinf %v", encv.Type(), encv.Sinf)
+	}
+	enca := init.Moov.Traks[1].Mdia.Minf.Stbl.Stsd.Children[0].(*mp4.AudioSampleEntryBox)
+	enca.Sinf.Frma = nil
+	if _, err := enca.RemoveEncryption(); err == nil {
+		t.Error("RemoveEncryption of enca: got no error")
+	}
+	if enca.Type() != "enca" || enca.Sinf == nil {
+		t.Errorf("enca changed to %s with sinf %v", enca.Type(), enca.Sinf)
+	}
+}
+
+// TestDecryptSegmentIncompleteSinf - DecryptSegment returns an error for a track whose sinf box lacks the schm, schi
+// or tenc box.
+func TestDecryptSegmentIncompleteSinf(t *testing.T) {
+	key, _ := hex.DecodeString("63cb5f7184dd4b689a5c5ff11ee6a328")
+	cases := []struct {
+		name   string
+		change func(sinf *mp4.SinfBox)
+	}{
+		{"no schm", func(sinf *mp4.SinfBox) { sinf.Schm = nil }},
+		{"no schi", func(sinf *mp4.SinfBox) { sinf.Schi = nil }},
+		{"no tenc", func(sinf *mp4.SinfBox) { sinf.Schi.Tenc = nil }},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f, err := mp4.ReadMP4File("testdata/prog_8s_enc_dashinit.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			di, err := mp4.DecryptInit(f.Init)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.change(di.TrackInfos[0].Sinf)
+			if err := mp4.DecryptSegment(f.Segments[0], di, key); err == nil {
+				t.Error("got no error")
+			}
+		})
+	}
+}
+
+// TestDecryptFragmentWithoutMdat - DecryptFragment accepts a fragment of a clear track without mdat box.
+func TestDecryptFragmentWithoutMdat(t *testing.T) {
+	f, err := mp4.ReadMP4File("testdata/prog_8s_dec_dashinit.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	di, err := mp4.DecryptInit(f.Init)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frag := f.Segments[0].Fragments[0]
+	frag.Mdat = nil
+	if err := mp4.DecryptFragment(frag, di, make([]byte, 16)); err != nil {
+		t.Error(err)
+	}
+}

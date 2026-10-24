@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error instead of panicking or using chunk offset 0 when the track lacks a box of its sample table
 - `MoofBox.Encode`, `File.UpdateSidx`, `MediaSegment.Fragmentify`, `InitSegment.GetMediaType` and the `Fragment` methods
   `Encode`, `GetSampleInterval`, `GetSampleNrFromTime` and `AddSampleInterval` handle missing boxes instead of panicking
+- `InitProtect`, `ExtractInitProtectData`, `DecryptInit`, `DecryptSegment`, `DecryptFragment` and `RemoveEncryption`
+  return an error instead of panicking when a box they need is missing, or `ExtractInitProtectData` gets a clear init
 
 ## [0.60.0] - 2026-10-13
 
