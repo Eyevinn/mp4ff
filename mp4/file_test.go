@@ -1141,6 +1141,31 @@ func TestCopySampleDataIncompleteTrak(t *testing.T) {
 	}
 }
 
+func TestCopySampleDataMissingSampleTableBoxes(t *testing.T) {
+	orig, err := os.ReadFile("testdata/prog_8s.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, boxType := range []string{"stsc", "stsz", "stco"} {
+		t.Run(boxType, func(t *testing.T) {
+			data := bytes.Clone(orig)
+			idx := bytes.Index(data, []byte(boxType))
+			if idx < 0 {
+				t.Fatalf("box %q not found in test file", boxType)
+			}
+			copy(data[idx:idx+4], "free")
+			f, err := mp4.DecodeFile(bytes.NewReader(data))
+			if err != nil {
+				t.Fatalf("DecodeFile: %v", err)
+			}
+			err = f.CopySampleData(&bytes.Buffer{}, bytes.NewReader(data), f.Moov.Traks[0], 1, 1, nil)
+			if err == nil {
+				t.Error("expected error for a track without " + boxType)
+			}
+		})
+	}
+}
+
 func TestUpdateSidxNilMvex(t *testing.T) {
 	f := mp4.NewFile()
 	// Build a minimal fragmented file with no mvex
