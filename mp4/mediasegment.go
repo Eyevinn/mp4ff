@@ -181,6 +181,12 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 	var cumDur uint32 = 0
 
 	for _, inFrag := range inFragments {
+		if inFrag.Moof.Traf == nil {
+			continue // No samples to move
+		}
+		if inFrag.Moof.Mfhd == nil {
+			return nil, fmt.Errorf("moof has no mfhd box")
+		}
 		trackID := inFrag.Moof.Traf.Tfhd.TrackID
 
 		samples, err := inFrag.GetFullSamples(trex)

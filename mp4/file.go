@@ -876,6 +876,12 @@ func (f *File) UpdateSidx(addIfNotExists, nonZeroEPT bool) error {
 	if err != nil {
 		return err
 	}
+	if refTrak.Tkhd == nil {
+		return fmt.Errorf("reference track has no tkhd box")
+	}
+	if refTrak.Mdia == nil || refTrak.Mdia.Mdhd == nil {
+		return fmt.Errorf("reference track has no mdhd box")
+	}
 	trex, ok := initSeg.Moov.Mvex.GetTrex(refTrak.Tkhd.TrackID)
 	if !ok {
 		return fmt.Errorf("no trex box found for track %d", refTrak.Tkhd.TrackID)
@@ -937,7 +943,7 @@ func findSegmentData(segs []*MediaSegment, refTrak *TrakBox, trex *TrexBox) ([]s
 			for _, traf := range frag.Moof.Trafs {
 				tfhd := traf.Tfhd
 				if tfhd.TrackID == refTrak.Tkhd.TrackID { // Find track that gives sidx time values
-					if fIdx == 0 {
+					if fIdx == 0 && traf.Tfdt != nil { // Without tfdt, the base time is 0
 						baseTime = traf.Tfdt.BaseMediaDecodeTime()
 					}
 					for i, trun := range traf.Truns {

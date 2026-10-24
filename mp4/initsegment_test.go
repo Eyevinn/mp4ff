@@ -245,3 +245,23 @@ func TestInitTweakSingleTrakLive(t *testing.T) {
 		t.Errorf(`Did not get error %q but %q"`, wantedErrMsg, err)
 	}
 }
+
+// TestGetMediaTypeIncompleteInit - GetMediaType returns unknown for an init segment without track, mdia or hdlr.
+func TestGetMediaTypeIncompleteInit(t *testing.T) {
+	init := mp4.CreateEmptyInit()
+	if got := init.GetMediaType(); got != "unknown" {
+		t.Errorf("no track: got %q, want unknown", got)
+	}
+	trak := init.AddEmptyTrack(90000, "video", "und")
+	if got := init.GetMediaType(); got != "video" {
+		t.Errorf("video track: got %q, want video", got)
+	}
+	trak.Mdia.Hdlr = nil
+	if got := init.GetMediaType(); got != "unknown" {
+		t.Errorf("no hdlr: got %q, want unknown", got)
+	}
+	trak.Mdia = nil
+	if got := init.GetMediaType(); got != "unknown" {
+		t.Errorf("no mdia: got %q, want unknown", got)
+	}
+}
