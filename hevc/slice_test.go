@@ -308,3 +308,19 @@ func TestParseSliceHeaderNumRefIdxRange(t *testing.T) {
 		})
 	}
 }
+
+// TestParseSliceHeaderCtbOutsideProfiles checks that an SPS built with a coding tree
+// block no profile allows gives an error, not a division by zero, for a slice
+// segment that codes slice_segment_address.
+func TestParseSliceHeaderCtbOutsideProfiles(t *testing.T) {
+	// TRAIL_R, first_slice_segment_in_pic_flag 0, slice_pic_parameter_set_id 0
+	nalu := []byte{0x02, 0x01, 0x40, 0x00, 0x00, 0x80}
+	for _, log2DiffMaxMinCb := range []byte{0, 4, 61} {
+		sps := &SPS{PicWidthInLumaSamples: 64, PicHeightInLumaSamples: 64,
+			Log2DiffMaxMinLumaCodingBlockSize: log2DiffMaxMinCb}
+		_, err := ParseSliceHeader(nalu, map[uint32]*SPS{0: sps}, map[uint32]*PPS{0: {}})
+		if err == nil {
+			t.Errorf("CtbLog2SizeY %d: parsed, wanted an error", 3+log2DiffMaxMinCb)
+		}
+	}
+}

@@ -421,8 +421,17 @@ func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 				})
 		}
 	}
-	sps.Log2MinLumaCodingBlockSizeMinus3 = byte(r.ReadExpGolomb())
-	sps.Log2DiffMaxMinLumaCodingBlockSize = byte(r.ReadExpGolomb())
+	log2MinCbMinus3 := r.ReadExpGolomb()
+	log2DiffMaxMinCb := r.ReadExpGolomb()
+	if r.AccError() == nil {
+		// A multilayer extension SPS parsed without its VPS has no picture size.
+		sizeKnown := !sps.MultiLayerExtSpsFlag || vpsMap[sps.VpsID] != nil
+		if err := sps.checkCodingBlockSizes(log2MinCbMinus3, log2DiffMaxMinCb, sizeKnown); err != nil {
+			return nil, err
+		}
+	}
+	sps.Log2MinLumaCodingBlockSizeMinus3 = byte(log2MinCbMinus3)
+	sps.Log2DiffMaxMinLumaCodingBlockSize = byte(log2DiffMaxMinCb)
 	sps.Log2MinLumaTransformBlockSizeMinus2 = byte(r.ReadExpGolomb())
 	sps.Log2DiffMaxMinLumaTransformBlockSize = byte(r.ReadExpGolomb())
 	sps.MaxTransformHierarchyDepthInter = byte(r.ReadExpGolomb())
@@ -551,6 +560,35 @@ func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 	}
 
 	return sps, nil
+}
+
+// checkCodingBlockSizes refuses a coding tree block size that no profile allows,
+// and, when the picture size is known, a picture that is not a non-zero multiple
+// of the minimum coding block size (ISO/IEC 23008-2 7.4.3.2.1). The values are
+// checked before they are narrowed to bytes.
+func (s *SPS) checkCodingBlockSizes(log2MinCbMinus3, log2DiffMaxMinCb uint, sizeKnown bool) error {
+	if err := checkCtbLog2SizeY(uint64(log2MinCbMinus3) + 3 + uint64(log2DiffMaxMinCb)); err != nil {
+		return err
+	}
+	if !sizeKnown {
+		return nil
+	}
+	minCbSize := uint32(8) << log2MinCbMinus3
+	width, height := s.PicWidthInLumaSamples, s.PicHeightInLumaSamples
+	if width == 0 || height == 0 || width%minCbSize != 0 || height%minCbSize != 0 {
+		return fmt.Errorf("picture size %dx%d is not a non-zero multiple of MinCbSizeY %d",
+			width, height, minCbSize)
+	}
+	return nil
+}
+
+// checkCtbLog2SizeY refuses a CtbLog2SizeY outside 4..6, the coding tree blocks of
+// 16x16 to 64x64 luma samples that every profile allows (ISO/IEC 23008-2 Annex A).
+func checkCtbLog2SizeY(ctbLog2SizeY uint64) error {
+	if ctbLog2SizeY < 4 || ctbLog2SizeY > 6 {
+		return fmt.Errorf("CtbLog2SizeY %d is outside 4..6, the range every profile allows", ctbLog2SizeY)
+	}
+	return nil
 }
 
 // inheritFromVPS fills in the values that a multilayer extension SPS does not
