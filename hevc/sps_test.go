@@ -1,9 +1,11 @@
 package hevc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/go-test/deep"
 )
 
@@ -571,5 +573,87 @@ func TestSPSParserMultiLayerExtWithoutVPS(t *testing.T) {
 	// The signalled values must be the same as when the VPS is available.
 	if sps.Log2MaxPicOrderCntLsbMinus4 != 7 {
 		t.Errorf("log2_max_pic_order_cnt_lsb_minus4 is %d, wanted 7", sps.Log2MaxPicOrderCntLsbMinus4)
+	}
+}
+
+// codedSPS writes a single-layer 8-bit 4:2:0 SPS with the given coding block fields
+// and picture size, and every optional tool off.
+func codedSPS(log2MinCbMinus3, log2DiffMaxMinCb, width, height uint) []byte {
+	var buf bytes.Buffer
+	w := bits.NewEBSPWriter(&buf)
+	w.Write(0x4201, 16)     // nal_unit_header: SPS, nuh_layer_id 0, nuh_temporal_id_plus1 1
+	w.Write(0, 4)           // sps_video_parameter_set_id
+	w.Write(0, 3)           // sps_max_sub_layers_minus1
+	w.Write(1, 1)           // sps_temporal_id_nesting_flag
+	w.Write(1, 8)           // general_profile_space, general_tier_flag, general_profile_idc (Main)
+	w.Write(0x60000000, 32) // general_profile_compatibility_flags
+	w.Write(0, 24)          // general constraint flags, first half
+	w.Write(0, 24)          // general constraint flags, second half
+	w.Write(93, 8)          // general_level_idc
+	w.WriteExpGolomb(0)     // sps_seq_parameter_set_id
+	w.WriteExpGolomb(1)     // chroma_format_idc
+	w.WriteExpGolomb(width)
+	w.WriteExpGolomb(height)
+	w.Write(0, 1)       // conformance_window_flag
+	w.WriteExpGolomb(0) // bit_depth_luma_minus8
+	w.WriteExpGolomb(0) // bit_depth_chroma_minus8
+	w.WriteExpGolomb(4) // log2_max_pic_order_cnt_lsb_minus4
+	w.Write(1, 1)       // sps_sub_layer_ordering_info_present_flag
+	w.WriteExpGolomb(1) // sps_max_dec_pic_buffering_minus1
+	w.WriteExpGolomb(0) // sps_max_num_reorder_pics
+	w.WriteExpGolomb(0) // sps_max_latency_increase_plus1
+	w.WriteExpGolomb(log2MinCbMinus3)
+	w.WriteExpGolomb(log2DiffMaxMinCb)
+	w.WriteExpGolomb(0) // log2_min_luma_transform_block_size_minus2
+	w.WriteExpGolomb(2) // log2_diff_max_min_luma_transform_block_size
+	w.WriteExpGolomb(0) // max_transform_hierarchy_depth_inter
+	w.WriteExpGolomb(0) // max_transform_hierarchy_depth_intra
+	w.Write(0, 4)       // scaling_list_enabled_flag, amp, sample_adaptive_offset, pcm_enabled_flag
+	w.WriteExpGolomb(0) // num_short_term_ref_pic_sets
+	w.Write(0, 5)       // long_term_ref_pics, temporal_mvp, strong_intra_smoothing, vui, extension
+	w.WriteRbspTrailingBits()
+	return buf.Bytes()
+}
+
+func TestSPSCodingBlockSizes(t *testing.T) {
+	cases := []struct {
+		desc                              string
+		log2MinCbMinus3, log2DiffMaxMinCb uint
+		width, height                     uint
+		wantErr                           bool
+	}{
+		{"CTB 16", 0, 1, 1920, 1080, false},
+		{"CTB 32", 0, 2, 1920, 1080, false},
+		{"CTB 64", 0, 3, 1920, 1080, false},
+		{"CTB 64 over MinCb 16", 1, 2, 1920, 1088, false},
+		{"CTB 8", 0, 0, 1920, 1080, true},
+		{"CTB 128", 0, 4, 1920, 1080, true},
+		{"CTB 2^64", 0, 61, 1920, 1080, true},
+		{"MinCb 2^30", 27, 0, 1920, 1080, true},
+		{"MinCb field above a byte", 256, 1, 1920, 1080, true},
+		{"width not a multiple of MinCb 16", 1, 2, 1912, 1088, true},
+		{"height not a multiple of MinCb 16", 1, 2, 1920, 1080, true},
+		{"zero width", 0, 1, 0, 1080, true},
+		{"zero height", 0, 1, 1920, 0, true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			sps, err := ParseSPSNALUnit(codedSPS(c.log2MinCbMinus3, c.log2DiffMaxMinCb, c.width, c.height))
+			if c.wantErr {
+				if err == nil {
+					t.Fatalf("parsed, wanted an error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if uint(sps.Log2MinLumaCodingBlockSizeMinus3) != c.log2MinCbMinus3 ||
+				uint(sps.Log2DiffMaxMinLumaCodingBlockSize) != c.log2DiffMaxMinCb ||
+				uint(sps.PicWidthInLumaSamples) != c.width || uint(sps.PicHeightInLumaSamples) != c.height {
+				t.Errorf("parsed %d, %d, %dx%d", sps.Log2MinLumaCodingBlockSizeMinus3,
+					sps.Log2DiffMaxMinLumaCodingBlockSize, sps.PicWidthInLumaSamples, sps.PicHeightInLumaSamples)
+			}
+		})
 	}
 }

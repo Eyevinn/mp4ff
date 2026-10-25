@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error, or skip the track, instead of panicking on a file without a box they need
 - The segmenter example segments a video track without `stss`, in which every sample is a sync sample, and gives an
   error instead of panicking on a file without video track or without a box it needs
+- `hevc.ParseSPSNALUnit` refuses a coding tree block outside 16x16..64x64 or a picture size that is not a multiple of
+  the minimum coding block, and `hevc.ParseSliceHeader` gives an error instead of dividing by zero on such an SPS
 
 ## [0.60.0] - 2026-10-13
 

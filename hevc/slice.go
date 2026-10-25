@@ -147,7 +147,12 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 			PicHeightInCtbsY = Ceil( pic_height_in_luma_samples ÷ CtbSizeY )
 			PicSizeInCtbsY = PicWidthInCtbsY * PicHeightInCtbsY
 		*/
-		CtbSizeY := uint(1 << (sps.Log2MinLumaCodingBlockSizeMinus3 + 3 + sps.Log2DiffMaxMinLumaCodingBlockSize))
+		// An SPS built rather than parsed has not been through ParseSPSNALUnit's check.
+		CtbLog2SizeY := uint64(sps.Log2MinLumaCodingBlockSizeMinus3) + 3 + uint64(sps.Log2DiffMaxMinLumaCodingBlockSize)
+		if err := checkCtbLog2SizeY(CtbLog2SizeY); err != nil {
+			return nil, fmt.Errorf("sps ID %d: %w", pps.SeqParameterSetID, err)
+		}
+		CtbSizeY := uint(1) << CtbLog2SizeY
 		PicSizeInCtbsY := ceilDiv(uint(sps.PicWidthInLumaSamples), CtbSizeY) *
 			ceilDiv(uint(sps.PicHeightInLumaSamples), CtbSizeY)
 		sh.SegmentAddress = r.Read(bits.CeilLog2(PicSizeInCtbsY))
