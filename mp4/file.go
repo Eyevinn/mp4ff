@@ -943,7 +943,9 @@ func findSegmentData(segs []*MediaSegment, refTrak *TrakBox, trex *TrexBox) ([]s
 			for _, traf := range frag.Moof.Trafs {
 				tfhd := traf.Tfhd
 				if tfhd.TrackID == refTrak.Tkhd.TrackID { // Find track that gives sidx time values
-					if fIdx == 0 && traf.Tfdt != nil { // Without tfdt, the base time is 0
+					// Without tfdt, the base time is left at 0. Only the first segment's time is used, and the
+					// first fragment of a track starts at 0 when the moov has no samples.
+					if fIdx == 0 && traf.Tfdt != nil {
 						baseTime = traf.Tfdt.BaseMediaDecodeTime()
 					}
 					for i, trun := range traf.Truns {

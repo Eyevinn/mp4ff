@@ -236,7 +236,10 @@ func (f *Fragment) Size() uint64 {
 	return size
 }
 
-// GetFullSamples - Get full samples including media and accumulated time
+// GetFullSamples - Get full samples including media and accumulated time.
+// The decode times start at the tfdt time. A traf without tfdt has decode times relative to the start of the
+// fragment, since the absolute decode time of its first sample is the sum of the durations of all earlier samples
+// of the track.
 func (f *Fragment) GetFullSamples(trex *TrexBox) ([]FullSample, error) {
 	samples, err := f.AppendFullSamples(nil, trex)
 	if err != nil {
@@ -844,7 +847,7 @@ func (f *Fragment) SetTrunDataOffsets() {
 }
 
 // GetSampleNrFromTime - look up sample number from a specified time. Return error if no matching time.
-// A traf without tfdt has its first sample at decode time 0, as in GetFullSamples.
+// For a traf without tfdt, sampleTime is relative to the start of the fragment, as in GetFullSamples.
 func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32, error) {
 	if len(f.Moof.Trafs) != 1 {
 		return 0, fmt.Errorf("not exactly one traf")
@@ -872,7 +875,7 @@ func (f *Fragment) GetSampleNrFromTime(trex *TrexBox, sampleTime uint64) (uint32
 }
 
 // GetSampleInterval - get SampleInterval for a fragment with only one track.
-// A traf without tfdt has its first sample at decode time 0, as in GetFullSamples.
+// For a traf without tfdt, the decode times are relative to the start of the fragment, as in GetFullSamples.
 func (f *Fragment) GetSampleInterval(trex *TrexBox, startSampleNr, endSampleNr uint32) (SampleInterval, error) {
 	moof := f.Moof
 	if len(moof.Trafs) != 1 {

@@ -1348,8 +1348,8 @@ func TestDecodeEncryptedFragmentsWithIncompleteTrak(t *testing.T) {
 	}
 }
 
-// TestUpdateSidxMissingBoxes - UpdateSidx returns an error when the reference track has no tkhd or mdhd, and takes
-// the base decode time of a traf without tfdt to be 0.
+// TestUpdateSidxMissingBoxes - UpdateSidx returns an error when the reference track has no tkhd or mdhd, and gives
+// the same sidx when the first traf, which starts at decode time 0, has no tfdt.
 func TestUpdateSidxMissingBoxes(t *testing.T) {
 	orig, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
 	if err != nil {

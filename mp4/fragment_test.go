@@ -1090,8 +1090,8 @@ func TestFragmentResetEncryption(t *testing.T) {
 	}
 }
 
-// TestFragmentWithoutTfdt - GetSampleInterval and GetSampleNrFromTime take the first sample of a traf without tfdt
-// to be at decode time 0.
+// TestFragmentWithoutTfdt - GetSampleInterval and GetSampleNrFromTime use decode times relative to the start of the
+// fragment for a traf without tfdt.
 func TestFragmentWithoutTfdt(t *testing.T) {
 	orig, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
 	if err != nil {
