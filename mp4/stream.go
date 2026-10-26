@@ -172,6 +172,7 @@ type FragmentDoneCallback func(f *Fragment) error
 type TrailingBoxesCallback func(lastFrag *Fragment, boxes []Box) error
 
 // SampleAccessor provides access to samples within a fragment.
+// The decode times of a traf without tfdt are relative to the start of the fragment, as in Fragment.GetFullSamples.
 type SampleAccessor interface {
 	GetSample(trackID uint32, sampleNr uint32) (*FullSample, error)
 	GetSampleRange(trackID uint32, startSampleNr, endSampleNr uint32) ([]FullSample, error)
