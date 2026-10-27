@@ -24,6 +24,17 @@ type MvhdBox struct {
 	NextTrackID      uint32
 	Rate             Fixed32
 	Volume           Fixed16
+	// Matrix - transformation matrix {a, b, u, c, d, v, x, y, w} (16.16 fixed point, u/v/w 2.30).
+	// The zero value is encoded as the unity matrix.
+	Matrix [9]int32
+	// QuickTime overlays these times, in the movie timescale, on the six pre_defined fields,
+	// which are 0 in ISO files.
+	QuickTimePreviewTime       uint32
+	QuickTimePreviewDuration   uint32
+	QuickTimePosterTime        uint32
+	QuickTimeSelectionTime     uint32
+	QuickTimeSelectionDuration uint32
+	QuickTimeCurrentTime       uint32
 }
 
 // EpochDiffS is the difference in seconds between Jan 1, 1904 and Jan 1, 1970
@@ -36,6 +47,7 @@ func CreateMvhd() *MvhdBox {
 		NextTrackID: 2,          // There will typically only be one track
 		Rate:        0x00010000, // This is 1.0
 		Volume:      0x0100,     // Full volume
+		Matrix:      UnityMatrix(),
 	}
 }
 
@@ -73,8 +85,15 @@ func DecodeMvhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	m.Rate = Fixed32(sr.ReadUint32())
 	m.Volume = Fixed16(sr.ReadUint16())
 	sr.SkipBytes(10) // Reserved bytes
-	sr.SkipBytes(36) // Matrix patterndata
-	sr.SkipBytes(24) // Predefined 0
+	for i := range m.Matrix {
+		m.Matrix[i] = sr.ReadInt32()
+	}
+	m.QuickTimePreviewTime = sr.ReadUint32()
+	m.QuickTimePreviewDuration = sr.ReadUint32()
+	m.QuickTimePosterTime = sr.ReadUint32()
+	m.QuickTimeSelectionTime = sr.ReadUint32()
+	m.QuickTimeSelectionDuration = sr.ReadUint32()
+	m.QuickTimeCurrentTime = sr.ReadUint32()
 	m.NextTrackID = sr.ReadUint32()
 	return m, sr.AccError()
 }
@@ -126,8 +145,19 @@ func (b *MvhdBox) EncodeSW(sw bits.SliceWriter) error {
 	sw.WriteUint32(uint32(b.Rate))
 	sw.WriteUint16(uint16(b.Volume))
 	sw.WriteZeroBytes(10) // Reserved bytes
-	sw.WriteUnityMatrix() // unity matrix according to 8.2.2.2
-	sw.WriteZeroBytes(24) // Predefined 0
+	matrix := b.Matrix
+	if matrix == ([9]int32{}) {
+		matrix = UnityMatrix() // for backwards compatibility, according to 8.2.2.2
+	}
+	for _, v := range matrix {
+		sw.WriteInt32(v)
+	}
+	sw.WriteUint32(b.QuickTimePreviewTime)
+	sw.WriteUint32(b.QuickTimePreviewDuration)
+	sw.WriteUint32(b.QuickTimePosterTime)
+	sw.WriteUint32(b.QuickTimeSelectionTime)
+	sw.WriteUint32(b.QuickTimeSelectionDuration)
+	sw.WriteUint32(b.QuickTimeCurrentTime)
 	sw.WriteUint32(b.NextTrackID)
 
 	return sw.AccError()
@@ -140,6 +170,21 @@ func (b *MvhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - duration: %d", b.Duration)
 	bd.write(" - creation time: %s", timeStr(b.CreationTime))
 	bd.write(" - modification time: %s", timeStr(b.ModificationTime))
+	for _, t := range []struct {
+		name  string
+		value uint32
+	}{
+		{"quickTimePreviewTime", b.QuickTimePreviewTime},
+		{"quickTimePreviewDuration", b.QuickTimePreviewDuration},
+		{"quickTimePosterTime", b.QuickTimePosterTime},
+		{"quickTimeSelectionTime", b.QuickTimeSelectionTime},
+		{"quickTimeSelectionDuration", b.QuickTimeSelectionDuration},
+		{"quickTimeCurrentTime", b.QuickTimeCurrentTime},
+	} {
+		if t.value != 0 {
+			bd.write(" - %s: %d", t.name, t.value)
+		}
+	}
 	return bd.err
 }
 
