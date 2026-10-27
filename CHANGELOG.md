@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `DecModeLazyMdat` also skips the payload of `free` and `skip` boxes; `FreeBox.Payload` is then nil and
   `FreeBox.Encode` writes zeros of the original payload size
+- `DataBox` keeps its type and locale in the new `DataType`, `Country` and `Language` fields instead of always writing
+  type 1 (UTF-8) and locale 0, so a `DataBox` with text needs `DataType: DataTypeUTF8`
 
 ### Fixed
 
