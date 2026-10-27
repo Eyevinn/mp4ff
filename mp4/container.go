@@ -97,6 +97,12 @@ func containerSize(children []Box) uint64 {
 
 // DecodeContainerChildren decodes a container box
 func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader) ([]Box, error) {
+	return decodeContainerChildren(hdr, startPos, endPos, r, nil)
+}
+
+// decodeContainerChildren decodes the children of a container box. With trailing set, bytes after
+// the last child that are too few for a box header end the children and are returned in *trailing.
+func decodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader, trailing *[]byte) ([]Box, error) {
 	// Guard before the unsigned subtractions below can wrap.
 	if startPos > endPos {
 		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
@@ -109,6 +115,13 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, childSizes(children))
 		}
 		if pos == endPos {
+			return children, nil
+		}
+		if trailing != nil && endPos-pos < boxHeaderSize {
+			*trailing = make([]byte, endPos-pos)
+			if _, err := io.ReadFull(r, *trailing); err != nil {
+				return children, fmt.Errorf("%s: trailing bytes: %w", hdr.Name, err)
+			}
 			return children, nil
 		}
 		child, err := DecodeBox(pos, r)
@@ -144,11 +157,14 @@ func childSizes(children []Box) string {
 
 // DecodeContainerChildrenSR decodes a container box
 func DecodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader) ([]Box, error) {
-	return decodeContainerChildrenSR(hdr, startPos, endPos, sr, make([]Box, 0, 8)) // Good initial size
+	return decodeContainerChildrenSR(hdr, startPos, endPos, sr, make([]Box, 0, 8), nil) // Good initial size
 }
 
 // decodeContainerChildrenSR decodes the children of a container box, appending them to children.
-func decodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader, children []Box) ([]Box, error) {
+// With trailing set, bytes after the last child that are too few for a box header end the children
+// and are returned in *trailing.
+func decodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.SliceReader, children []Box,
+	trailing *[]byte) ([]Box, error) {
 	// Guard before the unsigned subtractions below can wrap.
 	if startPos > endPos {
 		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
@@ -161,6 +177,10 @@ func decodeContainerChildrenSR(hdr BoxHeader, startPos, endPos uint64, sr bits.S
 			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, childSizes(children))
 		}
 		if pos == endPos {
+			break
+		}
+		if trailing != nil && endPos-pos < boxHeaderSize {
+			*trailing = sr.ReadBytes(int(endPos - pos))
 			break
 		}
 		child, err := DecodeBoxSR(pos, sr)

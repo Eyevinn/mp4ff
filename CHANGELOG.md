@@ -60,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VisualSampleEntryBox` keeps the QuickTime version, revision level, vendor, temporal and spatial quality, depth and
   color table ID in new fields, instead of writing ISO defaults, so `.mov` video sample entries round-trip
 - `File.EncodeSW` writes the `mfra` box of a fragmented file, as `File.Encode` does
+- `udta` boxes decode when fewer bytes than a box header follow the last child, such as the 32-bit zero that ends the
+  QuickTime user data list; the bytes are kept in the new `UdtaBox.TrailingBytes` and written back
 
 ## [0.60.0] - 2026-10-13
 
