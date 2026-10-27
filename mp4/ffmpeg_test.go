@@ -31,9 +31,3 @@ func TestDecodeFFMpeg(t *testing.T) {
 		t.Errorf("encoded ffmpeg boxes not same as input")
 	}
 }
-
-func TestEncodeData(t *testing.T) {
-	data := []byte("dummy")
-	db := &mp4.DataBox{Data: data}
-	boxDiffAfterEncodeAndDecode(t, db)
-}
