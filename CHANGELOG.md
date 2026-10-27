@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `alac` (Apple Lossless) sample entries decode as `AudioSampleEntryBox` and `StsdBox.Alac`, with the magic cookie as
   `AlacBox` in `AudioSampleEntryBox.Alac`, or in `WaveBox.Alac` for QuickTime files
+- `InitProtect` and `ExtractInitProtectData` support VP9 (`vp09`) with scheme cenc, and `GetVP9ProtectRanges`
+  gives the subsample protection ranges of a VP9 sample
 
 ### Changed
 
