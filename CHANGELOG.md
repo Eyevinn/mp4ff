@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   slice headers with the SPS and PPS that the samples carry, not only with those of the decoder configuration record
 - `MetaBox.EncodeSW` writes a QuickTime `meta` box without version and flags, as `Encode` does, so `File.EncodeSW` no
   longer fails with an overflow on `.mov` files with QuickTime metadata
+- `VisualSampleEntryBox` keeps the QuickTime version, revision level, vendor, temporal and spatial quality, depth and
+  color table ID in new fields, instead of writing ISO defaults, so `.mov` video sample entries round-trip
 
 ## [0.60.0] - 2026-10-13
 
