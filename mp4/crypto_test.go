@@ -11,6 +11,7 @@ import (
 
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/Eyevinn/mp4ff/hevc"
 	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
@@ -221,6 +222,158 @@ func TestAVCProtectRangesWithParameterSetsInSamples(t *testing.T) {
 			t.Fatal(err)
 		}
 		frag := seg.Segments[0].Fragments[0]
+		if err := e.EncryptFragment(frag); err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if diff := deep.Equal(frag.Moof.Traf.Senc.SubSamples, want); diff != nil {
+			t.Errorf("%s: FragmentEncryptor: %v", c.name, diff)
+		}
+	}
+}
+
+// TestHEVCProtectRangesWithParameterSetsInSamples checks, as for AVC, that cbcs protection ranges are computed with
+// the SPS and PPS that the samples carry, here in place of a PPS with the same ID but another slice header layout in
+// the decoder configuration record.
+func TestHEVCProtectRangesWithParameterSetsInSamples(t *testing.T) {
+	// The samples of hvc1_seg_1.m4s carry no parameter sets, so the test puts those of hvc1_init.mp4 into them. The
+	// other PPS, one of the hevc package's PPS test cases, has the same ID and signals CABAC initialization,
+	// deblocking overrides and chroma QP offsets in the slice header.
+	otherPPSNalu, _ := hex.DecodeString("4401c1ac9383b240")
+	init, err := mp4.ReadMP4File("testdata/hvc1_init.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seg, err := mp4.ReadMP4File("testdata/hvc1_seg_1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hvcC := init.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.HvcX.HvcC
+	vpss, spss, ppss := hvcC.GetNalusForType(hevc.NALU_VPS), hvcC.GetNalusForType(hevc.NALU_SPS),
+		hvcC.GetNalusForType(hevc.NALU_PPS)
+	parameterSets := func(spss, ppss [][]byte) (map[uint32]*hevc.SPS, map[uint32]*hevc.PPS) {
+		t.Helper()
+		spsMap, ppsMap := map[uint32]*hevc.SPS{}, map[uint32]*hevc.PPS{}
+		for _, nalu := range spss {
+			sps, err := hevc.ParseSPSNALUnit(nalu)
+			if err != nil {
+				t.Fatal(err)
+			}
+			spsMap[uint32(sps.SpsID)] = sps
+		}
+		for _, nalu := range ppss {
+			pps, err := hevc.ParsePPSNALUnit(nalu, spsMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ppsMap[pps.PicParameterSetID] = pps
+		}
+		return spsMap, ppsMap
+	}
+	spsMap, ppsMap := parameterSets(spss, ppss)
+	otherSPSMap, otherPPSMap := parameterSets(spss, [][]byte{otherPPSNalu})
+	otherSPS, otherPPS := otherSPSMap[0], otherPPSMap[0]
+
+	fss, err := seg.Segments[0].Fragments[0].GetFullSamples(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prefix []byte
+	for _, nalu := range slices.Concat(vpss, spss, ppss) {
+		prefix = binary.BigEndian.AppendUint32(prefix, uint32(len(nalu)))
+		prefix = append(prefix, nalu...)
+	}
+
+	// Each sample, preceded by the VPS, SPS and PPS of the stream.
+	differ := false
+	for i, fs := range fss {
+		ssps, err := mp4.GetHEVCProtectRanges(spsMap, ppsMap, fs.Data, "cbcs")
+		if err != nil {
+			t.Fatal(err)
+		}
+		otherSSPs, err := mp4.GetHEVCProtectRanges(otherSPSMap, otherPPSMap, fs.Data, "cbcs")
+		differ = differ || err != nil || deep.Equal(otherSSPs, ssps) != nil
+
+		sample := append(bytes.Clone(prefix), fs.Data...)
+		want, err := mp4.GetHEVCProtectRanges(spsMap, ppsMap, sample, "cbcs")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := mp4.GetHEVCProtectRanges(otherSPSMap, otherPPSMap, sample, "cbcs")
+		if err != nil {
+			t.Errorf("GetHEVCProtectRanges of sample %d: %v", i+1, err)
+			continue
+		}
+		if diff := deep.Equal(got, want); diff != nil {
+			t.Errorf("GetHEVCProtectRanges of sample %d: %v", i+1, diff)
+		}
+	}
+	if !differ {
+		t.Fatal("the other PPS gives the same ranges for the samples of hvc1_seg_1.m4s")
+	}
+	if otherSPSMap[0] != otherSPS || otherPPSMap[0] != otherPPS {
+		t.Error("GetHEVCProtectRanges changed the parameter set maps passed to it")
+	}
+
+	// A fragment whose first sample carries the parameter sets, which then apply to the later samples too.
+	trackID := init.Init.Moov.Mvex.Trex.TrackID
+	var want [][]mp4.SubSamplePattern
+	fragment := func() *mp4.Fragment {
+		t.Helper()
+		frag, err := mp4.CreateFragment(1, trackID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want = want[:0]
+		for i, fs := range fss {
+			data := bytes.Clone(fs.Data)
+			if i == 0 {
+				data = append(bytes.Clone(prefix), data...)
+			}
+			ssps, err := mp4.GetHEVCProtectRanges(spsMap, ppsMap, data, "cbcs")
+			if err != nil {
+				t.Fatal(err)
+			}
+			want = append(want, ssps)
+			sample := fs.Sample
+			sample.Size = uint32(len(data))
+			frag.AddFullSample(mp4.FullSample{Sample: sample, DecodeTime: fs.DecodeTime, Data: data})
+		}
+		return frag
+	}
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv, _ := hex.DecodeString("ffeeddccbbaa99887766554433221100")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	for _, c := range []struct {
+		name string
+		ppss [][]byte
+	}{
+		{"hev1 with the other PPS", [][]byte{otherPPSNalu}},
+		{"hev1 without parameter sets", nil},
+	} {
+		init, err := mp4.ReadMP4File("testdata/hvc1_init.mp4")
+		if err != nil {
+			t.Fatal(err)
+		}
+		hvcX := init.Init.Moov.Trak.Mdia.Minf.Stbl.Stsd.HvcX
+		hvcX.SetType("hev1")
+		if c.ppss == nil {
+			hvcX.HvcC.NaluArrays = nil
+		}
+		for i := range hvcX.HvcC.NaluArrays {
+			if hvcX.HvcC.NaluArrays[i].NaluType() == hevc.NALU_PPS {
+				hvcX.HvcC.NaluArrays[i].Nalus = c.ppss
+			}
+		}
+		ipd, err := mp4.InitProtect(init.Init, key, iv, "cbcs", kid, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e, err := ipd.NewFragmentEncryptor(key, iv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		frag := fragment()
 		if err := e.EncryptFragment(frag); err != nil {
 			t.Errorf("%s: %v", c.name, err)
 			continue
