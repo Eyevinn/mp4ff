@@ -651,6 +651,12 @@ func (f *File) EncodeSW(sw bits.SliceWriter) error {
 					return err
 				}
 			}
+			if f.Mfra != nil {
+				err := f.Mfra.EncodeSW(sw)
+				if err != nil {
+					return err
+				}
+			}
 		case EncModeBoxTree:
 			for _, b := range f.Children {
 				err := b.EncodeSW(sw)
