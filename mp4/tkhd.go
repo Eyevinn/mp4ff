@@ -20,10 +20,12 @@ type TkhdBox struct {
 	CreationTime     uint64
 	ModificationTime uint64
 	TrackID          uint32
-	Duration         uint64
-	Layer            int16
-	AlternateGroup   int16 // should be int16
-	Volume           Fixed16
+	// ReservedAfterTrackID is 0 in ISO and QuickTime files, but some old QuickTime files have other values.
+	ReservedAfterTrackID uint32
+	Duration             uint64
+	Layer                int16
+	AlternateGroup       int16 // should be int16
+	Volume               Fixed16
 	// Matrix - transformation matrix {a, b, u, c, d, v, x, y, w} (16.16 fixed point, u/v/w 2.30).
 	// The zero value is encoded as the unity matrix.
 	Matrix        [9]int32
@@ -70,13 +72,13 @@ func DecodeTkhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		t.CreationTime = sr.ReadUint64()
 		t.ModificationTime = sr.ReadUint64()
 		t.TrackID = sr.ReadUint32()
-		sr.SkipBytes(4) // Reserved = 0
+		t.ReservedAfterTrackID = sr.ReadUint32()
 		t.Duration = sr.ReadUint64()
 	} else {
 		t.CreationTime = uint64(sr.ReadUint32())
 		t.ModificationTime = uint64(sr.ReadUint32())
 		t.TrackID = sr.ReadUint32()
-		sr.SkipBytes(4) // Reserved = 0
+		t.ReservedAfterTrackID = sr.ReadUint32()
 		t.Duration = uint64(sr.ReadUint32())
 	}
 	sr.SkipBytes(8) // Reserved 8 x 0
@@ -129,13 +131,13 @@ func (b *TkhdBox) EncodeSW(sw bits.SliceWriter) error {
 		sw.WriteUint32(uint32(b.CreationTime))
 		sw.WriteUint32(uint32(b.ModificationTime))
 		sw.WriteUint32(b.TrackID)
-		sw.WriteZeroBytes(4) // Reserved
+		sw.WriteUint32(b.ReservedAfterTrackID)
 		sw.WriteUint32(uint32(b.Duration))
 	} else {
 		sw.WriteUint64(b.CreationTime)
 		sw.WriteUint64(b.ModificationTime)
 		sw.WriteUint32(b.TrackID)
-		sw.WriteZeroBytes(4) // Reserved
+		sw.WriteUint32(b.ReservedAfterTrackID)
 		sw.WriteUint64(b.Duration)
 	}
 	sw.WriteZeroBytes(8) // Reserved
@@ -165,6 +167,9 @@ func (b *TkhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - modification time: %s", timeStr(b.ModificationTime))
 	if b.Width != 0 && b.Height != 0 { // These are Fixed32 values
 		bd.write(" - Width: %s, Height: %s", b.Width, b.Height)
+	}
+	if b.ReservedAfterTrackID != 0 {
+		bd.write(" - reservedAfterTrackID: %d", b.ReservedAfterTrackID)
 	}
 	return bd.err
 }

@@ -23,6 +23,7 @@ type MdhdBox struct {
 	Timescale        uint32 // Media timescale for this track
 	Duration         uint64 // Trak duration, 0 for fragmented files
 	Language         uint16 // Three-letter ISO-639-2/T language code
+	QuickTimeQuality uint16 // pre_defined, 0 in ISO files; QuickTime media quality
 }
 
 // DecodeMdhd - Decode box
@@ -58,7 +59,7 @@ func DecodeMdhdSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		return nil, fmt.Errorf("unknown mdhd version %d", version)
 	}
 	b.Language = sr.ReadUint16()
-	sr.SkipBytes(2)
+	b.QuickTimeQuality = sr.ReadUint16()
 	return &b, sr.AccError()
 }
 
@@ -123,7 +124,7 @@ func (m *MdhdBox) EncodeSW(sw bits.SliceWriter) error {
 		sw.WriteUint32(uint32(m.Duration))
 	}
 	sw.WriteUint16(m.Language)
-	sw.WriteUint16(0)
+	sw.WriteUint16(m.QuickTimeQuality)
 	return sw.AccError()
 }
 
@@ -135,6 +136,9 @@ func (m *MdhdBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - creation time: %s", timeStr(m.CreationTime))
 	bd.write(" - modification time: %s", timeStr(m.ModificationTime))
 	bd.write(" - language: %s", m.GetLanguage())
+	if m.QuickTimeQuality != 0 {
+		bd.write(" - quickTimeQuality: %d", m.QuickTimeQuality)
+	}
 	return bd.err
 }
 
