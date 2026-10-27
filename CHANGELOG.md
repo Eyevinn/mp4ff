@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `alac` (Apple Lossless) sample entries decode as `AudioSampleEntryBox` and `StsdBox.Alac`, with the magic cookie as
+  `AlacBox` in `AudioSampleEntryBox.Alac`, or in `WaveBox.Alac` for QuickTime files
+
 ### Changed
 
 - `DecModeLazyMdat` also skips the payload of `free` and `skip` boxes; `FreeBox.Payload` is then nil and

@@ -32,6 +32,7 @@ type AudioSampleEntryBox struct {
 	QuickTimeV1   *QuickTimeV1SoundDescription
 	QuickTimeV2   *QuickTimeV2SoundDescription
 	Esds          *EsdsBox
+	Alac          *AlacBox
 	Dac3          *Dac3Box
 	Dac4          *Dac4Box
 	Dec3          *Dec3Box
@@ -140,6 +141,10 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 	switch child.Type() {
 	case "esds":
 		a.Esds = child.(*EsdsBox)
+	case "alac":
+		if alac, ok := child.(*AlacBox); ok {
+			a.Alac = alac
+		}
 	case "dac3":
 		a.Dac3 = child.(*Dac3Box)
 	case "dac4":
@@ -253,7 +258,7 @@ func decodeAudioSampleEntryLayout(hdr BoxHeader, startPos uint64, data []byte,
 	pos := startPos + a.preChildrenSize() // Size of all previous data
 	lastPos := startPos + hdr.Size
 	for pos < lastPos {
-		box, err := DecodeBoxSR(pos, sr)
+		box, err := decodeAudioChildBoxSR(pos, sr)
 		if err != nil {
 			return nil, err
 		}
@@ -287,9 +292,10 @@ func DecodeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReade
 }
 
 // DecodeQuickTimeAudioSampleEntry - decode a legacy QuickTime audio sample
-// entry (.mp3, lpcm, twos, sowt). These names decoded as UnknownBox before
-// they were registered, so a body that does not parse as a sound sample
-// description falls back to UnknownBox instead of failing the file.
+// entry (.mp3, lpcm, twos, sowt) or an Apple Lossless entry (alac). These names
+// decoded as UnknownBox before they were registered, so a body that does not
+// parse as a sound sample description falls back to UnknownBox instead of
+// failing the file.
 func DecodeQuickTimeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
 	if err != nil {
@@ -303,7 +309,8 @@ func DecodeQuickTimeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader
 }
 
 // DecodeQuickTimeAudioSampleEntrySR - decode a legacy QuickTime audio sample
-// entry (.mp3, lpcm, twos, sowt) with UnknownBox fallback.
+// entry (.mp3, lpcm, twos, sowt) or an Apple Lossless entry (alac) with
+// UnknownBox fallback.
 func DecodeQuickTimeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	data := sr.ReadBytes(hdr.payloadLen())
 	if sr.AccError() != nil {

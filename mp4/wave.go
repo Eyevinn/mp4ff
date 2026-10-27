@@ -9,13 +9,15 @@ import (
 
 // WaveBox - siDecompressionParam atom (QuickTime File Format), a container
 // inside audio sample entries that wraps the decoder configuration,
-// typically frma + esds followed by a terminator atom. Children that do not
-// decode cleanly (such as a 12-byte mp4a stub) are kept as UnknownBox, and a
-// tail that is not a well-formed box (such as a size-zero terminator) is
-// preserved verbatim in RawTail, so the round trip stays byte-exact.
+// typically frma + esds, or frma + alac (the Apple Lossless magic cookie),
+// followed by a terminator atom. Children that do not decode cleanly (such as
+// a 12-byte mp4a stub) are kept as UnknownBox, and a tail that is not a
+// well-formed box (such as a size-zero terminator) is preserved verbatim in
+// RawTail, so the round trip stays byte-exact.
 type WaveBox struct {
 	Frma     *FrmaBox
 	Esds     *EsdsBox
+	Alac     *AlacBox
 	Children []Box
 	// RawTail holds the bytes from the first position where a well-formed box
 	// header could not be read to the end of the wave payload. Since the
@@ -39,6 +41,8 @@ func (b *WaveBox) AddChild(child Box) {
 		b.Frma = box
 	case *EsdsBox:
 		b.Esds = box
+	case *AlacBox:
+		b.Alac = box
 	}
 	b.Children = append(b.Children, child)
 }
@@ -72,7 +76,7 @@ func decodeWaveFromData(hdr BoxHeader, startPos uint64, data []byte) (Box, error
 		}
 		childData := data[pos : pos+size]
 		childStartPos := startPos + uint64(hdr.Hdrlen) + uint64(pos)
-		child, err := DecodeBoxSR(childStartPos, bits.NewFixedSliceReader(childData))
+		child, err := decodeAudioChildBoxSR(childStartPos, bits.NewFixedSliceReader(childData))
 		if err != nil || child.Size() != uint64(size) { // malformed child: keep the bytes
 			payload := make([]byte, size-8)
 			copy(payload, childData[8:])
