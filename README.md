@@ -74,6 +74,7 @@ codec-specific boxes. The codecs and their boxes are
 | ----- | ----| ---- | ---- | ---- |
 | Video | AVC/H.264 | avc1, avc3 | avcC | btrt, pasp, colr |
 | Video | HEVC/H.265 | hvc1, hev1 | hvcC | btrt, pasp, colr |
+| Video | Dolby Vision | dvh1, dvhe | hvcC, dvcC, dvvC, dvwC | btrt, pasp, colr |
 | Video | AV1 | av01 | av1C | btrt, pasp, colr |
 | Video | AVS3 | avs3 | av3c | btrt, pasp, colr |
 | Video | VP8/VP9 | vp08, vp09 | vpcC | btrt, pasp, colr |
@@ -86,6 +87,9 @@ codec-specific boxes. The codecs and their boxes are
 | Audio | AC-4 | ac-4 | dac4 | btrt |
 | Audio | Opus | Opus | dOps | btrt |
 | Audio | IAMF | iamf | iacb | btrt |
+| Audio | FLAC | fLaC | dfLa | btrt |
+| Audio | ALAC/Apple Lossless | alac | alac | wave, frma, btrt |
+| Audio | PCM, MP3 (QuickTime) | lpcm, twos, sowt, .mp3 | - | wave, frma, btrt |
 | Audio | MPEG-H 3D Audio | mha1, mha2, mhm1, mhm2 | mhaC | btrt |
 | Audio | Encrypted | enca | sinf | btrt |
 | Subtitles | WebVTT | wvtt | vttC, vlab | vttc, vtte, vtta, vsid, ctim, iden, sttg, payl, btrt |
