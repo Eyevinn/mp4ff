@@ -25,7 +25,7 @@ const (
 )
 
 // GetAVCProtectRanges for common encryption from a sample with 4-byte NALU lengths.
-// THe spsMap and ppsMap are only needed for CBCS mode.
+// The spsMap and ppsMap are only needed for cbcs.
 // For scheme cenc, protection ranges must be a multiple of 16 bytes leaving header and some more in the clear
 // For scheme cbcs, protection range must start after the slice header. An SPS or PPS in the sample replaces the one
 // with the same ID for the slices after it; spsMap and ppsMap are not changed.
@@ -625,7 +625,7 @@ type InitProtectData struct {
 	newProtector sampleProtectorFactory
 }
 
-// InitProtect modifies the init segment to add protection information and return what is needed to encrypt fragments.
+// InitProtect modifies the init segment to add protection information and returns what is needed to encrypt fragments.
 // The stsd sample entry is rewritten in place (avc1 -> encv etc.), so if the init segment shares boxes
 // with another structure (for example a trak of a cached progressive file), clone the shared parts
 // first (see [CloneBox]) or the other structure is silently modified too.
