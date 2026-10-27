@@ -8,44 +8,65 @@ import (
 	"github.com/Eyevinn/mp4ff/hevc"
 )
 
+// Default values of VisualSampleEntryBox.Depth and VisualSampleEntryBox.ColorTableID in ISO/IEC 14496-12.
+const (
+	VisualSampleEntryDefaultDepth        = 0x0018
+	VisualSampleEntryDefaultColorTableID = -1
+)
+
 // VisualSampleEntryBox Video Sample Description box (avc1/avc3/hvc1/hev1...)
+// QuickTime overlays its video sample description version, revision level, vendor,
+// and temporal and spatial quality on ISO pre_defined and reserved fields, which are 0
+// in ISO files. Depth and ColorTableID (ISO pre_defined) are 0x0018 and -1 in ISO files,
+// as NewVisualSampleEntryBox and CreateVisualSampleEntryBox set them; QuickTime also
+// uses other depths, such as 32 for video with alpha. All these fields are kept on encode.
 type VisualSampleEntryBox struct {
-	name               string
-	DataReferenceIndex uint16
-	Width              uint16
-	Height             uint16
-	Horizresolution    uint32
-	Vertresolution     uint32
-	FrameCount         uint16
-	CompressorName     string
-	AvcC               *AvcCBox
-	HvcC               *HvcCBox
-	LhvC               *LhvCBox
-	DoViConfig         *DoViConfigurationBox
-	Av1C               *Av1CBox
-	Av3c               *Av3cBox
-	VvcC               *VvcCBox
-	VppC               *VppCBox
-	JpgC               *JpgCBox
-	Fiel               *FielBox
-	Esds               *EsdsBox
-	Btrt               *BtrtBox
-	Clap               *ClapBox
-	Pasp               *PaspBox
-	Sinf               *SinfBox
-	Clli               *ClliBox
-	Mdcv               *MdcvBox
-	SmDm               *SmDmBox
-	CoLL               *CoLLBox
-	Vexu               *VexuBox
-	Hfov               *HfovBox
-	Children           []Box
-	TrailingBytes      []byte
+	name                     string
+	DataReferenceIndex       uint16
+	QuickTimeVersion         uint16
+	QuickTimeRevisionLevel   uint16
+	QuickTimeVendor          uint32
+	QuickTimeTemporalQuality uint32
+	QuickTimeSpatialQuality  uint32
+	Width                    uint16
+	Height                   uint16
+	Horizresolution          uint32
+	Vertresolution           uint32
+	FrameCount               uint16
+	CompressorName           string
+	Depth                    uint16
+	ColorTableID             int16
+	AvcC                     *AvcCBox
+	HvcC                     *HvcCBox
+	LhvC                     *LhvCBox
+	DoViConfig               *DoViConfigurationBox
+	Av1C                     *Av1CBox
+	Av3c                     *Av3cBox
+	VvcC                     *VvcCBox
+	VppC                     *VppCBox
+	JpgC                     *JpgCBox
+	Fiel                     *FielBox
+	Esds                     *EsdsBox
+	Btrt                     *BtrtBox
+	Clap                     *ClapBox
+	Pasp                     *PaspBox
+	Sinf                     *SinfBox
+	Clli                     *ClliBox
+	Mdcv                     *MdcvBox
+	SmDm                     *SmDmBox
+	CoLL                     *CoLLBox
+	Vexu                     *VexuBox
+	Hfov                     *HfovBox
+	Children                 []Box
+	TrailingBytes            []byte
 }
 
 // NewVisualSampleEntryBox creates new empty box with an appropriate name such as avc1
 func NewVisualSampleEntryBox(name string) *VisualSampleEntryBox {
-	b := &VisualSampleEntryBox{}
+	b := &VisualSampleEntryBox{
+		Depth:        VisualSampleEntryDefaultDepth,
+		ColorTableID: VisualSampleEntryDefaultColorTableID,
+	}
 	b.name = name
 	return b
 }
@@ -61,6 +82,8 @@ func CreateVisualSampleEntryBox(name string, width, height uint16, sampleEntry B
 		Vertresolution:     0x00480000, // 72dpi
 		FrameCount:         1,
 		CompressorName:     "mp4ff video packager",
+		Depth:              VisualSampleEntryDefaultDepth,
+		ColorTableID:       VisualSampleEntryDefaultColorTableID,
 		Children:           []Box{},
 		TrailingBytes:      nil,
 	}
@@ -138,9 +161,13 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	b.DataReferenceIndex = sr.ReadUint16()
 
 	// 14496-12 12.1.3.2 Visual Sample entry (70 bytes)
-
-	sr.SkipBytes(4)  // pre_defined and reserved == 0
-	sr.SkipBytes(12) // 3 x 32 bits pre_defined == 0
+	// QuickTime overlays version, revision level, vendor, and temporal and spatial quality
+	// on the 16 bytes of pre_defined and reserved fields.
+	b.QuickTimeVersion = sr.ReadUint16()
+	b.QuickTimeRevisionLevel = sr.ReadUint16()
+	b.QuickTimeVendor = sr.ReadUint32()
+	b.QuickTimeTemporalQuality = sr.ReadUint32()
+	b.QuickTimeSpatialQuality = sr.ReadUint32()
 	b.Width = sr.ReadUint16()
 	b.Height = sr.ReadUint16()
 
@@ -156,8 +183,8 @@ func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRead
 	}
 	b.CompressorName = sr.ReadFixedLengthString(int(compressorNameLength))
 	sr.SkipBytes(int(31 - compressorNameLength))
-	sr.SkipBytes(2) // Skip depth
-	sr.ReadUint16() // pre_defined == -1
+	b.Depth = sr.ReadUint16()
+	b.ColorTableID = int16(sr.ReadUint16())
 
 	// Now there may be clap, pasp, btrt and other boxes
 	// 14496-15  5.4.2.1.2 avcC should be inside avc1, avc3 box
@@ -217,20 +244,15 @@ func (b *VisualSampleEntryBox) Size() uint64 {
 	return totalSize
 }
 
-// Encode writes box to w
-func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
-	if err := b.checkLengthSizes(); err != nil {
-		return err
-	}
-	err := EncodeHeader(b, w)
-	if err != nil {
-		return err
-	}
-	buf := makebuf(b)
-	sw := bits.NewFixedSliceWriterFromSlice(buf)
+// encodeVisualSampleEntryStart writes the 78 bytes between the box header and the child boxes.
+func (b *VisualSampleEntryBox) encodeVisualSampleEntryStart(sw bits.SliceWriter) {
 	sw.WriteZeroBytes(6)
 	sw.WriteUint16(b.DataReferenceIndex)
-	sw.WriteZeroBytes(16) // pre_defined and reserved
+	sw.WriteUint16(b.QuickTimeVersion)
+	sw.WriteUint16(b.QuickTimeRevisionLevel)
+	sw.WriteUint32(b.QuickTimeVendor)
+	sw.WriteUint32(b.QuickTimeTemporalQuality)
+	sw.WriteUint32(b.QuickTimeSpatialQuality)
 	sw.WriteUint16(b.Width)
 	sw.WriteUint16(b.Height) //36 bytes
 
@@ -243,8 +265,22 @@ func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
 	sw.WriteUint8(compressorNameLength)
 	sw.WriteString(b.CompressorName, false)
 	sw.WriteZeroBytes(int(31 - compressorNameLength))
-	sw.WriteUint16(0x0018) // depth
-	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
+	sw.WriteUint16(b.Depth)
+	sw.WriteUint16(uint16(b.ColorTableID)) //86 bytes
+}
+
+// Encode writes box to w
+func (b *VisualSampleEntryBox) Encode(w io.Writer) error {
+	if err := b.checkLengthSizes(); err != nil {
+		return err
+	}
+	err := EncodeHeader(b, w)
+	if err != nil {
+		return err
+	}
+	buf := makebuf(b)
+	sw := bits.NewFixedSliceWriterFromSlice(buf)
+	b.encodeVisualSampleEntryStart(sw)
 
 	_, err = w.Write(buf[:sw.Offset()]) // Only write  written bytes
 	if err != nil {
@@ -276,23 +312,7 @@ func (b *VisualSampleEntryBox) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
-	sw.WriteZeroBytes(6)
-	sw.WriteUint16(b.DataReferenceIndex)
-	sw.WriteZeroBytes(16) // pre_defined and reserved
-	sw.WriteUint16(b.Width)
-	sw.WriteUint16(b.Height) //36 bytes
-
-	sw.WriteUint32(b.Horizresolution)
-	sw.WriteUint32(b.Vertresolution)
-	sw.WriteZeroBytes(4)
-	sw.WriteUint16(b.FrameCount) //50 bytes
-
-	compressorNameLength := byte(len(b.CompressorName))
-	sw.WriteUint8(compressorNameLength)
-	sw.WriteString(b.CompressorName, false)
-	sw.WriteZeroBytes(int(31 - compressorNameLength))
-	sw.WriteUint16(0x0018) // depth
-	sw.WriteUint16(0xffff) // pre_defined == -1  //86 bytes
+	b.encodeVisualSampleEntryStart(sw)
 
 	// Next output child boxes in order
 	for _, child := range b.Children {
@@ -313,6 +333,27 @@ func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 	bd.write(" - width: %d", b.Width)
 	bd.write(" - height: %d", b.Height)
 	bd.write(" - compressorName: %q", b.CompressorName)
+	if b.QuickTimeVersion != 0 {
+		bd.write(" - quickTimeVersion: %d", b.QuickTimeVersion)
+	}
+	if b.QuickTimeRevisionLevel != 0 {
+		bd.write(" - quickTimeRevisionLevel: %d", b.QuickTimeRevisionLevel)
+	}
+	if b.QuickTimeVendor != 0 {
+		bd.write(" - quickTimeVendor: %#08x", b.QuickTimeVendor)
+	}
+	if b.QuickTimeTemporalQuality != 0 {
+		bd.write(" - quickTimeTemporalQuality: %#x", b.QuickTimeTemporalQuality)
+	}
+	if b.QuickTimeSpatialQuality != 0 {
+		bd.write(" - quickTimeSpatialQuality: %#x", b.QuickTimeSpatialQuality)
+	}
+	if b.Depth != VisualSampleEntryDefaultDepth {
+		bd.write(" - depth: %d", b.Depth)
+	}
+	if b.ColorTableID != VisualSampleEntryDefaultColorTableID {
+		bd.write(" - colorTableID: %d", b.ColorTableID)
+	}
 	if bd.err != nil {
 		return bd.err
 	}

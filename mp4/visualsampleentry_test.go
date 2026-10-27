@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -203,5 +204,113 @@ func TestAvc1WithTooLongCompressorNameLength(t *testing.T) {
 	}
 	if decoded.Btrt == nil {
 		t.Fatal("expected decoded btrt child")
+	}
+}
+
+// avc1 sample entry of an iPhone 4 recording (filter/sample-in-issue-505.mov in the FFmpeg FATE suite),
+// with QuickTime temporal and spatial quality 0x200.
+const quickTimeAvc1Hex = "000000916176633100000000000000010000000000000000000002000000020001e00110004800000048000000" +
+	"000000000105482e32363400000000000000000000000000000000000000000000000000000018ffff000000256176" +
+	"63430142001effe1000e6742001e8d681e08e9a80808081001000468ce09c800000012636f6c726e636c6300010001" +
+	"000100000000"
+
+func TestQuickTimeVisualSampleEntry(t *testing.T) {
+	data, err := hex.DecodeString(quickTimeAvc1Hex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoders := []struct {
+		name   string
+		decode func() (mp4.Box, error)
+	}{
+		{"DecodeBox", func() (mp4.Box, error) { return mp4.DecodeBox(0, bytes.NewReader(data)) }},
+		{"DecodeBoxSR", func() (mp4.Box, error) { return mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data)) }},
+	}
+	for _, d := range decoders {
+		box, err := d.decode()
+		if err != nil {
+			t.Fatalf("%s: %v", d.name, err)
+		}
+		avc1, ok := box.(*mp4.VisualSampleEntryBox)
+		if !ok {
+			t.Fatalf("%s: got %T, want *mp4.VisualSampleEntryBox", d.name, box)
+		}
+		if avc1.QuickTimeTemporalQuality != 0x200 || avc1.QuickTimeSpatialQuality != 0x200 {
+			t.Errorf("%s: temporal and spatial quality %#x and %#x, want 0x200 and 0x200", d.name,
+				avc1.QuickTimeTemporalQuality, avc1.QuickTimeSpatialQuality)
+		}
+		if avc1.Depth != 24 || avc1.ColorTableID != -1 {
+			t.Errorf("%s: depth %d and color table ID %d, want 24 and -1", d.name, avc1.Depth, avc1.ColorTableID)
+		}
+		if avc1.AvcC == nil {
+			t.Errorf("%s: no avcC", d.name)
+		}
+		var buf bytes.Buffer
+		if err := avc1.Encode(&buf); err != nil {
+			t.Fatalf("%s: %v", d.name, err)
+		}
+		if !bytes.Equal(buf.Bytes(), data) {
+			t.Errorf("%s: Encode gave\n%x\nwant\n%x", d.name, buf.Bytes(), data)
+		}
+		sw := bits.NewFixedSliceWriter(int(avc1.Size()))
+		if err := avc1.EncodeSW(sw); err != nil {
+			t.Fatalf("%s: %v", d.name, err)
+		}
+		if !bytes.Equal(sw.Bytes(), data) {
+			t.Errorf("%s: EncodeSW gave\n%x\nwant\n%x", d.name, sw.Bytes(), data)
+		}
+		var info bytes.Buffer
+		if err := avc1.Info(&info, "", "", "  "); err != nil {
+			t.Fatalf("%s: %v", d.name, err)
+		}
+		want := " - quickTimeTemporalQuality: 0x200\n - quickTimeSpatialQuality: 0x200\n"
+		if !strings.Contains(info.String(), want) || strings.Contains(info.String(), "depth") {
+			t.Errorf("%s: Info gave\n%s\nwant the lines\n%s", d.name, info.String(), want)
+		}
+	}
+}
+
+func TestVisualSampleEntryQuickTimeFields(t *testing.T) {
+	avc1 := mp4.CreateVisualSampleEntryBox("avc1", 1920, 1080, &mp4.BtrtBox{MaxBitrate: 2000000, AvgBitrate: 1500000})
+	avc1.QuickTimeVersion = 1
+	avc1.QuickTimeRevisionLevel = 1
+	avc1.QuickTimeVendor = 0x6170706c // appl
+	avc1.QuickTimeSpatialQuality = 0x3ff
+	avc1.Depth = 32
+	avc1.ColorTableID = 0
+	boxDiffAfterEncodeAndDecode(t, avc1)
+	var info bytes.Buffer
+	if err := avc1.Info(&info, "", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{" - quickTimeVersion: 1\n", " - quickTimeRevisionLevel: 1\n",
+		" - quickTimeVendor: 0x6170706c\n", " - quickTimeSpatialQuality: 0x3ff\n", " - depth: 32\n",
+		" - colorTableID: 0\n"} {
+		if !strings.Contains(info.String(), want) {
+			t.Errorf("Info lacks %q in\n%s", want, info.String())
+		}
+	}
+	if strings.Contains(info.String(), "quickTimeTemporalQuality") {
+		t.Errorf("Info shows temporal quality 0 in\n%s", info.String())
+	}
+}
+
+func TestVisualSampleEntryISODefaults(t *testing.T) {
+	entries := map[string]*mp4.VisualSampleEntryBox{
+		"NewVisualSampleEntryBox":    mp4.NewVisualSampleEntryBox("avc1"),
+		"CreateVisualSampleEntryBox": mp4.CreateVisualSampleEntryBox("avc1", 1280, 720, nil),
+	}
+	for name, entry := range entries {
+		sw := bits.NewFixedSliceWriter(int(entry.Size()))
+		if err := entry.EncodeSW(sw); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		data := sw.Bytes()
+		if !bytes.Equal(data[16:32], make([]byte, 16)) {
+			t.Errorf("%s: pre_defined and reserved are %x, want zeros", name, data[16:32])
+		}
+		if got := hex.EncodeToString(data[82:86]); got != "0018ffff" {
+			t.Errorf("%s: depth and pre_defined are %s, want 0018ffff", name, got)
+		}
 	}
 }
