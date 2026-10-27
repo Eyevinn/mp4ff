@@ -519,7 +519,10 @@ func TestFragmentSamples(t *testing.T) {
 
 						var nrBytes int
 						allocs := testing.AllocsPerRun(10, func() {
-							for s := range frag.Samples(trex) {
+							for s, err := range frag.Samples(trex) {
+								if err != nil {
+									t.Fatal(err)
+								}
 								nrBytes += len(s.Data)
 							}
 						})
@@ -541,7 +544,10 @@ func TestFragmentSamplesEdgeCases(t *testing.T) {
 	frag := f.Segments[0].Fragments[0]
 
 	n := 0
-	for range frag.Samples(nil) { // the first traf
+	for _, err := range frag.Samples(nil) { // the first traf
+		if err != nil {
+			t.Fatal(err)
+		}
 		n++
 		if n == 2 {
 			break
