@@ -134,8 +134,10 @@ func (b *MetaBox) EncodeSW(sw bits.SliceWriter) error {
 	if err != nil {
 		return err
 	}
-	versionAndFlags := (uint32(b.Version) << 24) + b.Flags
-	sw.WriteUint32(versionAndFlags)
+	if !b.isQuickTime {
+		versionAndFlags := (uint32(b.Version) << 24) + b.Flags
+		sw.WriteUint32(versionAndFlags)
+	}
 	for _, c := range b.Children {
 		err = c.EncodeSW(sw)
 		if err != nil {
