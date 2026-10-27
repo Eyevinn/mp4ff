@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer fails with an overflow on `.mov` files with QuickTime metadata
 - `VisualSampleEntryBox` keeps the QuickTime version, revision level, vendor, temporal and spatial quality, depth and
   color table ID in new fields, instead of writing ISO defaults, so `.mov` video sample entries round-trip
+- `File.EncodeSW` writes the `mfra` box of a fragmented file, as `File.Encode` does
 
 ## [0.60.0] - 2026-10-13
 

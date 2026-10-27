@@ -617,6 +617,13 @@ func TestDecodePreMoofBoxesSegmentIndex(t *testing.T) {
 			if !bytes.Equal(out.Bytes(), c.data) {
 				t.Errorf("encoded %d bytes differ from the %d input bytes", out.Len(), len(c.data))
 			}
+			sw := bits.NewFixedSliceWriter(int(f.Size()))
+			if err := f.EncodeSW(sw); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(sw.Bytes(), c.data) {
+				t.Errorf("EncodeSW gave %d bytes that differ from the %d input bytes", len(sw.Bytes()), len(c.data))
+			}
 		})
 	}
 }
