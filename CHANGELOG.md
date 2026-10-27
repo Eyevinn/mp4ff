@@ -55,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the minimum coding block, and `hevc.ParseSliceHeader` gives an error instead of dividing by zero on such an SPS
 - cbcs encryption of AVC and HEVC in `GetAVCProtectRanges`, `GetHEVCProtectRanges` and `FragmentEncryptor` parses
   slice headers with the SPS and PPS that the samples carry, not only with those of the decoder configuration record
+- `MetaBox.EncodeSW` writes a QuickTime `meta` box without version and flags, as `Encode` does, so `File.EncodeSW` no
+  longer fails with an overflow on `.mov` files with QuickTime metadata
 
 ## [0.60.0] - 2026-10-13
 

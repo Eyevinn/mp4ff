@@ -26,32 +26,48 @@ func TestQuickTimeMeta(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	sr := bits.NewFixedSliceReader(data)
-	box, err := mp4.DecodeBoxSR(0, sr)
-	if err != nil {
-		t.Error(err)
+	decoders := []struct {
+		name   string
+		decode func() (mp4.Box, error)
+	}{
+		{"DecodeBox", func() (mp4.Box, error) { return mp4.DecodeBox(0, bytes.NewReader(data)) }},
+		{"DecodeBoxSR", func() (mp4.Box, error) { return mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data)) }},
 	}
-	meta, ok := box.(*mp4.MetaBox)
-	if !ok {
-		t.Error("box is not meta")
-	}
-	if !meta.IsQuickTime() {
-		t.Errorf("meta box not detected as QuickTime")
-	}
-	info := bytes.Buffer{}
-	err = meta.Info(&info, "", "", "")
-	if err != nil {
-		t.Error(err)
-	}
-	if !strings.Contains(info.String(), "is QuickTime meta atom") {
-		t.Error("lacks QuickTime in info string")
-	}
-	outBuf := bytes.Buffer{}
-	err = meta.Encode(&outBuf)
-	if err != nil {
-		t.Error(err)
-	}
-	if !bytes.Equal(data, outBuf.Bytes()) {
-		t.Errorf("output meta for QuickTime differs from input")
+	for _, d := range decoders {
+		box, err := d.decode()
+		if err != nil {
+			t.Fatalf("%s: %v", d.name, err)
+		}
+		meta, ok := box.(*mp4.MetaBox)
+		if !ok {
+			t.Fatalf("%s: box is not meta", d.name)
+		}
+		if !meta.IsQuickTime() {
+			t.Errorf("%s: meta box not detected as QuickTime", d.name)
+		}
+		info := bytes.Buffer{}
+		err = meta.Info(&info, "", "", "")
+		if err != nil {
+			t.Error(err)
+		}
+		if !strings.Contains(info.String(), "is QuickTime meta atom") {
+			t.Errorf("%s: lacks QuickTime in info string", d.name)
+		}
+		outBuf := bytes.Buffer{}
+		err = meta.Encode(&outBuf)
+		if err != nil {
+			t.Error(err)
+		}
+		if !bytes.Equal(data, outBuf.Bytes()) {
+			t.Errorf("%s: Encode output for QuickTime meta differs from input", d.name)
+		}
+		sw := bits.NewFixedSliceWriter(int(meta.Size()))
+		err = meta.EncodeSW(sw)
+		if err != nil {
+			t.Errorf("%s: EncodeSW: %v", d.name, err)
+		}
+		if !bytes.Equal(data, sw.Bytes()) {
+			t.Errorf("%s: EncodeSW output for QuickTime meta differs from input", d.name)
+		}
 	}
 }
