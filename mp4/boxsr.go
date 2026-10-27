@@ -18,6 +18,7 @@ func init() {
 		".mp3":    DecodeQuickTimeAudioSampleEntrySR,
 		"ac-3":    DecodeAudioSampleEntrySR,
 		"ac-4":    DecodeAudioSampleEntrySR,
+		"alac":    DecodeQuickTimeAudioSampleEntrySR,
 		"alou":    DecodeLoudnessBaseBoxSR,
 		"av01":    DecodeVisualSampleEntrySR,
 		"av1C":    DecodeAv1CSR,

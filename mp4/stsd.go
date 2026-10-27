@@ -52,6 +52,8 @@ type StsdBox struct {
 	EC3 *AudioSampleEntryBox
 	// AC4 is a pointer to a box with name ac-4
 	AC4 *AudioSampleEntryBox
+	// Alac is a pointer to a box with name alac (Apple Lossless audio)
+	Alac *AudioSampleEntryBox
 	// Opus is a pointer to a box with name Opus
 	Opus *AudioSampleEntryBox
 	// Iamf is a pointer to a box with name iamf
@@ -119,6 +121,10 @@ func (s *StsdBox) AddChild(box Box) {
 		s.EC3 = box.(*AudioSampleEntryBox)
 	case "ac-4":
 		s.AC4 = box.(*AudioSampleEntryBox)
+	case "alac":
+		if entry, ok := box.(*AudioSampleEntryBox); ok {
+			s.Alac = entry
+		}
 	case "Opus":
 		s.Opus = box.(*AudioSampleEntryBox)
 	case "iamf":
