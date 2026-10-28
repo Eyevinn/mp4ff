@@ -34,6 +34,9 @@ type StsdBox struct {
 	VpXX *VisualSampleEntryBox
 	// Mjpg is a pointer to a box with name mjpg (motion JPEG image sequence, ISO/IEC 23008-12)
 	Mjpg *VisualSampleEntryBox
+	// ProRes is a pointer to a box with name apch, apcn, apcs, apco, ap4h or ap4x (Apple ProRes in QuickTime).
+	// Check Type() to tell which one it is.
+	ProRes *VisualSampleEntryBox
 	// Mp4v is a pointer to a box with name mp4v (MPEG-4 Visual or JPEG signalled via esds)
 	Mp4v *VisualSampleEntryBox
 	// Jpeg is a pointer to a box with name jpeg (QuickTime JPEG video)
@@ -100,6 +103,12 @@ func (s *StsdBox) AddChild(box Box) {
 		s.VpXX = box.(*VisualSampleEntryBox)
 	case "mjpg":
 		s.Mjpg = box.(*VisualSampleEntryBox)
+	case "apch", "apcn", "apcs", "apco", "ap4h", "ap4x":
+		// A body that does not parse as a visual sample entry falls back to
+		// UnknownBox; it then only lives in Children.
+		if entry, ok := box.(*VisualSampleEntryBox); ok {
+			s.ProRes = entry
+		}
 	case "mp4v":
 		s.Mp4v = box.(*VisualSampleEntryBox)
 	case "jpeg":

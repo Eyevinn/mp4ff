@@ -152,6 +152,22 @@ func DecodeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, 
 	return DecodeVisualSampleEntrySR(hdr, startPos, sr)
 }
 
+// DecodeQuickTimeVisualSampleEntry decodes a QuickTime visual sample entry, such as the Apple ProRes entries
+// apch, apcn, apcs, apco, ap4h and ap4x. These names decoded as UnknownBox before they were registered, so a
+// body that does not parse as a visual sample entry falls back to UnknownBox instead of failing the file.
+func DecodeQuickTimeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
+	data, err := readBoxBody(r, hdr)
+	if err != nil {
+		return nil, err
+	}
+	return decodeOrUnknown(hdr, startPos, data, DecodeVisualSampleEntrySR)
+}
+
+// DecodeQuickTimeVisualSampleEntrySR decodes a QuickTime visual sample entry, as DecodeQuickTimeVisualSampleEntry.
+func DecodeQuickTimeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
+	return decodeOrUnknownSR(hdr, startPos, sr, DecodeVisualSampleEntrySR)
+}
+
 // DecodeVisualSampleEntrySR decodes avc1/avc3/hvc1/hev1/vvc1/vvi1 box
 func DecodeVisualSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	b := VisualSampleEntryBox{name: hdr.Name}
