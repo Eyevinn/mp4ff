@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GminBox`, `TcmiBox` and `TimecodeSampleEntryBox` for the QuickTime atoms `gmin`, `tcmi` and `tmcd` of timecode
   tracks, with the timecode sample entry also in the new `StsdBox.Tmcd`; `gmhd` decodes as a `GenericContainerBox`
 - `AlisBox` for the QuickTime alias data reference `alis` in `dref`
+- The Apple ProRes sample entries `apch`, `apcn`, `apcs`, `apco`, `ap4h` and `ap4x` decode as `VisualSampleEntryBox`,
+  also in the new `StsdBox.ProRes`
 
 ### Changed
 
