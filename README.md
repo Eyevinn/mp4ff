@@ -89,7 +89,7 @@ codec-specific boxes. The codecs and their boxes are
 | Audio | IAMF | iamf | iacb | btrt |
 | Audio | FLAC | fLaC | dfLa | btrt |
 | Audio | ALAC/Apple Lossless | alac | alac | wave, frma, btrt |
-| Audio | PCM, MP3 (QuickTime) | lpcm, twos, sowt, .mp3 | - | wave, frma, btrt |
+| Audio | PCM, MP3 and older codecs (QuickTime) | lpcm, twos, sowt, in24, in32, fl32, fl64, ulaw, alaw, ima4, MAC3, MAC6, QDM2, QDMC, agsm, .mp3 | - | wave, frma, btrt |
 | Audio | MPEG-H 3D Audio | mha1, mha2, mhm1, mhm2 | mhaC | btrt |
 | Audio | Encrypted | enca | sinf | btrt |
 | Subtitles | WebVTT | wvtt | vttC, vlab | vttc, vtte, vtta, vsid, ctim, iden, sttg, payl, btrt |
