@@ -263,7 +263,7 @@ func TestQuickTimeVisualSampleEntry(t *testing.T) {
 		if err := avc1.Info(&info, "", "", "  "); err != nil {
 			t.Fatalf("%s: %v", d.name, err)
 		}
-		want := " - quickTimeTemporalQuality: 0x200\n - quickTimeSpatialQuality: 0x200\n"
+		want := " - quickTimeTemporalQuality: 0x200 (normal)\n - quickTimeSpatialQuality: 0x200 (normal)\n"
 		if !strings.Contains(info.String(), want) || strings.Contains(info.String(), "depth") {
 			t.Errorf("%s: Info gave\n%s\nwant the lines\n%s", d.name, info.String(), want)
 		}
@@ -284,7 +284,7 @@ func TestVisualSampleEntryQuickTimeFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{" - quickTimeVersion: 1\n", " - quickTimeRevisionLevel: 1\n",
-		" - quickTimeVendor: 0x6170706c\n", " - quickTimeSpatialQuality: 0x3ff\n", " - depth: 32\n",
+		" - quickTimeVendor: appl (0x6170706c)\n", " - quickTimeSpatialQuality: 0x3ff (max)\n", " - depth: 32\n",
 		" - colorTableID: 0\n"} {
 		if !strings.Contains(info.String(), want) {
 			t.Errorf("Info lacks %q in\n%s", want, info.String())
@@ -311,6 +311,26 @@ func TestVisualSampleEntryISODefaults(t *testing.T) {
 		}
 		if got := hex.EncodeToString(data[82:86]); got != "0018ffff" {
 			t.Errorf("%s: depth and pre_defined are %s, want 0018ffff", name, got)
+		}
+	}
+}
+
+func TestQuickTimeVendorAndQuality(t *testing.T) {
+	for _, c := range []struct {
+		vendor, quality uint32
+		want            string
+	}{
+		{0x46464d50, 0x200, " - quickTimeVendor: FFMP (0x46464d50)\n - quickTimeTemporalQuality: 0x200 (normal)\n"},
+		{0x00000001, 0x123, " - quickTimeVendor: 0x00000001\n - quickTimeTemporalQuality: 0x123\n"},
+	} {
+		entry := mp4.CreateVisualSampleEntryBox("apch", 1920, 1080, nil)
+		entry.QuickTimeVendor, entry.QuickTimeTemporalQuality = c.vendor, c.quality
+		var buf bytes.Buffer
+		if err := entry.Info(&buf, "", "", "  "); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(buf.String(), c.want) {
+			t.Errorf("info:\n%s\nlacks\n%s", buf.String(), c.want)
 		}
 	}
 }

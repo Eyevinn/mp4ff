@@ -466,7 +466,7 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 		bd.write(" - quicktime_revision_level: %d", a.QuickTimeRevisionLevel)
 	}
 	if a.QuickTimeVendor != 0 {
-		bd.write(" - quicktime_vendor: %#08x", a.QuickTimeVendor)
+		bd.write(" - quicktime_vendor: %s", quickTimeVendorString(a.QuickTimeVendor))
 	}
 	if q := a.QuickTimeV2; q != nil {
 		// The fixed fields of a version 2 entry hold mandated constants

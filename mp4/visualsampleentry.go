@@ -356,13 +356,13 @@ func (b *VisualSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inde
 		bd.write(" - quickTimeRevisionLevel: %d", b.QuickTimeRevisionLevel)
 	}
 	if b.QuickTimeVendor != 0 {
-		bd.write(" - quickTimeVendor: %#08x", b.QuickTimeVendor)
+		bd.write(" - quickTimeVendor: %s", quickTimeVendorString(b.QuickTimeVendor))
 	}
 	if b.QuickTimeTemporalQuality != 0 {
-		bd.write(" - quickTimeTemporalQuality: %#x", b.QuickTimeTemporalQuality)
+		bd.write(" - quickTimeTemporalQuality: %s", quickTimeQualityString(b.QuickTimeTemporalQuality))
 	}
 	if b.QuickTimeSpatialQuality != 0 {
-		bd.write(" - quickTimeSpatialQuality: %#x", b.QuickTimeSpatialQuality)
+		bd.write(" - quickTimeSpatialQuality: %s", quickTimeQualityString(b.QuickTimeSpatialQuality))
 	}
 	if b.Depth != VisualSampleEntryDefaultDepth {
 		bd.write(" - depth: %d", b.Depth)
@@ -430,4 +430,29 @@ func (b *VisualSampleEntryBox) ConvertAvc3ToAvc1(spss [][]byte, ppss [][]byte) e
 	b.AvcC.SPSnalus = spss
 	b.AvcC.PPSnalus = ppss
 	return nil
+}
+
+// quickTimeQualityNames are the names of the codec quality levels of QuickTime.
+var quickTimeQualityNames = map[uint32]string{0x100: "low", 0x200: "normal", 0x300: "high", 0x3ff: "max",
+	0x400: "lossless"}
+
+// quickTimeQualityString writes a QuickTime temporal or spatial quality in hex, with the name of the level if it is
+// one of the levels that QuickTime names, such as 0x200 (normal).
+func quickTimeQualityString(q uint32) string {
+	if name, ok := quickTimeQualityNames[q]; ok {
+		return fmt.Sprintf("%#x (%s)", q, name)
+	}
+	return fmt.Sprintf("%#x", q)
+}
+
+// quickTimeVendorString writes a QuickTime vendor code as its four characters, such as appl or FFMP, followed by
+// the number in hex, or as the number alone if the characters are not printable ASCII.
+func quickTimeVendorString(v uint32) string {
+	b := []byte{byte(v >> 24), byte(v >> 16), byte(v >> 8), byte(v)}
+	for _, c := range b {
+		if c < 0x20 || c > 0x7e {
+			return fmt.Sprintf("%#08x", v)
+		}
+	}
+	return fmt.Sprintf("%s (%#08x)", b, v)
 }

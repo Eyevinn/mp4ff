@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `VisualSampleEntryBox.Info` and `AudioSampleEntryBox.Info` print the QuickTime vendor as its four characters, such
+  as `appl (0x6170706c)`, and `VisualSampleEntryBox.Info` names the quality levels, such as `0x200 (normal)`
 - `TrefBox` decodes every child as a `TrefTypeBox`, including reference types that mp4ff does not register, such as
   the QuickTime `tmcd` and `chap`
 - `IlstBox` decodes items whose type mp4ff does not know, such as `trkn`, `covr` and the key indices of QuickTime
