@@ -1,9 +1,12 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"unicode/utf16"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -63,11 +66,19 @@ var dataTypeNames = map[uint32]string{
 // 1-255 is a 1-based index into the country or language list of the metadata, and other values
 // are an ISO 3166 country code as two ASCII bytes, or a packed ISO 639-2/T language code as in
 // MdhdBox.Language.
+//
+// Info tells what the value means, as Meaning does. For a data box that IlstBox decodes or gets with AddChild,
+// it knows the type of the metadata item and the name of a freeform item, to tell what the values of such
+// items as trkn and iTunSMPB mean. Info writes an image as its kind and size, and its bytes in hex at info
+// level 1.
 type DataBox struct {
 	DataType uint32
 	Country  uint16
 	Language uint16
 	Data     []byte
+	// item is the type of the metadata item that holds the data box, and freeform the name of a freeform item,
+	// which IlstBox sets.
+	item, freeform string
 }
 
 // DecodeData - box-specific decode
@@ -129,6 +140,63 @@ func (b *DataBox) EncodeSW(sw bits.SliceWriter) error {
 	return sw.AccError()
 }
 
+// Meaning returns what the value means, given the type of the metadata item that holds the data box, such as
+// trkn, and the name of a freeform item ----, such as iTunSMPB: the number of an integer, the track or disc
+// number and total of trkn and disk, the ID3v1 genre of gnre, the encoder delay, padding and number of samples
+// of iTunSMPB, and the kind and size of an image. It returns "" if there is no more to tell than the value.
+func (b *DataBox) Meaning(item, freeformName string) string {
+	v := b.Data
+	switch b.DataType {
+	case DataTypeUTF8, DataTypeUTF8Sort:
+		if freeformName == "iTunSMPB" {
+			return gaplessInfo(string(v))
+		}
+	case DataTypeBESignedInt, DataTypeBEUnsignedInt:
+		if len(v) == 0 || len(v) > 8 {
+			return ""
+		}
+		var n uint64
+		for _, c := range v {
+			n = n<<8 | uint64(c)
+		}
+		if b.DataType == DataTypeBESignedInt {
+			shift := 64 - 8*len(v)
+			return strconv.FormatInt(int64(n<<shift)>>shift, 10)
+		}
+		return strconv.FormatUint(n, 10)
+	case DataTypeJPEG, DataTypePNG, DataTypeBMP:
+		return fmt.Sprintf("%s image, %d bytes", dataTypeNames[b.DataType], len(v))
+	case DataTypeImplicit:
+		switch {
+		case item == "trkn" && len(v) >= 6:
+			return fmt.Sprintf("track %d of %d", binary.BigEndian.Uint16(v[2:]), binary.BigEndian.Uint16(v[4:]))
+		case item == "disk" && len(v) >= 6:
+			return fmt.Sprintf("disc %d of %d", binary.BigEndian.Uint16(v[2:]), binary.BigEndian.Uint16(v[4:]))
+		case item == "gnre" && len(v) == 2 && binary.BigEndian.Uint16(v) > 0:
+			return fmt.Sprintf("ID3v1 genre %d", binary.BigEndian.Uint16(v)-1)
+		}
+	}
+	return ""
+}
+
+// gaplessInfo returns the encoder delay, padding and number of samples in the text of an iTunSMPB item, which
+// are the hexadecimal numbers after a first 0, or "" if the text is not in that form.
+func gaplessInfo(text string) string {
+	words := strings.Fields(text)
+	if len(words) < 4 {
+		return ""
+	}
+	var vals [3]uint64
+	for i := range vals {
+		v, err := strconv.ParseUint(words[i+1], 16, 64)
+		if err != nil {
+			return ""
+		}
+		vals[i] = v
+	}
+	return fmt.Sprintf("encoder delay %d, padding %d, %d samples", vals[0], vals[1], vals[2])
+}
+
 // Info - box-specific Info
 func (b *DataBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
@@ -140,18 +208,26 @@ func (b *DataBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	if b.Country != 0 || b.Language != 0 {
 		bd.write(" - locale: country=%s language=%s", localeCountry(b.Country), localeLanguage(b.Language))
 	}
+	value := hex.EncodeToString(b.Data)
 	switch b.DataType {
 	case DataTypeUTF8, DataTypeUTF8Sort:
-		bd.write(" - value: %q", b.Data)
+		value = strconv.Quote(string(b.Data))
 	case DataTypeUTF16, DataTypeUTF16Sort:
 		if s, ok := decodeUTF16BE(b.Data); ok {
-			bd.write(" - value: %q", s)
-		} else {
-			bd.write(" - value: %s", hex.EncodeToString(b.Data))
+			value = strconv.Quote(s)
 		}
-	default:
-		bd.write(" - value: %s", hex.EncodeToString(b.Data))
 	}
+	meaning := b.Meaning(b.item, b.freeform)
+	switch b.DataType {
+	case DataTypeJPEG, DataTypePNG, DataTypeBMP:
+		if getInfoLevel(b, specificBoxLevels) < 1 {
+			value, meaning = meaning, ""
+		}
+	}
+	if meaning != "" {
+		value += " (" + meaning + ")"
+	}
+	bd.write(" - value: %s", value)
 	return bd.err
 }
 

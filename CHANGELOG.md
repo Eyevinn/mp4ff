@@ -29,9 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TextSampleEntryBox` with `FtabBox` for 3GPP timed text `tx3g` and the chapter tracks that use it, and
   `QuickTimeTextSampleEntryBox` for QuickTime `text`, in the new `StsdBox.Tx3g` and `StsdBox.QtText`
 - `ChplBox` for the Nero chapter list `chpl` in `udta`, which Nero, ffmpeg and GPAC write
+- `DataBox.Meaning` tells what a metadata value means, such as `track 2 of 21` for `trkn`, an integer, or the gapless
+  playback information of `iTunSMPB`
 
 ### Changed
 
+- `DataBox.Info` adds what the value means, using the item type and freeform name that `IlstBox` gives its data
+  boxes, and writes images as their kind and size, with their bytes in hex at info level 1
 - `VisualSampleEntryBox.Info` and `AudioSampleEntryBox.Info` print the QuickTime vendor as its four characters, such
   as `appl (0x6170706c)`, and `VisualSampleEntryBox.Info` names the quality levels, such as `0x200 (normal)`
 - `TrefBox` decodes every child as a `TrefTypeBox`, including reference types that mp4ff does not register, such as
