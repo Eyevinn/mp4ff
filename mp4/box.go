@@ -211,6 +211,7 @@ func init() {
 		"vtte":    DecodeVtte,
 		"vttn":    DecodeVttn,
 		"wave":    DecodeWave,
+		"wide":    DecodeFree,
 		"wvtc":    DecodeWvtt,
 		"wvtt":    DecodeWvtt,
 	}
@@ -434,7 +435,7 @@ func DecodeBoxBodyLazily(startPos uint64, h BoxHeader, r io.ReadSeeker) (Box, er
 			if err == nil {
 				err = seekPastBoxBody(h, r)
 			}
-		case "free", "skip":
+		case "free", "skip", "wide":
 			b = &FreeBox{Name: h.Name, lazyPayloadSize: h.Size - uint64(h.Hdrlen)}
 			err = seekPastBoxBody(h, r)
 		default:

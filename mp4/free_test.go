@@ -82,3 +82,15 @@ func TestFreeLazy(t *testing.T) {
 		}
 	}
 }
+
+func TestWide(t *testing.T) {
+	wide := mp4.NewWideBox()
+	boxDiffAfterEncodeAndDecode(t, wide)
+	box, err := mp4.DecodeBox(0, bytes.NewReader([]byte{0, 0, 0, 8, 'w', 'i', 'd', 'e'}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fb, ok := box.(*mp4.FreeBox); !ok || fb.Type() != "wide" || fb.Size() != 8 {
+		t.Errorf("wide decoded as %T %v", box, box)
+	}
+}
