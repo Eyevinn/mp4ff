@@ -44,7 +44,7 @@ func TestTimecodeSampleEntry(t *testing.T) {
 		entry.NumberOfFrames != 25 {
 		t.Fatalf("tmcd entry: %+v", stsd.Children[0])
 	}
-	name := mp4.CreateUnknownBox("name", 20, []byte{0, 8, 0x15, 0xc7, 'T', 'a', 'p', 'e', ' ', '0', '0', '1'})
+	name := mp4.NewUserDataTextBox("name", mp4.UserDataText{Language: 0x15c7, Text: "Tape 001"})
 	boxDiffAfterEncodeAndDecode(t, &mp4.TimecodeSampleEntryBox{DataReferenceIndex: 1,
 		Flags: mp4.TimecodeFlagDropFrame | mp4.TimecodeFlag24HourMax, TimeScale: 30000, FrameDuration: 1001,
 		NumberOfFrames: 30, Reserved2: []byte{0}, Children: []mp4.Box{name}})
