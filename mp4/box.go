@@ -51,6 +51,7 @@ func init() {
 		"cdat":    DecodeCdat,
 		"cdsc":    DecodeTrefType,
 		"chan":    DecodeChan,
+		"chpl":    DecodeChpl,
 		"clap":    DecodeClap,
 		"clef":    DecodeTrackApertureDimensions,
 		"clli":    DecodeClli,
