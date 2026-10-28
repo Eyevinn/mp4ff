@@ -21,6 +21,7 @@ func init() {
 		"agsm":    DecodeQuickTimeAudioSampleEntrySR,
 		"alac":    DecodeQuickTimeAudioSampleEntrySR,
 		"alaw":    DecodeQuickTimeAudioSampleEntrySR,
+		"alis":    DecodeAlisSR,
 		"alou":    DecodeLoudnessBaseBoxSR,
 		"av01":    DecodeVisualSampleEntrySR,
 		"av1C":    DecodeAv1CSR,

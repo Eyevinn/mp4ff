@@ -163,13 +163,15 @@ func (d *DrefBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 
 // dataEntryIsSelfContained reports whether a data entry in a dref box puts the
 // media data in the same file as the moov box. That is the entry flag 0x000001,
-// defined for url entries but also set on QuickTime alis entries, so it is read
-// from entries decoded as UnknownBox too. A url entry without a location is
-// also taken as self-contained, since it names no other place for the data.
+// defined for url entries but also set on QuickTime alis entries, and read from
+// entries decoded as UnknownBox too. A url entry without a location is also
+// taken as self-contained, since it names no other place for the data.
 func dataEntryIsSelfContained(entry Box) bool {
 	switch e := entry.(type) {
 	case *URLBox:
 		return e.Flags&dataIsSelfContainedFlag != 0 || e.Location == ""
+	case *AlisBox:
+		return e.SelfContained()
 	case *UnknownBox:
 		p := e.Payload()
 		return len(p) >= 4 && p[3]&dataIsSelfContainedFlag != 0

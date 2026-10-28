@@ -191,6 +191,11 @@ func TestCheckDataIsSelfContained(t *testing.T) {
 			modify: func(trak *mp4.TrakBox) { setDataEntries(trak, &mp4.URLBox{NoLocation: true}) }},
 		{desc: "self-contained alis", file: "testdata/prog_8s.mp4",
 			modify: func(trak *mp4.TrakBox) { setDataEntries(trak, mp4.CreateUnknownBox("alis", 12, []byte{0, 0, 0, 1})) }},
+		{desc: "self-contained AlisBox", file: "testdata/prog_8s.mp4",
+			modify: func(trak *mp4.TrakBox) { setDataEntries(trak, &mp4.AlisBox{Flags: 1}) }},
+		{desc: "external AlisBox", file: "testdata/prog_8s.mp4",
+			modify:  func(trak *mp4.TrakBox) { setDataEntries(trak, &mp4.AlisBox{Data: []byte("alias")}) },
+			wantErr: `(data reference 1: "alis" entry)`},
 		{desc: "external urn", file: "testdata/prog_8s.mp4",
 			modify: func(trak *mp4.TrakBox) {
 				setDataEntries(trak, mp4.CreateUnknownBox("urn ", 16, []byte{0, 0, 0, 0, 'u', 'r', 'n', 0}))
