@@ -202,6 +202,7 @@ func init() {
 		"vtte":    DecodeVtteSR,
 		"vttn":    DecodeVttnSR,
 		"wave":    DecodeWaveSR,
+		"wide":    DecodeFreeSR,
 		"wvtc":    DecodeWvttSR,
 		"wvtt":    DecodeWvttSR,
 	}

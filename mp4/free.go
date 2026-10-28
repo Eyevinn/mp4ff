@@ -6,7 +6,8 @@ import (
 	"github.com/Eyevinn/mp4ff/bits"
 )
 
-// FreeBox - Free Space Box (free or skip)
+// FreeBox - Free Space Box (free or skip), or a QuickTime wide atom, which is free space that a preceding
+// mdat can grow into when its size needs 64 bits
 type FreeBox struct {
 	Name       string
 	notDecoded []byte
@@ -22,6 +23,11 @@ func NewFreeBox(data []byte) *FreeBox {
 // NewSkipBox creates a new SkipBox with arbitrary data payload.
 func NewSkipBox(data []byte) *FreeBox {
 	return &FreeBox{Name: "skip", notDecoded: data}
+}
+
+// NewWideBox creates a new QuickTime wide atom, a free space box of 8 bytes.
+func NewWideBox() *FreeBox {
+	return &FreeBox{Name: "wide"}
 }
 
 // Payload returns the payload of the box (everything after the box header).
