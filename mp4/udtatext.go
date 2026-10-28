@@ -11,7 +11,8 @@ import (
 )
 
 // UserDataTextBox is a QuickTime user data text atom, whose type starts with ©, such as ©nam or ©swr in a udta
-// box. It holds a text in one or more languages.
+// box. It holds a text in one or more languages. The name atom with the name of the source tape in a timecode
+// sample entry has the same layout, and also decodes as a UserDataTextBox.
 //
 // iTunes metadata in an ilst box uses the same types for items that hold data boxes. A box whose type starts
 // with © decodes as a UserDataTextBox only if its payload is a list of texts with valid language codes, not all

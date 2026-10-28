@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AlisBox` for the QuickTime alias data reference `alis` in `dref`
 - The Apple ProRes sample entries `apch`, `apcn`, `apcs`, `apco`, `ap4h` and `ap4x` decode as `VisualSampleEntryBox`,
   also in the new `StsdBox.ProRes`
+- `MeanBox` and `NameBox` for the `mean` and `name` atoms of freeform items `----` in `ilst`, such as iTunSMPB;
+  a QuickTime `name` atom in `udta` decodes as a `NameBox`, and one in a timecode sample entry as a `UserDataTextBox`
 
 ### Changed
 
