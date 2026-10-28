@@ -15,11 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The QuickTime sound sample entries `in24`, `in32`, `fl32`, `fl64`, `ulaw`, `alaw`, `ima4`, `MAC3`, `MAC6`, `QDM2`,
   `QDMC` and `agsm` decode as `AudioSampleEntryBox`, with the PCM ones in `StsdBox.QtPcm`
 - `ChanBox` for the QuickTime audio channel layout atom `chan`, also in the new `AudioSampleEntryBox.Chan`
+- `KeysBox` for the QuickTime metadata keys atom `keys`, also in the new `MetaBox.Keys`, with `KeyOfItem` to find
+  the key of an item in `ilst`
 
 ### Changed
 
 - `TrefBox` decodes every child as a `TrefTypeBox`, including reference types that mp4ff does not register, such as
   the QuickTime `tmcd` and `chap`
+- `IlstBox` decodes items whose type mp4ff does not know, such as `trkn`, `covr` and the key indices of QuickTime
+  metadata, as `GenericContainerBox` with their data boxes, instead of as `UnknownBox`
 
 ### Fixed
 
