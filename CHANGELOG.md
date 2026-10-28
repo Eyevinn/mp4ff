@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ChanBox` for the QuickTime audio channel layout atom `chan`, also in the new `AudioSampleEntryBox.Chan`
 - `KeysBox` for the QuickTime metadata keys atom `keys`, also in the new `MetaBox.Keys`, with `KeyOfItem` to find
   the key of an item in `ilst`
+- `TrackApertureDimensionsBox` for the QuickTime track aperture atoms `clef`, `prof` and `enof`, in a `tapt` atom that
+  decodes as a `GenericContainerBox`
 
 ### Changed
 
