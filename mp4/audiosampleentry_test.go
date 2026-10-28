@@ -325,7 +325,8 @@ func TestQuickTimeLpcmFormatFlags(t *testing.T) {
 }
 
 func TestQuickTimeAudioSampleEntryNames(t *testing.T) {
-	for _, name := range []string{".mp3", "lpcm", "twos", "sowt"} {
+	for _, name := range []string{".mp3", "lpcm", "twos", "sowt", "in24", "in32", "fl32", "fl64", "ulaw", "alaw",
+		"ima4", "MAC3", "MAC6", "QDM2", "QDMC", "agsm"} {
 		t.Run(name, func(t *testing.T) {
 			data := quickTimeSoundDescriptionBytes(name, 0, nil, nil)
 			cmpAfterDecodeEncodeBox(t, data)
@@ -347,9 +348,13 @@ func TestQuickTimeAudioSampleEntryNames(t *testing.T) {
 				if stsd.Mp3 != entry {
 					t.Error("stsd.Mp3 not set")
 				}
-			default:
+			case "lpcm", "twos", "sowt", "in24", "in32", "fl32", "fl64":
 				if stsd.QtPcm != entry {
 					t.Error("stsd.QtPcm not set")
+				}
+			default:
+				if stsd.Mp3 != nil || stsd.QtPcm != nil {
+					t.Error("stsd.Mp3 or stsd.QtPcm set")
 				}
 			}
 		})

@@ -42,8 +42,9 @@ type StsdBox struct {
 	Mp4a *AudioSampleEntryBox
 	// Mp3 is a pointer to a box with name .mp3 (QuickTime MP3 audio)
 	Mp3 *AudioSampleEntryBox
-	// QtPcm is a pointer to a box with name lpcm (modern, version 2 style), or
-	// twos/sowt (legacy big/little-endian 16-bit PCM) — QuickTime PCM audio.
+	// QtPcm is a pointer to a box with name lpcm (modern, version 2 style),
+	// twos/sowt (legacy big/little-endian 16-bit PCM), in24/in32 (24- and 32-bit
+	// integer PCM) or fl32/fl64 (32- and 64-bit float PCM) — QuickTime PCM audio.
 	// Check Type() to tell which one it is.
 	QtPcm *AudioSampleEntryBox
 	// AC3 is a pointer to a box with name ac-3
@@ -111,7 +112,7 @@ func (s *StsdBox) AddChild(box Box) {
 		if entry, ok := box.(*AudioSampleEntryBox); ok {
 			s.Mp3 = entry
 		}
-	case "lpcm", "twos", "sowt":
+	case "lpcm", "twos", "sowt", "in24", "in32", "fl32", "fl64":
 		if entry, ok := box.(*AudioSampleEntryBox); ok {
 			s.QtPcm = entry
 		}

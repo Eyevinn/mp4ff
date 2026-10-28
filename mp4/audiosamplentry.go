@@ -292,7 +292,8 @@ func DecodeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReade
 }
 
 // DecodeQuickTimeAudioSampleEntry - decode a legacy QuickTime audio sample
-// entry (.mp3, lpcm, twos, sowt) or an Apple Lossless entry (alac). These names
+// entry (.mp3, lpcm, twos, sowt, in24, in32, fl32, fl64, ulaw, alaw, ima4,
+// MAC3, MAC6, QDM2, QDMC, agsm) or an Apple Lossless entry (alac). These names
 // decoded as UnknownBox before they were registered, so a body that does not
 // parse as a sound sample description falls back to UnknownBox instead of
 // failing the file.
@@ -309,8 +310,8 @@ func DecodeQuickTimeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader
 }
 
 // DecodeQuickTimeAudioSampleEntrySR - decode a legacy QuickTime audio sample
-// entry (.mp3, lpcm, twos, sowt) or an Apple Lossless entry (alac) with
-// UnknownBox fallback.
+// entry, as listed for DecodeQuickTimeAudioSampleEntry, or an Apple Lossless
+// entry (alac) with UnknownBox fallback.
 func DecodeQuickTimeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
 	data := sr.ReadBytes(hdr.payloadLen())
 	if sr.AccError() != nil {
