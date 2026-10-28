@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decodes as a `GenericContainerBox`
 - `GminBox`, `TcmiBox` and `TimecodeSampleEntryBox` for the QuickTime atoms `gmin`, `tcmi` and `tmcd` of timecode
   tracks, with the timecode sample entry also in the new `StsdBox.Tmcd`; `gmhd` decodes as a `GenericContainerBox`
+- `AlisBox` for the QuickTime alias data reference `alis` in `dref`
 
 ### Changed
 
