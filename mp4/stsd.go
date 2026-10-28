@@ -72,7 +72,9 @@ type StsdBox struct {
 	// Stpc is a pointer to a StppBox with name stpc (experimental paint-model TTML)
 	Stpc *StppBox
 	// Evte is a pointer to an EvteBox
-	Evte     *EvteBox
+	Evte *EvteBox
+	// Tmcd is a pointer to a TimecodeSampleEntryBox (QuickTime timecode)
+	Tmcd     *TimecodeSampleEntryBox
 	Children []Box
 }
 
@@ -125,6 +127,10 @@ func (s *StsdBox) AddChild(box Box) {
 	case "alac":
 		if entry, ok := box.(*AudioSampleEntryBox); ok {
 			s.Alac = entry
+		}
+	case "tmcd":
+		if entry, ok := box.(*TimecodeSampleEntryBox); ok {
+			s.Tmcd = entry
 		}
 	case "Opus":
 		s.Opus = box.(*AudioSampleEntryBox)
