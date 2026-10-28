@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a QuickTime `name` atom in `udta` decodes as a `NameBox`, and one in a timecode sample entry as a `UserDataTextBox`
 - `TextSampleEntryBox` with `FtabBox` for 3GPP timed text `tx3g` and the chapter tracks that use it, and
   `QuickTimeTextSampleEntryBox` for QuickTime `text`, in the new `StsdBox.Tx3g` and `StsdBox.QtText`
+- `ChplBox` for the Nero chapter list `chpl` in `udta`, which Nero, ffmpeg and GPAC write
 
 ### Changed
 

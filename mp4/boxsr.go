@@ -42,6 +42,7 @@ func init() {
 		"cdat":    DecodeCdatSR,
 		"cdsc":    DecodeTrefTypeSR,
 		"chan":    DecodeChanSR,
+		"chpl":    DecodeChplSR,
 		"clap":    DecodeClapSR,
 		"clef":    DecodeTrackApertureDimensionsSR,
 		"clli":    DecodeClliSR,
