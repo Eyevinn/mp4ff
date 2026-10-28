@@ -34,6 +34,7 @@ func init() {
 		"cams":    DecodeCamsSR,
 		"cdat":    DecodeCdatSR,
 		"cdsc":    DecodeTrefTypeSR,
+		"chan":    DecodeChanSR,
 		"clap":    DecodeClapSR,
 		"clli":    DecodeClliSR,
 		"co64":    DecodeCo64SR,

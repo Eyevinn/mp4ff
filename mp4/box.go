@@ -43,6 +43,7 @@ func init() {
 		"cams":    DecodeCams,
 		"cdat":    DecodeCdat,
 		"cdsc":    DecodeTrefType,
+		"chan":    DecodeChan,
 		"clap":    DecodeClap,
 		"clli":    DecodeClli,
 		"co64":    DecodeCo64,
