@@ -97,6 +97,7 @@ codec-specific boxes. The codecs and their boxes are
 | Subtitles | TTML | stpp | - | btrt |
 | Subtitles | TTML paint model (experimental) | stpc | ttma | ttmn, ttmb, btrt |
 | Subtitles | Generic | evte | - | btrt |
+| Timecode | Timecode (QuickTime) | tmcd | - | gmhd, gmin, tcmi |
 
 ## Open Source Cloud
 

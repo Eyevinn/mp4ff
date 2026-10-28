@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the key of an item in `ilst`
 - `TrackApertureDimensionsBox` for the QuickTime track aperture atoms `clef`, `prof` and `enof`, in a `tapt` atom that
   decodes as a `GenericContainerBox`
+- `GminBox`, `TcmiBox` and `TimecodeSampleEntryBox` for the QuickTime atoms `gmin`, `tcmi` and `tmcd` of timecode
+  tracks, with the timecode sample entry also in the new `StsdBox.Tmcd`; `gmhd` decodes as a `GenericContainerBox`
 
 ### Changed
 

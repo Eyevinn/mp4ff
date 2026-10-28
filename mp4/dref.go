@@ -192,6 +192,8 @@ func sampleEntryDataReferenceIndex(entry Box) (uint16, bool) {
 		return e.DataReferenceIndex, true
 	case *EvteBox:
 		return e.DataReferenceIndex, true
+	case *TimecodeSampleEntryBox:
+		return e.DataReferenceIndex, true
 	case *UnknownBox:
 		p := e.Payload()
 		if len(p) < 8 {
