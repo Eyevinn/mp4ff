@@ -43,6 +43,7 @@ type AudioSampleEntryBox struct {
 	Btrt          *BtrtBox
 	Sinf          *SinfBox
 	Wave          *WaveBox
+	Chan          *ChanBox
 	Children      []Box
 }
 
@@ -165,6 +166,10 @@ func (a *AudioSampleEntryBox) AddChild(child Box) {
 		a.Sinf = child.(*SinfBox)
 	case "wave":
 		a.Wave = child.(*WaveBox)
+	case "chan":
+		if c, ok := child.(*ChanBox); ok {
+			a.Chan = c
+		}
 	}
 
 	a.Children = append(a.Children, child)

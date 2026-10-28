@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - QuickTime `wide` atoms decode as a `FreeBox`, and `NewWideBox` makes one
 - The QuickTime sound sample entries `in24`, `in32`, `fl32`, `fl64`, `ulaw`, `alaw`, `ima4`, `MAC3`, `MAC6`, `QDM2`,
   `QDMC` and `agsm` decode as `AudioSampleEntryBox`, with the PCM ones in `StsdBox.QtPcm`
+- `ChanBox` for the QuickTime audio channel layout atom `chan`, also in the new `AudioSampleEntryBox.Chan`
 
 ### Changed
 
