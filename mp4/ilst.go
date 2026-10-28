@@ -13,9 +13,31 @@ type IlstBox struct {
 	Children []Box
 }
 
-// AddChild - Add a child box and update SampleCount
+// AddChild adds a metadata item, and tells its data boxes the type of the item and the name of a freeform item,
+// so that their Info tells what their values mean.
 func (b *IlstBox) AddChild(child Box) {
+	setItemContext(child)
 	b.Children = append(b.Children, child)
+}
+
+// setItemContext tells the data boxes of the metadata item the type of the item and, for a freeform item ----,
+// its name.
+func setItemContext(item Box) {
+	c, ok := item.(interface{ GetChildren() []Box })
+	if !ok {
+		return
+	}
+	freeform := ""
+	for _, ch := range c.GetChildren() {
+		if n, ok := ch.(*NameBox); ok && n.FullBox {
+			freeform = n.Name
+		}
+	}
+	for _, ch := range c.GetChildren() {
+		if d, ok := ch.(*DataBox); ok {
+			d.item, d.freeform = item.Type(), freeform
+		}
+	}
 }
 
 // DecodeIlstSR - box-specific decode

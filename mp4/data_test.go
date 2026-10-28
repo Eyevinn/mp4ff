@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 
@@ -39,7 +40,13 @@ func TestDecodeData(t *testing.T) {
 			desc:     "ffmpeg covr JPEG",
 			hex:      "00000014646174610000000d00000000ffd8ffe0",
 			want:     mp4.DataBox{DataType: mp4.DataTypeJPEG, Data: []byte{0xff, 0xd8, 0xff, 0xe0}},
-			wantInfo: "[data] size=20\n - dataType: 13 (JPEG)\n - value: ffd8ffe0\n",
+			wantInfo: "[data] size=20\n - dataType: 13 (JPEG)\n - value: JPEG image, 4 bytes\n",
+		},
+		{
+			desc:     "iTunes tmpo 190",
+			hex:      "000000126461746100000015000000000" + "0be",
+			want:     mp4.DataBox{DataType: mp4.DataTypeBESignedInt, Data: []byte{0, 0xbe}},
+			wantInfo: "[data] size=18\n - dataType: 21 (BE Signed Integer)\n - value: 00be (190)\n",
 		},
 		{
 			desc: "iPhone make with country DE and language deu",
@@ -130,5 +137,71 @@ func TestDecodeShortData(t *testing.T) {
 	}
 	if _, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data)); err == nil {
 		t.Error("DecodeBoxSR: no error for a data box without locale")
+	}
+}
+
+func TestDataMeaning(t *testing.T) {
+	smpb := " 00000000 00000840 000001FD 000000000013B5C3 00000000 00000000"
+	cases := []struct {
+		item, name string
+		box        mp4.DataBox
+		want       string
+	}{
+		{"trkn", "", mp4.DataBox{Data: []byte{0, 0, 0, 2, 0, 21, 0, 0}}, "track 2 of 21"},
+		{"disk", "", mp4.DataBox{Data: []byte{0, 0, 0, 1, 0, 2}}, "disc 1 of 2"},
+		{"gnre", "", mp4.DataBox{Data: []byte{0, 0x12}}, "ID3v1 genre 17"},
+		{"----", "iTunSMPB", mp4.DataBox{DataType: mp4.DataTypeUTF8, Data: []byte(smpb)},
+			"encoder delay 2112, padding 509, 1291715 samples"},
+		{"----", "iTunNORM", mp4.DataBox{DataType: mp4.DataTypeUTF8, Data: []byte(" 0000085B")}, ""},
+		{"rtng", "", mp4.DataBox{DataType: mp4.DataTypeBESignedInt, Data: []byte{0xff}}, "-1"},
+		{"plID", "", mp4.DataBox{DataType: mp4.DataTypeBEUnsignedInt, Data: []byte{0xff, 0xff}}, "65535"},
+		{"covr", "", mp4.DataBox{DataType: mp4.DataTypePNG, Data: make([]byte, 531)}, "PNG image, 531 bytes"},
+		{"", "", mp4.DataBox{Data: []byte{0, 0, 0, 2, 0, 21, 0, 0}}, ""},
+	}
+	for _, c := range cases {
+		if got := c.box.Meaning(c.item, c.name); got != c.want {
+			t.Errorf("%s %s: %q, want %q", c.item, c.name, got, c.want)
+		}
+	}
+}
+
+func TestDataInfoInIlst(t *testing.T) {
+	box := func(typ string, payload ...[]byte) []byte {
+		p := bytes.Join(payload, nil)
+		return append(append(binary.BigEndian.AppendUint32(nil, uint32(8+len(p))), typ...), p...)
+	}
+	fullBox := func(typ, text string) []byte { return box(typ, []byte{0, 0, 0, 0}, []byte(text)) }
+	data := func(dataType byte, value []byte) []byte {
+		return box("data", []byte{0, 0, 0, dataType, 0, 0, 0, 0}, value)
+	}
+	// An ilst with trkn track 2 of 21 and a freeform iTunSMPB item.
+	ilst := box("ilst", box("trkn", data(0, []byte{0, 0, 0, 2, 0, 21, 0, 0})),
+		box("----", fullBox("mean", "com.apple.iTunes"), fullBox("name", "iTunSMPB"), data(1, []byte(" 0 840 1 0"))))
+	for _, decoded := range []func() (mp4.Box, error){
+		func() (mp4.Box, error) { return mp4.DecodeBox(0, bytes.NewReader(ilst)) },
+		func() (mp4.Box, error) { return mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(ilst)) },
+	} {
+		b, err := decoded()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if err := b.Info(&buf, "", "", "  "); err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{"value: 0000000200150000 (track 2 of 21)",
+			`value: " 0 840 1 0" (encoder delay 2112, padding 1, 0 samples)`} {
+			if !bytes.Contains(buf.Bytes(), []byte(want)) {
+				t.Errorf("no %q in\n%s", want, buf.String())
+			}
+		}
+	}
+	var buf bytes.Buffer
+	covr := &mp4.DataBox{DataType: mp4.DataTypeJPEG, Data: []byte{0xff, 0xd8, 0xff, 0xe0}}
+	if err := covr.Info(&buf, "data:1", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	if want := " - value: ffd8ffe0 (JPEG image, 4 bytes)\n"; !bytes.HasSuffix(buf.Bytes(), []byte(want)) {
+		t.Errorf("level 1 image: %q", buf.String())
 	}
 }
