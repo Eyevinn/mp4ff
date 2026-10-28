@@ -77,7 +77,12 @@ type StsdBox struct {
 	// Evte is a pointer to an EvteBox
 	Evte *EvteBox
 	// Tmcd is a pointer to a TimecodeSampleEntryBox (QuickTime timecode)
-	Tmcd     *TimecodeSampleEntryBox
+	Tmcd *TimecodeSampleEntryBox
+	// Tx3g is a pointer to a TextSampleEntryBox: a 3GPP timed text sample entry tx3g, or a text sample entry with
+	// the same layout. Check Type() to tell which one it is.
+	Tx3g *TextSampleEntryBox
+	// QtText is a pointer to a QuickTimeTextSampleEntryBox with name text (QuickTime text)
+	QtText   *QuickTimeTextSampleEntryBox
 	Children []Box
 }
 
@@ -140,6 +145,13 @@ func (s *StsdBox) AddChild(box Box) {
 	case "tmcd":
 		if entry, ok := box.(*TimecodeSampleEntryBox); ok {
 			s.Tmcd = entry
+		}
+	case "tx3g", "text":
+		switch entry := box.(type) {
+		case *TextSampleEntryBox:
+			s.Tx3g = entry
+		case *QuickTimeTextSampleEntryBox:
+			s.QtText = entry
 		}
 	case "Opus":
 		s.Opus = box.(*AudioSampleEntryBox)
