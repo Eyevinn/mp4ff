@@ -389,9 +389,12 @@ func DecodeBoxBody(startPos uint64, hdr BoxHeader, r io.Reader) (Box, error) {
 
 	d, ok := decoders[hdr.Name]
 
-	if !ok {
+	switch {
+	case isUserDataTextType(hdr.Name):
+		b, err = decodeUserDataTextOr(hdr, startPos, d, r)
+	case !ok:
 		b, err = DecodeUnknown(hdr, startPos, r)
-	} else {
+	default:
 		b, err = d(hdr, startPos, r)
 	}
 	if err != nil {
@@ -419,9 +422,12 @@ func DecodeBoxBodyLazily(startPos uint64, h BoxHeader, r io.ReadSeeker) (Box, er
 
 	d, ok := decoders[h.Name]
 
-	if !ok {
+	switch {
+	case isUserDataTextType(h.Name):
+		b, err = decodeUserDataTextOr(h, startPos, d, r)
+	case !ok:
 		b, err = DecodeUnknown(h, startPos, r)
-	} else {
+	default:
 		switch h.Name {
 		case "mdat":
 			b, err = DecodeMdatLazily(h, startPos)
