@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `UserDataTextBox`: QuickTime user data text atoms, whose types start with ©, such as `©nam` and `©swr` in `udta`,
+  decode with their texts and language codes
+
+### Fixed
+
+- `DecodeFile` and the other decoders accept QuickTime files with the text atoms `©nam`, `©ART`, `©too` or `©cpy`
+  in `udta`
+
 ## [0.61.0] - 2026-10-27
 
 ### Added

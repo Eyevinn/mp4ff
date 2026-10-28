@@ -346,9 +346,12 @@ func decodeBoxBodySR(startPos uint64, hdr BoxHeader, d BoxDecoderSR, sr bits.Sli
 	var b Box
 	var err error
 	payloadStart := sr.GetPos()
-	if d == nil {
+	switch {
+	case isUserDataTextSR(hdr, sr):
+		b, err = DecodeUserDataTextSR(hdr, startPos, sr)
+	case d == nil:
 		b, err = DecodeUnknownSR(hdr, startPos, sr)
-	} else {
+	default:
 		b, err = d(hdr, startPos, sr)
 	}
 	// The next box starts where this decoder stopped, so it must read exactly the payload.
