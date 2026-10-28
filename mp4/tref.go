@@ -19,28 +19,41 @@ func (b *TrefBox) AddChild(box Box) {
 
 // DecodeTref - box-specific decode
 func DecodeTref(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	children, err := DecodeContainerChildren(hdr, startPos+8, startPos+hdr.Size, r)
+	data, err := readBoxBody(r, hdr)
 	if err != nil {
 		return nil, err
 	}
-	b := TrefBox{}
-	for _, c := range children {
-		b.AddChild(c)
-	}
-	return &b, nil
+	return DecodeTrefSR(hdr, startPos, bits.NewFixedSliceReader(data))
 }
 
 // DecodeTrefSR - box-specific decode
+//
+// Every child is a track reference type box, whatever its reference type, such as tmcd for a QuickTime
+// timecode track. A child whose payload is not a list of track IDs is decoded as an UnknownBox.
 func DecodeTrefSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, error) {
-	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
-	if err != nil {
-		return nil, err
-	}
 	b := TrefBox{}
-	for _, c := range children {
-		b.AddChild(c)
+	end := startPos + hdr.Size
+	for pos := startPos + uint64(hdr.Hdrlen); pos < end; {
+		chdr, err := DecodeHeaderSR(sr)
+		if err != nil {
+			return nil, fmt.Errorf("tref: %w", err)
+		}
+		if chdr.Size > end-pos {
+			return nil, fmt.Errorf("tref: child %s of size %d goes beyond the end of tref", chdr.Name, chdr.Size)
+		}
+		var child Box
+		if chdr.payloadLen()%4 == 0 {
+			child, err = DecodeTrefTypeSR(chdr, pos, sr)
+		} else {
+			child, err = DecodeUnknownSR(chdr, pos, sr)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("tref: %w", err)
+		}
+		b.AddChild(child)
+		pos += chdr.Size
 	}
-	return &b, nil
+	return &b, sr.AccError()
 }
 
 // Type - box type
@@ -74,8 +87,8 @@ func (b *TrefBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 }
 
 // TrefTypeBox - TrackReferenceTypeBox - ISO/IEC 14496-12 Ed. 9 Sec. 8.3
-// Name can be one of hint, cdsc, font, hind, vdep, vplx, subt (ISO/IEC 14496-12)
-// dpnd, ipir, mpod, sync (ISO/IEC 14496-14)
+// Name is the reference type, such as hint, cdsc, font, hind, vdep, vplx or subt (ISO/IEC 14496-12),
+// dpnd, ipir, mpod or sync (ISO/IEC 14496-14), or tmcd or chap (QuickTime)
 type TrefTypeBox struct {
 	Name     string
 	TrackIDs []uint32
