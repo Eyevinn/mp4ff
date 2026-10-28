@@ -19,6 +19,7 @@ type MetaBox struct {
 	Version     byte
 	Flags       uint32
 	Hdlr        *HdlrBox
+	Keys        *KeysBox
 	Children    []Box
 	isQuickTime bool // Has no version and flags
 }
@@ -43,6 +44,8 @@ func (b *MetaBox) AddChild(child Box) {
 	switch box := child.(type) {
 	case *HdlrBox:
 		b.Hdlr = box
+	case *KeysBox:
+		b.Keys = box
 	}
 	b.Children = append(b.Children, child)
 }

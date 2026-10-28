@@ -51,6 +51,7 @@ func init() {
 		"ima4":    DecodeQuickTimeAudioSampleEntrySR,
 		"in24":    DecodeQuickTimeAudioSampleEntrySR,
 		"in32":    DecodeQuickTimeAudioSampleEntrySR,
+		"keys":    DecodeKeysSR,
 		"MAC3":    DecodeQuickTimeAudioSampleEntrySR,
 		"MAC6":    DecodeQuickTimeAudioSampleEntrySR,
 		"mhaC":    DecodeMhaCSR,
