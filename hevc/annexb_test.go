@@ -131,6 +131,48 @@ func TestGetParameterSetsFromByteStreamEOF(t *testing.T) {
 	}
 }
 
+func TestGetParameterSetsFromByteStreamAppendIsolation(t *testing.T) {
+	data, err := os.ReadFile("testdata/blackframe.265")
+	if err != nil {
+		t.Fatal(err)
+	}
+	naluTypes := []NaluType{NALU_VPS, NALU_SPS, NALU_PPS}
+	var input []byte
+	var want [3][][]byte
+	for i, naluType := range naluTypes {
+		nalus := ExtractNalusOfTypeFromByteStream(naluType, data, true)
+		if len(nalus) == 0 {
+			t.Fatalf("no %s in test stream", naluType)
+		}
+		for j := 0; j < 2; j++ {
+			input = append(input, 0, 0, 1)
+			input = append(input, nalus[0]...)
+			want[i] = append(want[i], nalus[0])
+		}
+	}
+	input = append(input, 0, 0, 1, byte(NALU_AUD)<<1, 1, 0x80)
+	for index, naluType := range naluTypes {
+		t.Run(naluType.String(), func(t *testing.T) {
+			vpss, spss, ppss := GetParameterSetsFromByteStream(input)
+			got := [3][][]byte{vpss, spss, ppss}
+			if diff := deep.Equal(got, want); diff != nil {
+				t.Fatalf("got parameter sets %x, want %x: %v", got, want, diff)
+			}
+			got[index][0] = append(got[index][0], 0xff)
+			for i := range got {
+				for j := range got[i] {
+					if i == index && j == 0 {
+						continue
+					}
+					if diff := deep.Equal(got[i][j], want[i][j]); diff != nil {
+						t.Errorf("parameter set %s[%d] changed after append: %v", naluTypes[i], j, diff)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestExtractNalusOfTypeFromByteStream(t *testing.T) {
 	testCases := []struct {
 		name        string
