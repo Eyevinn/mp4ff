@@ -42,17 +42,17 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 	pos := 0
 	for i := range vpss {
 		copy(psData[pos:], vpss[i])
-		vpss[i] = psData[pos : pos+len(vpss[i])]
+		vpss[i] = psData[pos : pos+len(vpss[i]) : pos+len(vpss[i])]
 		pos += len(vpss[i])
 	}
 	for i := range spss {
 		copy(psData[pos:], spss[i])
-		spss[i] = psData[pos : pos+len(spss[i])]
+		spss[i] = psData[pos : pos+len(spss[i]) : pos+len(spss[i])]
 		pos += len(spss[i])
 	}
 	for i := range ppss {
 		copy(psData[pos:], ppss[i])
-		ppss[i] = psData[pos : pos+len(ppss[i])]
+		ppss[i] = psData[pos : pos+len(ppss[i]) : pos+len(ppss[i])]
 		pos += len(ppss[i])
 	}
 	return vpss, spss, ppss
