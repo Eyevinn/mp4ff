@@ -87,6 +87,9 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 
 	if pps.NumSliceGroupsMinus1 > 0 {
 		pps.SliceGroupMapType = reader.ReadExpGolomb()
+		if !checkMax(reader, "slice_group_map_type", pps.SliceGroupMapType, 6) {
+			return nil, reader.AccError()
+		}
 		switch pps.SliceGroupMapType {
 		case 0:
 			for iGroup := uint(0); iGroup <= pps.NumSliceGroupsMinus1; iGroup++ {
@@ -94,7 +97,8 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 				pps.RunLengthMinus1 = append(pps.RunLengthMinus1, rl)
 			}
 		case 2:
-			for iGroup := uint(0); iGroup <= pps.NumSliceGroupsMinus1; iGroup++ {
+			// The last slice group is the background, so it has no rectangle.
+			for iGroup := uint(0); iGroup < pps.NumSliceGroupsMinus1; iGroup++ {
 				tl := reader.ReadExpGolomb()
 				pps.TopLeft = append(pps.TopLeft, tl)
 				br := reader.ReadExpGolomb()
@@ -104,12 +108,21 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 			pps.SliceGroupChangeDirectionFlag = reader.ReadFlag()
 			pps.SliceGroupChangeRateMinus1 = reader.ReadExpGolomb()
 		case 6:
-			// slice_group_id[i] has Ceil(Log2(num_slice_groups_minus1 +1) bits)
+			pps.PicSizeInMapUnitsMinus1 = reader.ReadExpGolomb()
+			// slice_group_id[i] has Ceil(Log2(num_slice_groups_minus1 + 1)) bits, at least 1.
 			nrBits := bits.CeilLog2(pps.NumSliceGroupsMinus1 + 1)
-
-			for iGroup := uint(0); iGroup <= pps.NumSliceGroupsMinus1; iGroup++ {
-				sgi := reader.Read(nrBits)
-				pps.SliceGroupID = append(pps.SliceGroupID, sgi)
+			// Check the count against the bits left before allocating for it.
+			bitsLeft := max(8*len(data)-reader.NrBitsRead(), 0)
+			if reader.AccError() == nil && pps.PicSizeInMapUnitsMinus1 >= uint(bitsLeft/nrBits) {
+				reader.SetError(fmt.Errorf("pic_size_in_map_units_minus1 %d with %d-bit slice_group_id exceeds the %d bits left",
+					pps.PicSizeInMapUnitsMinus1, nrBits, bitsLeft))
+			}
+			if reader.AccError() != nil {
+				return nil, reader.AccError()
+			}
+			pps.SliceGroupID = make([]uint, pps.PicSizeInMapUnitsMinus1+1)
+			for i := range pps.SliceGroupID {
+				pps.SliceGroupID[i] = reader.Read(nrBits)
 			}
 		}
 	}
@@ -121,6 +134,9 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 	}
 	pps.WeightedPredFlag = reader.ReadFlag()
 	pps.WeightedBipredIDC = reader.Read(2)
+	if !checkMax(reader, "weighted_bipred_idc", pps.WeightedBipredIDC, 2) {
+		return nil, reader.AccError()
+	}
 	pps.PicInitQpMinus26 = reader.ReadSignedGolomb()
 	pps.PicInitQsMinus26 = reader.ReadSignedGolomb()
 	pps.ChromaQpIndexOffset = reader.ReadSignedGolomb()
@@ -181,6 +197,9 @@ func ParsePPSNALUnit(data []byte, spsMap map[uint32]*SPS) (*PPS, error) {
 					sizeOfScalingList = 64 // 8x8 for i >= 6
 				}
 				pps.PicScalingLists[i] = readScalingList(reader, sizeOfScalingList)
+				if reader.AccError() != nil {
+					return nil, reader.AccError()
+				}
 			}
 		}
 		pps.SecondChromaQpIndexOffset = reader.ReadSignedGolomb()

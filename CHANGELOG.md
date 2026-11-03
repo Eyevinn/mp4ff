@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StsdBox`, `DrefBox`, `VisualSampleEntryBox`, `AudioSampleEntryBox`, `StppBox`, `WvttBox`, `TrepBox` and
   `EvteBox` implement `ContainerBox`
 - `StblBox.GetContainingChunks` returns the chunks of a sample interval, checked against the chunk offsets
+- `avc.SPS.PicWidthInMbsMinus1` and `PicHeightInMapUnitsMinus1` hold the picture size in macroblocks and map units
 - `aac.AudioSpecificConfig` decodes and encodes AAC Main, 960-sample frames, core coder delays, program config
   elements (`aac.ProgramConfigElement`) and SBR and PS sync extensions; `TrakBox.SetAACDescriptorFromConfig` uses one
 - `aac.DecodeAudioSpecificConfig` and `AudioSpecificConfig.Encode` support USAC (xHE-AAC), object type `aac.USAC`,
@@ -61,6 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `avc.ParseSliceHeader`, `ParseSliceHeaderInto` and `SliceHeaderSize` return an error instead of panicking for a bad
+  `slice_group_change_rate_minus1`, and read `slice_group_change_cycle` with the length the SPS picture size gives
+- `avc.ParsePPSNALUnit` reads the slice groups of map types 2 and 6, and the fields after them, as specified
+- `avc.ParseSPSNALUnit`, `ParsePPSNALUnit` and `ParseSliceHeader` return an error for scaling list deltas, QSY,
+  `slice_type` and other syntax elements out of range
 - `aac.NewADTSHeader` accepts AAC Main and returns an error for a channel configuration above 7 or a payload above
   8184 bytes, which do not fit in the ADTS header fields
 - `avc.GetParameterSetsFromByteStream` and `hevc.GetParameterSetsFromByteStream` include the final parameter set
