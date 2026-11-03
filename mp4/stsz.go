@@ -165,8 +165,8 @@ func (b *StszBox) GetTotalSampleSize(startNr, endNr uint32) (uint64, error) {
 		return nrSamples * uint64(b.SampleUniformSize), nil
 	}
 	size := uint64(0)
-	for nr := startNr; nr <= endNr; nr++ {
-		size += uint64(b.SampleSize[nr-1]) // 1-based numbers
+	for _, s := range b.SampleSize[startNr-1 : endNr] { // 1-based numbers
+		size += uint64(s)
 	}
 	return size, nil
 }

@@ -3,8 +3,10 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -159,5 +161,74 @@ func TestStreamBoxBeyondStream(t *testing.T) {
 	}
 	if err == nil {
 		t.Error("expected an error for a box beyond the stream")
+	}
+}
+
+// progressiveFile returns a file with one track whose uniform-size stsz declares nrSamples samples of size 1,
+// with samplesPerChunk samples in each chunk and one chunk offset, and an mdat with 16 bytes.
+func progressiveFile(nrSamples, samplesPerChunk uint32) []byte {
+	stbl := boxOf("stbl",
+		boxOf("stts", be32(0), be32(1), be32(nrSamples), be32(1)),
+		boxOf("stsc", be32(0), be32(1), be32(1), be32(samplesPerChunk), be32(1)),
+		boxOf("stsz", be32(0), be32(1), be32(nrSamples)),
+		boxOf("stco", be32(0), be32(1), be32(0)))
+	mdhd := boxOf("mdhd", be32(0), be32(0), be32(0), be32(1000), be32(0), be32(0x55c40000))
+	trak := boxOf("trak", boxOf("tkhd", be32(3), make([]byte, 80)), boxOf("mdia", mdhd, boxOf("minf", stbl)))
+	moov := boxOf("moov", boxOf("mvhd", be32(0), make([]byte, 96)), trak)
+	return bytes.Join([][]byte{makeFtyp(), moov, boxOf("mdat", make([]byte, 16))}, nil)
+}
+
+func TestTrackSamplesBeyondChunks(t *testing.T) {
+	const nrSamples = 1 << 22
+	data := progressiveFile(nrSamples, 1)
+	f, err := mp4.DecodeFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	trak := f.Moov.Trak
+	calls := map[string]func() error{
+		"GetContainingChunks": func() error {
+			_, err := trak.Mdia.Minf.Stbl.GetContainingChunks(1, nrSamples)
+			return err
+		},
+		"GetRangesForSampleInterval": func() error {
+			_, err := trak.GetRangesForSampleInterval(1, nrSamples)
+			return err
+		},
+		"ReadSampleData": func() error {
+			_, err := f.ReadSampleData(trak, 1, nrSamples, bytes.NewReader(data), nil)
+			return err
+		},
+		"CopySampleData": func() error {
+			return f.CopySampleData(io.Discard, bytes.NewReader(data), trak, 1, nrSamples, nil)
+		},
+	}
+	for name, call := range calls {
+		var err error
+		if n := allocated(func() { err = call() }); n > maxTestAlloc {
+			t.Errorf("%s: allocated %d bytes", name, n)
+		}
+		if err == nil {
+			t.Errorf("%s: expected an error for samples in chunks without offsets", name)
+		}
+	}
+}
+
+func TestCopySampleDataLastSampleNumber(t *testing.T) {
+	const nrSamples = 0xffffffff
+	data := progressiveFile(nrSamples, nrSamples)
+	f, err := mp4.DecodeFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- f.CopySampleData(io.Discard, bytes.NewReader(data), f.Moov.Trak, 1, nrSamples, nil) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("expected an error for sample data beyond the mdat")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("CopySampleData did not return")
 	}
 }

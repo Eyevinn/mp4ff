@@ -149,6 +149,9 @@ func (t *TrakBox) GetNrSamples() uint32 {
 
 // GetSampleData - get sample metadata for a specific interval of samples defined in moov.
 // If going outside the range of available samples, an error is returned.
+// The result has a Sample for each sample in the interval. An stsz box with a uniform sample size gives the number
+// of samples without listing them, so a small file can declare up to 2^32-1 samples, which needs 64 GiB for all
+// samples. For a file from an untrusted source, check that the samples fit in the file, or ask for fewer at a time.
 func (t *TrakBox) GetSampleData(startSampleNr, endSampleNr uint32) ([]Sample, error) {
 	stbl, err := t.getSampleTable()
 	if err != nil {
@@ -230,7 +233,6 @@ func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) 
 	if stbl.Stco == nil && stbl.Co64 == nil {
 		return nil, fmt.Errorf("track has no stco or co64 box")
 	}
-	stsc := stbl.Stsc
 	stco := stbl.Stco
 	co64 := stbl.Co64
 	stsz := stbl.Stsz
@@ -238,7 +240,7 @@ func (t *TrakBox) GetRangesForSampleInterval(startSampleNr, endSampleNr uint32) 
 	if startSampleNr < 1 || endSampleNr > nrSamples {
 		return nil, fmt.Errorf("sample interval %d-%d not inside available %d-%d", startSampleNr, endSampleNr, 1, nrSamples)
 	}
-	chunks, err := stsc.GetContainingChunks(startSampleNr, endSampleNr)
+	chunks, err := stbl.GetContainingChunks(startSampleNr, endSampleNr)
 	if err != nil {
 		return nil, err
 	}

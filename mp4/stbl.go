@@ -1,7 +1,9 @@
 package mp4
 
 import (
+	"fmt"
 	"io"
+	"math"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -109,6 +111,25 @@ func DecodeStblSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 // Type - box-specific type
 func (s *StblBox) Type() string {
 	return "stbl"
+}
+
+// GetContainingChunks returns the chunks containing the samples startSampleNr to endSampleNr (1-based, inclusive),
+// as [StscBox.GetContainingChunks] does, and an error if a chunk has no offset in the stco or co64 box.
+// The number of chunks returned is thereby bounded by the size of that box.
+func (s *StblBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chunk, error) {
+	if s.Stsc == nil {
+		return nil, fmt.Errorf("no stsc box")
+	}
+	var nrChunks int
+	switch {
+	case s.Stco != nil:
+		nrChunks = len(s.Stco.ChunkOffset)
+	case s.Co64 != nil:
+		nrChunks = len(s.Co64.ChunkOffset)
+	default:
+		return nil, fmt.Errorf("neither stco nor co64 available")
+	}
+	return s.Stsc.getContainingChunks(startSampleNr, endSampleNr, uint32(min(uint64(nrChunks), math.MaxUint32)))
 }
 
 // Size - box-specific size

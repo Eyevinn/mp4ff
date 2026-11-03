@@ -231,7 +231,14 @@ type Chunk struct {
 
 // GetContainingChunks returns chunks containing the sample interval including endSampleNr.
 // startSampleNr and endSampleNr are 1-based.
+// The number of chunks is not checked against the chunk offsets of the track; see [StblBox.GetContainingChunks].
 func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chunk, error) {
+	return b.getContainingChunks(startSampleNr, endSampleNr, math.MaxUint32)
+}
+
+// getContainingChunks returns the chunks containing the sample interval as GetContainingChunks does, and an error
+// if a chunk number exceeds nrChunks.
+func (b *StscBox) getContainingChunks(startSampleNr, endSampleNr, nrChunks uint32) ([]Chunk, error) {
 	if startSampleNr == 0 || endSampleNr < startSampleNr {
 		return nil, fmt.Errorf("bad sample interval %d-%d", startSampleNr, endSampleNr)
 	}
@@ -252,6 +259,9 @@ func (b *StscBox) GetContainingChunks(startSampleNr, endSampleNr uint32) ([]Chun
 	endChunkNr := (endSampleNr-endEntry.FirstSampleNr)/endEntry.SamplesPerChunk + endEntry.FirstChunk
 	if endChunkNr < startChunkNr {
 		return nil, fmt.Errorf("stsc entries give decreasing chunk range %d-%d", startChunkNr, endChunkNr)
+	}
+	if endChunkNr > nrChunks {
+		return nil, fmt.Errorf("sample %d is in chunk %d, but there are %d chunks", endSampleNr, endChunkNr, nrChunks)
 	}
 	// Every chunk holds at least one sample of the interval, so consistent entries give no more chunks than samples.
 	if endChunkNr-startChunkNr > endSampleNr-startSampleNr {
