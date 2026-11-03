@@ -65,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in chunks without a chunk offset, and `CopySampleData` returns for sample number 0xFFFFFFFF
 - `hevc.ParseVPSNALUnit`, `ParseSPSNALUnit`, `ParsePPSNALUnit` and `ParseSliceHeader` return an error for counts,
   bit depths and reference picture sets out of range, instead of hanging, allocating memory for them or panicking
+- `iamf.ObuInfo.ReadDescriptors` returns an error for counts larger than the OBU payload, and reads the subblock
+  durations of parameter definitions with `constant_subblock_duration` 0
 
 ## [0.61.0] - 2026-10-27
 
