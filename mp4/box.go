@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -434,6 +435,9 @@ func DecodeBoxBody(startPos uint64, hdr BoxHeader, r io.Reader) (Box, error) {
 		b, err = d(hdr, startPos, r)
 	}
 	if err != nil {
+		if errors.Is(err, ErrBoxTooDeep) {
+			return nil, err // already names the box that is too deep
+		}
 		return nil, fmt.Errorf("decode %s pos %d: %w", hdr.Name, startPos, err)
 	}
 
@@ -478,6 +482,9 @@ func DecodeBoxBodyLazily(startPos uint64, h BoxHeader, r io.ReadSeeker) (Box, er
 		}
 	}
 	if err != nil {
+		if errors.Is(err, ErrBoxTooDeep) {
+			return nil, err // already names the box that is too deep
+		}
 		return nil, fmt.Errorf("decode box %q: %w", h.Name, err)
 	}
 

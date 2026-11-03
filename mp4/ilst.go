@@ -51,7 +51,7 @@ func DecodeIlstSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 		return nil, err
 	}
 	b := &IlstBox{}
-	for _, c := range itemsFromUnknown(children, startPos+8) {
+	for _, c := range itemsFromUnknown(children, startPos+8, boxDepth(sr)) {
 		b.AddChild(c)
 	}
 	return b, nil
@@ -64,7 +64,7 @@ func DecodeIlst(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 		return nil, err
 	}
 	b := &IlstBox{}
-	for _, c := range itemsFromUnknown(children, startPos+8) {
+	for _, c := range itemsFromUnknown(children, startPos+8, ioBoxDepth) {
 		b.AddChild(c)
 	}
 	return b, nil
@@ -101,14 +101,15 @@ func (b *IlstBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 }
 
 // itemsFromUnknown decodes the children of ilst that decoded as UnknownBox, but hold the boxes of a metadata
-// item, as GenericContainerBox. The first child starts at position pos.
-func itemsFromUnknown(children []Box, pos uint64) []Box {
+// item, as GenericContainerBox. The first child starts at position pos, and ilst is at the box depth depth.
+func itemsFromUnknown(children []Box, pos uint64, depth int) []Box {
 	for i, c := range children {
 		size := c.Size()
 		u, ok := c.(*UnknownBox)
 		if ok && size == uint64(boxHeaderSize+len(u.Payload())) && isItemPayload(u.Payload()) {
 			hdr := BoxHeader{Name: u.Type(), Size: size, Hdrlen: boxHeaderSize}
 			sr := bits.NewFixedSliceReader(u.Payload())
+			sr.SetDepth(depth + 1) // the item
 			if item, err := DecodeGenericContainerBoxSR(hdr, pos, sr); err == nil && sr.NrRemainingBytes() == 0 {
 				children[i] = item
 			}

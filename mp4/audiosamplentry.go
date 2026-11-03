@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -190,12 +191,13 @@ func (a *AudioSampleEntryBox) preChildrenSize() uint64 {
 	}
 }
 
-// decodeAudioSampleEntryFromData decodes the entry body. The child boxes are at the offset that the QuickTime
-// version 1 or 2 dictates, unless the box headers there do not add up to the payload, or a version 2 entry lacks
-// its marker, while they do with the plain ISO layout (children directly after the fixed fields). Then the ISO
-// layout is used, so that files whose reserved bytes merely look like a QuickTime version still decode. The layout
-// is chosen before decoding, so the children are decoded once.
-func decodeAudioSampleEntryFromData(hdr BoxHeader, startPos uint64, data []byte) (*AudioSampleEntryBox, error) {
+// decodeAudioSampleEntryFromData decodes the entry body, whose box is at the box depth depth. The child boxes
+// are at the offset that the QuickTime version 1 or 2 dictates, unless the box headers there do not add up to the
+// payload, or a version 2 entry lacks its marker, while they do with the plain ISO layout (children directly after
+// the fixed fields). Then the ISO layout is used, so that files whose reserved bytes merely look like a QuickTime
+// version still decode. The layout is chosen before decoding, so the children are decoded once.
+func decodeAudioSampleEntryFromData(hdr BoxHeader, startPos uint64, data []byte,
+	depth int) (*AudioSampleEntryBox, error) {
 	useQuickTimeLayout := true
 	const isoStart = nrAudioSampleBytesBeforeChildren - boxHeaderSize
 	if len(data) >= 10 {
@@ -215,12 +217,13 @@ func decodeAudioSampleEntryFromData(hdr BoxHeader, startPos uint64, data []byte)
 			useQuickTimeLayout = false
 		}
 	}
-	return decodeAudioSampleEntryLayout(hdr, startPos, data, useQuickTimeLayout)
+	return decodeAudioSampleEntryLayout(hdr, startPos, data, useQuickTimeLayout, depth)
 }
 
 func decodeAudioSampleEntryLayout(hdr BoxHeader, startPos uint64, data []byte,
-	useQuickTimeLayout bool) (*AudioSampleEntryBox, error) {
+	useQuickTimeLayout bool, depth int) (*AudioSampleEntryBox, error) {
 	sr := bits.NewFixedSliceReader(data)
+	sr.SetDepth(depth)
 	a := NewAudioSampleEntryBox(hdr.Name)
 
 	// 14496-12 8.5.2.2 Sample entry (8 bytes)
@@ -293,7 +296,7 @@ func DecodeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, e
 	if err != nil {
 		return nil, err
 	}
-	return decodeAudioSampleEntryFromData(hdr, startPos, data)
+	return decodeAudioSampleEntryFromData(hdr, startPos, data, ioBoxDepth)
 }
 
 // DecodeAudioSampleEntrySR - decode mp4a... box
@@ -302,7 +305,7 @@ func DecodeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceReade
 	if sr.AccError() != nil {
 		return nil, sr.AccError()
 	}
-	return decodeAudioSampleEntryFromData(hdr, startPos, data)
+	return decodeAudioSampleEntryFromData(hdr, startPos, data, boxDepth(sr))
 }
 
 // DecodeQuickTimeAudioSampleEntry - decode a legacy QuickTime audio sample
@@ -316,7 +319,10 @@ func DecodeQuickTimeAudioSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader
 	if err != nil {
 		return nil, err
 	}
-	box, err := decodeAudioSampleEntryFromData(hdr, startPos, data)
+	box, err := decodeAudioSampleEntryFromData(hdr, startPos, data, ioBoxDepth)
+	if errors.Is(err, ErrBoxTooDeep) {
+		return nil, err
+	}
 	if err != nil {
 		return CreateUnknownBox(hdr.Name, hdr.Size, data), nil
 	}
@@ -331,7 +337,10 @@ func DecodeQuickTimeAudioSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.S
 	if sr.AccError() != nil {
 		return nil, sr.AccError()
 	}
-	box, err := decodeAudioSampleEntryFromData(hdr, startPos, data)
+	box, err := decodeAudioSampleEntryFromData(hdr, startPos, data, boxDepth(sr))
+	if errors.Is(err, ErrBoxTooDeep) {
+		return nil, err
+	}
 	if err != nil {
 		payload := make([]byte, len(data))
 		copy(payload, data)

@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   elements (`aac.ProgramConfigElement`) and SBR and PS sync extensions; `TrakBox.SetAACDescriptorFromConfig` uses one
 - `aac.DecodeAudioSpecificConfig` and `AudioSpecificConfig.Encode` support USAC (xHE-AAC), object type `aac.USAC`,
   with the UsacConfig kept unchanged in `aac.USACConfig` and its sampling frequency, frame lengths and channels decoded
+- `bits.FixedSliceReader.Depth` and `SetDepth`, which hold the box nesting depth that `mp4` counts while decoding
 
 ### Changed
 
@@ -64,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README.md is a shorter overview with a complete codec list; tool installation moved to cmd/README.md, contribution
   rules to CONTRIBUTING.md, and the library guide is the `mp4` package documentation
 - The logo is an SVG with the Go gopher, and `images/social-preview.png` is the social preview of the repository
+- Container boxes decoded from an `io.Reader` read their payload into memory before decoding their children, as `moov`
+  and `moof` already did
 
 ### Fixed
 
@@ -97,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decoding-unit timing instead of panicking
 - `DecodeFile`, `DecodeFileSR` and the other decoders decode nested QuickTime `gmhd`, `tapt` and `tmcd` atoms, and audio
   sample entries that claim QuickTime version 1 or 2, in linear instead of exponential time
+- `DecodeFile`, `DecodeFileSR`, `FragmentDecoder` and `boxtree.Decode` return the new `mp4.ErrBoxTooDeep` for boxes
+  nested deeper than `mp4.MaxBoxDepth` (64), instead of taking time quadratic in the depth or overflowing the stack
 
 ## [0.61.0] - 2026-10-27
 

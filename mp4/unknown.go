@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 
@@ -89,6 +90,7 @@ func (b *UnknownBox) Info(w io.Writer, specificBoxLevels, indent, indentStep str
 // before mp4ff decoded them, so that files with boxes of such a type in another layout still decode.
 //
 // The payload is decoded once, from a reader of its own, so that a failed decode leaves sr after the box.
+// Boxes nested deeper than MaxBoxDepth give ErrBoxTooDeep instead of an UnknownBox.
 func decodeOrUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader, decode BoxDecoderSR) (Box, error) {
 	if sr.NrRemainingBytes() < hdr.payloadLen() {
 		return nil, fmt.Errorf("%s: payload of %d bytes, but %d bytes left", hdr.Name, hdr.payloadLen(),
@@ -98,12 +100,12 @@ func decodeOrUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader, deco
 	if err := sr.AccError(); err != nil {
 		return nil, err
 	}
-	return decodeDataOrUnknown(hdr, startPos, data, bits.NewFixedSliceReader(data), decode)
+	return decodeDataOrUnknown(hdr, startPos, data, childReader(sr, data), decode)
 }
 
 // decodeOrUnknown is decodeOrUnknownSR for the payload in data.
 func decodeOrUnknown(hdr BoxHeader, startPos uint64, data []byte, decode BoxDecoderSR) (Box, error) {
-	sr := bits.NewFixedSliceReader(data)
+	sr := ioPayloadReader(data)
 	return decodeDataOrUnknown(hdr, startPos, data, sr, decode)
 }
 
@@ -111,6 +113,9 @@ func decodeOrUnknown(hdr BoxHeader, startPos uint64, data []byte, decode BoxDeco
 func decodeDataOrUnknown(hdr BoxHeader, startPos uint64, data []byte, sr *bits.FixedSliceReader,
 	decode BoxDecoderSR) (Box, error) {
 	box, err := decode(hdr, startPos, sr)
+	if errors.Is(err, ErrBoxTooDeep) {
+		return nil, err
+	}
 	if err == nil && sr.AccError() == nil && sr.NrRemainingBytes() == 0 {
 		return box, nil
 	}

@@ -14,6 +14,7 @@ type FixedSliceReader struct {
 	slice []byte
 	pos   int
 	len   int
+	depth int
 }
 
 // bits.NewFixedSliceReader creates a new slice reader reading from data
@@ -30,6 +31,17 @@ func NewFixedSliceReader(data []byte) *FixedSliceReader {
 // without allocating.
 func (s *FixedSliceReader) Reset(data []byte) {
 	*s = FixedSliceReader{slice: data, len: len(data)}
+}
+
+// Depth returns the nesting depth that a decoder of nested structures keeps in s, such as the box nesting depth in
+// package mp4. It is 0 for a new or reset reader.
+func (s *FixedSliceReader) Depth() int {
+	return s.depth
+}
+
+// SetDepth sets the nesting depth that Depth returns.
+func (s *FixedSliceReader) SetDepth(depth int) {
+	s.depth = depth
 }
 
 // AccError - get accumulated error after read operations

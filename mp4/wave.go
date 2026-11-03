@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -53,7 +54,7 @@ func DecodeWave(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeWaveFromData(hdr, startPos, data)
+	return decodeWaveFromData(hdr, startPos, data, ioBoxDepth)
 }
 
 // DecodeWaveSR - box-specific decode
@@ -62,10 +63,11 @@ func DecodeWaveSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader) (Box, err
 	if sr.AccError() != nil {
 		return nil, sr.AccError()
 	}
-	return decodeWaveFromData(hdr, startPos, data)
+	return decodeWaveFromData(hdr, startPos, data, boxDepth(sr))
 }
 
-func decodeWaveFromData(hdr BoxHeader, startPos uint64, data []byte) (Box, error) {
+// decodeWaveFromData decodes the payload data of a wave box at the box depth depth.
+func decodeWaveFromData(hdr BoxHeader, startPos uint64, data []byte, depth int) (Box, error) {
 	b := &WaveBox{}
 	pos := 0
 	for pos+8 <= len(data) {
@@ -76,7 +78,12 @@ func decodeWaveFromData(hdr BoxHeader, startPos uint64, data []byte) (Box, error
 		}
 		childData := data[pos : pos+size]
 		childStartPos := startPos + uint64(hdr.Hdrlen) + uint64(pos)
-		child, err := decodeAudioChildBoxSR(childStartPos, bits.NewFixedSliceReader(childData))
+		csr := bits.NewFixedSliceReader(childData)
+		csr.SetDepth(depth)
+		child, err := decodeAudioChildBoxSR(childStartPos, csr)
+		if errors.Is(err, ErrBoxTooDeep) {
+			return nil, err
+		}
 		if err != nil || child.Size() != uint64(size) { // malformed child: keep the bytes
 			payload := make([]byte, size-8)
 			copy(payload, childData[8:])

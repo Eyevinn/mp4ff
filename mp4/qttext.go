@@ -50,7 +50,7 @@ func DecodeText(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return DecodeTextSR(hdr, startPos, bits.NewFixedSliceReader(data))
+	return DecodeTextSR(hdr, startPos, ioPayloadReader(data))
 }
 
 // DecodeTextSR decodes a text atom, as DecodeText.

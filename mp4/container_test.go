@@ -197,7 +197,8 @@ func TestNonMatchingChildSizesErrorIsBounded(t *testing.T) {
 				t.Fatalf("%s, %d children: no error for children overrunning their container", name, nrChildren)
 			}
 			msg := err.Error()
-			if !strings.Contains(msg, "non-matching children box sizes") && !strings.Contains(msg, "size mismatch") {
+			if !strings.Contains(msg, "non-matching children box sizes") && !strings.Contains(msg, "size mismatch") &&
+				!strings.Contains(msg, "too big") {
 				t.Errorf("%s, %d children: unexpected error %q", name, nrChildren, msg)
 			}
 			if len(msg) > 400 {

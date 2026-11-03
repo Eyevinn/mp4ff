@@ -98,7 +98,7 @@ func Decode(r io.ReaderAt, size int64, infoLevels string) (*Tree, error) {
 			if err := readAt(r, data, pos); err != nil {
 				return t, err
 			}
-			decodeNode(n, data, infoLevels)
+			decodeNode(n, data, infoLevels, 1)
 			switch box := n.Box.(type) {
 			case *mp4.MoovBox:
 				moov = box
@@ -173,8 +173,8 @@ func readAt(r io.ReaderAt, p []byte, pos uint64) error {
 	return fmt.Errorf("read %d bytes at position %d: %w", len(p), pos, err)
 }
 
-// walk decodes the boxes in data, which starts at position base in the file.
-func walk(data []byte, base uint64, infoLevels string) []*Node {
+// walk decodes the boxes in data, which starts at position base in the file, at the box depth depth.
+func walk(data []byte, base uint64, infoLevels string, depth int) []*Node {
 	var nodes []*Node
 	for pos := 0; pos < len(data); {
 		left := uint64(len(data) - pos)
@@ -184,7 +184,7 @@ func walk(data []byte, base uint64, infoLevels string) []*Node {
 			break
 		}
 		avail := int(min(n.Size, left))
-		decodeNode(n, data[pos:pos+avail], infoLevels)
+		decodeNode(n, data[pos:pos+avail], infoLevels, depth)
 		pos += avail
 	}
 	return nodes
@@ -222,12 +222,15 @@ func newNode(h []byte, pos, left uint64) (*Node, bool) {
 	return n, true
 }
 
-// decodeNode decodes the box of n from data, which holds the box, or as much of it as there is.
-// A container box that cannot be decoded gets its children decoded one at a time.
-func decodeNode(n *Node, data []byte, infoLevels string) {
+// decodeNode decodes the box of n, at the box depth depth, from data, which holds the box, or as much of it as
+// there is. A container box that cannot be decoded gets its children decoded one at a time, down to the depth
+// mp4.MaxBoxDepth.
+func decodeNode(n *Node, data []byte, infoLevels string, depth int) {
 	decodeErr := false
 	if n.Err == nil {
-		box, err := mp4.DecodeBoxSR(n.Pos, bits.NewFixedSliceReader(data))
+		sr := bits.NewFixedSliceReader(data)
+		sr.SetDepth(depth - 1)
+		box, err := mp4.DecodeBoxSR(n.Pos, sr)
 		if err == nil {
 			setBox(n, box, data, infoLevels)
 			return
@@ -236,10 +239,10 @@ func decodeNode(n *Node, data []byte, infoLevels string) {
 	}
 	off, ok := childOffset(n.Type, data[n.HdrLen:])
 	start := n.HdrLen + off
-	if !ok || start > len(data) {
+	if !ok || start > len(data) || depth >= mp4.MaxBoxDepth {
 		return
 	}
-	n.Children = walk(data[start:], n.Pos+uint64(start), infoLevels)
+	n.Children = walk(data[start:], n.Pos+uint64(start), infoLevels, depth+1)
 	for _, c := range n.Children {
 		if c.Err != nil || c.ChildErr {
 			n.ChildErr = true
