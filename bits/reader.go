@@ -123,7 +123,9 @@ func (r *Reader) ReadFlag() bool {
 	return bit == 1
 }
 
-// ReadExpGolomb reads one unsigned exponential Golomb code ue(v). Returns 0 if error now or previously.
+// ReadExpGolomb reads one unsigned exponential Golomb code ue(v), with a value from 0 to 2^32 - 2.
+// A code with more than MaxExpGolombLeadingZeroBits leading zero bits sets the error ErrExpGolombTooLong.
+// Returns 0 if error now or previously.
 func (r *Reader) ReadExpGolomb() uint {
 	if r.err != nil {
 		return 0
@@ -138,6 +140,10 @@ func (r *Reader) ReadExpGolomb() uint {
 			break
 		}
 		leadingZeroBits++
+		if leadingZeroBits > MaxExpGolombLeadingZeroBits {
+			r.err = ErrExpGolombTooLong
+			return 0
+		}
 	}
 	res := uint(1<<leadingZeroBits) - 1
 	endBits := r.Read(leadingZeroBits)
@@ -147,7 +153,9 @@ func (r *Reader) ReadExpGolomb() uint {
 	return res + endBits
 }
 
-// ReadSignedGolomb reads one signed exponential Golomb code se(v). Returns 0 if error now or previously.
+// ReadSignedGolomb reads one signed exponential Golomb code se(v), with a value from -(2^31 - 1) to 2^31 - 1.
+// A code with more than MaxExpGolombLeadingZeroBits leading zero bits sets the error ErrExpGolombTooLong.
+// Returns 0 if error now or previously.
 func (r *Reader) ReadSignedGolomb() int {
 	if r.err != nil {
 		return 0

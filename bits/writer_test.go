@@ -2,6 +2,7 @@ package bits_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"testing"
@@ -93,14 +94,15 @@ func TestWrite32BitsNotByteAligned(t *testing.T) {
 	}
 }
 
-// TestWriteExpGolombLargeValues checks ue(v) codes of up to 65 bits, written after 0 to 7 bits.
+// TestWriteExpGolombLargeValues checks ue(v) codes of up to 63 bits, the longest that the readers accept,
+// written after 0 to 7 bits, and that the 65-bit code of 2^32-1 is written but not read.
 func TestWriteExpGolombLargeValues(t *testing.T) {
 	type bitReader interface {
 		Read(n int) uint
 		ReadExpGolomb() uint
 		AccError() error
 	}
-	values := []uint{1<<28 - 2, 1<<29 - 1, 1 << 31, math.MaxUint32}
+	values := []uint{1<<28 - 2, 1<<29 - 1, 1 << 31, 1<<32 - 2}
 	for nrLeadingBits := 0; nrLeadingBits < 8; nrLeadingBits++ {
 		for _, v := range values {
 			var buf bytes.Buffer
@@ -145,5 +147,10 @@ func TestWriteExpGolombLargeValues(t *testing.T) {
 	want := []byte{0xa0, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x08}
 	if got := sw.Bytes(); !bytes.Equal(got, want) {
 		t.Errorf("FixedSliceWriter wrote %x, want %x", got, want)
+	}
+	r := bits.NewReaderFromSlice(want)
+	_ = r.Read(3)
+	if got := r.ReadExpGolomb(); got != 0 || !errors.Is(r.AccError(), bits.ErrExpGolombTooLong) {
+		t.Errorf("read ue(2^32-1) as %d with error %v, want 0 with ErrExpGolombTooLong", got, r.AccError())
 	}
 }

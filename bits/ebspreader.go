@@ -11,6 +11,16 @@ var (
 	ErrNotReadSeeker = errors.New("reader does not support Seek")
 )
 
+// MaxExpGolombLeadingZeroBits is the largest number of leading zero bits in an exponential Golomb code that
+// ReadExpGolomb and ReadSignedGolomb accept. The largest ue(v) value of any syntax element in AVC, HEVC and
+// VVC is 2^32 - 2, and the largest se(v) magnitude is 2^31 - 1, both with codes of 31 leading zero bits.
+// Longer codes hold values that do not fit in 32 bits.
+const MaxExpGolombLeadingZeroBits = 31
+
+// ErrExpGolombTooLong is the error for an exponential Golomb code with more than MaxExpGolombLeadingZeroBits
+// leading zero bits.
+var ErrExpGolombTooLong = fmt.Errorf("exp-Golomb code with more than %d leading zero bits", MaxExpGolombLeadingZeroBits)
+
 const (
 	startCodeEmulationPreventionByte = 0x03
 )
@@ -151,7 +161,9 @@ func (r *EBSPReader) ReadFlag() bool {
 	return r.Read(1) == 1
 }
 
-// ReadExpGolomb reads one unsigned exponential Golomb code.
+// ReadExpGolomb reads one unsigned exponential Golomb code ue(v), with a value from 0 to 2^32 - 2.
+// A code with more than MaxExpGolombLeadingZeroBits leading zero bits sets the error ErrExpGolombTooLong.
+// Returns 0 if error now or previously.
 func (r *EBSPReader) ReadExpGolomb() uint {
 	if r.err != nil {
 		return 0
@@ -167,6 +179,10 @@ func (r *EBSPReader) ReadExpGolomb() uint {
 			break
 		}
 		leadingZeroBits++
+		if leadingZeroBits > MaxExpGolombLeadingZeroBits {
+			r.err = ErrExpGolombTooLong
+			return 0
+		}
 	}
 
 	var res uint = (1 << leadingZeroBits) - 1
@@ -179,7 +195,9 @@ func (r *EBSPReader) ReadExpGolomb() uint {
 	return res + endBits
 }
 
-// ReadSignedGolomb reads one signed exponential Golomb code.
+// ReadSignedGolomb reads one signed exponential Golomb code se(v), with a value from -(2^31 - 1) to 2^31 - 1.
+// A code with more than MaxExpGolombLeadingZeroBits leading zero bits sets the error ErrExpGolombTooLong.
+// Returns 0 if error now or previously.
 func (r *EBSPReader) ReadSignedGolomb() int {
 	if r.err != nil {
 		return 0
