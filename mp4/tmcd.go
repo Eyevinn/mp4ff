@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -84,7 +85,7 @@ func decodeTimecodeSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRe
 	end := startPos + hdr.Size
 	for _, n := range []int{1, 3} {
 		start := startPos + uint64(hdr.Hdrlen) + timecodeEntryFieldsSize + uint64(n)
-		if n > len(rest) || !childrenFill(hdr, start, end, rest[n:]) {
+		if n > len(rest) || !boxesTile(rest[n:]) {
 			continue
 		}
 		b.Reserved2 = sr.ReadBytes(n)
@@ -100,11 +101,19 @@ func decodeTimecodeSampleEntrySR(hdr BoxHeader, startPos uint64, sr bits.SliceRe
 	return nil, fmt.Errorf("tmcd: no child atoms after the reserved bytes")
 }
 
-// childrenFill tells if data, from position start up to end, is a list of boxes.
-func childrenFill(hdr BoxHeader, start, end uint64, data []byte) bool {
-	sr := bits.NewFixedSliceReader(data)
-	_, err := DecodeContainerChildrenSR(hdr, start, end, sr)
-	return err == nil && sr.NrRemainingBytes() == 0
+// boxesTile tells if data is a list of boxes, judging by their headers alone: the box sizes must add up to len(data).
+func boxesTile(data []byte) bool {
+	for len(data) > 0 {
+		if len(data) < boxHeaderSize {
+			return false
+		}
+		size := uint64(binary.BigEndian.Uint32(data))
+		if size < boxHeaderSize || size > uint64(len(data)) {
+			return false
+		}
+		data = data[size:]
+	}
+	return true
 }
 
 // Type - box type

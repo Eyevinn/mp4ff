@@ -190,23 +190,32 @@ func (a *AudioSampleEntryBox) preChildrenSize() uint64 {
 	}
 }
 
-// decodeAudioSampleEntryFromData decodes the entry body. The child boxes are
-// first tried at the offset the QuickTime version dictates; when that fails,
-// the entry is re-read with the plain ISO layout (children directly after the
-// fixed fields), so files whose reserved bytes merely look like a QuickTime
-// version keep decoding as before. When both layouts fail, the error of the
-// claimed (QuickTime) layout is reported.
+// decodeAudioSampleEntryFromData decodes the entry body. The child boxes are at the offset that the QuickTime
+// version 1 or 2 dictates, unless the box headers there do not add up to the payload, or a version 2 entry lacks
+// its marker, while they do with the plain ISO layout (children directly after the fixed fields). Then the ISO
+// layout is used, so that files whose reserved bytes merely look like a QuickTime version still decode. The layout
+// is chosen before decoding, so the children are decoded once.
 func decodeAudioSampleEntryFromData(hdr BoxHeader, startPos uint64, data []byte) (*AudioSampleEntryBox, error) {
-	a, qtErr := decodeAudioSampleEntryLayout(hdr, startPos, data, true)
-	if qtErr == nil {
-		return a, nil
-	}
-	if len(data) >= 10 && binary.BigEndian.Uint16(data[8:10]) != 0 {
-		if a, err := decodeAudioSampleEntryLayout(hdr, startPos, data, false); err == nil {
-			return a, nil
+	useQuickTimeLayout := true
+	const isoStart = nrAudioSampleBytesBeforeChildren - boxHeaderSize
+	if len(data) >= 10 {
+		qtStart := isoStart
+		qtFits := true
+		switch binary.BigEndian.Uint16(data[8:10]) {
+		case 1:
+			qtStart += 16
+		case 2:
+			qtStart += 36
+			const markerPos = isoStart + 16
+			qtFits = len(data) >= markerPos+4 &&
+				binary.BigEndian.Uint32(data[markerPos:markerPos+4]) == QuickTimeV2Marker
+		}
+		qtFits = qtFits && len(data) >= qtStart && boxesTile(data[qtStart:])
+		if !qtFits && len(data) >= isoStart && boxesTile(data[isoStart:]) {
+			useQuickTimeLayout = false
 		}
 	}
-	return nil, qtErr
+	return decodeAudioSampleEntryLayout(hdr, startPos, data, useQuickTimeLayout)
 }
 
 func decodeAudioSampleEntryLayout(hdr BoxHeader, startPos uint64, data []byte,

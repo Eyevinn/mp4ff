@@ -88,36 +88,31 @@ func (b *UnknownBox) Info(w io.Writer, specificBoxLevels, indent, indentStep str
 // payload if decode fails or does not read the whole payload. It is for box types that decoded as UnknownBox
 // before mp4ff decoded them, so that files with boxes of such a type in another layout still decode.
 //
-// decode first runs on a copy of the payload, and then, if that works, on sr, so that the reads are made on sr
-// as for other boxes.
+// The payload is decoded once, from a reader of its own, so that a failed decode leaves sr after the box.
 func decodeOrUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader, decode BoxDecoderSR) (Box, error) {
 	if sr.NrRemainingBytes() < hdr.payloadLen() {
 		return nil, fmt.Errorf("%s: payload of %d bytes, but %d bytes left", hdr.Name, hdr.payloadLen(),
 			sr.NrRemainingBytes())
 	}
-	data := make([]byte, hdr.payloadLen())
-	if err := sr.LookAhead(0, data); err != nil {
+	data := sr.ReadBytes(hdr.payloadLen())
+	if err := sr.AccError(); err != nil {
 		return nil, err
 	}
-	if !decodes(hdr, startPos, data, decode) {
-		return DecodeUnknownSR(hdr, startPos, sr)
-	}
-	return decode(hdr, startPos, sr)
+	return decodeDataOrUnknown(hdr, startPos, data, bits.NewFixedSliceReader(data), decode)
 }
 
 // decodeOrUnknown is decodeOrUnknownSR for the payload in data.
 func decodeOrUnknown(hdr BoxHeader, startPos uint64, data []byte, decode BoxDecoderSR) (Box, error) {
 	sr := bits.NewFixedSliceReader(data)
+	return decodeDataOrUnknown(hdr, startPos, data, sr, decode)
+}
+
+// decodeDataOrUnknown decodes the payload data, which sr reads, as decodeOrUnknownSR.
+func decodeDataOrUnknown(hdr BoxHeader, startPos uint64, data []byte, sr *bits.FixedSliceReader,
+	decode BoxDecoderSR) (Box, error) {
 	box, err := decode(hdr, startPos, sr)
-	if err == nil && sr.NrRemainingBytes() == 0 {
+	if err == nil && sr.AccError() == nil && sr.NrRemainingBytes() == 0 {
 		return box, nil
 	}
 	return CreateUnknownBox(hdr.Name, hdr.Size, append([]byte(nil), data...)), nil
-}
-
-// decodes tells if decode decodes the payload in data without error, and reads all of it.
-func decodes(hdr BoxHeader, startPos uint64, data []byte, decode BoxDecoderSR) bool {
-	sr := bits.NewFixedSliceReader(data)
-	_, err := decode(hdr, startPos, sr)
-	return err == nil && sr.NrRemainingBytes() == 0
 }
