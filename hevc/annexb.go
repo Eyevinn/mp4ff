@@ -15,6 +15,9 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 			return
 		}
 		end = trimTrailingZeros(data, currNaluStart, end)
+		if end-currNaluStart < 2 { // incomplete NAL unit header
+			return
+		}
 		switch naluType {
 		case NALU_VPS:
 			vpss = append(vpss, data[currNaluStart:end])
@@ -27,7 +30,7 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 			totSize += end - currNaluStart
 		}
 	}
-	for i := 0; i < n-4; i++ {
+	for i := 0; i < n-3; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			addParameterSet(i)
 			currNaluStart = i + 3

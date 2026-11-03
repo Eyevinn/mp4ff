@@ -81,6 +81,18 @@ func TestGetParameterSetsFromByteStream(t *testing.T) {
 				0, 0, 1, byte(NALU_PPS) << 1, 1, 7},
 			[][]byte{{byte(NALU_VPS) << 1, 1, 9}}, nil, nil,
 		},
+		{
+			"VPS, start code and one video byte at EOF",
+			[]byte{0, 0, 1, byte(NALU_VPS) << 1, 1, 9,
+				0, 0, 1, byte(NALU_IDR_W_RADL) << 1},
+			[][]byte{{byte(NALU_VPS) << 1, 1, 9}}, nil, nil,
+		},
+		{
+			"VPS, truncated SPS header at EOF",
+			[]byte{0, 0, 1, byte(NALU_VPS) << 1, 1, 9,
+				0, 0, 1, byte(NALU_SPS) << 1},
+			[][]byte{{byte(NALU_VPS) << 1, 1, 9}}, nil, nil,
+		},
 	}
 
 	for _, tc := range testCases {
