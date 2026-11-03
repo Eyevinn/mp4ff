@@ -63,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   memory only as data is read, not for sizes from box headers or truns that the stream does not hold
 - `File.ReadSampleData`, `File.CopySampleData` and `TrakBox.GetRangesForSampleInterval` return an error for samples
   in chunks without a chunk offset, and `CopySampleData` returns for sample number 0xFFFFFFFF
+- `hevc.ParseVPSNALUnit`, `ParseSPSNALUnit`, `ParsePPSNALUnit` and `ParseSliceHeader` return an error for counts,
+  bit depths and reference picture sets out of range, instead of hanging, allocating memory for them or panicking
 
 ## [0.61.0] - 2026-10-27
 

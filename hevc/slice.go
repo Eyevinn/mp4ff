@@ -218,10 +218,20 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 			if sps.LongTermRefPicsPresentFlag {
 				if sps.NumLongTermRefPics > 0 {
 					// value shall be in the range of 0 to num_long_term_ref_pics_sps, inclusive
-					sh.NumLongTermSps = uint8(r.ReadExpGolomb())
+					numLongTermSps := r.ReadExpGolomb()
+					if numLongTermSps > uint(sps.NumLongTermRefPics) {
+						return sh, fmt.Errorf("num_long_term_sps %d exceeds num_long_term_ref_pics_sps %d",
+							numLongTermSps, sps.NumLongTermRefPics)
+					}
+					sh.NumLongTermSps = uint8(numLongTermSps)
 				}
 				sh.NumLongTermPics = r.ReadExpGolomb()
-				for i := uint(0); i < uint(sh.NumLongTermSps)+sh.NumLongTermPics; i++ {
+				// The long-term pictures are limited by the DPB size (7.4.7.1).
+				if sh.NumLongTermPics > maxRPSEntries || uint(sh.NumLongTermSps)+sh.NumLongTermPics > maxRPSEntries {
+					return sh, fmt.Errorf("num_long_term_sps %d + num_long_term_pics %d exceeds %d",
+						sh.NumLongTermSps, sh.NumLongTermPics, maxRPSEntries)
+				}
+				for i := uint(0); i < uint(sh.NumLongTermSps)+sh.NumLongTermPics && r.AccError() == nil; i++ {
 					var lt LongTermRPS
 					if i < uint(sh.NumLongTermSps) {
 						if sps.NumLongTermRefPics > 1 {
@@ -362,15 +372,28 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 		}
 	}
 	if pps.TilesEnabledFlag || pps.EntropyCodingSyncEnabledFlag {
-		sh.NumEntryPointOffsets = r.ReadExpGolomb()
+		numEntryPointOffsets := r.ReadExpGolomb()
+		if maxOffsets, ok := maxNumEntryPointOffsets(sps, pps); ok && uint64(numEntryPointOffsets) > maxOffsets {
+			return sh, fmt.Errorf("num_entry_point_offsets %d exceeds %d", numEntryPointOffsets, maxOffsets)
+		}
+		sh.NumEntryPointOffsets = numEntryPointOffsets
 		if sh.NumEntryPointOffsets > 0 {
 			// value shall be in the range of 0 to 31, inclusive
-			sh.OffsetLenMinus1 = uint8(r.ReadExpGolomb())
-			if sh.NumEntryPointOffsets > 0 {
-				sh.EntryPointOffsetMinus1 = make([]uint32, sh.NumEntryPointOffsets)
-				for i := uint(0); i < sh.NumEntryPointOffsets; i++ {
-					sh.EntryPointOffsetMinus1[i] = uint32(r.Read(int(sh.OffsetLenMinus1 + 1)))
-				}
+			offsetLenMinus1 := r.ReadExpGolomb()
+			if offsetLenMinus1 > maxOffsetLenMinus1 {
+				return sh, fmt.Errorf("offset_len_minus1 %d exceeds %d", offsetLenMinus1, maxOffsetLenMinus1)
+			}
+			sh.OffsetLenMinus1 = uint8(offsetLenMinus1)
+			offsetLen := int(sh.OffsetLenMinus1) + 1
+			// Each entry_point_offset_minus1 takes offsetLen bits of the bytes left.
+			bitsLeft := max(8*int64(len(nalu))-int64(r.NrBitsRead()), 0)
+			if uint64(sh.NumEntryPointOffsets) > uint64(bitsLeft/int64(offsetLen)) {
+				return sh, fmt.Errorf("num_entry_point_offsets %d of %d bits exceeds the %d bits left",
+					sh.NumEntryPointOffsets, offsetLen, bitsLeft)
+			}
+			sh.EntryPointOffsetMinus1 = make([]uint32, sh.NumEntryPointOffsets)
+			for i := uint(0); i < sh.NumEntryPointOffsets; i++ {
+				sh.EntryPointOffsetMinus1[i] = uint32(r.Read(offsetLen))
 			}
 		}
 	}
@@ -402,6 +425,37 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 	sh.Size = uint32(r.NrBytesRead())
 
 	return sh, nil
+}
+
+// maxOffsetLenMinus1 is the upper bound of offset_len_minus1 according to Section 7.4.7.1.
+const maxOffsetLenMinus1 = 31
+
+// maxNumEntryPointOffsets returns the upper bound of num_entry_point_offsets according to
+// Section 7.4.7.1, which depends on the tiles and the CTB rows of the picture. ok is false if
+// the SPS does not give a picture size and a valid CTB size to derive it from.
+func maxNumEntryPointOffsets(sps *SPS, pps *PPS) (maxOffsets uint64, ok bool) {
+	ctbLog2SizeY := uint64(sps.Log2MinLumaCodingBlockSizeMinus3) + 3 + uint64(sps.Log2DiffMaxMinLumaCodingBlockSize)
+	if checkCtbLog2SizeY(ctbLog2SizeY) != nil || sps.PicWidthInLumaSamples == 0 || sps.PicHeightInLumaSamples == 0 {
+		return 0, false
+	}
+	ctbSizeY := uint64(1) << ctbLog2SizeY
+	picWidthInCtbsY := (uint64(sps.PicWidthInLumaSamples) + ctbSizeY - 1) / ctbSizeY
+	picHeightInCtbsY := (uint64(sps.PicHeightInLumaSamples) + ctbSizeY - 1) / ctbSizeY
+	// num_tile_columns_minus1 and num_tile_rows_minus1 are at most PicWidthInCtbsY - 1 and
+	// PicHeightInCtbsY - 1 (Section 7.4.3.3.1). Larger values are capped, which keeps the
+	// products below from overflowing.
+	numTileColumns := min(uint64(pps.NumTileColumnsMinus1), picWidthInCtbsY-1) + 1
+	numTileRows := min(uint64(pps.NumTileRowsMinus1), picHeightInCtbsY-1) + 1
+	switch {
+	case !pps.TilesEnabledFlag && pps.EntropyCodingSyncEnabledFlag:
+		return picHeightInCtbsY - 1, true
+	case pps.TilesEnabledFlag && !pps.EntropyCodingSyncEnabledFlag:
+		return numTileColumns*numTileRows - 1, true
+	case pps.TilesEnabledFlag && pps.EntropyCodingSyncEnabledFlag:
+		return numTileColumns*picHeightInCtbsY - 1, true
+	default:
+		return 0, true
+	}
 }
 
 // maxNumRefIdxActiveMinus1 is the upper bound of num_ref_idx_lX_active_minus1 and
