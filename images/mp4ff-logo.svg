@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 831 260" width="831" height="260">
+  <!-- The gopher is adapted from the Go gopher by Renée French (https://reneefrench.blogspot.com/), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). -->
+  <title>mp4ff</title>
+  <defs>
+    <!-- Letter fill: a darker blue gloss above a shallow arc, bright cyan to mint below it -->
+    <linearGradient id="gloss" gradientUnits="userSpaceOnUse" x1="0" y1="36" x2="0" y2="130">
+      <stop offset="0" stop-color="#006adb"/>
+      <stop offset="0.096" stop-color="#0a78db"/>
+      <stop offset="0.266" stop-color="#1c92db"/>
+      <stop offset="0.51" stop-color="#27a0db"/>
+      <stop offset="1" stop-color="#37b8db"/>
+    </linearGradient>
+    <linearGradient id="glow" gradientUnits="userSpaceOnUse" x1="0" y1="100" x2="0" y2="245">
+      <stop offset="0" stop-color="#35c4ff"/>
+      <stop offset="0.359" stop-color="#48e2fe"/>
+      <stop offset="0.607" stop-color="#36eae7"/>
+      <stop offset="0.828" stop-color="#25f0d2"/>
+      <stop offset="0.910" stop-color="#0ff9b5"/>
+      <stop offset="1" stop-color="#00ff98"/>
+    </linearGradient>
+    <pattern id="letterFill" patternUnits="userSpaceOnUse" x="0" y="0" width="645" height="260">
+      <rect width="645" height="260" fill="url(#glow)"/>
+      <path d="M-20,0 H670 V85.8 Q325,177.4 -20,88.5 Z" fill="url(#gloss)"/>
+    </pattern>
+    <linearGradient id="gopherFill" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="240">
+      <stop offset="0" stop-color="#7fd8e8"/>
+      <stop offset="1" stop-color="#4cb6d2"/>
+    </linearGradient>
+    <linearGradient id="boxFront" gradientUnits="userSpaceOnUse" x1="0" y1="164" x2="0" y2="226">
+      <stop offset="0" stop-color="#2aa3dc"/>
+      <stop offset="1" stop-color="#1c86c4"/>
+    </linearGradient>
+    <filter id="shadow" filterUnits="userSpaceOnUse" x="-20" y="-20" width="700" height="300">
+      <feDropShadow dx="2" dy="2.5" stdDeviation="2.5" flood-color="#333333" flood-opacity="0.85"/>
+    </filter>
+
+    <!-- Gopher parts -->
+    <circle id="earL" cx="38" cy="44" r="18"/>
+    <circle id="earR" cx="152" cy="44" r="18"/>
+    <path id="body" d="M28,112 C28,34 162,34 162,112 L168,215 C168,235 148,242 95,242 C42,242 22,235 22,215 Z"/>
+    <ellipse id="footL" cx="54" cy="240" rx="18" ry="10"/>
+    <ellipse id="footR" cx="136" cy="240" rx="18" ry="10"/>
+    <path id="armL" d="M30,140 C14,160 22,185 44,192"/>
+    <path id="armR" d="M162,140 C176,160 168,182 150,188"/>
+    <path id="box" d="M50,164 L72,146 H150 V206 L128,226 H50 Z"/>
+
+    <!-- Centrelines of the letter strokes -->
+    <path id="mStem" d="M43,181 V93"/>
+    <path id="mArch1" d="M43,125 A33.25,33.25 0 0 1 109.5,125 V181"/>
+    <path id="mArch2" d="M109.5,125 A33.5,33.5 0 0 1 176.5,125 V181"/>
+    <circle id="pBowl" cx="276" cy="137" r="44.5"/>
+    <path id="pStem" d="M232,137 V228"/>
+    <path id="fourBar" d="M354,146.5 H456"/>
+    <path id="fourStem" d="M354,146.5 L435,46 V181"/>
+    <path id="f1Stem" d="M505,181 V75 A28,28 0 0 1 533,47 H540"/>
+    <path id="f1Bar" d="M485.5,95 H534.5"/>
+    <path id="f2Stem" d="M578,181 V75 A28,28 0 0 1 606,47 H613"/>
+    <path id="f2Bar" d="M558.5,95 H607.5"/>
+  </defs>
+
+  <!-- ==================== GOPHER HOLDING A MOOF BOX ==================== -->
+  <g transform="translate(6,-6)">
+    <!-- Teal outline around the whole silhouette -->
+    <g stroke="#277290" stroke-width="20" stroke-linejoin="round" stroke-linecap="round" filter="url(#shadow)">
+      <use href="#earL"/>
+      <use href="#earR"/>
+      <use href="#body"/>
+      <use href="#footL"/>
+      <use href="#footR"/>
+      <use href="#armL" fill="none" stroke-width="32"/>
+      <use href="#armR" fill="none" stroke-width="32"/>
+      <use href="#box"/>
+    </g>
+
+    <!-- Each part with a white ring, so that later parts cut a white seam into earlier ones -->
+    <g stroke="#ffffff" stroke-width="10" paint-order="stroke" fill="url(#gopherFill)">
+      <use href="#earL"/>
+      <use href="#earR"/>
+      <use href="#body"/>
+      <use href="#footL" fill="#e2d1b5"/>
+      <use href="#footR" fill="#e2d1b5"/>
+    </g>
+    <ellipse cx="95" cy="178" rx="46" ry="50" fill="#a8e2ee" opacity="0.55"/>
+
+    <!-- Ear insides -->
+    <circle cx="38" cy="44" r="8" fill="#3896b0"/>
+    <circle cx="152" cy="44" r="8" fill="#3896b0"/>
+
+    <!-- Eyes, looking to the right at the wordmark -->
+    <g fill="#ffffff" stroke="#277290" stroke-width="4">
+      <circle cx="67" cy="90" r="26"/>
+      <circle cx="123" cy="90" r="26"/>
+    </g>
+    <g fill="#0f2d3a">
+      <circle cx="80" cy="91" r="10"/>
+      <circle cx="136" cy="91" r="10"/>
+    </g>
+    <g fill="#ffffff">
+      <circle cx="83" cy="87" r="3.5"/>
+      <circle cx="139" cy="87" r="3.5"/>
+    </g>
+
+    <!-- Snout, teeth and nose -->
+    <g stroke="#277290" stroke-width="3.5" fill="#ffffff">
+      <rect x="83" y="120" width="11" height="16" rx="2.5"/>
+      <rect x="95" y="120" width="11" height="16" rx="2.5"/>
+    </g>
+    <ellipse cx="95" cy="116" rx="22" ry="12" fill="#e2d1b5" stroke="#277290" stroke-width="3.5"/>
+    <ellipse cx="95" cy="110" rx="10" ry="6" fill="#0f2d3a"/>
+
+    <!-- The box: white ring, then top, side and front faces, and the box type on the front -->
+    <use href="#box" fill="none" stroke="#ffffff" stroke-width="12" stroke-linejoin="round"/>
+    <g stroke="#277290" stroke-width="4" stroke-linejoin="round">
+      <path d="M50,164 L72,146 H150 L128,164 Z" fill="#8fe6fb"/>
+      <path d="M128,164 L150,146 V206 L128,226 Z" fill="#1c86c4"/>
+      <rect x="50" y="164" width="78" height="62" fill="url(#boxFront)"/>
+    </g>
+    <text x="89" y="202" text-anchor="middle" fill="#ffffff"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace"
+          font-size="21" font-weight="700">moof</text>
+
+    <!-- Arms holding the box at its sides -->
+    <g fill="none" stroke-linecap="round">
+      <g stroke="#ffffff" stroke-width="22">
+        <use href="#armL"/>
+        <use href="#armR"/>
+      </g>
+      <g stroke="url(#gopherFill)" stroke-width="12">
+        <use href="#armL"/>
+        <use href="#armR"/>
+      </g>
+    </g>
+    <g fill="#e2d1b5" stroke="#277290" stroke-width="3.5">
+      <ellipse cx="50" cy="192" rx="9" ry="7"/>
+      <ellipse cx="148" cy="186" rx="9" ry="7"/>
+    </g>
+  </g>
+
+  <!-- ==================== WORDMARK ==================== -->
+  <!-- Each letter is stroked three times along its centrelines: a teal outline under all letters,
+       then per letter a white ring and the fill, so that the second f cuts a white seam into the first. -->
+  <g transform="translate(186,0)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#277290" stroke-width="41" filter="url(#shadow)">
+      <use href="#mStem"/>
+      <use href="#mArch1"/>
+      <use href="#mArch2"/>
+      <use href="#pBowl"/>
+      <use href="#pStem"/>
+      <use href="#fourBar"/>
+      <use href="#fourStem"/>
+      <use href="#f1Stem"/>
+      <use href="#f1Bar" stroke-width="37"/>
+      <use href="#f2Stem"/>
+      <use href="#f2Bar" stroke-width="37"/>
+    </g>
+
+    <!-- m -->
+    <g stroke="#ffffff" stroke-width="31">
+      <use href="#mStem"/>
+      <use href="#mArch1"/>
+      <use href="#mArch2"/>
+    </g>
+    <g stroke="url(#letterFill)" stroke-width="21">
+      <use href="#mStem"/>
+      <use href="#mArch1"/>
+      <use href="#mArch2"/>
+    </g>
+
+    <!-- p -->
+    <g stroke="#ffffff" stroke-width="31">
+      <use href="#pBowl"/>
+      <use href="#pStem"/>
+    </g>
+    <g stroke="url(#letterFill)" stroke-width="21">
+      <use href="#pBowl"/>
+      <use href="#pStem"/>
+    </g>
+
+    <!-- 4 -->
+    <g stroke="#ffffff" stroke-width="31">
+      <use href="#fourBar"/>
+      <use href="#fourStem"/>
+    </g>
+    <g stroke="url(#letterFill)" stroke-width="21">
+      <use href="#fourBar"/>
+      <use href="#fourStem"/>
+    </g>
+
+    <!-- f -->
+    <g stroke="#ffffff" stroke-width="31">
+      <use href="#f1Stem"/>
+      <use href="#f1Bar" stroke-width="27"/>
+    </g>
+    <g stroke="url(#letterFill)" stroke-width="21">
+      <use href="#f1Stem"/>
+      <use href="#f1Bar" stroke-width="17"/>
+    </g>
+
+    <!-- f -->
+    <g stroke="#ffffff" stroke-width="31">
+      <use href="#f2Stem"/>
+      <use href="#f2Bar" stroke-width="27"/>
+    </g>
+    <g stroke="url(#letterFill)" stroke-width="21">
+      <use href="#f2Stem"/>
+      <use href="#f2Bar" stroke-width="17"/>
+    </g>
+  </g>
+</svg>
