@@ -378,6 +378,15 @@ func TestSetAACDescriptorFromConfig(t *testing.T) {
 		FrontElements:  []aac.PCEChannelElement{{}, {IsCPE: true}},
 		BackElements:   []aac.PCEChannelElement{{IsCPE: true, TagSelect: 1}},
 		LFEElementTags: []byte{0}}
+	// AudioSpecificConfig of fate-suite/aac/usac/xhe_target_level.m4a from the FFmpeg FATE suite
+	xheData, err := hex.DecodeString("f94643221cc05852002000a04046d0b800")
+	if err != nil {
+		t.Fatal(err)
+	}
+	xhe, err := aac.DecodeAudioSpecificConfig(bytes.NewReader(xheData))
+	if err != nil {
+		t.Fatal(err)
+	}
 	testCases := []struct {
 		desc             string
 		asc              *aac.AudioSpecificConfig
@@ -402,6 +411,11 @@ func TestSetAACDescriptorFromConfig(t *testing.T) {
 				SamplingFrequency: 24000, ExtensionFrequency: 48000, SBRPresentFlag: true, PSPresentFlag: true,
 				SyncExtensionPresent: true, PSSyncExtensionPresent: true},
 			wantChannelCount: 1,
+		},
+		{
+			desc:             "USAC (xHE-AAC) stereo",
+			asc:              xhe,
+			wantChannelCount: 2,
 		},
 		{
 			desc:    "nil config",

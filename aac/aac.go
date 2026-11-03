@@ -16,6 +16,8 @@ const (
 	HEAACv1 = 5
 	// HEAACv2 - HE-AAC version 2 with SBR and PS
 	HEAACv2 = 29
+	// USAC - Unified Speech and Audio Coding (xHE-AAC)
+	USAC = 42
 )
 
 // Sync words of the backward-compatible extensions after the GASpecificConfig.
@@ -25,11 +27,14 @@ const (
 )
 
 // AudioSpecificConfig according to ISO/IEC 14496-3:2019 Table 1.19,
-// for AAC Main, AAC-LC and HE-AAC v1 and v2.
+// for AAC Main, AAC-LC, HE-AAC v1 and v2, and USAC.
 //
 // HE-AAC is signalled either explicitly by ObjectType HEAACv1 or HEAACv2,
 // or backward compatibly by a sync extension after the GASpecificConfig
 // of an AAC-LC configuration (SyncExtensionPresent).
+//
+// For USAC, the fields after ChannelConfiguration are unused, and USAC holds
+// the UsacConfig.
 type AudioSpecificConfig struct {
 	ObjectType             byte
 	ChannelConfiguration   byte // Defined in Table 1.23. 0 means that PCE gives the layout
@@ -45,12 +50,18 @@ type AudioSpecificConfig struct {
 	PCE                    *ProgramConfigElement // Present if ChannelConfiguration is 0
 	SyncExtensionPresent   bool                  // SBR signalled by a 0x2b7 sync extension
 	PSSyncExtensionPresent bool                  // PS signalled by a 0x548 sync extension
+	USAC                   *USACConfig           // Present if ObjectType is USAC
 }
 
 // CoreSamplesPerFrame returns the number of samples per frame at the core
 // sampling frequency SamplingFrequency: 960 if FrameLengthFlag is set,
 // otherwise 1024. SBR doubles the number of output samples per frame.
+// For USAC, it is the core coder frame length of the UsacConfig, and
+// USACConfig.OutputFrameLength gives the number of output samples.
 func (a *AudioSpecificConfig) CoreSamplesPerFrame() uint32 {
+	if a.USAC != nil {
+		return uint32(a.USAC.CoreCoderFrameLength())
+	}
 	if a.FrameLengthFlag {
 		return 960
 	}
@@ -61,7 +72,11 @@ func (a *AudioSpecificConfig) CoreSamplesPerFrame() uint32 {
 // configuration, or by the program config element for channel
 // configuration 0. It returns 0 for the reserved channel configurations.
 // For HE-AAC v2, it is the mono channel that parametric stereo builds on.
+// For USAC, the UsacConfig gives the number of channels.
 func (a *AudioSpecificConfig) NrChannels() int {
+	if a.USAC != nil {
+		return a.USAC.NrChannels()
+	}
 	if a.ChannelConfiguration == 0 {
 		if a.PCE == nil {
 			return 0
@@ -173,7 +188,8 @@ const maxConfigSize = 1 << 20
 // DecodeAudioSpecificConfig decodes the AudioSpecificConfig of AAC Main,
 // AAC-LC or HE-AAC v1 and v2, including the GASpecificConfig, the program
 // config element of channel configuration 0, and the SBR and PS sync
-// extensions.
+// extensions. For USAC, it keeps the UsacConfig and the rest of the config as
+// they are and decodes the leading fields of the UsacConfig.
 //
 // A sync extension is only looked for if enough bits are left, so the whole
 // of r is read, and r must end where the configuration ends, as a reader
@@ -204,6 +220,7 @@ func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
 		asc.SBRPresentFlag = true
 	case HEAACv2:
 		asc.SBRPresentFlag, asc.PSPresentFlag = true, true
+	case USAC:
 	default:
 		return asc, fmt.Errorf("unsupported object type: %d", asc.ObjectType)
 	}
@@ -211,6 +228,13 @@ func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
 		return asc, err
 	}
 	asc.ChannelConfiguration = byte(br.Read(4))
+	if br.AccError() != nil {
+		return asc, tooShort("audio specific config")
+	}
+	if asc.ObjectType == USAC {
+		asc.USAC, err = decodeUSACConfig(br, len(data)*8-br.NrBitsRead())
+		return asc, err
+	}
 	explicitHE := asc.ObjectType == HEAACv1 || asc.ObjectType == HEAACv2
 	if explicitHE {
 		if asc.ExtensionFrequency, err = readFrequency(br); err != nil {
@@ -277,15 +301,20 @@ func DecodeAudioSpecificConfig(r io.Reader) (*AudioSpecificConfig, error) {
 
 // Encode writes the AudioSpecificConfig of AAC Main, AAC-LC or HE-AAC,
 // including the GASpecificConfig, the program config element and the sync
-// extensions.
+// extensions, or of USAC with the bits of its UsacConfig.
 func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 	if err := a.validate(); err != nil {
 		return err
 	}
 	aw := &ascWriter{bw: bits.NewWriter(w)}
-	aw.write(uint(a.ObjectType), 5)
+	aw.audioObjectType(a.ObjectType)
 	aw.frequency(a.SamplingFrequency)
 	aw.write(uint(a.ChannelConfiguration), 4)
+	if a.ObjectType == USAC {
+		a.USAC.encode(aw)
+		aw.bw.Flush()
+		return aw.bw.AccError()
+	}
 	if a.ObjectType == HEAACv1 || a.ObjectType == HEAACv2 {
 		aw.frequency(a.ExtensionFrequency)
 		aw.write(AAClc, 5)
@@ -321,12 +350,21 @@ func (a *AudioSpecificConfig) Encode(w io.Writer) error {
 // validate checks that the fields can be encoded and are read back as they are.
 func (a *AudioSpecificConfig) validate() error {
 	switch a.ObjectType {
-	case AACMain, AAClc, HEAACv1, HEAACv2:
+	case AACMain, AAClc, HEAACv1, HEAACv2, USAC:
 	default:
 		return fmt.Errorf("audioObjectType %d not supported", a.ObjectType)
 	}
 	if a.ChannelConfiguration > 15 {
 		return fmt.Errorf("channel configuration %d does not fit in four bits", a.ChannelConfiguration)
+	}
+	if a.SamplingFrequency <= 0 || a.SamplingFrequency > 0xffffff {
+		return fmt.Errorf("invalid sampling frequency %d", a.SamplingFrequency)
+	}
+	if a.ObjectType == USAC {
+		return a.validateUSAC()
+	}
+	if a.USAC != nil {
+		return fmt.Errorf("USAC config needs object type %d, not %d", USAC, a.ObjectType)
 	}
 	if a.ChannelConfiguration == 0 {
 		if a.PCE == nil {
@@ -337,9 +375,6 @@ func (a *AudioSpecificConfig) validate() error {
 		}
 	} else if a.PCE != nil {
 		return fmt.Errorf("program config element needs channel configuration 0, not %d", a.ChannelConfiguration)
-	}
-	if a.SamplingFrequency <= 0 || a.SamplingFrequency > 0xffffff {
-		return fmt.Errorf("invalid sampling frequency %d", a.SamplingFrequency)
 	}
 	explicitHE := a.ObjectType == HEAACv1 || a.ObjectType == HEAACv2
 	if explicitHE && a.SyncExtensionPresent {
@@ -368,6 +403,20 @@ func (a *AudioSpecificConfig) validate() error {
 		return fmt.Errorf("extensionFlag3 requires unsupported future GA syntax")
 	}
 	return nil
+}
+
+// validateUSAC checks that a USAC config has a UsacConfig and no fields of
+// the other object types, which Encode would not write.
+func (a *AudioSpecificConfig) validateUSAC() error {
+	if a.USAC == nil {
+		return fmt.Errorf("object type %d needs a USAC config", USAC)
+	}
+	if a.ExtensionFrequency != 0 || a.SBRPresentFlag || a.PSPresentFlag || a.FrameLengthFlag ||
+		a.DependsOnCoreCoder || a.CoreCoderDelay != 0 || a.ExtensionFlag || a.ExtensionFlag3 || a.PCE != nil ||
+		a.SyncExtensionPresent || a.PSSyncExtensionPresent {
+		return fmt.Errorf("USAC config with fields of other object types")
+	}
+	return a.USAC.validate()
 }
 
 // readAudioObjectType reads an audio object type with its escape
@@ -421,6 +470,17 @@ type ascWriter struct {
 func (aw *ascWriter) write(value uint, n int) {
 	aw.bw.Write(value, n)
 	aw.nrBits += n
+}
+
+// audioObjectType writes an audio object type, with the escape for 32 and above
+// (ISO/IEC 14496-3:2019 Table 1.20).
+func (aw *ascWriter) audioObjectType(objectType byte) {
+	if objectType < 31 {
+		aw.write(uint(objectType), 5)
+		return
+	}
+	aw.write(31, 5)
+	aw.write(uint(objectType)-32, 6)
 }
 
 func (aw *ascWriter) flag(f bool) {
