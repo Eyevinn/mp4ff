@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <!-- The repository's social preview: the logo on a card, at the 1280x640 that GitHub asks for.
+       `make images/social-preview.png` renders it. The gopher in the logo is adapted from the Go gopher
+       by Renée French (https://reneefrench.blogspot.com/), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). -->
+  <defs>
+    <linearGradient id="card" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="#0f172a"/>
+  <rect x="52" y="92" width="1176" height="456" rx="36" fill="url(#card)" stroke="#334155" stroke-width="3"/>
+  <image href="mp4ff-logo.svg" x="160" y="140" width="960" height="300"/>
+  <text x="640" y="492" text-anchor="middle" fill="#7fd5ea"
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="32" font-weight="700" letter-spacing="4">MP4 FILE FORMAT LIBRARY AND TOOLS IN GO</text>
+</svg>

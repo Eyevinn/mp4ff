@@ -1,4 +1,4 @@
-![Logo](images/logo.png)
+<img src="images/mp4ff-logo.svg" alt="mp4ff – MP4 file format library and tools in Go" width="640">
 
 [![Test](https://github.com/Eyevinn/mp4ff/actions/workflows/go.yml/badge.svg)](https://github.com/Eyevinn/mp4ff/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/Eyevinn/mp4ff/badge.svg?branch=master)](https://coveralls.io/github/Eyevinn/mp4ff?branch=master)
@@ -187,6 +187,10 @@ Some code in the mp4 package comes from or is based on <https://github.com/jfbus
 
 Some code in the bits package comes from or is based on <https://github.com/tcnksm/go-casper/tree/master/internal/bits>
 `Copyright (c) 2017 Taichi Nakashima`.
+
+The gopher in the logo is adapted from the Go gopher, created by
+[Renée French](https://reneefrench.blogspot.com/) and licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## ChangeLog and Versions
 

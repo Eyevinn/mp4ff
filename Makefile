@@ -63,6 +63,11 @@ codespell: venv
 .PHONY: check
 check: prepare pre-commit codespell
 
+# images/social-preview.png is the social preview of the repository: the logo on a card, at the 1280x640 that
+# GitHub asks for. GitHub has no API for it, so a new one is uploaded by hand in the repository settings.
+images/social-preview.png: images/social-preview.svg images/mp4ff-logo.svg
+	rsvg-convert -o $@ $<
+
 clean:
 	rm -f out/*
 	rm -r examples-out/*
