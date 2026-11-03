@@ -1,89 +1,65 @@
 ![Logo](images/logo.png)
 
-![Test](https://github.com/Eyevinn/mp4ff/workflows/Go/badge.svg)
+[![Test](https://github.com/Eyevinn/mp4ff/actions/workflows/go.yml/badge.svg)](https://github.com/Eyevinn/mp4ff/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/Eyevinn/mp4ff/badge.svg?branch=master)](https://coveralls.io/github/Eyevinn/mp4ff?branch=master)
-[![GoDoc](https://godoc.org/github.com/Eyevinn/mp4ff?status.svg)](http://godoc.org/github.com/Eyevinn/mp4ff)
+[![Go Reference](https://pkg.go.dev/badge/github.com/Eyevinn/mp4ff.svg)](https://pkg.go.dev/github.com/Eyevinn/mp4ff)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#video)
 [![license](https://img.shields.io/github/license/Eyevinn/mp4ff.svg)](https://github.com/Eyevinn/mp4ff/blob/master/LICENSE)
 [![Badge OSC](https://img.shields.io/badge/Evaluate-24243B?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8yODIxXzMxNjcyKSIvPgo8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI3IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz4KPGRlZnM%2BCjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhcl8yODIxXzMxNjcyIiB4MT0iMTIiIHkxPSIwIiB4Mj0iMTIiIHkyPSIyNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQzE4M0ZGIi8%2BCjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzREQzlGRiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM%2BCjwvc3ZnPgo%3D)](https://app.osaas.io/browse/eyevinn-mp4ff?create=1&utm_source=github&utm_medium=readme&utm_campaign=mp4ff)
 
-Module mp4ff implements MP4 media file parsing and writing for AVC and HEVC video, AAC and AC-3 audio, stpp and wvtt subtitles, and
-timed metadata tracks.
-It is focused on fragmented files as used for streaming in MPEG-DASH, MSS and HLS fMP4, but can also decode and encode all
-boxes needed for progressive MP4 files.
+Module mp4ff is a Go library and a set of command line tools for parsing and writing MP4 (ISOBMFF) files.
+It is focused on fragmented files as used for streaming in MPEG-DASH, HLS fMP4, CMAF and MSS, but can also
+decode and encode progressive MP4 and QuickTime files.
 
-## Command Line Tools
+Beyond the file format, it handles the codec-specific boxes of
 
-Some useful command line tools are available in [cmd](cmd) directory.
+* video: AVC, HEVC (including MV-HEVC and Dolby Vision), VVC, AV1, VP8, VP9, AVS3, Motion JPEG and ProRes
+* audio: AAC (including HE-AAC and xHE-AAC), AC-3, E-AC-3, AC-4, Opus, FLAC, ALAC, IAMF, MPEG-H 3D Audio,
+  MP3 and PCM
+* subtitles: WebVTT, TTML and 3GPP timed text
+* event message tracks
 
-1. [mp4ff-info](cmd/mp4ff-info) prints a tree of the box hierarchy of a mp4 file with information
-    about the boxes, or with `-brands` checks the ftyp and styp brands against the content.
-    With `-tree` or `-json`, and for files that cannot be decoded completely, the tree has box positions and errors.
-2. [mp4ff-pslister](cmd/mp4ff-pslister) extracts and displays SPS and PPS for AVC or HEVC in a mp4 or a bytestream (Annex B) file.
-    Partial information is printed for HEVC.
-3. [mp4ff-nallister](cmd/mp4ff-nallister) lists NALUs and picture types for video in progressive or fragmented file
-4. [mp4ff-subslister](cmd/mp4ff-subslister) lists details of wvtt, wvtc, stpp, or stpc (WebVTT or TTML in ISOBMFF) subtitle samples
-5. [mp4ff-crop](cmd/mp4ff-crop) crops a **progressive** mp4 file to a specified duration
-6. [mp4ff-encrypt](cmd/mp4ff-encrypt) encrypts a fragmented file using cenc or cbcs Common Encryption scheme
-7. [mp4ff-decrypt](cmd/mp4ff-decrypt) decrypts a fragmented file encrypted using cenc or cbcs Common Encryption scheme
-8. [mp4ff-mvhevc](cmd/mp4ff-mvhevc) inspects MV-HEVC (Multi-View HEVC) files and muxes HEVC (Annex B or mp4) into an MV-HEVC mp4
-9. [mp4ff-defragment](cmd/mp4ff-defragment) converts a fragmented mp4 file into a progressive mp4 file
+and Common Encryption with the cenc and cbcs schemes.
+Separate packages parse the bitstreams of several of these codecs.
+See [Codec support](#codec-support) for the sample entries and boxes.
 
-## Installing the command line tools
+## Command line tools
 
-All tools are built for macOS, Linux and Windows (amd64 and arm64) on every
-[release](https://github.com/Eyevinn/mp4ff/releases).
+The [cmd](cmd) directory has command line tools built with the library:
 
-### Homebrew (macOS and Linux)
+* [mp4ff-info](cmd/mp4ff-info) prints the box tree of an mp4 file, or checks its brands
+* [mp4ff-pslister](cmd/mp4ff-pslister) prints the AVC and HEVC parameter sets and the AV1 sequence header
+* [mp4ff-nallister](cmd/mp4ff-nallister) lists the NAL units and picture types of AVC, HEVC and VVC video
+* [mp4ff-subslister](cmd/mp4ff-subslister) lists WebVTT and TTML subtitle samples
+* [mp4ff-crop](cmd/mp4ff-crop) crops a progressive mp4 file
+* [mp4ff-encrypt](cmd/mp4ff-encrypt) and [mp4ff-decrypt](cmd/mp4ff-decrypt) encrypt and decrypt
+  fragmented files with Common Encryption
+* [mp4ff-mvhevc](cmd/mp4ff-mvhevc) inspects and muxes MV-HEVC files
+* [mp4ff-defragment](cmd/mp4ff-defragment) converts a fragmented mp4 file into a progressive one
 
-    brew install mp4ff
-
-### Go
-
-Install a tool directly from the repo (repeat for each tool you want), or run
-`go install .` from the tool's directory under [cmd](cmd):
-
-    go install github.com/Eyevinn/mp4ff/cmd/mp4ff-info@latest
-    go install github.com/Eyevinn/mp4ff/cmd/mp4ff-encrypt@latest
-
-The tools report the version that Go embeds when it builds them from a git checkout or
-with `go install`. A build from a source archive, without git, reports `(devel)` unless
-the version is set at link time:
-
-    go build -ldflags "-X github.com/Eyevinn/mp4ff/internal.commitVersion=vX.Y.Z" ./cmd/mp4ff-info
-
-### Linux packages (Debian/Ubuntu, Fedora/RHEL, Alpine)
-
-Each release attaches `.deb`, `.rpm` and `.apk` packages (all tools in a single
-`mp4ff` package) as well as plain `.tar.gz` archives. Download the one matching
-your system from the [releases page](https://github.com/Eyevinn/mp4ff/releases)
-and install it:
-
-    sudo apt install ./mp4ff_<version>_linux_amd64.deb              # Debian/Ubuntu
-    sudo rpm -i mp4ff_<version>_linux_amd64.rpm                     # Fedora/RHEL
-    sudo apk add --allow-untrusted mp4ff_<version>_linux_amd64.apk  # Alpine
-
-For any other distribution, download the `.tar.gz` archive and copy the
-binaries into a directory on your `PATH`.
+Install them with `brew install mp4ff`, with `go install`, or from the Linux packages and archives on the
+[releases page](https://github.com/Eyevinn/mp4ff/releases).
+See [cmd/README.md](cmd/README.md) for more about each tool, all ways to install them,
+and how to run them in [Eyevinn Open Source Cloud](https://app.osaas.io/browse/eyevinn-mp4ff?utm_source=github&utm_medium=readme&utm_campaign=mp4ff).
 
 ## Codec support
 
-This repo is focused on the file format, but goes beyond the base file format and supports
-codec-specific boxes. The codecs and their boxes are
+The supported codecs and their boxes are
 
-| Type| Codec | Sample Entry | Config Box | Other Boxes |
-| ----- | ----| ---- | ---- | ---- |
+| Type | Codec | Sample Entry | Config Box | Other Boxes |
+| ---- | ----- | ------------ | ---------- | ----------- |
 | Video | AVC/H.264 | avc1, avc3 | avcC | btrt, pasp, colr |
 | Video | HEVC/H.265 | hvc1, hev1 | hvcC | btrt, pasp, colr |
+| Video | MV-HEVC, Apple spatial video | hvc1, hev1 | hvcC, lhvC | vexu, hfov, btrt, pasp, colr |
 | Video | Dolby Vision | dvh1, dvhe | hvcC, dvcC, dvvC, dvwC | btrt, pasp, colr |
 | Video | AV1 | av01 | av1C | btrt, pasp, colr |
 | Video | AVS3 | avs3 | av3c | btrt, pasp, colr |
-| Video | VP8/VP9 | vp08, vp09 | vpcC | btrt, pasp, colr |
+| Video | VP8/VP9 | vp08, vp09 | vpcC | btrt, pasp, colr, SmDm, CoLL |
 | Video | VVC/H.266 | vvc1, vvi1 | vvcC | btrt, pasp, colr |
 | Video | Motion JPEG | mjpg, jpeg, mp4v | jpgC, esds | btrt, pasp, colr, fiel |
 | Video | Apple ProRes (QuickTime) | apch, apcn, apcs, apco, ap4h, ap4x | - | colr, fiel, pasp, clap |
 | Video | Encrypted | encv | sinf | btrt |
-| Audio | AAC | mp4a | esds | btrt |
+| Audio | AAC, HE-AAC, xHE-AAC | mp4a | esds | btrt |
 | Audio | AC-3 | ac-3 | dac3 | btrt |
 | Audio | E-AC-3 | ec-3 | dec3 | btrt |
 | Audio | AC-4 | ac-4 | dac4 | btrt |
@@ -98,327 +74,100 @@ codec-specific boxes. The codecs and their boxes are
 | Subtitles | WebVTT paint model (experimental) | wvtc | vttC, vlab, ttma | vttn, and the wvtt boxes above |
 | Subtitles | TTML | stpp | - | btrt |
 | Subtitles | TTML paint model (experimental) | stpc | ttma | ttmn, ttmb, btrt |
-| Subtitles | Generic | evte | - | btrt |
 | Subtitles | 3GPP timed text, chapters | tx3g, text | ftab | - |
 | Subtitles | Text (QuickTime) | text | - | - |
+| Events | Event message track | evte | silb | btrt |
 | Timecode | Timecode (QuickTime) | tmcd | - | gmhd, gmin, tcmi |
 
-## Open Source Cloud
+Video sample entries can also carry the HDR metadata boxes `clli` and `mdcv`.
+Encrypted sample entries keep the original sample entry type in the `frma` box inside `sinf`,
+which also has the `schm` box and the `schi` box with `tenc`.
+The `pssh`, `senc`, `saiz` and `saio` boxes are supported as well.
 
-You can also run the tools as a job in [Eyevinn Open Source Cloud](https://app.osaas.io/browse/eyevinn-mp4ff?utm_source=github&utm_medium=readme&utm_campaign=mp4ff). Here is an example using the `mp4ff-crop` command and the Open Source Cloud CLI.
+## Using the library
 
-```bash
-% export OSC_ACCESS_TOKEN=<your-personal-access-token>
-% npx -y @osaas/cli@latest create eyevinn-mp4ff test \
-  -o awsAccessKeyId=<s3-access-key-id> \
-  -o awsSecretAccessKey=<s3-secret-key> \
-  -o s3EndpointUrl=https://eyevinnlab-birme.minio-minio.auto.prod.osaas.io \
-  -o cmdLineArgs="mp4ff-crop s3://input/VINN.mp4 s3://output/VINN-crop2.mp4"
-```
+Add the module to your project with
 
-The file VINN.mp4 on the bucket called "input" on the MinIO server at https://eyevinnlab-birme.minio-minio.auto.prod.osaas.io is processed and output uploaded to bucket "output" on the same MinIO server.
+    go get github.com/Eyevinn/mp4ff
 
-## Example code
-
-Example code for some common use cases is available in the [examples](examples) directory.
-The examples and their functions are:
-
-1. [initcreator](examples/initcreator) creates typical init segments (ftyp + moov) for different video and
-    audio codecs
-2. [resegmenter](examples/resegmenter) reads a segmented file (CMAF track) and resegments it with other
-    segment durations using `FullSample`
-3. [segmenter](examples/segmenter) takes a progressive mp4 file and creates init and media segments from it.
-    This tool has been extended to support generation of segments with multiple tracks as well
-    as reading and writing `mdat` in lazy mode
-4. [multitrack](examples/multitrack) parses a fragmented file with multiple tracks
-5. [combine-segs](examples/combine-segs) combines single-track init and media segments into multi-track segments
-6. [add-sidx](examples/add-sidx) adds a top-level sidx box describing the segments of a fragmented files.
-7. [ivf-to-mp4](examples/ivf-to-mp4) muxes an AV1, VP9 or VP8 IVF bitstream into a fragmented mp4 (one fragment per GOP)
-
-## Packages
-
-The top-level packages in the mp4ff module are
-
-1. [mp4](mp4) provides support for for parsing (called Decode) and writing (Encode) a plethor of mp4 boxes.
-   It also contains helper functions for extracting, encrypting, dectrypting samples and a lot more.
-2. [avc](avc) deals with AVC (aka H.264) video in the `mp4ff/avc` package including parsing of SPS and PPS,
-    and finding start-codes in Annex B byte streams.
-3. [hevc](hevc) provides structures and functions for dealing with HEVC video and its packaging.
-4. [vvc](vvc) provides structures and functions for dealing with VVC video and its packaging.
-5. [sei](sei) provides support for handling  Supplementary Enhancement Information (SEI) such as timestamps
-   for AVC and HEVC video.
-6. [av1](av1) provides support for AV1 video packaging, including OBU and sequence/frame-header
-   parsing, tile-range extraction and the av1C configuration record.
-7. [aac](aac) provides support for AAC audio. This includes handling ADTS headers which is common
-   for AAC inside MPEG-2 TS streams.
-8. [vp9](vp9) parses the VP9 uncompressed frame header (key-frame detection, color config and size).
-9. [vp8](vp8) parses the VP8 frame tag and key-frame header (key-frame detection and size).
-10. [ivf](ivf) reads and writes the IVF container used for raw VP8/VP9/AV1 bitstreams.
-11. [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
-12. [boxtree](boxtree) decodes the box tree of a file with the position of each box, and keeps going after
-    errors, reporting them for the smallest box that fails.
-
-## Structure and usage
-
-### mp4.File and its composition
-
-The top level structure for both non-fragmented and fragmented mp4 files is `mp4.File`.
-
-In a progressive (non-fragmented) `mp4.File`, the top-level attributes Ftyp, Moov, and Mdat point to the corresponding boxes.
-
-A fragmented `mp4.File` can be more or less complete, like a single init segment,
-one or more media segments, or a combination of both, like a CMAF track which renders
-into a playable one-track asset. It can also have multiple tracks.
-For fragmented files, the following high-level attributes are used:
-
-* `Init` contains a `ftyp` and a `moov` box and provides the general metadata for a fragmented file.
-   It corresponds to a CMAF header. It can also contain one or more `sidx` boxes, and keeps any boxes
-   between `ftyp` and `moov`, such as a C2PA manifest box.
-* `Segments` is a slice of `MediaSegment` which start with an optional `styp` box, possibly one or more `sidx`
-   boxes and then one or more`Fragment`s.
-* `Fragment` is a mp4 fragment with exactly one `moof` box followed by a `mdat` box where the latter
-   contains the media data. It can have one or more `trun` boxes containing the metadata
-   for the samples. Other top-level boxes before the `moof`, such as `emsg`, `prft`, `free` or a C2PA `uuid` box,
-   belong to the fragment and are listed with it in `Children`, and the `emsg` and `prft` boxes are also available as
-   `Emsgs` and `Prfts`. Boxes after the last `mdat` of a segment follow the `mdat` in the `Children` of its last
-   fragment. Boxes that this structure has no place for at their position, such as a box after the `mfra`, are
-   listed in `MisplacedBoxes`.
-
-It should be noted that it is sometimes hard to decide what should belong to a Segment or Fragment.
-
-All child boxes of container boxes such as `MoovBox` are listed in the `Children` attribute, but the
-most prominent child boxes have direct links with names which makes it possible to write a path such
-as
+and read, print and write a file like
 
 ```go
-fragment.Moof.Traf.Trun
-```
-
-to access the (only) `trun` box in a fragment with only one `traf` box, or
-
-```go
-fragment.Moof.Trafs[1].Trun[1]
-```
-
-to get the second `trun` of the second `traf` box (provided that they exist). Care must be
-taken to assert that none of the intermediate pointers are nil to avoid `panic`.
-
-### Creating new fragmented files
-
-A typical use case is to generate a fragmented file consisting of an init segment
-followed by a series of media segments.
-
-The first step is to create the init segment. This is done in three steps as can be seen in
-`examples/initcreator`:
-
-```go
-init := mp4.CreateEmptyInit()
-init.AddEmptyTrack(timescale, mediatype, language)
-init.Moov.Trak.SetHEVCDescriptor("hvc1", vpsNALUs, spsNALUs, ppsNALUs)
-```
-
-Here the third step fills in codec-specific parameters into the sample descriptor of the single track.
-Multiple tracks are also available via the slice attribute `Traks` instead of `Trak`.
-
-The second step is to start producing media segments. They should use the timescale that
-was set when creating the init segment. Generally, that timescale should be chosen so that the
-sample durations have exact values without rounding errors, e.g. 48000 for 48kHz audio.
-
-A media segment contains one or more fragments, where each fragment has a `moof` and a `mdat` box.
-If all samples are available before the segment is created, one can use a single
-fragment in each segment. Example code for this can be found in `examples/segmenter`.
-For low-latency MPEG-DASH generation, short-duration fragments are added to the segment as the
-corresponding media samples become available.
-
-A simple, but not optimal, way of creating a media segment is to first create a slice of `FullSample` with the data needed.
-The definition of `mp4.FullSample` is
-
-```go
-mp4.FullSample{
- Sample: mp4.Sample{
-  Flags uint32 // Flag sync sample etc
-  Dur   uint32 // Sample duration in mdhd timescale
-  Size  uint32 // Size of sample data
-  Cto   int32  // Signed composition time offset
- },
- DecodeTime uint64 // Absolute decode time (offset + accumulated sample Dur)
- Data       []byte // Sample data
+f, err := mp4.ReadMP4File("input.mp4")
+if err != nil {
+    log.Fatal(err)
+}
+if err := f.Info(os.Stdout, "", "", "  "); err != nil {
+    log.Fatal(err)
+}
+if err := mp4.WriteToFile(f, "output.mp4"); err != nil {
+    log.Fatal(err)
 }
 ```
 
-The `mp4.Sample` part is what will be written into the `trun` box.
-`DecodeTime` is the media timeline accumulated time.
-The `DecodeTime` value of the first sample of a fragment, will
-be set as the `BaseMediaDecodeTime` in the `tfdt` box.
+The guide to the library is the [documentation of the mp4 package](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4).
+It describes
 
-Once a number of such full samples are available, they can be added to a media segment like
+* [the structure of `mp4.File`](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4#hdr-Structure_and_usage)
+  for progressive and fragmented files
+* [how to create init and media segments](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4#hdr-Creating_new_fragmented_files)
+* [lazy decoding of `mdat`](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4#hdr-Lazy_decoding_and_writing_of_mdat_data)
+  for large files
+* [sample data in other files](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4#hdr-Sample_data_in_other_files)
+  referenced by the `dref` box
+* [faster I/O with `SliceReader` and `SliceWriter`](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4#hdr-More_efficient_I_O_using_SliceReader_and_SliceWriter)
+  and [writing files efficiently](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4#hdr-Writing_files_and_segments_efficiently).
+  The benchmarks are in [BENCHMARKS.md](BENCHMARKS.md).
+* [encoding modes and optimizations](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4#hdr-Encoding_modes_and_optimizations)
 
-```go
-seg := mp4.NewMediaSegment()
-frag := mp4.CreateFragment(uint32(segNr), mp4.DefaultTrakID)
-seg.AddFragment(frag)
-for _, sample := range samples {
- frag.AddFullSample(sample)
-}
-```
+Sample numbers in the APIs start at 1, as in the ISOBMFF standard.
 
-This segment can finally be output to a `w io.Writer` as
+### Packages
 
-```go
-err := seg.Encode(w)
-```
+The packages in the mp4ff module are
 
-or to a `sw bits.SliceWriter` as
+* [mp4](mp4) decodes (parses) and encodes (writes) a large number of MP4 boxes. It also has functions for
+  extracting, encrypting and decrypting samples, and a lot more.
+* [avc](avc) parses AVC (H.264) NAL unit headers, slice headers, SPS and PPS, and finds start codes
+  in Annex B byte streams.
+* [hevc](hevc) parses HEVC (H.265) NAL unit headers, slice headers, VPS, SPS and PPS, including MV-HEVC.
+* [vvc](vvc) parses VVC (H.266) NAL unit headers and the vvcC decoder configuration record.
+* [sei](sei) decodes and encodes Supplementary Enhancement Information (SEI) messages, such as timestamps,
+  for AVC and HEVC video.
+* [av1](av1) parses AV1 OBUs and the sequence and frame headers, extracts tile ranges and handles
+  the av1C configuration record.
+* [vp9](vp9) parses the VP9 uncompressed frame header (key-frame detection, color config and size).
+* [vp8](vp8) parses the VP8 frame tag and key-frame header (key-frame detection and size).
+* [aac](aac) decodes and encodes the AAC AudioSpecificConfig, including HE-AAC and xHE-AAC (USAC),
+  and ADTS headers, which are common for AAC in MPEG-2 TS streams.
+* [iamf](iamf) parses IAMF (Immersive Audio Model and Formats) OBUs and descriptors.
+* [ivf](ivf) reads and writes the IVF container used for raw VP8, VP9 and AV1 bitstreams.
+* [boxtree](boxtree) decodes the box tree of a file with the position of each box, and keeps going after
+  errors, reporting them for the smallest box that fails.
+* [bits](bits) provides bit-wise and byte-wise readers and writers used by the other packages.
 
-```go
-err := seg.EncodeSW(sw)
-```
+### Examples
 
-For multi-track segments, the code is a bit more involved. Please have a look at `examples/segmenter`
-to see how it is done. A more optimal way of handling media sample is
-to handle them lazily, or using intervals, as explained next.
+Example code for some common use cases is in the [examples](examples) directory:
 
-### Lazy decoding and writing of mdat data
-
-For video and audio, the dominating part of a mp4 file is the media data which is stored
-in one or more `mdat` boxes. In some cases, for example when segmenting large progressive
-files, it is much more memory efficient to just read the movie or fragment metadata
-from the `moov` or `moof` box and defer the reading of the media data from the `mdat` box
-to later.
-
-For decoding, this is supported by running `mp4.DecodeFile()` in lazy mode as
-
-```go
-parsedMp4, err = mp4.DecodeFile(ifd, mp4.WithDecodeMode(mp4.DecModeLazyMdat))
-```
-
-In this case, the media data of the `mdat` box will not be read, but only its size is being saved.
-To read or copy the actual data corresponding to a sample, one must calculate the
-corresponding byte range and either call
-
-```go
-func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error)
-```
-
-or
-
-```go
-func (m *MdatBox) CopyData(start, size int64, rs io.ReadSeeker, w io.Writer) (nrWritten int64, err error)
-```
-
-Example code for this, including lazy writing of `mdat`, can be found in `examples/segmenter`
-with the `lazy` mode set.
-
-### More efficient I/O using SliceReader and SliceWriter
-
-The use of the interfaces `io.Reader` and `io.Writer` for reading and writing boxes gives a lot of
-flexibility, but is not optimal when it comes to memory allocation. In particular, the
-`Read(p []byte)` method needs a slice `p` of the proper size to read data, which leads to a
-lot of allocations and copying of data.
-In order to achieve better performance, it is advantageous to read the full top level boxes into
-one, or a few, slices and decode these.
-
-To enable that mode, version 0.27 of the code introduced `Decode<X>SR(sr bits.SliceReader)`
-methods to every box `<X>` where `mp4ff.bits.SliceReader` is an interface.
-For example, the `TrunBox` gets the method `DecodeTrunSR(sr bits.SliceReader)` in addition to its old
-`DecodeTrun(r io.Reader)` method. The `bits.SliceReader` interface provides methods to read all kinds
-of data structures from an underlying slice of bytes. It has an implementation `bits.FixedSliceReader`
-which uses a fixed-size slice as underlying slice, but one could consider implementing a growing version
-which would get its data from some external source.
-
-The memory allocation and speed improvements achieved by this may vary, but should be substantial,
-especially compared to versions before 0.27 which used an extra `io.LimitReader` layer.
-
-For further reduction of memory allocation, use a buffered top-level reader, especially when
-reading the `mdat` box of a progressive file.
-
-#### Benchmarks
-
-The benchmarks for decoding and encoding, with and without `SliceReader` and `SliceWriter`, and for other hot paths
-such as fragment encryption, are listed with how to run them and their results in [BENCHMARKS.md](BENCHMARKS.md).
-
-## More about mp4 boxes
-
-The `mp4ff.mp4` contains a lot of box implementations.
-
-### Box structure and interface
-
-Most boxes have their own file named after the box, but in some cases, there may be multiple boxes
-that have the same content, and the code file then has a generic name like
-`mp4/visualsampleentry.go`.
-
-There is an interface for boxes: `Box` specified in `mp4.box.go`,
-
-The interfaces define common Box methods including encode (writing),
-but not the decode (parsing) methods which have distinct names for each box type and are
-dispatched from the parsed box name.
-
-That dispatch based on box name is defined by the tables `mp4.decodersSR` and `mp4.decoders`
-for the functions `mp4.DecodeBoxSR()` and `mp4.DecodeBox()`, respectively.
-The `SR` variant should normally be used for better performance.
-If a box name is unknown, it will result in an `UnknownBox` being created.
-
-### How to implement a new box
-
-To implement a new box `fooo`, the following is needed.
-
-Create a file `fooo.go` and create a struct type `FoooBox`.
-
-`FoooBox` must implement the Box interface methods:
-
-```go
-Type()
-Size()
-Encode(w io.Writer)
-EncodeSW(sw bits.SliceWriter)
-Info()
-```
-
-It also needs its own decode methods `DecodeFoooSR` and  `DecodeFooo`,
-which must be added in the `decodersSR` map and `decoders` map, respectively
-For a simple example, look at the `PrftBox` in `prft.go`.
-
-A test file `fooo_test.go` should also have a test using the method `boxDiffAfterEncodeAndDecode`
-to check that the box information is equal after encoding and decoding.
-
-## Direct changes of attributes
-
-Many attributes are public and can therefore be changed in freely.
-The advantage of this is that it is possible to write code that can manipulate boxes
-in many different ways, but one must be cautious to avoid breaking links to sub boxes or
-create inconsistent states in the boxes.
-
-As an example, container boxes such as `TrafBox` have a method `AddChild` which
-adds a box to `Children`, its slice of children boxes, but also sets a specific
-member reference such as `Tfdt` to point to that box. If `Children` is manipulated
-directly, that link may no longer be valid.
-
-## Encoding modes and optimizations
-
-For fragmented files, one can choose to either encode all boxes in a `mp4.File`, or only code
-the ones which are included in the init and media segments. The attribute that controls that
-is called `FragEncMode`.
-Another attribute `EncOptimize` controls possible optimizations of the file encoding process.
-Currently, there is only one possible optimization called `OptimizeTrun`.
-It can reduce the size of the `TrunBox` by finding and writing default
-values in the `TfhdBox` and omitting the corresponding values from the `TrunBox`.
-Note that this may change the size of all ancestor boxes of `trun`.
-
-## Sample Number Offset
-
-Following the ISOBMFF standard, sample numbers and other numbers start at 1 (one-based).
-This applies to arguments of functions and methods.
-The actual storage in slices is zero-based, so sample nr 1 has index 0 in the corresponding slice.
+* [initcreator](examples/initcreator) creates typical init segments (ftyp + moov) for different video and
+  audio codecs
+* [resegmenter](examples/resegmenter) reads a segmented file (CMAF track) and resegments it with other
+  segment durations using `FullSample`
+* [segmenter](examples/segmenter) takes a progressive mp4 file and creates init and media segments from it,
+  with one or more tracks, and can read and write `mdat` in lazy mode
+* [multitrack](examples/multitrack) parses a fragmented file with multiple tracks
+* [combine-segs](examples/combine-segs) combines single-track init and media segments into multi-track segments
+* [add-sidx](examples/add-sidx) adds a top-level sidx box describing the segments of a fragmented file
+* [ivf-to-mp4](examples/ivf-to-mp4) muxes an AV1, VP9 or VP8 IVF bitstream into a fragmented mp4
+  (one fragment per GOP)
+* [stream-encrypt](examples/stream-encrypt) is an HTTP server that encrypts and refragments an mp4 file
+  on the fly
 
 ## Contributing
 
-When contributing to this project, please ensure that commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/) specification. This helps maintain a consistent and readable commit history.
-
-Examples of conventional commit messages:
-- `feat: add support for VVC video codec`
-- `fix: resolve memory leak in fragment processing`
-- `docs: update API documentation for mp4.File`
-- `chore: update dependencies to latest versions`
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up the pre-commit hooks,
+the commit message format and how to add a new box.
 
 ## Stability
 
@@ -427,17 +176,16 @@ The APIs should be fairly stable, but minor non-backwards-compatible changes may
 ## Specifications
 
 The main specification for the MP4 file format is the ISO Base Media File Format (ISOBMFF) standard
-ISO/IEC 14496-12 7th edition 2021. Some boxes are specified in other standards, as should be commented
-in the code.
+ISO/IEC 14496-12:2026 (8th edition). Boxes specified in other standards say so in their code comments.
 
-## LICENSE
+## License
 
 MIT, see [LICENSE](LICENSE).
 
-Some code in pkg/mp4, comes from or is based on <https://github.com/jfbus/mp4> which has
+Some code in the mp4 package comes from or is based on <https://github.com/jfbus/mp4> which has
 `Copyright (c) 2015 Jean-François Bustarret`.
 
-Some code in pkg/bits comes from or is based on <https://github.com/tcnksm/go-casper/tree/master/internal/bits>
+Some code in the bits package comes from or is based on <https://github.com/tcnksm/go-casper/tree/master/internal/bits>
 `Copyright (c) 2017 Taichi Nakashima`.
 
 ## ChangeLog and Versions

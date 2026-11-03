@@ -1,3 +1,4 @@
+// Package iamf parses IAMF (Immersive Audio Model and Formats) OBUs and descriptors.
 package iamf
 
 import (

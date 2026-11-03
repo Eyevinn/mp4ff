@@ -1,3 +1,4 @@
+// Package vvc parses VVC (H.266) NAL unit headers and the VVC decoder configuration record (vvcC).
 package vvc
 
 import (
