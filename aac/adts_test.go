@@ -3,6 +3,7 @@ package aac
 import (
 	"bytes"
 	"encoding/hex"
+	"strconv"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -52,6 +53,40 @@ func TestADTS(t *testing.T) {
 		if diff := deep.Equal(gotHdr, tc.wantedHdr); diff != nil {
 			t.Error(diff)
 		}
+	}
+}
+
+func TestNewADTSHeaderPayloadLength(t *testing.T) {
+	for frequency := range ReverseFrequencies {
+		t.Run(strconv.Itoa(frequency), func(t *testing.T) {
+			for payload := 0; payload < 1<<16; payload++ {
+				hdr, err := NewADTSHeader(frequency, 2, AAClc, uint16(payload))
+				if payload+7 > 0x1fff {
+					if err == nil || hdr != nil {
+						t.Fatalf("payload %d: got header %v, error %v; want nil header and an error", payload, hdr, err)
+					}
+					continue
+				}
+				if err != nil || hdr == nil {
+					t.Fatalf("payload %d: got header %v, error %v; want a header", payload, hdr, err)
+				}
+				encoded := hdr.Encode()
+				if len(encoded) != 7 {
+					t.Fatalf("payload %d: got header length %d, want 7", payload, len(encoded))
+				}
+				frameLength := int(encoded[3]&3)<<11 | int(encoded[4])<<3 | int(encoded[5]>>5)
+				if frameLength != payload+7 {
+					t.Fatalf("payload %d: got frame length %d, want %d", payload, frameLength, payload+7)
+				}
+				decoded, offset, err := DecodeADTSHeader(bytes.NewReader(encoded))
+				if err != nil {
+					t.Fatalf("payload %d: %v", payload, err)
+				}
+				if offset != 0 || *decoded != *hdr || int(decoded.PayloadLength) != payload {
+					t.Fatalf("payload %d: got header %+v at offset %d, want %+v at offset 0", payload, decoded, offset, hdr)
+				}
+			}
+		})
 	}
 }
 
