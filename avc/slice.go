@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math"
+	mathbits "math/bits"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -167,7 +167,11 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 	}
 	nalRefIDC := (nalHdr >> 5) & 0x3
 	sh.FirstMBInSlice = uint32(r.ReadExpGolomb())
-	sh.SliceType = SliceType(r.ReadExpGolomb())
+	sliceTypeValue := r.ReadExpGolomb()
+	if !checkMax(r, "slice_type", sliceTypeValue, 9) {
+		return r.AccError()
+	}
+	sh.SliceType = SliceType(sliceTypeValue)
 	sh.PicParamID = uint32(r.ReadExpGolomb())
 	pps, ok := ppsMap[sh.PicParamID]
 	if !ok {
@@ -285,10 +289,18 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 
 	if pps.WeightedPredFlag && (sliceType == SLICE_P || sliceType == SLICE_SP) ||
 		(pps.WeightedBipredIDC == 1 && sliceType == SLICE_B) {
-		// pred_weight_table, section 7.3.3.2
-		sh.LumaLog2WeightDenom = uint32(r.ReadExpGolomb())
+		// pred_weight_table, section 7.3.3.2. Both denominators shall be in the range 0 to 7 (7.4.3.2).
+		lumaLog2WeightDenom := r.ReadExpGolomb()
+		if !checkMax(r, "luma_log2_weight_denom", lumaLog2WeightDenom, 7) {
+			return r.AccError()
+		}
+		sh.LumaLog2WeightDenom = uint32(lumaLog2WeightDenom)
 		if sps.ChromaArrayType() != 0 { // chroma_idc != 0 in Bento4
-			sh.ChromaLog2WeightDenom = uint32(r.ReadExpGolomb())
+			chromaLog2WeightDenom := r.ReadExpGolomb()
+			if !checkMax(r, "chroma_log2_weight_denom", chromaLog2WeightDenom, 7) {
+				return r.AccError()
+			}
+			sh.ChromaLog2WeightDenom = uint32(chromaLog2WeightDenom)
 		}
 
 		for i := uint32(0); i <= sh.NumRefIdxL0ActiveMinus1; i++ {
@@ -366,7 +378,11 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 		// end dec_ref_pic_marking
 	}
 	if pps.EntropyCodingModeFlag && sliceType != SLICE_I && sliceType != SLICE_SI {
-		sh.CabacInitIDC = uint32(r.ReadExpGolomb())
+		cabacInitIDC := r.ReadExpGolomb()
+		if !checkMax(r, "cabac_init_idc", cabacInitIDC, 2) {
+			return r.AccError()
+		}
+		sh.CabacInitIDC = uint32(cabacInitIDC)
 	}
 	sliceQPDelta := r.ReadSignedGolomb()
 	// SliceQPY = 26 + pic_init_qp_minus26 + slice_qp_delta must be in the range
@@ -380,7 +396,12 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 		if sliceType == SLICE_SP {
 			sh.SPForSwitchFlag = r.ReadFlag()
 		}
-		sh.SliceQSDelta = int32(r.ReadSignedGolomb())
+		sliceQSDelta := r.ReadSignedGolomb()
+		// QSY = 26 + pic_init_qs_minus26 + slice_qs_delta must be in the range 0 to 51 (7.4.3)
+		if !checkRange(r, "QSY", 26+pps.PicInitQsMinus26+sliceQSDelta, 0, 51) {
+			return r.AccError()
+		}
+		sh.SliceQSDelta = int32(sliceQSDelta)
 	}
 	if pps.DeblockingFilterControlPresentFlag {
 		// disable_deblocking_filter_idc must be in the range 0 to 2, and the
@@ -406,10 +427,9 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 	if pps.NumSliceGroupsMinus1 > 0 &&
 		pps.SliceGroupMapType >= 3 &&
 		pps.SliceGroupMapType <= 5 {
-		picSizeInMapUnits := pps.PicSizeInMapUnitsMinus1 + 1
-		sliceGroupChangeRate := pps.SliceGroupChangeRateMinus1 + 1
-		nrBits := int(math.Ceil(math.Log2(float64(picSizeInMapUnits/sliceGroupChangeRate + 1))))
-		sh.SliceGroupChangeCycle = uint32(r.Read(nrBits))
+		if err := readSliceGroupChangeCycle(r, sh, sps, pps); err != nil {
+			return err
+		}
 	}
 	// A NAL unit that ends inside the slice header is an error, not a header
 	// whose remaining fields are zero.
@@ -420,4 +440,30 @@ func parseSliceHeader(sh *SliceHeader, nalu []byte, spsMap map[uint32]*SPS, ppsM
 	// compute the size in bytes. The last byte may not be fully parsed
 	sh.Size = uint32(r.NrBytesRead())
 	return nil
+}
+
+// readSliceGroupChangeCycle reads slice_group_change_cycle into sh. Its number of bits is
+// Ceil(Log2(PicSizeInMapUnits ÷ SliceGroupChangeRate + 1)), with an exact division, which equals
+// Ceil(Log2(Ceil(PicSizeInMapUnits ÷ SliceGroupChangeRate) + 1)), and its maximum value is
+// Ceil(PicSizeInMapUnits ÷ SliceGroupChangeRate) (7.4.3).
+func readSliceGroupChangeCycle(r *bits.EBSPReader, sh *SliceHeader, sps *SPS, pps *PPS) error {
+	// PicSizeInMapUnits = PicWidthInMbs * PicHeightInMapUnits (7.4.2.1.1) may not fit in a 32-bit uint.
+	picSizeInMapUnits := uint64(sps.PicWidthInMbsMinus1+1) * uint64(sps.PicHeightInMapUnitsMinus1+1)
+	// slice_group_change_rate_minus1 shall be in the range 0 to PicSizeInMapUnits - 1 (7.4.2.2).
+	if uint64(pps.SliceGroupChangeRateMinus1) >= picSizeInMapUnits {
+		return fmt.Errorf("slice_group_change_rate_minus1 %d out of range [0, %d]",
+			pps.SliceGroupChangeRateMinus1, picSizeInMapUnits-1)
+	}
+	sliceGroupChangeRate := uint64(pps.SliceGroupChangeRateMinus1) + 1
+	maxCycle := (picSizeInMapUnits + sliceGroupChangeRate - 1) / sliceGroupChangeRate
+	nrBits := mathbits.Len64(maxCycle) // Ceil(Log2(maxCycle + 1))
+	if nrBits > 32 {
+		return fmt.Errorf("slice_group_change_cycle of %d bits is longer than 32 bits", nrBits)
+	}
+	sliceGroupChangeCycle := r.Read(nrBits)
+	if r.AccError() == nil && uint64(sliceGroupChangeCycle) > maxCycle {
+		r.SetError(fmt.Errorf("slice_group_change_cycle %d out of range [0, %d]", sliceGroupChangeCycle, maxCycle))
+	}
+	sh.SliceGroupChangeCycle = uint32(sliceGroupChangeCycle)
+	return r.AccError()
 }

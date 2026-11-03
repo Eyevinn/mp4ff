@@ -21,6 +21,8 @@ SPS 1 len 25B: 6764001eacd940a02ff9610000030001000003003c8f162d96
   "RefFramesInPicOrderCntCycle": null,
   "NumRefFrames": 4,
   "GapsInFrameNumValueAllowedFlag": false,
+  "PicWidthInMbsMinus1": 39,
+  "PicHeightInMapUnitsMinus1": 22,
   "FrameMbsOnlyFlag": true,
   "MbAdaptiveFrameFieldFlag": false,
   "Direct8x8InferenceFlag": true,

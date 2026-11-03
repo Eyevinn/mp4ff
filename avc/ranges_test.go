@@ -3,16 +3,18 @@ package avc
 import (
 	"bytes"
 	"math"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Eyevinn/mp4ff/bits"
+	"github.com/go-test/deep"
 )
 
 // spsFields are the SPS syntax elements varied by the range tests. The SPS is
-// High profile with pic_order_cnt_type 0, frame_mbs_only_flag 1, no scaling
-// matrix and no VUI.
+// High profile with frame_mbs_only_flag 1, and has no scaling matrix and no VUI
+// unless the fields ask for them.
 type spsFields struct {
 	seqParameterSetID         uint
 	chromaFormatIDC           uint
@@ -24,6 +26,8 @@ type spsFields struct {
 	picHeightInMapUnitsMinus1 uint
 	crop                      []uint // left, right, top, bottom offsets, if cropping
 	nalHrdCpbCntMinus1        *uint  // cpb_cnt_minus1 of a VUI with NAL HRD parameters, if set
+	scalingList0Deltas        []int  // delta_scale values of the first scaling list, if a scaling matrix
+	picOrderCntType           uint
 }
 
 func defaultSPSFields() spsFields {
@@ -46,10 +50,19 @@ func writeSPS(t *testing.T, f spsFields) []byte {
 	w.WriteExpGolomb(f.bitDepthLumaMinus8)
 	w.WriteExpGolomb(f.bitDepthChromaMinus8)
 	w.Write(0, 1) // qpprime_y_zero_transform_bypass_flag
-	w.Write(0, 1) // seq_scaling_matrix_present_flag
+	if f.scalingList0Deltas != nil {
+		w.Write(1, 1) // seq_scaling_matrix_present_flag
+		w.Write(1, 1) // seq_scaling_list_present_flag[0]
+		writeScalingList(w, f.scalingList0Deltas, 16)
+		w.Write(0, 7) // seq_scaling_list_present_flag[1..7]
+	} else {
+		w.Write(0, 1) // seq_scaling_matrix_present_flag
+	}
 	w.WriteExpGolomb(f.log2MaxFrameNumMinus4)
-	w.WriteExpGolomb(0) // pic_order_cnt_type
-	w.WriteExpGolomb(f.log2MaxPocLsbMinus4)
+	w.WriteExpGolomb(f.picOrderCntType)
+	if f.picOrderCntType == 0 {
+		w.WriteExpGolomb(f.log2MaxPocLsbMinus4)
+	}
 	w.WriteExpGolomb(1) // max_num_ref_frames
 	w.Write(0, 1)       // gaps_in_frame_num_value_allowed_flag
 	w.WriteExpGolomb(f.picWidthInMbsMinus1)
@@ -96,17 +109,22 @@ func writeSPS(t *testing.T, f spsFields) []byte {
 	return buf.Bytes()
 }
 
-// ppsFields are the PPS syntax elements varied by the range tests. The PPS uses
-// CAVLC and has deblocking_filter_control_present_flag set.
+// ppsFields are the PPS syntax elements varied by the range tests. The PPS has
+// deblocking_filter_control_present_flag set.
 type ppsFields struct {
 	seqParameterSetID              uint
+	entropyCodingModeFlag          bool
+	numSliceGroupsMinus1           uint
+	sliceGroups                    func(w *bits.EBSPWriter) // writes slice_group_map_type and its parameters
 	numRefIdxL0DefaultActiveMinus1 uint
 	numRefIdxL1DefaultActiveMinus1 uint
 	weightedPredFlag               bool
+	weightedBipredIDC              uint
 	picInitQpMinus26               int
 	picInitQsMinus26               int
 	chromaQpIndexOffset            int
-	secondChromaQpIndexOffset      *int // written with the High profile extension if set
+	secondChromaQpIndexOffset      *int  // written with the High profile extension if set
+	scalingList0Deltas             []int // delta_scale values of the first 4x4 list of a scaling matrix in the extension
 }
 
 func writePPS(t *testing.T, f ppsFields) []byte {
@@ -116,9 +134,16 @@ func writePPS(t *testing.T, f ppsFields) []byte {
 	w.Write(0x68, 8)    // NAL header: nal_ref_idc=3, nal_unit_type=8 (PPS)
 	w.WriteExpGolomb(0) // pic_parameter_set_id
 	w.WriteExpGolomb(f.seqParameterSetID)
-	w.Write(0, 1)       // entropy_coding_mode_flag
-	w.Write(0, 1)       // bottom_field_pic_order_in_frame_present_flag
-	w.WriteExpGolomb(0) // num_slice_groups_minus1
+	if f.entropyCodingModeFlag {
+		w.Write(1, 1)
+	} else {
+		w.Write(0, 1)
+	}
+	w.Write(0, 1) // bottom_field_pic_order_in_frame_present_flag
+	w.WriteExpGolomb(f.numSliceGroupsMinus1)
+	if f.numSliceGroupsMinus1 > 0 {
+		f.sliceGroups(w)
+	}
 	w.WriteExpGolomb(f.numRefIdxL0DefaultActiveMinus1)
 	w.WriteExpGolomb(f.numRefIdxL1DefaultActiveMinus1)
 	if f.weightedPredFlag {
@@ -126,23 +151,53 @@ func writePPS(t *testing.T, f ppsFields) []byte {
 	} else {
 		w.Write(0, 1)
 	}
-	w.Write(0, 2) // weighted_bipred_idc
+	w.Write(f.weightedBipredIDC, 2)
 	writeSignedGolomb(w, f.picInitQpMinus26)
 	writeSignedGolomb(w, f.picInitQsMinus26)
 	writeSignedGolomb(w, f.chromaQpIndexOffset)
 	w.Write(1, 1) // deblocking_filter_control_present_flag
 	w.Write(0, 1) // constrained_intra_pred_flag
 	w.Write(0, 1) // redundant_pic_cnt_present_flag
-	if f.secondChromaQpIndexOffset != nil {
+	if f.secondChromaQpIndexOffset != nil || f.scalingList0Deltas != nil {
 		w.Write(0, 1) // transform_8x8_mode_flag
-		w.Write(0, 1) // pic_scaling_matrix_present_flag
-		writeSignedGolomb(w, *f.secondChromaQpIndexOffset)
+		if f.scalingList0Deltas != nil {
+			w.Write(1, 1) // pic_scaling_matrix_present_flag
+			w.Write(1, 1) // pic_scaling_list_present_flag[0]
+			writeScalingList(w, f.scalingList0Deltas, 16)
+			w.Write(0, 5) // pic_scaling_list_present_flag[1..5]
+		} else {
+			w.Write(0, 1) // pic_scaling_matrix_present_flag
+		}
+		secondChromaQpIndexOffset := 0
+		if f.secondChromaQpIndexOffset != nil {
+			secondChromaQpIndexOffset = *f.secondChromaQpIndexOffset
+		}
+		writeSignedGolomb(w, secondChromaQpIndexOffset)
 	}
 	w.WriteRbspTrailingBits()
 	if w.AccError() != nil {
 		t.Fatal(w.AccError())
 	}
 	return buf.Bytes()
+}
+
+// writeScalingList writes the delta_scale values of a scaling_list() of size entries,
+// followed by zero deltas, as many as the parser reads.
+func writeScalingList(w *bits.EBSPWriter, deltas []int, size int) {
+	lastScale, nextScale := 8, 8
+	for j := 0; j < size; j++ {
+		if nextScale != 0 {
+			delta := 0
+			if j < len(deltas) {
+				delta = deltas[j]
+			}
+			writeSignedGolomb(w, delta)
+			nextScale = (lastScale + delta + 256) % 256
+		}
+		if nextScale != 0 {
+			lastScale = nextScale
+		}
+	}
 }
 
 // paramSetMaps parses an SPS and a PPS into maps for ParseSliceHeader.
@@ -272,6 +327,8 @@ func TestSPSParserRanges(t *testing.T) {
 		{"log2_max_frame_num_minus4 13", func(f *spsFields) { f.log2MaxFrameNumMinus4 = 13 }, "log2_max_frame_num_minus4"},
 		{"log2_max_pic_order_cnt_lsb_minus4 13", func(f *spsFields) { f.log2MaxPocLsbMinus4 = 13 },
 			"log2_max_pic_order_cnt_lsb_minus4"},
+		{"pic_order_cnt_type 2", func(f *spsFields) { f.picOrderCntType = 2 }, ""},
+		{"pic_order_cnt_type 3", func(f *spsFields) { f.picOrderCntType = 3 }, "pic_order_cnt_type"},
 		{"width at MaxFS", func(f *spsFields) { f.picWidthInMbsMinus1 = maxFrameSizeInMbs - 1 }, ""},
 		{"width above MaxFS", func(f *spsFields) { f.picWidthInMbsMinus1 = maxFrameSizeInMbs }, "pic_width_in_mbs_minus1"},
 		{"height above MaxFS", func(f *spsFields) { f.picHeightInMapUnitsMinus1 = maxFrameSizeInMbs },
@@ -349,6 +406,8 @@ func TestPPSParserRanges(t *testing.T) {
 		{"chroma_qp_index_offset -13", func(f *ppsFields) { f.chromaQpIndexOffset = -13 }, "chroma_qp_index_offset"},
 		{"second_chroma_qp_index_offset 13", func(f *ppsFields) { f.secondChromaQpIndexOffset = intPtr(13) },
 			"second_chroma_qp_index_offset"},
+		{"weighted_bipred_idc 2", func(f *ppsFields) { f.weightedBipredIDC = 2 }, ""},
+		{"weighted_bipred_idc 3", func(f *ppsFields) { f.weightedBipredIDC = 3 }, "weighted_bipred_idc"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -498,5 +557,323 @@ func TestParseSliceHeaderTruncated(t *testing.T) {
 		if err == nil {
 			t.Errorf("%d of %d bytes: expected an error, got header %+v", n, len(nalu), sh)
 		}
+	}
+}
+
+// sliceFields are the slice header syntax elements varied by the range tests.
+type sliceFields struct {
+	sliceType                 uint
+	cabacInitIDC              uint // written for CABAC slices other than I and SI
+	lumaLog2WeightDenom       uint // written with a pred_weight_table
+	chromaLog2WeightDenom     uint // written with a pred_weight_table
+	sliceQSDelta              int  // written for SP and SI slices
+	sliceGroupChangeCycle     uint // written in sliceGroupChangeCycleBits bits, if not 0
+	sliceGroupChangeCycleBits int
+}
+
+// writeSlice writes a non-IDR slice NAL unit with nal_ref_idc 2 for an SPS from writeSPS with
+// pic_order_cnt_type 0 and a PPS from writePPS with the fields pf, followed by one byte of slice data.
+func writeSlice(t *testing.T, pf ppsFields, f sliceFields) []byte {
+	t.Helper()
+	buf := bytes.Buffer{}
+	w := bits.NewEBSPWriter(&buf)
+	sliceType := SliceType(f.sliceType % 5)
+	w.Write(0x41, 8)    // NAL header: nal_ref_idc=2, nal_unit_type=1 (non-IDR)
+	w.WriteExpGolomb(0) // first_mb_in_slice
+	w.WriteExpGolomb(f.sliceType)
+	w.WriteExpGolomb(0) // pic_parameter_set_id
+	w.Write(1, 4)       // frame_num
+	w.Write(2, 4)       // pic_order_cnt_lsb
+	if sliceType == SLICE_B {
+		w.Write(1, 1) // direct_spatial_mv_pred_flag
+	}
+	if sliceType == SLICE_P || sliceType == SLICE_SP || sliceType == SLICE_B {
+		w.Write(0, 1) // num_ref_idx_active_override_flag
+	}
+	if sliceType != SLICE_I && sliceType != SLICE_SI {
+		w.Write(0, 1) // ref_pic_list_modification_flag_l0
+	}
+	if sliceType == SLICE_B {
+		w.Write(0, 1) // ref_pic_list_modification_flag_l1
+	}
+	if pf.weightedPredFlag && (sliceType == SLICE_P || sliceType == SLICE_SP) ||
+		pf.weightedBipredIDC == 1 && sliceType == SLICE_B {
+		w.WriteExpGolomb(f.lumaLog2WeightDenom)
+		w.WriteExpGolomb(f.chromaLog2WeightDenom)
+		w.Write(0, 2) // luma_weight_l0_flag[0], chroma_weight_l0_flag[0]
+		if sliceType == SLICE_B {
+			w.Write(0, 2) // luma_weight_l1_flag[0], chroma_weight_l1_flag[0]
+		}
+	}
+	w.Write(0, 1) // adaptive_ref_pic_marking_mode_flag
+	if pf.entropyCodingModeFlag && sliceType != SLICE_I && sliceType != SLICE_SI {
+		w.WriteExpGolomb(f.cabacInitIDC)
+	}
+	writeSignedGolomb(w, 0) // slice_qp_delta
+	if sliceType == SLICE_SP {
+		w.Write(0, 1) // sp_for_switch_flag
+	}
+	if sliceType == SLICE_SP || sliceType == SLICE_SI {
+		writeSignedGolomb(w, f.sliceQSDelta)
+	}
+	w.WriteExpGolomb(1) // disable_deblocking_filter_idc
+	if f.sliceGroupChangeCycleBits > 0 {
+		w.Write(f.sliceGroupChangeCycle, f.sliceGroupChangeCycleBits)
+	}
+	w.Write(0xff, 8) // slice data
+	w.WriteRbspTrailingBits()
+	if w.AccError() != nil {
+		t.Fatal(w.AccError())
+	}
+	return buf.Bytes()
+}
+
+// TestParseSliceHeaderRanges verifies that slice_type (7.4.3), cabac_init_idc (7.4.3) and the
+// pred_weight_table denominators (7.4.3.2) are rejected outside their ranges.
+func TestParseSliceHeaderRanges(t *testing.T) {
+	cases := []struct {
+		name    string
+		pf      ppsFields
+		f       sliceFields
+		wantErr string
+	}{
+		{"slice_type 9", ppsFields{}, sliceFields{sliceType: 9}, ""},
+		{"slice_type 10", ppsFields{}, sliceFields{sliceType: 10}, "slice_type"},
+		{"cabac_init_idc 2", ppsFields{entropyCodingModeFlag: true}, sliceFields{cabacInitIDC: 2}, ""},
+		{"cabac_init_idc 3", ppsFields{entropyCodingModeFlag: true}, sliceFields{cabacInitIDC: 3}, "cabac_init_idc"},
+		{"weight denominators 7", ppsFields{weightedPredFlag: true},
+			sliceFields{lumaLog2WeightDenom: 7, chromaLog2WeightDenom: 7}, ""},
+		{"luma_log2_weight_denom 8", ppsFields{weightedPredFlag: true}, sliceFields{lumaLog2WeightDenom: 8},
+			"luma_log2_weight_denom"},
+		{"chroma_log2_weight_denom 8", ppsFields{weightedPredFlag: true}, sliceFields{chromaLog2WeightDenom: 8},
+			"chroma_log2_weight_denom"},
+		{"B slice chroma_log2_weight_denom 8", ppsFields{weightedBipredIDC: 1},
+			sliceFields{sliceType: 1, chromaLog2WeightDenom: 8}, "chroma_log2_weight_denom"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			spsMap, ppsMap := paramSetMaps(t, defaultSPSFields(), c.pf)
+			sh, err := ParseSliceHeader(writeSlice(t, c.pf, c.f), spsMap, ppsMap)
+			checkErr(t, err, c.wantErr)
+			if c.wantErr != "" || err != nil {
+				return
+			}
+			got := sliceFields{sliceType: uint(sh.SliceType), cabacInitIDC: uint(sh.CabacInitIDC),
+				lumaLog2WeightDenom: uint(sh.LumaLog2WeightDenom), chromaLog2WeightDenom: uint(sh.ChromaLog2WeightDenom)}
+			if got != c.f {
+				t.Errorf("got %+v, want %+v", got, c.f)
+			}
+		})
+	}
+}
+
+// TestParseSliceHeaderSliceQSY verifies that slice_qs_delta is limited so that
+// QSY = 26 + pic_init_qs_minus26 + slice_qs_delta is in the range 0 to 51 (7.4.3).
+func TestParseSliceHeaderSliceQSY(t *testing.T) {
+	cases := []struct {
+		name             string
+		sliceType        uint
+		picInitQsMinus26 int
+		sliceQSDelta     int
+		wantErr          string
+	}{
+		{"SP QS 0", 3, 0, -26, ""},
+		{"SP QS -1", 3, 0, -27, "QSY"},
+		{"SP QS 51", 8, 0, 25, ""},
+		{"SP QS 52", 8, 0, 26, "QSY"},
+		{"SI QS 51 from pic_init_qs_minus26", 4, 25, 0, ""},
+		{"SI QS 52", 9, 25, 1, "QSY"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pf := ppsFields{picInitQsMinus26: c.picInitQsMinus26}
+			spsMap, ppsMap := paramSetMaps(t, defaultSPSFields(), pf)
+			nalu := writeSlice(t, pf, sliceFields{sliceType: c.sliceType, sliceQSDelta: c.sliceQSDelta})
+			sh, err := ParseSliceHeader(nalu, spsMap, ppsMap)
+			checkErr(t, err, c.wantErr)
+			if c.wantErr == "" && err == nil && int(sh.SliceQSDelta) != c.sliceQSDelta {
+				t.Errorf("got slice_qs_delta %d, want %d", sh.SliceQSDelta, c.sliceQSDelta)
+			}
+		})
+	}
+}
+
+// TestParseSliceHeaderSliceGroupChangeCycle verifies the length and range of
+// slice_group_change_cycle for slice group map types 3 to 5 (7.4.3) in a 176x144 picture,
+// which has 99 map units, and that slice_group_change_rate_minus1 must be less than 99 (7.4.2.2).
+func TestParseSliceHeaderSliceGroupChangeCycle(t *testing.T) {
+	cases := []struct {
+		name             string
+		mapType          uint
+		changeRateMinus1 uint
+		cycle            uint
+		nrBits           int
+		wantErr          string
+	}{
+		{"rate 1 cycle 0", 3, 0, 0, 7, ""},
+		{"rate 1 cycle 99", 3, 0, 99, 7, ""}, // Ceil(Log2(99 + 1)) = 7 bits
+		{"rate 1 cycle 100", 3, 0, 100, 7, "slice_group_change_cycle"},
+		{"rate 13 cycle 8", 4, 12, 8, 4, ""}, // Ceil(Log2(99 ÷ 13 + 1)) = Ceil(Log2(8.6)) = 4 bits
+		{"rate 13 cycle 9", 4, 12, 9, 4, "slice_group_change_cycle"},
+		{"rate 99 cycle 1", 5, 98, 1, 1, ""}, // Ceil(Log2(99 ÷ 99 + 1)) = 1 bit
+		{"rate 100", 5, 99, 0, 1, "slice_group_change_rate_minus1"},
+		{"rate 2^32-1", 3, math.MaxUint32 - 1, 0, 1, "slice_group_change_rate_minus1"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			sf := defaultSPSFields()
+			sf.picWidthInMbsMinus1 = 10
+			sf.picHeightInMapUnitsMinus1 = 8
+			pf := ppsFields{numSliceGroupsMinus1: 1, sliceGroups: func(w *bits.EBSPWriter) {
+				w.WriteExpGolomb(c.mapType)
+				w.Write(1, 1) // slice_group_change_direction_flag
+				w.WriteExpGolomb(c.changeRateMinus1)
+			}}
+			spsMap, ppsMap := paramSetMaps(t, sf, pf)
+			nalu := writeSlice(t, pf, sliceFields{sliceType: 7, sliceGroupChangeCycle: c.cycle,
+				sliceGroupChangeCycleBits: c.nrBits})
+			sh, err := ParseSliceHeader(nalu, spsMap, ppsMap)
+			checkErr(t, err, c.wantErr)
+			if c.wantErr == "" && err == nil && uint(sh.SliceGroupChangeCycle) != c.cycle {
+				t.Errorf("got slice_group_change_cycle %d, want %d", sh.SliceGroupChangeCycle, c.cycle)
+			}
+		})
+	}
+}
+
+// TestPPSParserSliceGroups verifies the slice group syntax of the PPS (7.3.2.2). Map type 2 has
+// a rectangle for every slice group but the last, which is the background, and map type 6 has
+// pic_size_in_map_units_minus1 followed by one slice_group_id per map unit. The
+// chroma_qp_index_offset of -3 after the slice groups shows that they were read with the right
+// length.
+func TestPPSParserSliceGroups(t *testing.T) {
+	type sliceGroups struct {
+		RunLengthMinus1            []uint
+		TopLeft                    []uint
+		BottomRight                []uint
+		SliceGroupChangeRateMinus1 uint
+		PicSizeInMapUnitsMinus1    uint
+		SliceGroupID               []uint
+	}
+	ids := make([]uint, 99)
+	for i := range ids {
+		ids[i] = uint(i % 3)
+	}
+	cases := []struct {
+		name                 string
+		numSliceGroupsMinus1 uint
+		write                func(w *bits.EBSPWriter)
+		want                 sliceGroups
+		wantErr              string
+	}{
+		{"type 0", 2, func(w *bits.EBSPWriter) {
+			for _, v := range []uint{0, 10, 20, 30} { // slice_group_map_type, run_length_minus1
+				w.WriteExpGolomb(v)
+			}
+		}, sliceGroups{RunLengthMinus1: []uint{10, 20, 30}}, ""},
+		{"type 2", 2, func(w *bits.EBSPWriter) {
+			for _, v := range []uint{2, 0, 12, 24, 36} { // slice_group_map_type, top_left, bottom_right
+				w.WriteExpGolomb(v)
+			}
+		}, sliceGroups{TopLeft: []uint{0, 24}, BottomRight: []uint{12, 36}}, ""},
+		{"type 4", 1, func(w *bits.EBSPWriter) {
+			w.WriteExpGolomb(4)  // slice_group_map_type
+			w.Write(0, 1)        // slice_group_change_direction_flag
+			w.WriteExpGolomb(12) // slice_group_change_rate_minus1
+		}, sliceGroups{SliceGroupChangeRateMinus1: 12}, ""},
+		{"type 6", 2, func(w *bits.EBSPWriter) {
+			w.WriteExpGolomb(6)  // slice_group_map_type
+			w.WriteExpGolomb(98) // pic_size_in_map_units_minus1
+			for _, id := range ids {
+				w.Write(id, 2) // slice_group_id
+			}
+		}, sliceGroups{PicSizeInMapUnitsMinus1: 98, SliceGroupID: ids}, ""},
+		{"type 6 with more map units than bits", 1, func(w *bits.EBSPWriter) {
+			w.WriteExpGolomb(6)                  // slice_group_map_type
+			w.WriteExpGolomb(math.MaxUint32 - 1) // pic_size_in_map_units_minus1
+			w.Write(0, 16)                       // slice_group_id
+		}, sliceGroups{}, "pic_size_in_map_units_minus1"},
+		{"type 7", 1, func(w *bits.EBSPWriter) { w.WriteExpGolomb(7) }, sliceGroups{}, "slice_group_map_type"},
+		{"change rate 2^64-1", 1, func(w *bits.EBSPWriter) {
+			w.WriteExpGolomb(3) // slice_group_map_type
+			w.Write(0, 1)       // slice_group_change_direction_flag
+			// slice_group_change_rate_minus1 as a ue(v) code with 64 leading zero bits
+			w.Write(0, 32)
+			w.Write(0, 32)
+			w.Write(1, 1)
+			w.Write(0, 32)
+			w.Write(0, 32)
+		}, sliceGroups{}, "exp-Golomb"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pf := ppsFields{numSliceGroupsMinus1: c.numSliceGroupsMinus1, sliceGroups: c.write, chromaQpIndexOffset: -3}
+			nalu := writePPS(t, pf)
+			var pps *PPS
+			var err error
+			if alloc := allocatedBytes(func() { pps, err = ParsePPSNALUnit(nalu, nil) }); alloc > 1<<16 {
+				t.Errorf("allocated %d bytes for a %d-byte NAL unit", alloc, len(nalu))
+			}
+			checkErr(t, err, c.wantErr)
+			if c.wantErr != "" || err != nil {
+				return
+			}
+			got := sliceGroups{pps.RunLengthMinus1, pps.TopLeft, pps.BottomRight, pps.SliceGroupChangeRateMinus1,
+				pps.PicSizeInMapUnitsMinus1, pps.SliceGroupID}
+			if diff := deep.Equal(got, c.want); diff != nil {
+				t.Error(diff)
+			}
+			if pps.ChromaQpIndexOffset != -3 {
+				t.Errorf("got chroma_qp_index_offset %d, want -3", pps.ChromaQpIndexOffset)
+			}
+		})
+	}
+}
+
+// allocatedBytes returns the number of bytes allocated while running f.
+func allocatedBytes(f func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
+}
+
+// TestParserDeltaScale verifies that delta_scale in the scaling lists of the SPS and the PPS is
+// limited to -128..+127 (7.4.2.1.1.1), which keeps all list entries in the range 1 to 255.
+func TestParserDeltaScale(t *testing.T) {
+	atLimits := ScalingList{1, 128, 255, 127}
+	for len(atLimits) < 16 {
+		atLimits = append(atLimits, 127)
+	}
+	cases := []struct {
+		name    string
+		deltas  []int
+		want    ScalingList
+		wantErr string
+	}{
+		{"deltas at the limits", []int{-7, 127, 127, -128}, atLimits, ""},
+		{"delta_scale 128", []int{128}, nil, "delta_scale"},
+		{"delta_scale -129", []int{-7, -129}, nil, "delta_scale"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			sf := defaultSPSFields()
+			sf.scalingList0Deltas = c.deltas
+			sps, err := ParseSPSNALUnit(writeSPS(t, sf), false)
+			checkErr(t, err, c.wantErr)
+			if c.wantErr == "" && err == nil {
+				if diff := deep.Equal(sps.SeqScalingLists[0], c.want); diff != nil {
+					t.Errorf("SPS: %v", diff)
+				}
+			}
+			pps, err := ParsePPSNALUnit(writePPS(t, ppsFields{scalingList0Deltas: c.deltas}), nil)
+			checkErr(t, err, c.wantErr)
+			if c.wantErr == "" && err == nil {
+				if diff := deep.Equal(pps.PicScalingLists[0], c.want); diff != nil {
+					t.Errorf("PPS: %v", diff)
+				}
+			}
+		})
 	}
 }

@@ -62,6 +62,8 @@ type SPS struct {
 	RefFramesInPicOrderCntCycle     []uint
 	NumRefFrames                    uint
 	GapsInFrameNumValueAllowedFlag  bool
+	PicWidthInMbsMinus1             uint
+	PicHeightInMapUnitsMinus1       uint
 	FrameMbsOnlyFlag                bool
 	MbAdaptiveFrameFieldFlag        bool
 	Direct8x8InferenceFlag          bool
@@ -197,6 +199,9 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 					sizeOfScalingList = 64 // 8x8 for i >= 6
 				}
 				sps.SeqScalingLists[i] = readScalingList(reader, sizeOfScalingList)
+				if reader.AccError() != nil {
+					return nil, reader.AccError()
+				}
 			}
 		}
 	default:
@@ -209,6 +214,9 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		return nil, reader.AccError()
 	}
 	sps.PicOrderCntType = reader.ReadExpGolomb()
+	if !checkMax(reader, "pic_order_cnt_type", sps.PicOrderCntType, 2) {
+		return nil, reader.AccError()
+	}
 	switch sps.PicOrderCntType {
 	case 0:
 		sps.Log2MaxPicOrderCntLsbMinus4 = reader.ReadExpGolomb()
@@ -243,6 +251,8 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		!checkMax(reader, "pic_height_in_map_units_minus1", picHeightInMbsUnitsMinus1, maxFrameSizeInMbs-1) {
 		return nil, reader.AccError()
 	}
+	sps.PicWidthInMbsMinus1 = picWidthInMbsUnitsMinus1
+	sps.PicHeightInMapUnitsMinus1 = picHeightInMbsUnitsMinus1
 
 	sps.Width = (picWidthInMbsUnitsMinus1 + 1) * 16
 	sps.Height = (picHeightInMbsUnitsMinus1 + 1) * 16
@@ -453,6 +463,8 @@ func GetSARfromIDC(index uint) (uint, uint, error) {
 	return aspectRatioTable[index-1][0], aspectRatioTable[index-1][1], nil
 }
 
+// readScalingList reads a scaling_list() of sizeOfScalingList entries (7.3.2.1.1.1).
+// It returns nil after setting an error on reader for a delta_scale out of range.
 func readScalingList(reader *bits.EBSPReader, sizeOfScalingList int) ScalingList {
 	scalingList := make([]int, sizeOfScalingList)
 	lastScale := 8
@@ -460,6 +472,11 @@ func readScalingList(reader *bits.EBSPReader, sizeOfScalingList int) ScalingList
 	for j := 0; j < sizeOfScalingList; j++ {
 		if nextScale != 0 {
 			deltaScale := reader.ReadSignedGolomb()
+			// delta_scale shall be in the range -128 to +127 (7.4.2.1.1.1), which keeps every
+			// entry of the list in the range 1 to 255.
+			if !checkRange(reader, "delta_scale", deltaScale, -128, 127) {
+				return nil
+			}
 			nextScale = (lastScale + deltaScale + 256) % 256
 		}
 		if nextScale == 0 {
