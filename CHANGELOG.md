@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StblBox.GetContainingChunks` returns the chunks of a sample interval, checked against the chunk offsets
 - `aac.AudioSpecificConfig` decodes and encodes AAC Main, 960-sample frames, core coder delays, program config
   elements (`aac.ProgramConfigElement`) and SBR and PS sync extensions; `TrakBox.SetAACDescriptorFromConfig` uses one
+- `aac.DecodeAudioSpecificConfig` and `AudioSpecificConfig.Encode` support USAC (xHE-AAC), object type `aac.USAC`,
+  with the UsacConfig kept unchanged in `aac.USACConfig` and its sampling frequency, frame lengths and channels decoded
 
 ### Changed
 
