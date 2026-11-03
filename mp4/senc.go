@@ -202,11 +202,24 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 	if s.Flags&UseSubSampleEncryption == 0 {
 		// No subsamples
 		if perSampleIVSize == 0 { // Infer the size
-			perSampleIVSize = byte(nrBytesLeft / s.SampleCount)
+			inferred := nrBytesLeft / s.SampleCount
+			if inferred > 16 {
+				return fmt.Errorf("senc: %d bytes for %d samples give no valid PerSampleIVSize",
+					nrBytesLeft, s.SampleCount)
+			}
+			perSampleIVSize = byte(inferred)
 			s.perSampleIVSize = perSampleIVSize
 		}
+		var nrIVs uint32
+		if perSampleIVSize != 0 {
+			if uint64(nrBytesLeft) < uint64(s.SampleCount)*uint64(perSampleIVSize) {
+				return fmt.Errorf("senc: %d bytes too few for %d samples with PerSampleIVSize %d",
+					nrBytesLeft, s.SampleCount, perSampleIVSize)
+			}
+			nrIVs = s.SampleCount
+		}
 
-		s.IVs = make([]InitializationVector, 0, s.SampleCount)
+		s.IVs = make([]InitializationVector, 0, nrIVs)
 		switch perSampleIVSize {
 		case 0:
 			// Nothing to do
