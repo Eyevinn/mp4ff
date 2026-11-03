@@ -74,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mp4ff-pslister` and `mp4ff-nallister` give an error naming the unsupported codec, such as VVC for pslister and AV1
   for nallister, instead of no output or a NALU length error; `mp4ff-nallister -c` takes h264, h265 and h266 also
   for Annex B
+- `mp4ff-mvhevc -h` prints the usage instead of failing with an unknown subcommand
 - `aac.NewADTSHeader` accepts AAC Main and returns an error for a channel configuration above 7 or a payload above
   8184 bytes, which do not fit in the ADTS header fields
 - `avc.GetParameterSetsFromByteStream` and `hevc.GetParameterSetsFromByteStream` include the final parameter set
