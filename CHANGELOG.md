@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and files that cannot be decoded completely get that tree instead of a partial box list
 - `StsdBox`, `DrefBox`, `VisualSampleEntryBox`, `AudioSampleEntryBox`, `StppBox`, `WvttBox`, `TrepBox` and
   `EvteBox` implement `ContainerBox`
+- `StblBox.GetContainingChunks` returns the chunks of a sample interval, checked against the chunk offsets
 
 ### Changed
 
@@ -60,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for the declared samples when `DecodeFile`, `DecodeFileSR`, `FragmentDecoder` or `boxtree.Decode` parse it
 - `BoxSeekReader`, `MdatBox.ReadData` for a lazy mdat, and the `SampleAccessor` of `InitDecodeStream` allocate
   memory only as data is read, not for sizes from box headers or truns that the stream does not hold
+- `File.ReadSampleData`, `File.CopySampleData` and `TrakBox.GetRangesForSampleInterval` return an error for samples
+  in chunks without a chunk offset, and `CopySampleData` returns for sample number 0xFFFFFFFF
 
 ## [0.61.0] - 2026-10-27
 

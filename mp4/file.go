@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 
@@ -755,7 +756,10 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 	if stbl.Stsc == nil || stbl.Stsz == nil {
 		return fmt.Errorf("trak has no stsc or stsz box")
 	}
-	chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
+	if _, err := stbl.Stsz.GetTotalSampleSize(startSampleNr, endSampleNr); err != nil {
+		return fmt.Errorf("sample interval %d-%d: %w", startSampleNr, endSampleNr, err)
+	}
+	chunks, err := stbl.GetContainingChunks(startSampleNr, endSampleNr)
 	if err != nil {
 		return err
 	}
@@ -780,19 +784,25 @@ func (f *File) CopySampleData(w io.Writer, rs io.ReadSeeker, trak *TrakBox,
 			return fmt.Errorf("getChunkOffset: %w", err)
 		}
 		if i == 0 {
-			for sNr := chunk.StartSampleNr; sNr < startSampleNr; sNr++ {
-				offset += uint64(stbl.Stsz.GetSampleSize(int(sNr)))
+			skipped, err := stbl.Stsz.GetTotalSampleSize(startNr, startSampleNr-1)
+			if err != nil {
+				return err
 			}
+			offset += skipped
 			startNr = startSampleNr
 		}
 
 		if i == len(chunks)-1 {
 			endNr = endSampleNr
 		}
-		var size int64
-		for sNr := startNr; sNr <= endNr; sNr++ {
-			size += int64(stbl.Stsz.GetSampleSize(int(sNr)))
+		chunkSize, err := stbl.Stsz.GetTotalSampleSize(startNr, endNr)
+		if err != nil {
+			return err
 		}
+		if offset > math.MaxInt64 || chunkSize > math.MaxInt64-offset {
+			return fmt.Errorf("data range of %d bytes at offset %d is too large", chunkSize, offset)
+		}
+		size := int64(chunkSize)
 		if mdat.IsLazy() {
 			_, err := rs.Seek(int64(offset), io.SeekStart)
 			if err != nil {

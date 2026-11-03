@@ -42,7 +42,7 @@ func (f *File) ReadSampleData(trak *TrakBox, startSampleNr, endSampleNr uint32, 
 	if err != nil {
 		return nil, fmt.Errorf("sample interval %d-%d: %w", startSampleNr, endSampleNr, err)
 	}
-	chunks, err := stbl.Stsc.GetContainingChunks(startSampleNr, endSampleNr)
+	chunks, err := stbl.GetContainingChunks(startSampleNr, endSampleNr)
 	if err != nil {
 		return nil, err
 	}
