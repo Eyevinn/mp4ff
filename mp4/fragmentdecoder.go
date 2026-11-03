@@ -249,7 +249,8 @@ func decodeIntoIfType(b Box, h rawHeader, startPos uint64, sr bits.SliceReader) 
 	return true, err
 }
 
-// maxReadChunk bounds how much ReadFragmentBytes grows its buffer ahead of the data it has read.
+// maxReadChunk bounds how far ReadFragmentBytes and BoxSeekReader grow a buffer ahead of the data read into it, when
+// the size to read comes from the stream.
 const maxReadChunk = 1 << 20
 
 // ReadFragmentBytes reads the next fragment from r and appends its bytes to dst: the boxes before its moof, such

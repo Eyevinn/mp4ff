@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -482,9 +483,9 @@ func (fsa *fragmentSampleAccessor) AppendSampleRange(dst []FullSample, buf []byt
 }
 
 // appendSamples implements AppendSamples and AppendSampleRange. The samples of a trun are contiguous in the file,
-// so the data of the selected samples of each trun are read with a single read. buf is grown once, before
-// anything is read, so that all appended samples view the same backing array. On error, dst and buf are
-// returned truncated to their original lengths.
+// so the data of the selected samples of each trun are read with a single read. buf grows with the data read, and
+// the appended samples are given their views of it once all data is read, so that they view the same backing
+// array. On error, dst and buf are returned truncated to their original lengths.
 func (fsa *fragmentSampleAccessor) appendSamples(dst []FullSample, buf []byte, trackID uint32,
 	startSampleNr, endSampleNr uint32, mustStart bool) ([]FullSample, []byte, error) {
 	traf := trafForTrackID(fsa.fragment.Moof, trackID)
@@ -510,8 +511,7 @@ func (fsa *fragmentSampleAccessor) appendSamples(dst []FullSample, buf []byte, t
 	if mustStart && nrSamples == 0 {
 		return dst, buf, fmt.Errorf("start sample %d not found in fragment", startSampleNr)
 	}
-	// The sample sizes come from the trun and buf is grown by their sum before anything is read, so bound the sum
-	// by the mdat payload, which the data of a track's samples cannot exceed since they do not overlap.
+	// The data of a track's samples cannot exceed the mdat payload since they do not overlap.
 	if mdatSize := fsa.fragment.Mdat.GetLazyDataSize(); nrBytes > mdatSize {
 		return dst, buf, fmt.Errorf("sample data size %d exceeds mdat payload size %d", nrBytes, mdatSize)
 	}
@@ -520,7 +520,6 @@ func (fsa *fragmentSampleAccessor) appendSamples(dst []FullSample, buf []byte, t
 	}
 	origDstLen, origBufLen := len(dst), len(buf)
 	dst = slices.Grow(dst, nrSamples)
-	buf = slices.Grow(buf, int(nrBytes))
 
 	// Second pass: read the selected samples of each trun into buf and append views of them.
 	var baseTime uint64
@@ -550,27 +549,31 @@ func (fsa *fragmentSampleAccessor) appendSamples(dst []FullSample, buf []byte, t
 		if len(dst) == first {
 			continue
 		}
-		pos := len(buf)
-		buf = buf[:pos+readSize]
-		if err := fsa.readAt(int64(readStart), buf[pos:]); err != nil {
+		var err error
+		if buf, err = fsa.appendReadAt(buf, int64(readStart), readSize); err != nil {
 			return dst[:origDstLen], buf[:origBufLen], fmt.Errorf("read sample data: %w", err)
 		}
-		for i := first; i < len(dst); i++ {
-			end := pos + int(dst[i].Size)
-			dst[i].Data = buf[pos:end]
-			pos = end
-		}
+	}
+	pos := origBufLen
+	for i := origDstLen; i < len(dst); i++ {
+		end := pos + int(dst[i].Size)
+		dst[i].Data = buf[pos:end]
+		pos = end
 	}
 	return dst, buf, nil
 }
 
-// readAt fills p with the stream data starting at the absolute file position pos.
-func (fsa *fragmentSampleAccessor) readAt(pos int64, p []byte) error {
+// appendReadAt appends the n bytes of stream data at the absolute file position pos to buf.
+func (fsa *fragmentSampleAccessor) appendReadAt(buf []byte, pos int64, n int) ([]byte, error) {
 	if _, err := fsa.boxSeekReader.Seek(pos, io.SeekStart); err != nil {
-		return fmt.Errorf("seek to %d: %w", pos, err)
+		return buf, fmt.Errorf("seek to %d: %w", pos, err)
 	}
-	_, err := io.ReadFull(fsa.boxSeekReader, p)
-	return err
+	l := len(buf)
+	buf, err := appendRead(buf, fsa.boxSeekReader, n)
+	if errors.Is(err, io.EOF) && len(buf) > l {
+		err = io.ErrUnexpectedEOF
+	}
+	return buf, err
 }
 
 // checkInMdat returns an error unless the size bytes at the absolute file position pos are inside the mdat payload.

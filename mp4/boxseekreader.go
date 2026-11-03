@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 )
 
 // BoxSeekReader wraps an io.Reader and provides limited io.ReadSeeker functionality.
@@ -43,7 +44,7 @@ func NewBoxSeekReader(r io.Reader, initialSize int) *BoxSeekReader {
 // Should be called after PeekBoxHeader, which already has the header in the buffer.
 // Reads the remaining payload and returns the complete box data.
 func (bsr *BoxSeekReader) ReadFullBox(boxSize uint64) ([]byte, error) {
-	if boxSize > uint64(2<<30) { // Sanity check: 2GB limit
+	if boxSize > uint64(2<<30) || boxSize > math.MaxInt { // Sanity check: 2GB limit
 		return nil, fmt.Errorf("box size %d too large", boxSize)
 	}
 
@@ -55,25 +56,12 @@ func (bsr *BoxSeekReader) ReadFullBox(boxSize uint64) ([]byte, error) {
 		return nil, fmt.Errorf("box size %d smaller than header %d", size, headerLen)
 	}
 
-	// Ensure buffer has enough capacity for full box
-	if cap(bsr.buffer) < size {
-		// Need to grow - copy header to new buffer
-		newBuf := make([]byte, size)
-		copy(newBuf, bsr.buffer[:headerLen])
-		bsr.buffer = newBuf
-	} else {
-		// Reuse existing buffer, resize to full box size
-		bsr.buffer = bsr.buffer[:size]
-	}
-
 	// Read payload into buffer after header
 	if payloadLen > 0 {
-		n, err := io.ReadFull(bsr.reader, bsr.buffer[headerLen:])
+		var err error
+		bsr.buffer, err = appendRead(bsr.buffer[:headerLen], bsr.reader, payloadLen)
 		if err != nil {
 			return nil, err
-		}
-		if n != payloadLen {
-			return nil, fmt.Errorf("read %d payload bytes, expected %d", n, payloadLen)
 		}
 	}
 
@@ -82,6 +70,24 @@ func (bsr *BoxSeekReader) ReadFullBox(boxSize uint64) ([]byte, error) {
 
 	// Return slice view of buffer - caller must use before next operation
 	return bsr.buffer[:size], nil
+}
+
+// appendRead appends n bytes from r to buf and returns the extended buffer, which on error holds the bytes read.
+// The buffer grows with the data read, at most maxReadChunk ahead of it, so that a size taken from a box header
+// cannot allocate more memory than the stream holds.
+func appendRead(buf []byte, r io.Reader, n int) ([]byte, error) {
+	for n > 0 {
+		c := min(n, maxReadChunk)
+		l := len(buf)
+		buf = slices.Grow(buf, c)[:l+c]
+		m, err := io.ReadFull(r, buf[l:])
+		buf = buf[:l+m]
+		if err != nil {
+			return buf, err
+		}
+		n -= c
+	}
+	return buf, nil
 }
 
 // SetMdatBounds configures the emulator for lazy reading of an mdat box.
@@ -217,30 +223,14 @@ func (bsr *BoxSeekReader) Seek(offset int64, whence int) (int64, error) {
 	if newPos > int64(bsr.currentPos) {
 		toRead := newPos - int64(bsr.currentPos)
 
-		// Grow buffer to accommodate the data we need to read
 		currentLen := len(bsr.buffer)
 		if toRead > int64(math.MaxInt-currentLen) {
 			return 0, fmt.Errorf("seek of %d bytes ahead does not fit in buffer of %d bytes", toRead, currentLen)
 		}
-		neededLen := currentLen + int(toRead)
-		if cap(bsr.buffer) < neededLen {
-			// Need to grow capacity
-			newBuf := make([]byte, neededLen)
-			copy(newBuf, bsr.buffer)
-			bsr.buffer = newBuf
-		} else {
-			// Have enough capacity, just extend length
-			bsr.buffer = bsr.buffer[:neededLen]
-		}
-
-		// Read directly into the buffer at the current position using ReadFull
-		n, err := io.ReadFull(bsr.reader, bsr.buffer[currentLen:neededLen])
-		if n > 0 {
-			bsr.currentPos += uint64(n)
-		}
+		var err error
+		bsr.buffer, err = appendRead(bsr.buffer, bsr.reader, int(toRead))
+		bsr.currentPos += uint64(len(bsr.buffer) - currentLen)
 		if err != nil {
-			// Adjust buffer to actual size read
-			bsr.buffer = bsr.buffer[:currentLen+n]
 			return int64(bsr.currentPos), err
 		}
 		return newPos, nil
@@ -312,7 +302,7 @@ func (bsr *BoxSeekReader) PeekBoxHeader() (BoxHeader, uint64, error) {
 		// Update position to after header
 		bsr.currentPos = boxStartPos + uint64(headerLen)
 
-		return BoxHeader{boxType, size, headerLen}, boxStartPos, nil
+		return BoxHeader{Name: boxType, Size: size, Hdrlen: headerLen}, boxStartPos, nil
 	}
 
 	// Need to read header from underlying reader
@@ -359,5 +349,5 @@ func (bsr *BoxSeekReader) PeekBoxHeader() (BoxHeader, uint64, error) {
 	bsr.bufferPos = boxStartPos
 	bsr.currentPos = boxStartPos + uint64(headerLen)
 
-	return BoxHeader{boxType, size, headerLen}, boxStartPos, nil
+	return BoxHeader{Name: boxType, Size: size, Hdrlen: headerLen}, boxStartPos, nil
 }
