@@ -28,6 +28,9 @@ type spsFields struct {
 	nalHrdCpbCntMinus1        *uint  // cpb_cnt_minus1 of a VUI with NAL HRD parameters, if set
 	scalingList0Deltas        []int  // delta_scale values of the first scaling list, if a scaling matrix
 	picOrderCntType           uint
+	offsetForNonRefPic        int   // written for pic_order_cnt_type 1
+	offsetForTopToBottomField int   // written for pic_order_cnt_type 1
+	offsetForRefFrame         []int // written for pic_order_cnt_type 1
 }
 
 func defaultSPSFields() spsFields {
@@ -60,8 +63,17 @@ func writeSPS(t *testing.T, f spsFields) []byte {
 	}
 	w.WriteExpGolomb(f.log2MaxFrameNumMinus4)
 	w.WriteExpGolomb(f.picOrderCntType)
-	if f.picOrderCntType == 0 {
+	switch f.picOrderCntType {
+	case 0:
 		w.WriteExpGolomb(f.log2MaxPocLsbMinus4)
+	case 1:
+		w.Write(0, 1) // delta_pic_order_always_zero_flag
+		writeSignedGolomb(w, f.offsetForNonRefPic)
+		writeSignedGolomb(w, f.offsetForTopToBottomField)
+		w.WriteExpGolomb(uint(len(f.offsetForRefFrame)))
+		for _, o := range f.offsetForRefFrame {
+			writeSignedGolomb(w, o)
+		}
 	}
 	w.WriteExpGolomb(1) // max_num_ref_frames
 	w.Write(0, 1)       // gaps_in_frame_num_value_allowed_flag
@@ -875,5 +887,35 @@ func TestParserDeltaScale(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestSPSParserPicOrderCntOffsets verifies that offset_for_non_ref_pic, offset_for_top_to_bottom_field
+// and offset_for_ref_frame are signed, with values from -(2^31 - 1) to 2^31 - 1 (7.4.2.1.1).
+func TestSPSParserPicOrderCntOffsets(t *testing.T) {
+	cases := []struct {
+		nonRefPic, topToBottomField int
+		refFrame                    []int
+	}{
+		{-2, 1, []int{-3, 4}},
+		{math.MaxInt32, -math.MaxInt32, []int{-math.MaxInt32, math.MaxInt32}},
+	}
+	for _, c := range cases {
+		sf := defaultSPSFields()
+		sf.picOrderCntType = 1
+		sf.offsetForNonRefPic = c.nonRefPic
+		sf.offsetForTopToBottomField = c.topToBottomField
+		sf.offsetForRefFrame = c.refFrame
+		sps, err := ParseSPSNALUnit(writeSPS(t, sf), false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sps.OffsetForNonRefPic != c.nonRefPic || sps.OffsetForTopToBottomField != c.topToBottomField {
+			t.Errorf("got offsets %d and %d, want %d and %d", sps.OffsetForNonRefPic,
+				sps.OffsetForTopToBottomField, c.nonRefPic, c.topToBottomField)
+		}
+		if diff := deep.Equal(sps.RefFramesInPicOrderCntCycle, c.refFrame); diff != nil {
+			t.Errorf("offset_for_ref_frame: %v", diff)
+		}
 	}
 }

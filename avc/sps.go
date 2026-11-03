@@ -57,9 +57,9 @@ type SPS struct {
 	PicOrderCntType                 uint
 	Log2MaxPicOrderCntLsbMinus4     uint
 	DeltaPicOrderAlwaysZeroFlag     bool
-	OffsetForNonRefPic              uint
-	OffsetForTopToBottomField       uint
-	RefFramesInPicOrderCntCycle     []uint
+	OffsetForNonRefPic              int
+	OffsetForTopToBottomField       int
+	RefFramesInPicOrderCntCycle     []int // offset_for_ref_frame values
 	NumRefFrames                    uint
 	GapsInFrameNumValueAllowedFlag  bool
 	PicWidthInMbsMinus1             uint
@@ -225,8 +225,8 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 		}
 	case 1:
 		sps.DeltaPicOrderAlwaysZeroFlag = reader.ReadFlag()
-		sps.OffsetForNonRefPic = reader.ReadExpGolomb()
-		sps.OffsetForTopToBottomField = reader.ReadExpGolomb()
+		sps.OffsetForNonRefPic = reader.ReadSignedGolomb()
+		sps.OffsetForTopToBottomField = reader.ReadSignedGolomb()
 		numRefFramesInPicOrderCntCycle := reader.ReadExpGolomb()
 		// num_ref_frames_in_pic_order_cnt_cycle shall be in the range of 0 to 255
 		// (ISO/IEC 14496-10 Section 7.4.2.1.1). Guard against a bogus value before
@@ -235,9 +235,9 @@ func ParseSPSNALUnit(data []byte, parseVUIBeyondAspectRatio bool) (*SPS, error) 
 			reader.SetError(fmt.Errorf("num_ref_frames_in_pic_order_cnt_cycle %d out of range [0, 255]", numRefFramesInPicOrderCntCycle))
 			return nil, reader.AccError()
 		}
-		sps.RefFramesInPicOrderCntCycle = make([]uint, numRefFramesInPicOrderCntCycle)
+		sps.RefFramesInPicOrderCntCycle = make([]int, numRefFramesInPicOrderCntCycle)
 		for i := 0; i < int(numRefFramesInPicOrderCntCycle); i++ {
-			sps.RefFramesInPicOrderCntCycle[i] = reader.ReadExpGolomb()
+			sps.RefFramesInPicOrderCntCycle[i] = reader.ReadSignedGolomb()
 		}
 	}
 
