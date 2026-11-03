@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fields decoded before an error together with the error
 - `ReadExpGolomb` and `ReadSignedGolomb` of `bits.EBSPReader` and `bits.Reader` return the error
   `bits.ErrExpGolombTooLong` for codes with more than 31 leading zero bits, the longest in AVC, HEVC and VVC
+- `avc.SPS.OffsetForNonRefPic`, `OffsetForTopToBottomField` and `RefFramesInPicOrderCntCycle` are signed (`int`),
+  holding the se(v) values of the SPS. This is a breaking change
 
 ### Fixed
 

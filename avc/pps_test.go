@@ -71,11 +71,12 @@ func TestPPSParserNumSliceGroupsOutOfRange(t *testing.T) {
 // writeSignedGolomb writes an se(v) value using the codeNum mapping of
 // ISO/IEC 14496-10 Section 9.1.1.
 func writeSignedGolomb(w *bits.EBSPWriter, value int) {
+	// uint arithmetic, since 2*value overflows a 32-bit int for |value| = 2^31-1
 	if value > 0 {
-		w.WriteExpGolomb(uint(2*value - 1))
+		w.WriteExpGolomb(2*uint(value) - 1)
 		return
 	}
-	w.WriteExpGolomb(uint(-2 * value))
+	w.WriteExpGolomb(2 * uint(-value))
 }
 
 // ppsWithScalingMatrix builds a PPS NAL unit with pic_scaling_matrix_present_flag
