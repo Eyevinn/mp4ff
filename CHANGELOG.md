@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `hevc.GetParameterSetsFromByteStream` includes the final VPS, SPS or PPS when an Annex-B stream ends before video,
+  and appending to a returned parameter set leaves the other sets unchanged
 - `DecodeFile` and the other decoders accept QuickTime files with the text atoms `©nam`, `©ART`, `©too` or `©cpy`
   in `udta`
 

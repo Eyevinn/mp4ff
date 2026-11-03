@@ -1,26 +1,35 @@
 package hevc
 
-// GetParameterSetsFromByteStream gets SPS and PPS nalus from bytestream
+// GetParameterSetsFromByteStream copies VPS, SPS and PPS nalus from a bytestream (Annex B).
+// The stream is not scanned beyond the first video NAL unit.
 func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, ppss [][]byte) {
 	n := len(data)
 	currNaluStart := -1
 	totSize := 0
+	addParameterSet := func(end int) {
+		if currNaluStart < 0 {
+			return
+		}
+		naluType := GetNaluType(data[currNaluStart])
+		if naluType < NALU_VPS || naluType > NALU_PPS {
+			return
+		}
+		end = trimTrailingZeros(data, currNaluStart, end)
+		switch naluType {
+		case NALU_VPS:
+			vpss = append(vpss, data[currNaluStart:end])
+			totSize += end - currNaluStart
+		case NALU_SPS:
+			spss = append(spss, data[currNaluStart:end])
+			totSize += end - currNaluStart
+		case NALU_PPS:
+			ppss = append(ppss, data[currNaluStart:end])
+			totSize += end - currNaluStart
+		}
+	}
 	for i := 0; i < n-4; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
-			if currNaluStart > 0 {
-				currNaluEnd := trimTrailingZeros(data, currNaluStart, i)
-				switch naluType := GetNaluType(data[currNaluStart]); naluType {
-				case NALU_VPS:
-					vpss = append(vpss, data[currNaluStart:currNaluEnd])
-					totSize += currNaluEnd - currNaluStart
-				case NALU_SPS:
-					spss = append(spss, data[currNaluStart:currNaluEnd])
-					totSize += currNaluEnd - currNaluStart
-				case NALU_PPS:
-					ppss = append(ppss, data[currNaluStart:currNaluEnd])
-					totSize += currNaluEnd - currNaluStart
-				}
-			}
+			addParameterSet(i)
 			currNaluStart = i + 3
 			nextNaluType := GetNaluType(data[currNaluStart])
 			if nextNaluType < 32 { // Video NALU types are below 32
@@ -28,21 +37,22 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 			}
 		}
 	}
+	addParameterSet(n)
 	psData := make([]byte, totSize)
 	pos := 0
 	for i := range vpss {
 		copy(psData[pos:], vpss[i])
-		vpss[i] = psData[pos : pos+len(vpss[i])]
+		vpss[i] = psData[pos : pos+len(vpss[i]) : pos+len(vpss[i])]
 		pos += len(vpss[i])
 	}
 	for i := range spss {
 		copy(psData[pos:], spss[i])
-		spss[i] = psData[pos : pos+len(spss[i])]
+		spss[i] = psData[pos : pos+len(spss[i]) : pos+len(spss[i])]
 		pos += len(spss[i])
 	}
 	for i := range ppss {
 		copy(psData[pos:], ppss[i])
-		ppss[i] = psData[pos : pos+len(ppss[i])]
+		ppss[i] = psData[pos : pos+len(ppss[i]) : pos+len(ppss[i])]
 		pos += len(ppss[i])
 	}
 	return vpss, spss, ppss
