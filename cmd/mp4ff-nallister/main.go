@@ -92,6 +92,18 @@ func run(args []string, stdout io.Writer) error {
 	}
 	inFilePath := fs.Arg(0)
 
+	switch o.codec {
+	case "avc", "hevc", "vvc":
+	case "h.264", "h264":
+		o.codec = "avc"
+	case "h.265", "h265":
+		o.codec = "hevc"
+	case "h.266", "h266":
+		o.codec = "vvc"
+	default:
+		return fmt.Errorf("unsupported codec %q, -c must be avc, hevc or vvc", o.codec)
+	}
+
 	// First try to handle Annex B file
 	if o.annexB {
 		data, err := os.ReadFile(inFilePath)
@@ -256,8 +268,9 @@ func findFirstVideoTrak(moov *mp4.MoovBox) (*mp4.TrakBox, bool) {
 	return nil, false
 }
 
-// videoCodec returns the codec of the sample entries of videoTrak, or codec if they are not AVC, HEVC or VVC,
-// and the first SPS of an avcC box, if there is one.
+// videoCodec returns the codec of the sample entries of videoTrak, or codec if they are encrypted or unknown,
+// and the first SPS of an avcC box, if there is one. It fails for the other video codecs, such as AV1 and VP9,
+// which have no NAL units.
 func videoCodec(videoTrak *mp4.TrakBox, codec string) (string, *avc.SPS, error) {
 	minf := videoTrak.Mdia.Minf
 	if minf == nil || minf.Stbl == nil || minf.Stbl.Stsd == nil {
@@ -281,6 +294,12 @@ func videoCodec(videoTrak *mp4.TrakBox, codec string) (string, *avc.SPS, error) 
 			return "", nil, err
 		}
 		return "vvc", nil, nil
+	}
+	if len(stsd.Children) > 0 {
+		if vse, ok := stsd.Children[0].(*mp4.VisualSampleEntryBox); ok && vse.Type() != "encv" {
+			return "", nil, fmt.Errorf("video sample entry %s has no NAL units, only AVC, HEVC and VVC are supported",
+				vse.Type())
+		}
 	}
 	return codec, nil, nil
 }

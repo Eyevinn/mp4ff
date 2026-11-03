@@ -17,6 +17,7 @@ func TestOptions(t *testing.T) {
 		desc        string
 		args        []string
 		expectedErr bool
+		errContains string
 		goldenOut   string
 	}{
 		{desc: "no args", args: []string{appName}, expectedErr: true},
@@ -28,7 +29,11 @@ func TestOptions(t *testing.T) {
 		{desc: "annexBH264", args: []string{appName, "-annexb", "-ps", "testdata/4pics.264"},
 			goldenOut: "testdata/golden_4pics_h264.txt", expectedErr: false},
 		{desc: "annexBBadCodec", args: []string{appName, "-annexb", "-c", "av1", "testdata/4pics.264"},
-			expectedErr: true},
+			expectedErr: true, errContains: `unsupported codec "av1"`},
+		{desc: "annexBH264 alias", args: []string{appName, "-annexb", "-ps", "-c", "h264", "testdata/4pics.264"},
+			goldenOut: "testdata/golden_4pics_h264.txt", expectedErr: false},
+		{desc: "av1 mp4", args: []string{appName, "../../mp4/testdata/av1_init.mp4"},
+			expectedErr: true, errContains: "video sample entry av01 has no NAL units"},
 		{desc: "initFile", args: []string{appName, "../../mp4/testdata/init.mp4"}, expectedErr: false},
 		{desc: "data in other file", args: []string{appName, "../../mp4/testdata/prog_8s_dref.mp4"}, expectedErr: true},
 		{desc: "progH264", args: []string{appName, "-ps", "-m", "4", "../../mp4/testdata/prog_8s.mp4"},
@@ -59,6 +64,8 @@ func TestOptions(t *testing.T) {
 			if c.expectedErr {
 				if err == nil {
 					t.Error("expected error but got nil")
+				} else if !strings.Contains(err.Error(), c.errContains) {
+					t.Errorf("expected error containing %q, got %q", c.errContains, err)
 				}
 				return
 			}
