@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in `udta`
 - `SencBox.ParseReadBox` returns an error for a senc box with fewer IVs than samples, instead of allocating memory
   for the declared samples when `DecodeFile`, `DecodeFileSR`, `FragmentDecoder` or `boxtree.Decode` parse it
+- `BoxSeekReader`, `MdatBox.ReadData` for a lazy mdat, and the `SampleAccessor` of `InitDecodeStream` allocate
+  memory only as data is read, not for sizes from box headers or truns that the stream does not hold
 
 ## [0.61.0] - 2026-10-27
 

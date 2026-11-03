@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -245,9 +246,14 @@ func (m *MdatBox) ReadData(start, size int64, rs io.ReadSeeker) ([]byte, error) 
 			return nil, fmt.Errorf("lazy mdat mode - unable to seek to %d", start)
 		}
 
-		buf := make([]byte, size)
-		_, err = io.ReadFull(rs, buf)
+		if size < 0 || size > math.MaxInt {
+			return nil, fmt.Errorf("lazy mdat mode - invalid size %d", size)
+		}
+		buf, err := appendRead(make([]byte, 0, min(int(size), maxReadChunk)), rs, int(size))
 		if err != nil {
+			if errors.Is(err, io.EOF) && len(buf) > 0 {
+				err = io.ErrUnexpectedEOF
+			}
 			return nil, err
 		}
 		return buf, nil
