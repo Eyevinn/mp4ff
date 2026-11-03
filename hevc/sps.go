@@ -401,8 +401,15 @@ func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 				BottomOffset: uint32(r.ReadExpGolomb()),
 			}
 		}
-		sps.BitDepthLumaMinus8 = byte(r.ReadExpGolomb())
-		sps.BitDepthChromaMinus8 = byte(r.ReadExpGolomb())
+		bitDepthLumaMinus8 := r.ReadExpGolomb()
+		bitDepthChromaMinus8 := r.ReadExpGolomb()
+		// Both shall be in the range of 0 to 8, inclusive (7.4.3.2.1).
+		if bitDepthLumaMinus8 > maxBitDepthMinus8 || bitDepthChromaMinus8 > maxBitDepthMinus8 {
+			return nil, fmt.Errorf("bit_depth_luma_minus8 %d or bit_depth_chroma_minus8 %d exceeds %d",
+				bitDepthLumaMinus8, bitDepthChromaMinus8, maxBitDepthMinus8)
+		}
+		sps.BitDepthLumaMinus8 = byte(bitDepthLumaMinus8)
+		sps.BitDepthChromaMinus8 = byte(bitDepthChromaMinus8)
 	}
 	sps.Log2MaxPicOrderCntLsbMinus4 = byte(r.ReadExpGolomb())
 	if !sps.MultiLayerExtSpsFlag {
@@ -460,7 +467,12 @@ func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 		sps.Log2DiffMaxMinPcmLumaCodingBlockSize = uint16(r.ReadExpGolomb())
 		sps.PcmLoopFilterDisabledFlag = r.ReadFlag()
 	}
-	sps.NumShortTermRefPicSets = byte(r.ReadExpGolomb())
+	numShortTermRefPicSets := r.ReadExpGolomb()
+	if numShortTermRefPicSets > maxNumShortTermRefPicSets {
+		return nil, fmt.Errorf("num_short_term_ref_pic_sets %d exceeds %d",
+			numShortTermRefPicSets, maxNumShortTermRefPicSets)
+	}
+	sps.NumShortTermRefPicSets = byte(numShortTermRefPicSets)
 	if sps.NumShortTermRefPicSets > 0 {
 		sps.ShortTermRefPicSets = make([]ShortTermRPS, sps.NumShortTermRefPicSets)
 		for idx := byte(0); idx < sps.NumShortTermRefPicSets; idx++ {
@@ -472,8 +484,12 @@ func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 	}
 	sps.LongTermRefPicsPresentFlag = r.ReadFlag()
 	if sps.LongTermRefPicsPresentFlag {
-		// value shall be in the range of 0 to 32, inclusive
-		sps.NumLongTermRefPics = uint8(r.ReadExpGolomb())
+		numLongTermRefPics := r.ReadExpGolomb()
+		if numLongTermRefPics > maxNumLongTermRefPicsSps {
+			return nil, fmt.Errorf("num_long_term_ref_pics_sps %d exceeds %d",
+				numLongTermRefPics, maxNumLongTermRefPicsSps)
+		}
+		sps.NumLongTermRefPics = uint8(numLongTermRefPics)
 		if sps.NumLongTermRefPics > 0 {
 			sps.LongTermRefPicSets = make([]LongTermRPS, sps.NumLongTermRefPics)
 			for i := uint8(0); i < sps.NumLongTermRefPics; i++ {
@@ -526,8 +542,12 @@ func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 		sps.D3Extension = parseSPS3dExtension(r)
 	}
 	if sps.SccExtensionFlag {
-		sps.SccExtension = parseSPSSccExtension(r, sps.ChromaFormatIDC,
+		var err error
+		sps.SccExtension, err = parseSPSSccExtension(r, sps.ChromaFormatIDC,
 			sps.BitDepthLumaMinus8, sps.BitDepthChromaMinus8)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if sps.Extension4bits > 0 {
 		// Reserved for future use. Shall be empty
@@ -827,7 +847,25 @@ func (st ShortTermRPS) countInUsePics() uint8 {
 	return NumPicTotalCurr
 }
 
-const maxSTRefPics = 16
+// Limits on SPS and slice header values from ISO/IEC 23008-2.
+const (
+	// maxBitDepthMinus8 is the upper bound of bit_depth_luma_minus8 and
+	// bit_depth_chroma_minus8 (7.4.3.2.1).
+	maxBitDepthMinus8 = 8
+	// maxNumShortTermRefPicSets is the upper bound of num_short_term_ref_pic_sets (7.4.3.2.1).
+	maxNumShortTermRefPicSets = 64
+	// maxNumLongTermRefPicsSps is the upper bound of num_long_term_ref_pics_sps (7.4.3.2.1).
+	maxNumLongTermRefPicsSps = 32
+	// maxSTRefPics is the largest num_negative_pics and num_positive_pics accepted. A reference
+	// picture set has at most MaxDpbSize - 1 entries in all (7.4.7.1 and 7.4.8), and MaxDpbSize
+	// is at most 16 (A.4.2), so this is lenient.
+	maxSTRefPics = 16
+	// maxRPSEntries is the largest number of entries accepted in a short-term reference picture
+	// set (NumDeltaPocs) and in the long-term reference picture set of a slice
+	// (num_long_term_sps + num_long_term_pics). It is the most that a short-term set with
+	// maxSTRefPics negative and maxSTRefPics positive pictures has.
+	maxRPSEntries = 2 * maxSTRefPics
+)
 
 // parseShortTermRPS - short-term reference pictures with syntax from 7.3.7.
 // Focus is on reading/parsing beyond this structure in SPS (and possibly in slice header)
@@ -840,36 +878,51 @@ func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS) 
 		interRPSPredFlag = r.ReadFlag()
 	}
 	if interRPSPredFlag {
-		deltaIdx := byte(1)
+		var deltaIdxMinus1 uint
 		if idx == numSTRefPicSets { // Slice header
-			deltaIdx = byte(r.ReadExpGolomb() + 1)
-			// parse delta_idx_minus1
+			deltaIdxMinus1 = r.ReadExpGolomb()
 		}
-		if deltaIdx > idx {
-			r.SetError(fmt.Errorf("deltaIdx > idx in parseShortTermRPS"))
+		// delta_idx_minus1 shall be in the range of 0 to stRpsIdx - 1 (7.4.8).
+		if deltaIdxMinus1 >= uint(idx) {
+			r.SetError(fmt.Errorf("delta_idx_minus1 %d is not less than stRpsIdx %d", deltaIdxMinus1, idx))
+			return stps
+		}
+		refIdx := int(idx) - 1 - int(deltaIdxMinus1)
+		if refIdx >= len(sps.ShortTermRefPicSets) {
+			r.SetError(fmt.Errorf("short-term RPS %d refers to RPS %d, but the SPS has %d",
+				idx, refIdx, len(sps.ShortTermRefPicSets)))
+			return stps
 		}
 		/* deltaRpsSign */ _ = r.Read(1)
 		/* absDeltaRpsMinus1*/ _ = r.ReadExpGolomb()
 		//deltaRps := (1 - (deltaRpsSign << 1)) * (absDeltaRpsMinus1 + 1)
-		refIdx := idx - deltaIdx
-		numDeltaPocs := sps.ShortTermRefPicSets[refIdx].NumDeltaPocs
-		for j := byte(0); j <= numDeltaPocs; j++ {
+		refNumDeltaPocs := int(sps.ShortTermRefPicSets[refIdx].NumDeltaPocs)
+		numDeltaPocs := 0
+		for j := 0; j <= refNumDeltaPocs && r.AccError() == nil; j++ {
 			usedByCurrPicFlag := r.ReadFlag()
 			useDeltaFlag := true
 			if !usedByCurrPicFlag {
 				useDeltaFlag = r.ReadFlag()
 			}
 			if usedByCurrPicFlag || useDeltaFlag {
-				stps.NumDeltaPocs++
+				numDeltaPocs++
 			}
 		}
+		if numDeltaPocs > maxRPSEntries {
+			r.SetError(fmt.Errorf("short-term RPS %d predicts %d pictures, more than %d",
+				idx, numDeltaPocs, maxRPSEntries))
+			return stps
+		}
+		stps.NumDeltaPocs = byte(numDeltaPocs)
 	} else {
-		stps.NumNegativePics = byte(r.ReadExpGolomb())
-		stps.NumPositivePics = byte(r.ReadExpGolomb())
-		if stps.NumNegativePics > maxSTRefPics || stps.NumPositivePics > maxSTRefPics {
+		numNegativePics := r.ReadExpGolomb()
+		numPositivePics := r.ReadExpGolomb()
+		if numNegativePics > maxSTRefPics || numPositivePics > maxSTRefPics {
 			r.SetError(fmt.Errorf("more than %d short term reference pictures", maxSTRefPics))
 			return stps
 		}
+		stps.NumNegativePics = byte(numNegativePics)
+		stps.NumPositivePics = byte(numPositivePics)
 		stps.NumDeltaPocs = stps.NumNegativePics + stps.NumPositivePics
 		stps.DeltaPocS0 = make([]uint32, stps.NumNegativePics)
 		stps.UsedByCurrPicS0 = make([]bool, stps.NumNegativePics)
@@ -942,32 +995,46 @@ func parseSPS3dExtension(r *bits.EBSPReader) *SPS3dExtension {
 	return ext
 }
 
+// Palette limits of the screen content coding profiles (ISO/IEC 23008-2 A.3.7 and A.3.8),
+// which are the profiles that allow palette mode.
+const (
+	maxPaletteMaxSize          = 64
+	maxPaletteMaxPredictorSize = 128
+)
+
 func parseSPSSccExtension(r *bits.EBSPReader, ChromaFormatIDC,
-	BitDepthLumaMinus8, BitDepthChromaMinus8 byte) *SPSSccExtension {
+	BitDepthLumaMinus8, BitDepthChromaMinus8 byte) (*SPSSccExtension, error) {
 	ext := &SPSSccExtension{}
 	ext.CurrPicRefEnabledFlag = r.ReadFlag()
 	ext.PaletteModeEnabledFlag = r.ReadFlag()
 	if ext.PaletteModeEnabledFlag {
 		ext.PaletteMaxSize = r.ReadExpGolomb()
 		ext.DeltaPaletteMaxPredictorSize = r.ReadExpGolomb()
+		if ext.PaletteMaxSize > maxPaletteMaxSize ||
+			ext.DeltaPaletteMaxPredictorSize > maxPaletteMaxPredictorSize-ext.PaletteMaxSize {
+			return nil, fmt.Errorf("palette_max_size %d or delta_palette_max_predictor_size %d exceeds %d or %d",
+				ext.PaletteMaxSize, ext.DeltaPaletteMaxPredictorSize, maxPaletteMaxSize, maxPaletteMaxPredictorSize)
+		}
+		paletteMaxPredictorSize := ext.PaletteMaxSize + ext.DeltaPaletteMaxPredictorSize
 		ext.PalettePredictorInitializersPresentFlag = r.ReadFlag()
 		if ext.PalettePredictorInitializersPresentFlag {
 			ext.NumPalettePredictorInitializersMinus1 = r.ReadExpGolomb()
+			// sps_num_palette_predictor_initializers_minus1 + 1 shall be at most
+			// PaletteMaxPredictorSize (7.4.3.2.3).
+			if ext.NumPalettePredictorInitializersMinus1 >= paletteMaxPredictorSize {
+				return nil, fmt.Errorf("sps_num_palette_predictor_initializers_minus1 %d is not less than PaletteMaxPredictorSize %d",
+					ext.NumPalettePredictorInitializersMinus1, paletteMaxPredictorSize)
+			}
 			numComps := 3
 			if ChromaFormatIDC == 0 {
 				numComps = 1
 			}
+			bitDepths := [3]int{int(BitDepthLumaMinus8) + 8, int(BitDepthChromaMinus8) + 8, int(BitDepthChromaMinus8) + 8}
 			ext.PalettePredictorInitializer = make([][]uint, numComps)
-			// Fill luma
-			for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1 && r.AccError() == nil; i++ {
-				ext.PalettePredictorInitializer[0] =
-					append(ext.PalettePredictorInitializer[0], r.Read(int(BitDepthLumaMinus8+8)))
-			}
-			// Fill chroma if any
-			for comp := 1; comp < numComps; comp++ {
+			for comp := 0; comp < numComps; comp++ {
 				for i := uint(0); i <= ext.NumPalettePredictorInitializersMinus1 && r.AccError() == nil; i++ {
 					ext.PalettePredictorInitializer[comp] =
-						append(ext.PalettePredictorInitializer[comp], r.Read(int(BitDepthChromaMinus8+8)))
+						append(ext.PalettePredictorInitializer[comp], r.Read(bitDepths[comp]))
 				}
 			}
 		}
@@ -975,5 +1042,5 @@ func parseSPSSccExtension(r *bits.EBSPReader, ChromaFormatIDC,
 	ext.MotionVectorResolutionControlIdc = uint8(r.Read(2))
 	ext.IntraBoundaryFilteringDisabledFlag = r.ReadFlag()
 
-	return ext
+	return ext, nil
 }

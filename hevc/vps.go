@@ -16,6 +16,13 @@ const maxLayers = 8
 // ISO/IEC 23008-2 Section 7.4.3.1.
 const maxNumLayerSetsMinus1 = 1023
 
+// Upper bounds of counts in vps_extension() from ISO/IEC 23008-2 Annex F.7.4.3.1.1.
+const (
+	maxNumProfileTierLevelMinus1 = 63
+	maxNumAddOlss                = 1023
+	maxNumRepFormatsMinus1       = 255
+)
+
 // VPS is HEVC VPS parameters
 // ISO/IEC 23008-2 (Ed. 5) Sec. 7.3.2.1 page 47 and 7.4.3.1 page 92
 type VPS struct {
@@ -393,9 +400,9 @@ func parseVPSExtension(vps *VPS, ext *VPSExtension, r *bits.EBSPReader) error {
 			numIndependentLayers++
 		}
 	}
-	numAddLayerSets := 0
+	var numAddLayerSets uint
 	if numIndependentLayers > 1 {
-		numAddLayerSets = int(r.ReadExpGolomb())
+		numAddLayerSets = r.ReadExpGolomb()
 	}
 	// Additional layer sets require the tree-partition (F-6) and layer-set (F-9)
 	// derivations to read highest_layer_idx_plus1[i][j] with the correct per-tree
@@ -430,23 +437,32 @@ func parseVPSExtension(vps *VPS, ext *VPSExtension, r *bits.EBSPReader) error {
 	_ = r.ReadFlag() // default_ref_layers_active_flag
 
 	// Profile tier levels for extension layers
-	ext.NumProfileTierLevel = int(r.ReadExpGolomb()) + 1
+	numProfileTierLevelMinus1 := r.ReadExpGolomb()
+	if numProfileTierLevelMinus1 > maxNumProfileTierLevelMinus1 {
+		return fmt.Errorf("vps_num_profile_tier_level_minus1 %d exceeds %d",
+			numProfileTierLevelMinus1, maxNumProfileTierLevelMinus1)
+	}
+	ext.NumProfileTierLevel = int(numProfileTierLevelMinus1) + 1
 	startIdx := 1
 	if vps.BaseLayerInternalFlag {
 		startIdx = 2
 	}
-	for i := startIdx; i < ext.NumProfileTierLevel; i++ {
+	for i := startIdx; i < ext.NumProfileTierLevel && r.AccError() == nil; i++ {
 		profilePresentFlag := r.ReadFlag()
 		ext.ExtProfileTierLevels = append(ext.ExtProfileTierLevels,
 			parseProfileTierLevel(r, profilePresentFlag, vps.MaxSubLayersMinus1))
 	}
 
-	// Output layer sets
-	numLayerSets := int(vps.NumLayerSetsMinus1) + 1 + numAddLayerSets
+	// Output layer sets. NumLayerSets also counts num_add_layer_sets, which is zero here.
+	numLayerSets := int(vps.NumLayerSetsMinus1) + 1
 	numAddOlss := 0
 	defaultOutputLayerIDC := 0
 	if numLayerSets > 1 {
-		numAddOlss = int(r.ReadExpGolomb())
+		n := r.ReadExpGolomb()
+		if n > maxNumAddOlss {
+			return fmt.Errorf("num_add_olss %d exceeds %d", n, maxNumAddOlss)
+		}
+		numAddOlss = int(n)
 		defaultOutputLayerIDC = int(r.Read(2))
 		if defaultOutputLayerIDC > 2 {
 			defaultOutputLayerIDC = 2
@@ -472,7 +488,7 @@ func parseVPSExtension(vps *VPS, ext *VPSExtension, r *bits.EBSPReader) error {
 	// NumOutputLayerSets may be far larger than maxLayers (num_add_olss can be up
 	// to 1023), so per-OLS state is computed in locals indexed by the in-set layer
 	// index j and only persisted into ext for the first maxLayers OLSs.
-	for i := 0; i < ext.NumOutputLayerSets; i++ {
+	for i := 0; i < ext.NumOutputLayerSets && r.AccError() == nil; i++ {
 		olsIdxToLsIdx := i
 		if i >= numLayerSets {
 			// layer_set_idx_for_ols_minus1[i] is only signalled when NumLayerSets > 2,
@@ -585,8 +601,13 @@ func parseVPSExtension(vps *VPS, ext *VPSExtension, r *bits.EBSPReader) error {
 	}
 
 	// Rep formats
-	ext.NumRepFormats = int(r.ReadExpGolomb()) + 1
-	for i := 0; i < ext.NumRepFormats; i++ {
+	numRepFormatsMinus1 := r.ReadExpGolomb()
+	if numRepFormatsMinus1 > maxNumRepFormatsMinus1 {
+		return fmt.Errorf("vps_num_rep_formats_minus1 %d exceeds %d",
+			numRepFormatsMinus1, maxNumRepFormatsMinus1)
+	}
+	ext.NumRepFormats = int(numRepFormatsMinus1) + 1
+	for i := 0; i < ext.NumRepFormats && r.AccError() == nil; i++ {
 		var prev *RepFormat
 		if i > 0 {
 			prev = &ext.RepFormats[i-1]

@@ -16,6 +16,14 @@ var (
 
 // This parser based on Rec. ITU-T H.265 v5 (02/2018) and ISO/IEC 23008-2 Ed. 5
 
+// Upper bounds of PPS extension counts from ISO/IEC 23008-2.
+const (
+	// maxChromaQpOffsetListLenMinus1 is the upper bound of chroma_qp_offset_list_len_minus1 (7.4.3.3.2).
+	maxChromaQpOffsetListLenMinus1 = 5
+	// maxNumCmRefLayersMinus1 is the upper bound of num_cm_ref_layers_minus1 (F.7.4.3.3.5).
+	maxNumCmRefLayersMinus1 = 61
+)
+
 // PPS - Picture Parameter Set
 type PPS struct {
 	PicParameterSetID                      uint32
@@ -338,6 +346,11 @@ func parseRangeExtension(r *bits.EBSPReader, transformSkipEnabled bool) (*RangeE
 	if ext.ChromaQpOffsetListEnabledFlag {
 		ext.DiffCuChromaQpOffsetDepth = r.ReadExpGolomb()
 		ext.ChromaQpOffsetListLenMinus1 = r.ReadExpGolomb()
+		// chroma_qp_offset_list_len_minus1 shall be in the range of 0 to 5, inclusive (7.4.3.3.2).
+		if ext.ChromaQpOffsetListLenMinus1 > maxChromaQpOffsetListLenMinus1 {
+			return nil, fmt.Errorf("chroma_qp_offset_list_len_minus1 %d exceeds %d",
+				ext.ChromaQpOffsetListLenMinus1, maxChromaQpOffsetListLenMinus1)
+		}
 		for i := uint(0); i <= ext.ChromaQpOffsetListLenMinus1 && r.AccError() == nil; i++ {
 			// values shall be in the range of −12 to +12, inclusive
 			ext.CbQpOffsetList = append(ext.CbQpOffsetList, int8(r.ReadSignedGolomb()))
@@ -413,8 +426,13 @@ func parseMultilayerExtension(r *bits.EBSPReader) (*MultilayerExtension, error) 
 
 func parseColourMappingTable(r *bits.EBSPReader) (*ColourMappingTable, error) {
 	cm := &ColourMappingTable{}
-	// value shall be in the range of 0 to 61, inclusive
-	cm.NumCmRefLayersMinus1 = uint8(r.ReadExpGolomb())
+	// num_cm_ref_layers_minus1 shall be in the range of 0 to 61, inclusive (F.7.4.3.3.5).
+	numCmRefLayersMinus1 := r.ReadExpGolomb()
+	if numCmRefLayersMinus1 > maxNumCmRefLayersMinus1 {
+		return nil, fmt.Errorf("num_cm_ref_layers_minus1 %d exceeds %d",
+			numCmRefLayersMinus1, maxNumCmRefLayersMinus1)
+	}
+	cm.NumCmRefLayersMinus1 = uint8(numCmRefLayersMinus1)
 	for i := uint8(0); i <= cm.NumCmRefLayersMinus1 && r.AccError() == nil; i++ {
 		cm.RefLayerId = append(cm.RefLayerId, uint8(r.Read(6)))
 	}
@@ -522,6 +540,12 @@ func parseSccExtension(r *bits.EBSPReader) (*SccExtension, error) {
 	ext.PalettePredictorInitializersPresentFlag = r.ReadFlag()
 	if ext.PalettePredictorInitializersPresentFlag {
 		ext.NumPalettePredictorInitializers = r.ReadExpGolomb()
+		// pps_num_palette_predictor_initializers shall be at most PaletteMaxPredictorSize
+		// (7.4.3.3.3), which is at most maxPaletteMaxPredictorSize.
+		if ext.NumPalettePredictorInitializers > maxPaletteMaxPredictorSize {
+			return nil, fmt.Errorf("pps_num_palette_predictor_initializers %d exceeds %d",
+				ext.NumPalettePredictorInitializers, maxPaletteMaxPredictorSize)
+		}
 		if ext.NumPalettePredictorInitializers > 0 {
 			ext.MonochromePaletteFlag = r.ReadFlag()
 			ext.LumaBitDepthEntryMinus8 = r.ReadExpGolomb()
@@ -530,17 +554,25 @@ func parseSccExtension(r *bits.EBSPReader) (*SccExtension, error) {
 				numComps = 3
 				ext.ChromaBitDepthEntryMinus8 = r.ReadExpGolomb()
 			}
+			// The entry bit depths shall equal bit_depth_luma_minus8 and bit_depth_chroma_minus8
+			// (7.4.3.3.3), which are at most maxBitDepthMinus8.
+			if ext.LumaBitDepthEntryMinus8 > maxBitDepthMinus8 || ext.ChromaBitDepthEntryMinus8 > maxBitDepthMinus8 {
+				return nil, fmt.Errorf("luma_bit_depth_entry_minus8 %d or chroma_bit_depth_entry_minus8 %d exceeds %d",
+					ext.LumaBitDepthEntryMinus8, ext.ChromaBitDepthEntryMinus8, maxBitDepthMinus8)
+			}
+			lumaBitDepth := int(ext.LumaBitDepthEntryMinus8) + 8
+			chromaBitDepth := int(ext.ChromaBitDepthEntryMinus8) + 8
 			ext.PalettePredictorInitializer = make([][]uint, numComps)
 			// Fill luma
 			for i := uint(0); i < ext.NumPalettePredictorInitializers && r.AccError() == nil; i++ {
 				ext.PalettePredictorInitializer[0] =
-					append(ext.PalettePredictorInitializer[0], r.Read(int(ext.LumaBitDepthEntryMinus8+8)))
+					append(ext.PalettePredictorInitializer[0], r.Read(lumaBitDepth))
 			}
 			// Fill chroma if any
 			for comp := 1; comp < numComps; comp++ {
 				for i := uint(0); i < ext.NumPalettePredictorInitializers && r.AccError() == nil; i++ {
 					ext.PalettePredictorInitializer[comp] =
-						append(ext.PalettePredictorInitializer[comp], r.Read(int(ext.ChromaBitDepthEntryMinus8+8)))
+						append(ext.PalettePredictorInitializer[comp], r.Read(chromaBitDepth))
 				}
 			}
 		}
@@ -559,7 +591,13 @@ func parse3dExtension(r *bits.EBSPReader) (*D3Extension, error) {
 	if ext.DltsPresentFlag {
 		ext.NumDepthLayersMinus1 = uint8(r.Read(6))
 		ext.BitDepthForDepthLayersMinus8 = uint8(r.Read(4))
-		for i := uint8(0); i <= ext.NumDepthLayersMinus1; i++ {
+		// pps_bit_depth_for_depth_layers_minus8 shall equal bit_depth_luma_minus8 (I.7.4.3.3.7),
+		// which is at most maxBitDepthMinus8.
+		if ext.BitDepthForDepthLayersMinus8 > maxBitDepthMinus8 {
+			return nil, fmt.Errorf("pps_bit_depth_for_depth_layers_minus8 %d exceeds %d",
+				ext.BitDepthForDepthLayersMinus8, maxBitDepthMinus8)
+		}
+		for i := uint8(0); i <= ext.NumDepthLayersMinus1 && r.AccError() == nil; i++ {
 			layer := DepthLayer{}
 			layer.DltFlag = r.ReadFlag()
 			if layer.DltFlag {
@@ -570,7 +608,7 @@ func parse3dExtension(r *bits.EBSPReader) (*D3Extension, error) {
 				if layer.DltValFlagsPresentFlag {
 					// variable depthMaxValue is set equal to ( 1 << ( pps_bit_depth_for_depth_layers_minus8 + 8 ) ) − 1
 					depthMaxValue := (1 << (ext.BitDepthForDepthLayersMinus8 + 8)) - 1
-					for j := 0; j <= depthMaxValue; j++ {
+					for j := 0; j <= depthMaxValue && r.AccError() == nil; j++ {
 						layer.DltValueFlag = append(layer.DltValueFlag, r.ReadFlag())
 					}
 				} else {
