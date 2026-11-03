@@ -347,7 +347,7 @@ func (t *TrakBox) SetAACDescriptor(objType byte, samplingFrequency int) error {
 // SetAACDescriptorWithChannelConfig modifies a TrakBox by adding an AAC SampleDescriptor
 // with a channelConfiguration from ISO/IEC 14496-3, such as 1 (mono), 2 (stereo), 6 (5.1) or 7 (7.1).
 // The channel count of the sample entry is the number of channels of that configuration (see aac.NrChannels).
-// objType is one of AAClc, HEAACv1, HEAACv2, and HEAACv2 needs channelConfiguration 1.
+// objType is one of AACMain, AAClc, HEAACv1, HEAACv2, and HEAACv2 needs channelConfiguration 1.
 // For HEAAC, the samplingFrequency is the base frequency (normally 24000)
 func (t *TrakBox) SetAACDescriptorWithChannelConfig(objType, channelConfiguration byte, samplingFrequency int) error {
 	nrChannels := aac.NrChannels(channelConfiguration)
@@ -378,22 +378,26 @@ func (t *TrakBox) SetAACDescriptorWithChannelConfig(objType, channelConfiguratio
 	return t.SetAACDescriptorFromConfig(asc)
 }
 
-// SetAACDescriptorFromConfig creates an AAC sample entry using all fields in asc.
-// Channel configuration zero (Program Config Element) and future GA syntax are unsupported.
+// SetAACDescriptorFromConfig modifies a TrakBox by adding an AAC SampleDescriptor
+// with all fields of asc, such as the frame length, a program config element or sync extensions.
+// The channel count of the sample entry is asc.NrChannels().
 func (t *TrakBox) SetAACDescriptorFromConfig(asc *aac.AudioSpecificConfig) error {
 	if asc == nil {
 		return fmt.Errorf("nil AudioSpecificConfig")
 	}
-	stsd := t.Mdia.Minf.Stbl.Stsd
 	buf := &bytes.Buffer{}
 	err := asc.Encode(buf)
 	if err != nil {
 		return err
 	}
-	ascBytes := buf.Bytes()
-	esds := CreateEsdsBox(ascBytes)
+	nrChannels := asc.NrChannels()
+	if nrChannels == 0 {
+		return fmt.Errorf("AAC channel configuration %d has no fixed channel layout", asc.ChannelConfiguration)
+	}
+	stsd := t.Mdia.Minf.Stbl.Stsd
+	esds := CreateEsdsBox(buf.Bytes())
 	mp4a := CreateAudioSampleEntryBox("mp4a",
-		uint16(aac.NrChannels(asc.ChannelConfiguration)),
+		uint16(nrChannels),
 		16, uint16(asc.SamplingFrequency), esds)
 	stsd.AddChild(mp4a)
 	return nil

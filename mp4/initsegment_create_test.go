@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/aac"
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
+	"github.com/go-test/deep"
 )
 
 const (
@@ -366,5 +368,87 @@ func TestSetAACDescriptorChannels(t *testing.T) {
 		if got := trak.Mdia.Minf.Stbl.Stsd.Mp4a.ChannelCount; got != want {
 			t.Errorf("object type %d: got channel count %d, want %d", objType, got, want)
 		}
+	}
+}
+
+// TestSetAACDescriptorFromConfig checks that the sample entry keeps every field of the config,
+// and that its channel count comes from the channel configuration or the program config element.
+func TestSetAACDescriptorFromConfig(t *testing.T) {
+	pce51 := &aac.ProgramConfigElement{ObjectType: 1, SamplingFrequencyIndex: 3,
+		FrontElements:  []aac.PCEChannelElement{{}, {IsCPE: true}},
+		BackElements:   []aac.PCEChannelElement{{IsCPE: true, TagSelect: 1}},
+		LFEElementTags: []byte{0}}
+	testCases := []struct {
+		desc             string
+		asc              *aac.AudioSpecificConfig
+		wantChannelCount uint16
+		wantErr          string
+	}{
+		{
+			desc: "AAC-LC stereo with 960 samples per frame",
+			asc: &aac.AudioSpecificConfig{ObjectType: aac.AAClc, ChannelConfiguration: 2,
+				SamplingFrequency: 48000, FrameLengthFlag: true},
+			wantChannelCount: 2,
+		},
+		{
+			desc: "AAC Main 5.1 via a program config element",
+			asc: &aac.AudioSpecificConfig{ObjectType: aac.AACMain, ChannelConfiguration: 0,
+				SamplingFrequency: 48000, PCE: pce51},
+			wantChannelCount: 6,
+		},
+		{
+			desc: "implicit HE-AAC v2",
+			asc: &aac.AudioSpecificConfig{ObjectType: aac.AAClc, ChannelConfiguration: 1,
+				SamplingFrequency: 24000, ExtensionFrequency: 48000, SBRPresentFlag: true, PSPresentFlag: true,
+				SyncExtensionPresent: true, PSSyncExtensionPresent: true},
+			wantChannelCount: 1,
+		},
+		{
+			desc:    "nil config",
+			wantErr: "nil AudioSpecificConfig",
+		},
+		{
+			desc:    "reserved channel configuration 8",
+			asc:     &aac.AudioSpecificConfig{ObjectType: aac.AAClc, ChannelConfiguration: 8, SamplingFrequency: 48000},
+			wantErr: "no fixed channel layout",
+		},
+		{
+			desc:    "channel configuration 0 without a program config element",
+			asc:     &aac.AudioSpecificConfig{ObjectType: aac.AAClc, ChannelConfiguration: 0, SamplingFrequency: 48000},
+			wantErr: "needs a program config element",
+		},
+	}
+	for _, c := range testCases {
+		t.Run(c.desc, func(t *testing.T) {
+			init := mp4.CreateEmptyInit()
+			trak := init.AddEmptyTrack(48000, "audio", "en")
+			err := trak.SetAACDescriptorFromConfig(c.asc)
+			if c.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+					t.Errorf("wanted error %q, got %v", c.wantErr, err)
+				}
+				if len(trak.Mdia.Minf.Stbl.Stsd.Children) != 0 {
+					t.Error("sample entry added despite the error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			mp4a := trak.Mdia.Minf.Stbl.Stsd.Mp4a
+			if mp4a.ChannelCount != c.wantChannelCount {
+				t.Errorf("got channel count %d, want %d", mp4a.ChannelCount, c.wantChannelCount)
+			}
+			if mp4a.SampleRate != uint16(c.asc.SamplingFrequency) {
+				t.Errorf("got sample rate %d, want %d", mp4a.SampleRate, c.asc.SamplingFrequency)
+			}
+			got, err := aac.DecodeAudioSpecificConfig(bytes.NewReader(mp4a.Esds.DecConfigDescriptor.DecSpecificInfo.DecConfig))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := deep.Equal(got, c.asc); diff != nil {
+				t.Error(diff)
+			}
+		})
 	}
 }
