@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StsdBox`, `DrefBox`, `VisualSampleEntryBox`, `AudioSampleEntryBox`, `StppBox`, `WvttBox`, `TrepBox` and
   `EvteBox` implement `ContainerBox`
 - `StblBox.GetContainingChunks` returns the chunks of a sample interval, checked against the chunk offsets
+- `aac.AudioSpecificConfig` decodes and encodes AAC Main, 960-sample frames, core coder delays, program config
+  elements (`aac.ProgramConfigElement`) and SBR and PS sync extensions; `TrakBox.SetAACDescriptorFromConfig` uses one
 
 ### Changed
 
@@ -50,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IlstBox` decodes items whose type mp4ff does not know, such as `trkn`, `covr` and the key indices of QuickTime
   metadata, as `GenericContainerBox` with their data boxes, instead of as `UnknownBox`
 - `VisualSampleEntryBox.Info` prints `trailingBytes` before the child boxes
+- `aac.DecodeAudioSpecificConfig` reads its whole reader, which must end where the config ends, and returns the
+  fields decoded before an error together with the error
 
 ### Fixed
 
