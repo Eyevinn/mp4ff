@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -102,40 +103,25 @@ func DecodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 
 // decodeContainerChildren decodes the children of a container box. With trailing set, bytes after
 // the last child that are too few for a box header end the children and are returned in *trailing.
+//
+// The children are read into memory, as data arrives, and decoded from there, so that all boxes below a box
+// decoded from an io.Reader are decoded from one bits.FixedSliceReader, which counts their depth.
 func decodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader, trailing *[]byte) ([]Box, error) {
-	// Guard before the unsigned subtractions below can wrap.
+	// Guard before the unsigned subtraction below can wrap.
 	if startPos > endPos {
 		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
 			hdr.Name, hdr.Size, hdr.Size+(startPos-endPos))
 	}
-	children := make([]Box, 0, 8)
-	pos := startPos
-	for {
-		if pos > endPos {
-			return nil, fmt.Errorf("non-matching children box sizes, parentSize=%d, %s", endPos-startPos, childSizes(children))
-		}
-		if pos == endPos {
-			return children, nil
-		}
-		if trailing != nil && endPos-pos < boxHeaderSize {
-			*trailing = make([]byte, endPos-pos)
-			if _, err := io.ReadFull(r, *trailing); err != nil {
-				return children, fmt.Errorf("%s: trailing bytes: %w", hdr.Name, err)
-			}
-			return children, nil
-		}
-		child, err := DecodeBox(pos, r)
-		if err == io.EOF {
-			// Data ended on a child boundary before endPos: the box is truncated.
-			return children, fmt.Errorf("%s: %w: expected %d bytes, got %d", hdr.Name,
-				io.ErrUnexpectedEOF, endPos-startPos, pos-startPos)
-		}
-		if err != nil {
-			return children, err
-		}
-		children = append(children, child)
-		pos += child.Size()
+	data, err := io.ReadAll(io.LimitReader(r, int64(min(endPos-startPos, math.MaxInt64))))
+	if err != nil {
+		return nil, err
 	}
+	if uint64(len(data)) != endPos-startPos {
+		return nil, fmt.Errorf("%s: %w: expected %d bytes, got %d", hdr.Name, io.ErrUnexpectedEOF,
+			endPos-startPos, len(data))
+	}
+	sr := ioPayloadReader(data)
+	return decodeContainerChildrenSR(hdr, startPos, endPos, sr, make([]Box, 0, 8), trailing)
 }
 
 // maxListedChildren is how many children the error for non-matching children box sizes lists.

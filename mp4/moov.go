@@ -85,7 +85,7 @@ func DecodeMoov(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if len(data) != int(hdr.payloadLen()) {
 		return nil, fmt.Errorf("moov: expected %d bytes, got %d", hdr.payloadLen(), len(data))
 	}
-	sr := bits.NewFixedSliceReader(data)
+	sr := ioPayloadReader(data)
 	children, err := DecodeContainerChildrenSR(hdr, startPos+8, startPos+hdr.Size, sr)
 	if err != nil {
 		return nil, err

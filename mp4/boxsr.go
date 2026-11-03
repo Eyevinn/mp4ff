@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -361,6 +362,40 @@ func (h rawHeader) lookup() (BoxHeader, BoxDecoderSR) {
 	return BoxHeader{name, h.size, h.hdrLen}, d
 }
 
+// MaxBoxDepth is the deepest nesting of boxes that the decoders accept, counting the outermost box as depth 1.
+// The deepest files seen nest 11 boxes, for example moov/trak/mdia/minf/stbl/stsd/hvc1/vexu/eyes/cams/blin.
+// The depth is counted on a bits.FixedSliceReader, so a box decoded from another bits.SliceReader is not checked.
+const MaxBoxDepth = 64
+
+// ErrBoxTooDeep is the error for boxes nested deeper than MaxBoxDepth.
+var ErrBoxTooDeep = fmt.Errorf("boxes nested more than %d deep", MaxBoxDepth)
+
+// boxDepth returns the box depth that sr counts, or 0 if sr is not a bits.FixedSliceReader.
+func boxDepth(sr bits.SliceReader) int {
+	if fsr, ok := sr.(*bits.FixedSliceReader); ok {
+		return fsr.Depth()
+	}
+	return 0
+}
+
+// childReader returns a reader of data, a payload read from parent, that continues the box depth of parent.
+func childReader(parent bits.SliceReader, data []byte) *bits.FixedSliceReader {
+	sr := bits.NewFixedSliceReader(data)
+	sr.SetDepth(boxDepth(parent))
+	return sr
+}
+
+// ioBoxDepth is the box depth of a box decoded from an io.Reader. Boxes below it are decoded from a
+// bits.FixedSliceReader of its payload, so it is a top-level box.
+const ioBoxDepth = 1
+
+// ioPayloadReader returns a reader of data, the payload of a box decoded from an io.Reader.
+func ioPayloadReader(data []byte) *bits.FixedSliceReader {
+	sr := bits.NewFixedSliceReader(data)
+	sr.SetDepth(ioBoxDepth)
+	return sr
+}
+
 // DecodeBoxBodySR - decode box body from SliceReader given BoxHeader
 func DecodeBoxBodySR(startPos uint64, hdr BoxHeader, sr bits.SliceReader) (Box, error) {
 	d, _ := decodersSR[hdr.Name]
@@ -379,6 +414,14 @@ func decodeBoxBodySR(startPos uint64, hdr BoxHeader, d BoxDecoderSR, sr bits.Sli
 		return nil, fmt.Errorf("decode box %q, size %d too big (max %d)", hdr.Name, hdr.Size, maxSize)
 	}
 
+	fsr, counted := sr.(*bits.FixedSliceReader)
+	if counted {
+		depth := fsr.Depth() + 1
+		if depth > MaxBoxDepth {
+			return nil, fmt.Errorf("decode %s pos %d: %w", hdr.Name, startPos, ErrBoxTooDeep)
+		}
+		fsr.SetDepth(depth)
+	}
 	var b Box
 	var err error
 	payloadStart := sr.GetPos()
@@ -390,6 +433,9 @@ func decodeBoxBodySR(startPos uint64, hdr BoxHeader, d BoxDecoderSR, sr bits.Sli
 	default:
 		b, err = d(hdr, startPos, sr)
 	}
+	if counted {
+		fsr.SetDepth(fsr.Depth() - 1)
+	}
 	// The next box starts where this decoder stopped, so it must read exactly the payload.
 	// mdat is exempt, as it may extend beyond sr (see above).
 	if err == nil && hdr.Name != "mdat" {
@@ -399,6 +445,9 @@ func decodeBoxBodySR(startPos uint64, hdr BoxHeader, d BoxDecoderSR, sr bits.Sli
 		}
 	}
 	if err != nil {
+		if errors.Is(err, ErrBoxTooDeep) {
+			return nil, err // already names the box that is too deep
+		}
 		return nil, fmt.Errorf("decode %s pos %d: %w", hdr.Name, startPos, err)
 	}
 

@@ -27,7 +27,7 @@ func DecodeTrep(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	sr := bits.NewFixedSliceReader(data)
+	sr := ioPayloadReader(data)
 	return DecodeTrepSR(hdr, startPos, sr)
 }
 

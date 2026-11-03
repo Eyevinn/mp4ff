@@ -148,7 +148,7 @@ func DecodeVisualSampleEntry(hdr BoxHeader, startPos uint64, r io.Reader) (Box, 
 	if err != nil {
 		return nil, err
 	}
-	sr := bits.NewFixedSliceReader(data)
+	sr := ioPayloadReader(data)
 	return DecodeVisualSampleEntrySR(hdr, startPos, sr)
 }
 
