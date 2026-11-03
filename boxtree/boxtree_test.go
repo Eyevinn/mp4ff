@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -415,5 +416,25 @@ func TestUdtaTerminator(t *testing.T) {
 	}
 	if c := tree.Boxes[0].Children; len(c) != 1 || c[0].Pos != 8 || c[0].Type != "WLOC" {
 		t.Errorf("children: %+v", c)
+	}
+}
+
+// TestDecodeSencSampleCount checks that a senc box that declares many more samples than it has IVs for is
+// decoded without allocating memory for the declared samples.
+func TestDecodeSencSampleCount(t *testing.T) {
+	be32 := func(v uint32) []byte { return binary.BigEndian.AppendUint32(nil, v) }
+	tfhd := makeBox("tfhd", append(be32(0x020000), be32(1)...))
+	senc := makeBox("senc", append(append(be32(0), be32(1<<22)...), make([]byte, 16)...))
+	moof := makeBox("moof", append(makeBox("mfhd", append(be32(0), be32(1)...)), makeBox("traf", append(tfhd, senc...))...))
+	data := append(moof, makeBox("mdat", nil)...)
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	_, err := Decode(bytes.NewReader(data), int64(len(data)), "")
+	runtime.ReadMemStats(&after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 8<<20 {
+		t.Errorf("allocated %d bytes for a file of %d bytes", allocated, len(data))
 	}
 }

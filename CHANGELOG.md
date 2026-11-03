@@ -56,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when an Annex-B stream ends before video, and appending to a returned parameter set leaves the other sets unchanged
 - `DecodeFile` and the other decoders accept QuickTime files with the text atoms `©nam`, `©ART`, `©too` or `©cpy`
   in `udta`
+- `SencBox.ParseReadBox` returns an error for a senc box with fewer IVs than samples, instead of allocating memory
+  for the declared samples when `DecodeFile`, `DecodeFileSR`, `FragmentDecoder` or `boxtree.Decode` parse it
 
 ## [0.61.0] - 2026-10-27
 
