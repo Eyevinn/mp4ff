@@ -56,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VisualSampleEntryBox.Info` prints `trailingBytes` before the child boxes
 - `aac.DecodeAudioSpecificConfig` reads its whole reader, which must end where the config ends, and returns the
   fields decoded before an error together with the error
+- `ReadExpGolomb` and `ReadSignedGolomb` of `bits.EBSPReader` and `bits.Reader` return the error
+  `bits.ErrExpGolombTooLong` for codes with more than 31 leading zero bits, the longest in AVC, HEVC and VVC
 
 ### Fixed
 

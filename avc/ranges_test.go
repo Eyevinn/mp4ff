@@ -281,7 +281,7 @@ func TestSPSParserRanges(t *testing.T) {
 		{"crop left+right = width", func(f *spsFields) { f.crop = []uint{4, 4, 0, 0} }, "frame cropping"},
 		{"crop top+bottom = height", func(f *spsFields) { f.crop = []uint{0, 0, 0, 8} }, "frame cropping"},
 		{"crop right far beyond width", func(f *spsFields) { f.crop = []uint{0, 100, 0, 0} }, "frame cropping"},
-		{"crop right 2^32-1", func(f *spsFields) { f.crop = []uint{1, math.MaxUint32, 0, 0} }, "frame cropping"},
+		{"crop right 2^32-2", func(f *spsFields) { f.crop = []uint{1, math.MaxUint32 - 1, 0, 0} }, "frame cropping"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -420,7 +420,7 @@ func TestParseSliceHeaderDeblocking(t *testing.T) {
 		{"beta 7", deblockingFields{0, 0, 7}, "slice_beta_offset_div2"},
 		{"beta -7", deblockingFields{0, 0, -7}, "slice_beta_offset_div2"},
 		{"idc 3", deblockingFields{3, 0, 0}, "disable_deblocking_filter_idc"},
-		{"idc 2^32-1", deblockingFields{math.MaxUint32, 0, 0}, "disable_deblocking_filter_idc"},
+		{"idc 2^32-2", deblockingFields{math.MaxUint32 - 1, 0, 0}, "disable_deblocking_filter_idc"},
 		{"fuzzed", deblockingFields{5, 24, 771}, "disable_deblocking_filter_idc"},
 		{"fuzzed offsets", deblockingFields{0, 24, 771}, "slice_alpha_c0_offset_div2"},
 		{"fuzzed beta offset", deblockingFields{0, 0, 771}, "slice_beta_offset_div2"},
@@ -476,7 +476,7 @@ func TestParseSliceHeaderNumRefIdxActive(t *testing.T) {
 	if err == nil && sh.NumRefIdxL0ActiveMinus1 != 31 {
 		t.Errorf("got num_ref_idx_l0_active_minus1 %d, want 31", sh.NumRefIdxL0ActiveMinus1)
 	}
-	for _, n := range []uint{32, math.MaxUint32} {
+	for _, n := range []uint{32, math.MaxUint32 - 1} {
 		_, err := parseSliceHeaderWithTimeout(t, writePSlice(t, n, false), spsMap, ppsMap)
 		checkErr(t, err, "num_ref_idx_l0_active_minus1")
 	}

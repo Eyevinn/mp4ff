@@ -2,6 +2,7 @@ package bits_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -372,6 +373,77 @@ func TestReaderSignedGolomb(t *testing.T) {
 		}
 		if got != c.wanted {
 			t.Errorf("ReadSignedGolomb(%08b)=%d, want %d", c.input, got, c.wanted)
+		}
+	}
+}
+
+// bitStringBytes packs a string of 0 and 1 characters into bytes, padding the last byte with zeros.
+func bitStringBytes(s string) []byte {
+	data := make([]byte, (len(s)+7)/8)
+	for i, c := range s {
+		if c == '1' {
+			data[i/8] |= 0x80 >> (i % 8)
+		}
+	}
+	return data
+}
+
+// TestReadExpGolombLimit checks that both readers accept codes of up to 31 leading zero bits and
+// reject a code of 32.
+func TestReadExpGolombLimit(t *testing.T) {
+	zeros := func(n int) string { return strings.Repeat("0", n) }
+	ones := func(n int) string { return strings.Repeat("1", n) }
+	cases := []struct {
+		desc     string
+		code     string
+		signed   bool
+		wantUint uint
+		wantInt  int
+		wantErr  bool
+	}{
+		{desc: "ue(2^32-2)", code: zeros(31) + "1" + ones(31), wantUint: 1<<32 - 2},
+		{desc: "ue(2^32-1)", code: zeros(32) + "1" + zeros(32), wantErr: true},
+		{desc: "se(2^31-1)", code: zeros(31) + "1" + ones(30) + "0", signed: true, wantInt: 1<<31 - 1},
+		{desc: "se(-(2^31-1))", code: zeros(31) + "1" + ones(31), signed: true, wantInt: -(1<<31 - 1)},
+		{desc: "se(2^31)", code: zeros(32) + "1" + zeros(32), signed: true, wantErr: true},
+	}
+	type golombReader interface {
+		Read(n int) uint
+		ReadExpGolomb() uint
+		ReadSignedGolomb() int
+		AccError() error
+	}
+	for _, c := range cases {
+		data := bitStringBytes(c.code + "1") // a 1 bit after the code
+		readers := []struct {
+			name string
+			r    golombReader
+		}{
+			{"Reader", bits.NewReaderFromSlice(data)},
+			{"EBSPReader", bits.NewEBSPReaderFromSlice(data)},
+		}
+		for _, rd := range readers {
+			r := rd.r
+			var gotUint uint
+			var gotInt int
+			if c.signed {
+				gotInt = r.ReadSignedGolomb()
+			} else {
+				gotUint = r.ReadExpGolomb()
+			}
+			if c.wantErr {
+				if !errors.Is(r.AccError(), bits.ErrExpGolombTooLong) || gotUint != 0 || gotInt != 0 {
+					t.Errorf("%s %s: got %d, %d with error %v, want 0 with ErrExpGolombTooLong",
+						rd.name, c.desc, gotUint, gotInt, r.AccError())
+				}
+				continue
+			}
+			if gotUint != c.wantUint || gotInt != c.wantInt {
+				t.Errorf("%s %s: got %d, %d", rd.name, c.desc, gotUint, gotInt)
+			}
+			if after := r.Read(1); after != 1 || r.AccError() != nil {
+				t.Errorf("%s %s: read %d after the code, error %v", rd.name, c.desc, after, r.AccError())
+			}
 		}
 	}
 }
