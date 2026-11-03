@@ -377,6 +377,15 @@ func TestRunErrors(t *testing.T) {
 	}
 }
 
+func TestHelp(t *testing.T) {
+	for _, arg := range []string{"help", "-h", "-help", "--help"} {
+		var buf bytes.Buffer
+		if err := run([]string{appName, arg}, &buf); err != nil {
+			t.Errorf("run(%s) = %v, want nil", arg, err)
+		}
+	}
+}
+
 func TestVersion(t *testing.T) {
 	var buf bytes.Buffer
 	if err := run([]string{appName, "version"}, &buf); err != nil {

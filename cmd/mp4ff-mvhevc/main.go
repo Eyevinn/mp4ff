@@ -1,4 +1,3 @@
-// mp4ff-mvhevc is a tool to inspect and create MV-HEVC (Multi-View HEVC) MP4 files.
 package main
 
 import (
@@ -22,16 +21,14 @@ import (
 
 const appName = "mp4ff-mvhevc"
 
-var usg = `%s inspects and creates MV-HEVC (Multi-View HEVC) MP4 files.
+var usg = `%[1]s inspects and creates MV-HEVC (Multi-View HEVC) MP4 files.
 
-Subcommands:
-  info [-idr] <input.mp4>                          Display MV-HEVC metadata
-  add  [options] <input.hevc|mp4> <output.mp4>     Mux into an MV-HEVC MP4
+Usage:
+  %[1]s info [-idr] <input.mp4>                       Display MV-HEVC metadata
+  %[1]s add [options] <input.hevc|mp4> <output.mp4>   Mux into an MV-HEVC MP4
+  %[1]s -version                                      Print version and exit
 
-Options:
-	-version Print version and exit
-
-Usage of %s:
+Run "%[1]s info -h" or "%[1]s add -h" for the options of each subcommand.
 `
 
 func main() {
@@ -43,7 +40,7 @@ func main() {
 
 func run(args []string, w io.Writer) error {
 	if len(args) < 2 {
-		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, usg, appName)
 		return fmt.Errorf("need a subcommand: info or add")
 	}
 	switch args[1] {
@@ -54,8 +51,11 @@ func run(args []string, w io.Writer) error {
 	case "version", "-version", "--version":
 		fmt.Fprintf(w, "%s %s\n", appName, internal.Version())
 		return nil
+	case "help", "-h", "-help", "--help":
+		fmt.Fprintf(os.Stderr, usg, appName)
+		return nil
 	default:
-		fmt.Fprintf(os.Stderr, usg, appName, appName)
+		fmt.Fprintf(os.Stderr, usg, appName)
 		return fmt.Errorf("unknown subcommand: %s", args[1])
 	}
 }
