@@ -21,14 +21,32 @@ type ADTSHeader struct {
 	BufferFullness         uint16
 }
 
-// NewADTSHeader - create a new ADTS header
+// maxADTSPayloadLength is the largest payload whose frame length, including
+// the 7-byte header, fits in the 13-bit frame_length field.
+const maxADTSPayloadLength = 1<<13 - 1 - 7
+
+// NewADTSHeader creates the 7-byte header of an MPEG-4 ADTS frame with one raw
+// data block and no CRC (ISO/IEC 14496-3:2019 Table 1.A.6), and checks that
+// the values fit the header fields:
+//   - objectType is AACMain or AAClc. HE-AAC is sent as AAC-LC with implicit SBR signaling.
+//   - samplingFrequency has a sampling frequency index in ReverseFrequencies.
+//   - channelConfig is at most 7. 0 means that a program config element in the payload gives the layout.
+//   - plLen is at most 8184 bytes, so that the frame length fits in 13 bits.
 func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, plLen uint16) (*ADTSHeader, error) {
-	if objectType != AAClc {
-		return nil, fmt.Errorf("must use AAC-LC (type 2) not %d", objectType)
+	switch objectType {
+	case AACMain, AAClc:
+	default:
+		return nil, fmt.Errorf("must use AAC Main (1) or AAC-LC (2), not %d", objectType)
 	}
 	sfi, ok := ReverseFrequencies[samplingFrequency]
 	if !ok {
 		return nil, fmt.Errorf("sampling frequency %d not supported", samplingFrequency)
+	}
+	if channelConfig > 7 {
+		return nil, fmt.Errorf("channel configuration %d does not fit in 3 bits", channelConfig)
+	}
+	if plLen > maxADTSPayloadLength {
+		return nil, fmt.Errorf("payload length %d exceeds the ADTS maximum %d", plLen, maxADTSPayloadLength)
 	}
 	return &ADTSHeader{
 		ObjectType:             objectType,
@@ -40,7 +58,8 @@ func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, p
 	}, nil
 }
 
-// Encode - encode ADTSHeader into byte slice
+// Encode writes the header as a 7-byte MPEG-4 ADTS header without CRC. The
+// fields are written as they are, so they must fit, as NewADTSHeader checks.
 func (a ADTSHeader) Encode() []byte {
 	buf := bytes.Buffer{}
 	bw := bits.NewWriter(&buf)

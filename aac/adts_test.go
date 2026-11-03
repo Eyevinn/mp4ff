@@ -3,6 +3,7 @@ package aac
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -133,6 +134,59 @@ func TestADTSFrameLengthShorterThanHeader(t *testing.T) {
 			}
 			if hdr.PayloadLength != 0 {
 				t.Errorf("got payload length %d instead of 0", hdr.PayloadLength)
+			}
+		})
+	}
+}
+
+// TestNewADTSHeader checks the limits of each argument at its boundaries, and that
+// accepted headers decode to the same values.
+func TestNewADTSHeader(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		frequency     int
+		channelConfig byte
+		objectType    byte
+		payloadLength uint16
+		wantedErr     string
+	}{
+		{desc: "AAC-LC stereo, empty payload", frequency: 48000, channelConfig: 2, objectType: AAClc, payloadLength: 0},
+		{desc: "AAC Main mono", frequency: 44100, channelConfig: 1, objectType: AACMain, payloadLength: 4096},
+		{desc: "channel layout in PCE", frequency: 48000, channelConfig: 0, objectType: AAClc, payloadLength: 768},
+		{desc: "7.1, largest payload", frequency: 7350, channelConfig: 7, objectType: AAClc, payloadLength: 8184},
+		{desc: "payload too large for the frame length", frequency: 48000, channelConfig: 2, objectType: AAClc,
+			payloadLength: 8185, wantedErr: "payload length 8185 exceeds the ADTS maximum 8184"},
+		{desc: "largest uint16 payload", frequency: 48000, channelConfig: 2, objectType: AAClc,
+			payloadLength: 65535, wantedErr: "payload length 65535 exceeds"},
+		{desc: "channel configuration 8", frequency: 48000, channelConfig: 8, objectType: AAClc,
+			wantedErr: "channel configuration 8 does not fit in 3 bits"},
+		{desc: "explicit HE-AAC", frequency: 24000, channelConfig: 2, objectType: HEAACv1,
+			wantedErr: "must use AAC Main (1) or AAC-LC (2), not 5"},
+		{desc: "object type 0", frequency: 48000, channelConfig: 2, objectType: 0, wantedErr: "not 0"},
+		{desc: "sampling frequency without index", frequency: 32768, channelConfig: 2, objectType: AAClc,
+			wantedErr: "sampling frequency 32768 not supported"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			hdr, err := NewADTSHeader(tc.frequency, tc.channelConfig, tc.objectType, tc.payloadLength)
+			if tc.wantedErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantedErr) || hdr != nil {
+					t.Errorf("got %v, %v, want nil and error %q", hdr, err, tc.wantedErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, _, err := DecodeADTSHeader(bytes.NewReader(hdr.Encode()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := deep.Equal(got, hdr); diff != nil {
+				t.Error(diff)
+			}
+			if int(got.Frequency()) != tc.frequency {
+				t.Errorf("got frequency %d, want %d", got.Frequency(), tc.frequency)
 			}
 		})
 	}
