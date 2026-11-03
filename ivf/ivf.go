@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 )
 
 const (
@@ -98,11 +99,36 @@ func (rd *Reader) ReadFrame() (Frame, error) {
 		return Frame{}, fmt.Errorf("frame size %d does not fit in an int", size)
 	}
 	ts := binary.LittleEndian.Uint64(fh[4:12])
-	data := make([]byte, size)
-	if _, err := io.ReadFull(rd.r, data); err != nil {
+	data, err := readPayload(rd.r, int(size))
+	if err != nil {
 		return Frame{}, fmt.Errorf("read frame payload (%d bytes): %w", size, err)
 	}
 	return Frame{Timestamp: ts, Data: data}, nil
+}
+
+// payloadChunkSize is how much readPayload allocates before it has read any data.
+const payloadChunkSize = 1 << 20
+
+// readPayload reads exactly size bytes from r with the errors of io.ReadFull. It grows the buffer
+// as the data arrives, so that the memory it allocates follows the bytes read rather than a frame
+// size that the stream may not hold.
+func readPayload(r io.Reader, size int) ([]byte, error) {
+	data := make([]byte, 0, min(size, payloadChunkSize))
+	for len(data) < size {
+		if len(data) == cap(data) {
+			data = slices.Grow(data, min(size-len(data), max(len(data), payloadChunkSize)))
+		}
+		end := min(size, cap(data))
+		n, err := io.ReadFull(r, data[len(data):end])
+		data = data[:len(data)+n]
+		if err != nil {
+			if err == io.EOF && len(data) > 0 {
+				err = io.ErrUnexpectedEOF
+			}
+			return nil, err
+		}
+	}
+	return data, nil
 }
 
 // Writer writes an IVF stream. NewWriter emits the file header; WriteFrame appends frames.
