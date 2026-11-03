@@ -2,6 +2,7 @@ package avc
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"os"
 	"testing"
@@ -125,6 +126,26 @@ func TestGetParameterSetsFromByteStream(t *testing.T) {
 		wantedPPS [][]byte
 	}{
 		{
+			"Empty",
+			nil,
+			nil, nil,
+		},
+		{
+			"No start code",
+			[]byte{7, 5, 4},
+			nil, nil,
+		},
+		{
+			"Start code only",
+			[]byte{0, 0, 1},
+			nil, nil,
+		},
+		{
+			"Only AUD",
+			[]byte{0, 0, 1, 9, 0xf0},
+			nil, nil,
+		},
+		{
 			"Only IDR",
 			[]byte{0, 0, 0, 1, 5, 0},
 			nil, nil,
@@ -139,6 +160,33 @@ func TestGetParameterSetsFromByteStream(t *testing.T) {
 			[][]byte{{7, 5, 4}},
 			[][]byte{{8, 1, 2}},
 		},
+		{
+			"SPS, AUD",
+			[]byte{0, 0, 1, 7, 5, 4, 0, 0,
+				0, 0, 1, 9, 0xf0},
+			[][]byte{{7, 5, 4}}, nil,
+		},
+		{
+			"SPS, PPS, PPS at EOF",
+			[]byte{0, 0, 1, 7, 5, 4,
+				0, 0, 0, 1, 8, 1, 2,
+				0, 0, 1, 8, 1, 3, 0, 0},
+			[][]byte{{7, 5, 4}},
+			[][]byte{{8, 1, 2}, {8, 1, 3}},
+		},
+		{
+			"SPS before video, PPS after video",
+			[]byte{0, 0, 1, 7, 5, 4,
+				0, 0, 1, 5, 0x88,
+				0, 0, 1, 8, 1, 2},
+			[][]byte{{7, 5, 4}}, nil,
+		},
+		{
+			"SPS, start code and one video byte at EOF",
+			[]byte{0, 0, 1, 7, 5, 4,
+				0, 0, 1, 5},
+			[][]byte{{7, 5, 4}}, nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -149,6 +197,82 @@ func TestGetParameterSetsFromByteStream(t *testing.T) {
 		if diff := deep.Equal(gotPPS, tc.wantedPPS); diff != nil {
 			t.Errorf("%s: %v", tc.name, diff)
 		}
+	}
+}
+
+func TestGetParameterSetsFromByteStreamEOF(t *testing.T) {
+	data, err := os.ReadFile("testdata/blackframe.264")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index, naluType := range []NaluType{NALU_SPS, NALU_PPS} {
+		nalus := ExtractNalusOfTypeFromByteStream(naluType, data, true)
+		if len(nalus) == 0 {
+			t.Fatalf("no %s in test stream", naluType)
+		}
+		for _, prefix := range [][]byte{{0, 0, 1}, {0, 0, 0, 1}} {
+			for _, padding := range []int{0, 2} {
+				t.Run(fmt.Sprintf("%s/prefix%d/padding%d", naluType, len(prefix), padding), func(t *testing.T) {
+					input := append(append([]byte{}, prefix...), nalus[0]...)
+					input = append(input, make([]byte, padding)...)
+					var want [2][][]byte
+					want[index] = [][]byte{nalus[0]}
+					spss, ppss := GetParameterSetsFromByteStream(input)
+					got := [2][][]byte{spss, ppss}
+					if diff := deep.Equal(got, want); diff != nil {
+						t.Fatalf("got parameter sets %x, want %x: %v", got, want, diff)
+					}
+					for i := range input {
+						input[i] = 0
+					}
+					if diff := deep.Equal(got, want); diff != nil {
+						t.Errorf("parameter sets changed after modifying input: %v", diff)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestGetParameterSetsFromByteStreamAppendIsolation(t *testing.T) {
+	data, err := os.ReadFile("testdata/blackframe.264")
+	if err != nil {
+		t.Fatal(err)
+	}
+	naluTypes := []NaluType{NALU_SPS, NALU_PPS}
+	var input []byte
+	var want [2][][]byte
+	for i, naluType := range naluTypes {
+		nalus := ExtractNalusOfTypeFromByteStream(naluType, data, true)
+		if len(nalus) == 0 {
+			t.Fatalf("no %s in test stream", naluType)
+		}
+		for range 2 {
+			input = append(input, 0, 0, 1)
+			input = append(input, nalus[0]...)
+			want[i] = append(want[i], nalus[0])
+		}
+	}
+	input = append(input, 0, 0, 1, byte(NALU_AUD), 0xf0)
+	for index, naluType := range naluTypes {
+		t.Run(naluType.String(), func(t *testing.T) {
+			spss, ppss := GetParameterSetsFromByteStream(input)
+			got := [2][][]byte{spss, ppss}
+			if diff := deep.Equal(got, want); diff != nil {
+				t.Fatalf("got parameter sets %x, want %x: %v", got, want, diff)
+			}
+			got[index][0] = append(got[index][0], 0xff)
+			for i := range got {
+				for j := range got[i] {
+					if i == index && j == 0 {
+						continue
+					}
+					if diff := deep.Equal(got[i][j], want[i][j]); diff != nil {
+						t.Errorf("parameter set %s[%d] changed after append: %v", naluTypes[i], j, diff)
+					}
+				}
+			}
+		})
 	}
 }
 
