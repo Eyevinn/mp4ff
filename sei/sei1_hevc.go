@@ -65,10 +65,13 @@ func DecodePicTimingHevcSEI(sd *SEIData, exPar HEVCPicTimingParams) (SEIMessage,
 				if pt.DuCommonCpbRemovalDelayFlag {
 					pt.DuCommonCpbRemovalDelayIncrementMinus1 = uint32(br.Read(int(exPar.DuCpbRemovalDelayIncrementLengthMinus1) + 1))
 				}
-				for i := uint32(0); i <= pt.NumDecodingUnitsMinus1; i++ {
-					pt.NumNalusInDuMinus1[i] = uint32(br.ReadExpGolomb())
-					if !pt.DuCommonCpbRemovalDelayFlag && i < pt.NumDecodingUnitsMinus1 {
-						pt.DuCpbRemovalDelayIncrementMinus1[i] = uint32(br.Read(int(exPar.DuCpbRemovalDelayIncrementLengthMinus1) + 1))
+				// The lists grow as the values are read, since num_decoding_units_minus1 may be
+				// larger than the payload can hold.
+				for i := uint64(0); i <= uint64(pt.NumDecodingUnitsMinus1) && br.AccError() == nil; i++ {
+					pt.NumNalusInDuMinus1 = append(pt.NumNalusInDuMinus1, uint32(br.ReadExpGolomb()))
+					if !pt.DuCommonCpbRemovalDelayFlag && i < uint64(pt.NumDecodingUnitsMinus1) {
+						pt.DuCpbRemovalDelayIncrementMinus1 = append(pt.DuCpbRemovalDelayIncrementMinus1,
+							uint32(br.Read(int(exPar.DuCpbRemovalDelayIncrementLengthMinus1)+1)))
 					}
 				}
 			}
