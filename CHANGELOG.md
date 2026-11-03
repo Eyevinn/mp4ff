@@ -67,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bit depths and reference picture sets out of range, instead of hanging, allocating memory for them or panicking
 - `iamf.ObuInfo.ReadDescriptors` returns an error for counts larger than the OBU payload, and reads the subblock
   durations of parameter definitions with `constant_subblock_duration` 0
+- `ivf.Reader.ReadFrame` allocates memory as the frame is read, not for the size in the frame header
 
 ## [0.61.0] - 2026-10-27
 
