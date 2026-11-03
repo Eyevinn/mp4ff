@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iamf.ObuInfo.ReadDescriptors` returns an error for counts larger than the OBU payload, and reads the subblock
   durations of parameter definitions with `constant_subblock_duration` 0
 - `ivf.Reader.ReadFrame` allocates memory as the frame is read, not for the size in the frame header
+- `sei.ExtractSEIData` allocates memory only as payload bytes are read, and `sei.DecodePicTimingHevcSEI` decodes
+  decoding-unit timing instead of panicking
 
 ## [0.61.0] - 2026-10-27
 

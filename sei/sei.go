@@ -571,7 +571,7 @@ func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 				break
 			}
 		}
-		payload := ar.ReadBytes(int(payloadSize))
+		payload := readSEIPayload(ar, payloadSize)
 		if ar.AccError() != nil {
 			return nil, ar.AccError()
 		}
@@ -596,6 +596,24 @@ func ExtractSEIData(r io.ReadSeeker) (seiData []SEIData, err error) {
 		}
 	}
 	return seiData, nil
+}
+
+// seiPayloadChunkSize is how much readSEIPayload allocates before it has read any data.
+const seiPayloadChunkSize = 4096
+
+// readSEIPayload reads a payload of size bytes. The payload grows as the bytes are read, so that
+// the memory it allocates follows the bytes read rather than a payload size that the data may
+// not hold. It returns nil if the reader has an error.
+func readSEIPayload(ar *bits.EBSPReader, size uint32) []byte {
+	payload := make([]byte, 0, min(size, seiPayloadChunkSize))
+	for i := uint32(0); i < size; i++ {
+		b := ar.Read(8)
+		if ar.AccError() != nil {
+			return nil
+		}
+		payload = append(payload, byte(b))
+	}
+	return payload
 }
 
 // WriteSEIMessages writes the messages in EBSP format with RBSPTrailing bits.
