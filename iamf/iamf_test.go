@@ -861,7 +861,8 @@ func TestParamParseDemixing(t *testing.T) {
 		0xe0, 0x03, // constantSubblockDuration=480
 		0x40, 0x50, // dmixp_mode=2, default_w=5
 	}
-	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionDemixing, ae)
+	derivedLeft := len(payload)
+	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionDemixing, ae, &derivedLeft)
 	if err != nil {
 		t.Fatalf("paramParse(demixing): %v", err)
 	}
@@ -888,7 +889,8 @@ func TestParamParseReconGain(t *testing.T) {
 		0xe0, 0x03, // duration=480
 		0xe0, 0x03, // constantSubblockDuration=480
 	}
-	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionReconGain, nil)
+	derivedLeft := len(payload)
+	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionReconGain, nil, &derivedLeft)
 	if err != nil {
 		t.Fatalf("paramParse(recon): %v", err)
 	}
@@ -912,7 +914,8 @@ func TestParamParseVariableSubblocks(t *testing.T) {
 		0xc8, 0x01, // subblock 0 duration=200
 		0x90, 0x03, // subblock 1 duration=400
 	}
-	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionMixGain, nil)
+	derivedLeft := len(payload)
+	pd, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionMixGain, nil, &derivedLeft)
 	if err != nil {
 		t.Fatalf("paramParse(variable): %v", err)
 	}
@@ -936,7 +939,8 @@ func TestParamParseDuplicateReuse(t *testing.T) {
 		0xe0, 0x03, // duration
 		0xe0, 0x03, // constantSubblockDuration
 	}
-	if _, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionReconGain, nil); err != nil {
+	derivedLeft := len(payload)
+	if _, err := paramParse(bits.NewFixedSliceReader(payload), ctx, ParamDefinitionReconGain, nil, &derivedLeft); err != nil {
 		t.Fatalf("paramParse(reuse): %v", err)
 	}
 	if ctx.NumParamDefinitions != 1 {

@@ -799,6 +799,10 @@ func ambisonicsConfig(sr bits.SliceReader, audioElement *IamfAudioElement) error
 			Channels: outputChannelCount,
 		}
 
+		// Each demixing_matrix entry is 16 bits.
+		if left := sr.NrRemainingBytes(); numDemixingMatrix > left/2 {
+			return fmt.Errorf("demixing_matrix of %d entries exceeds the %d bytes left", numDemixingMatrix, left)
+		}
 		demixingMatrix := make([]Rational, numDemixingMatrix)
 		for i := 0; i < numDemixingMatrix; i++ {
 			demixingMatrix[i] = MakeRational(signExtend(sr.ReadUint16()), 1<<15)
@@ -825,9 +829,25 @@ func ambisonicsConfig(sr bits.SliceReader, audioElement *IamfAudioElement) error
 	return nil
 }
 
-// paramParse parses parameter definitions
+// readCount reads a leb128 count of elements that each take at least one byte of what is left
+// of the payload, and refuses a count that is larger than the number of bytes left.
+func readCount(sr bits.SliceReader, name string) (int, error) {
+	count, err := ReadLeb128(sr)
+	if err != nil {
+		return 0, err
+	}
+	if left := sr.NrRemainingBytes(); count > uint64(left) {
+		return 0, fmt.Errorf("%s %d exceeds the %d bytes left", name, count, left)
+	}
+	return int(count), nil
+}
+
+// paramParse parses parameter definitions.
+// The subblocks of a definition with a non-zero constant_subblock_duration are derived, not
+// coded, so they take no bytes. derivedLeft is how many more such subblocks the OBU may have.
+// It is decreased by the number of subblocks derived here.
 func paramParse(sr bits.SliceReader, ctx *IamfContext, paramType ParamDefinitionType,
-	audioElement *IamfAudioElement) (*ParamDefinition, error) {
+	audioElement *IamfAudioElement, derivedLeft *int) (*ParamDefinition, error) {
 	parameterID, err := ReadLeb128(sr)
 	if err != nil {
 		return nil, err
@@ -868,19 +888,23 @@ func paramParse(sr bits.SliceReader, ctx *IamfContext, paramType ParamDefinition
 		if err != nil {
 			return nil, err
 		}
-		constantSubblockDuration = uint32(dur)
-		if subblockDur == 0 {
-			subBlocks, err := ReadLeb128(sr)
+		constantSubblockDuration = uint32(subblockDur)
+		if constantSubblockDuration == 0 {
+			// Each subblock has a subblock_duration of at least one byte.
+			subBlocks, err := readCount(sr, "num_subblocks")
 			if err != nil {
 				return nil, err
 			}
 			numSubblocks = uint32(subBlocks)
 		} else {
-			if constantSubblockDuration > duration {
-				return nil, fmt.Errorf("invalid block duration in parameter id %d",
-					parameterID)
+			// num_subblocks is the ceiling of duration / constant_subblock_duration (IAMF 3.8).
+			numSubblocks = uint32((uint64(duration) + uint64(constantSubblockDuration) - 1) /
+				uint64(constantSubblockDuration))
+			if int64(numSubblocks) > int64(*derivedLeft) {
+				return nil, fmt.Errorf("parameter id %d derives %d subblocks, more than the %d that the OBU size allows",
+					parameterID, numSubblocks, *derivedLeft)
 			}
-			numSubblocks = duration / constantSubblockDuration
+			*derivedLeft -= int(numSubblocks)
 			totalDuration = duration
 		}
 	}
@@ -959,6 +983,7 @@ func paramParse(sr bits.SliceReader, ctx *IamfContext, paramType ParamDefinition
 
 // audioElementObu parses an Audio Element OBU
 func audioElementObu(sr bits.SliceReader, ctx *IamfContext) error {
+	derivedSubblocksLeft := sr.Length()
 	audioElementID, err := ReadLeb128(sr)
 	if err != nil {
 		return err
@@ -991,13 +1016,13 @@ func audioElementObu(sr bits.SliceReader, ctx *IamfContext) error {
 		return fmt.Errorf("non-existent codec config id %d", codecConfigID)
 	}
 
-	numSubstreams, err := ReadLeb128(sr)
+	numSubstreams, err := readCount(sr, "num_substreams")
 	if err != nil {
 		return err
 	}
 
 	substreams := make([]*IamfSubStream, numSubstreams)
-	for i := uint32(0); i < uint32(numSubstreams); i++ {
+	for i := 0; i < numSubstreams; i++ {
 		substreamID, err := ReadLeb128(sr)
 		if err != nil {
 			return err
@@ -1047,7 +1072,7 @@ func audioElementObu(sr bits.SliceReader, ctx *IamfContext) error {
 			if audioElement.Element.DemixingInfo != nil {
 				return errors.New("invalid data")
 			}
-			paramDef, err := paramParse(sr, ctx, paramType, audioElement)
+			paramDef, err := paramParse(sr, ctx, paramType, audioElement, &derivedSubblocksLeft)
 			if err != nil {
 				return err
 			}
@@ -1056,7 +1081,7 @@ func audioElementObu(sr bits.SliceReader, ctx *IamfContext) error {
 			if audioElement.Element.ReconGainInfo != nil {
 				return errors.New("invalid data")
 			}
-			paramDef, err := paramParse(sr, ctx, paramType, audioElement)
+			paramDef, err := paramParse(sr, ctx, paramType, audioElement, &derivedSubblocksLeft)
 			if err != nil {
 				return err
 			}
@@ -1091,6 +1116,7 @@ func audioElementObu(sr bits.SliceReader, ctx *IamfContext) error {
 
 // mixPresentationObu parses a Mix Presentation OBU
 func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
+	derivedSubblocksLeft := sr.Length()
 	mixPresentationID, err := ReadLeb128(sr)
 	if err != nil {
 		return err
@@ -1102,13 +1128,13 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 		}
 	}
 
-	countLabel, err := ReadLeb128(sr)
+	countLabel, err := readCount(sr, "count_label")
 	if err != nil {
 		return err
 	}
 
 	languageLabels := make([]string, countLabel)
-	for i := uint32(0); i < uint32(countLabel); i++ {
+	for i := 0; i < countLabel; i++ {
 		label := sr.ReadZeroTerminatedString(MaxIamfLabelSize)
 		if sr.AccError() != nil {
 			return sr.AccError()
@@ -1117,7 +1143,7 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 	}
 
 	annotations := make(map[string]string)
-	for i := uint32(0); i < uint32(countLabel); i++ {
+	for i := 0; i < countLabel; i++ {
 		annotation := sr.ReadZeroTerminatedString(MaxIamfLabelSize)
 		if sr.AccError() != nil {
 			return sr.AccError()
@@ -1125,20 +1151,20 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 		annotations[languageLabels[i]] = annotation
 	}
 
-	numSubmixes, err := ReadLeb128(sr)
+	numSubmixes, err := readCount(sr, "num_sub_mixes")
 	if err != nil {
 		return err
 	}
 
 	submixes := make([]*Submix, numSubmixes)
-	for i := uint32(0); i < uint32(numSubmixes); i++ {
-		numElements, err := ReadLeb128(sr)
+	for i := 0; i < numSubmixes; i++ {
+		numElements, err := readCount(sr, "num_audio_elements")
 		if err != nil {
 			return err
 		}
 
 		submixElements := make([]*SubmixElement, numElements)
-		for j := uint32(0); j < uint32(numElements); j++ {
+		for j := 0; j < numElements; j++ {
 			audioElementID, err := ReadLeb128(sr)
 			if err != nil {
 				return err
@@ -1157,7 +1183,7 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 			}
 
 			elemAnnotations := make(map[string]string)
-			for k := uint32(0); k < uint32(countLabel); k++ {
+			for k := 0; k < countLabel; k++ {
 				elemAnnotation := sr.ReadZeroTerminatedString(MaxIamfLabelSize)
 				if sr.AccError() != nil {
 					return sr.AccError()
@@ -1173,7 +1199,7 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 			}
 			skipBytes(sr, renderingConfigExtSize)
 
-			elementMixGain, err := paramParse(sr, ctx, ParamDefinitionMixGain, audioElement)
+			elementMixGain, err := paramParse(sr, ctx, ParamDefinitionMixGain, audioElement, &derivedSubblocksLeft)
 			if err != nil {
 				return err
 			}
@@ -1189,20 +1215,20 @@ func mixPresentationObu(sr bits.SliceReader, ctx *IamfContext) error {
 			}
 		}
 
-		outputMixConfig, err := paramParse(sr, ctx, ParamDefinitionMixGain, nil)
+		outputMixConfig, err := paramParse(sr, ctx, ParamDefinitionMixGain, nil, &derivedSubblocksLeft)
 		if err != nil {
 			return err
 		}
 
 		defaultMixGain := MakeRational(signExtend(sr.ReadUint16()), 1<<8)
 
-		nbLayouts, err := ReadLeb128(sr)
+		nbLayouts, err := readCount(sr, "num_layouts")
 		if err != nil {
 			return err
 		}
 
 		submixLayouts := make([]*SubmixLayout, nbLayouts)
-		for j := uint32(0); j < uint32(nbLayouts); j++ {
+		for j := 0; j < nbLayouts; j++ {
 			typeByte := sr.ReadUint8()
 
 			layoutType := SubMixLayoutType(typeByte >> 6)
