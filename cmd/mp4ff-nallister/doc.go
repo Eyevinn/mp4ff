@@ -1,6 +1,7 @@
 /*
-mp4ff-nallister lists NAL units and slice types of AVC or HEVC tracks of an mp4 (ISOBMFF) file
+mp4ff-nallister lists NAL units and slice types of AVC, HEVC, or VVC tracks of an mp4 (ISOBMFF) file
 or a file containing a byte stream in Annex B format.
+Video codecs without NAL units, such as AV1 and VP9, are not supported.
 
 Takes first video track in a progressive file and the first track in a fragmented file.
 It can also output information about SEI NAL units.
@@ -17,7 +18,7 @@ analyzed using mp4ff-pslister.
 		-annexb
 			Input is Annex B stream file
 		-c string
-			Codec to parse (avc or hevc) (default "avc")
+			Codec to parse (avc, hevc, or vvc) (default "avc")
 		-m int
 			Max nr of samples to parse (default -1)
 		-ps

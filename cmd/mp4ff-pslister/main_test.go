@@ -21,6 +21,7 @@ func TestCommandLines(t *testing.T) {
 		desc        string
 		args        []string
 		expectedErr bool
+		errContains string
 		goldenOut   string
 	}{
 		{desc: "h264 segment without PS", args: []string{appName, "-v", "-i", "../../mp4/testdata/1.m4s"},
@@ -52,6 +53,10 @@ func TestCommandLines(t *testing.T) {
 			goldenOut: "testdata/golden_av1_mp4.txt", expectedErr: false},
 		{desc: "av1mp4 verbose", args: []string{appName, "-v", "-i", "../../mp4/testdata/av1_init.mp4"},
 			goldenOut: "testdata/golden_av1_mp4_verbose.txt", expectedErr: false},
+		{desc: "vvc mp4", args: []string{appName, "-i", "../../mp4/testdata/vvc_400kbps_2s.mp4"},
+			expectedErr: true, errContains: "video sample entry vvc1 is not supported"},
+		{desc: "vvc annexb", args: []string{appName, "-c", "vvc", "-i", "../mp4ff-nallister/testdata/annexb.vvc"},
+			expectedErr: true, errContains: `unsupported codec "vvc"`},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -60,6 +65,8 @@ func TestCommandLines(t *testing.T) {
 			if c.expectedErr {
 				if err == nil {
 					t.Error("expected error but got nil")
+				} else if !strings.Contains(err.Error(), c.errContains) {
+					t.Errorf("expected error containing %q, got %q", c.errContains, err)
 				}
 				return
 			}

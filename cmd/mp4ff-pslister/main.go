@@ -21,8 +21,9 @@ const (
 	appName = "mp4ff-pslister"
 )
 
-var usg = `%s lists parameter sets for AVC/H.264, HEVC/H.265, or AV1 from mp4 sample description, bytestream, or hex input.
+var usg = `%s lists parameter sets for AVC/H.264 or HEVC/H.265 from mp4 sample description, bytestream, or hex input.
 For AV1, the av1C configuration record in an mp4 file is parsed (sequence header + codecs parameter).
+Other codecs, such as VVC, are not supported.
 
 It prints them as hex and in verbose mode it also prints details in JSON format.
 Usage of %s:
@@ -48,7 +49,7 @@ func parseOptions(fs *flag.FlagSet, args []string) (*options, error) {
 	opts := options{}
 
 	fs.StringVar(&opts.inFile, "i", "", "Input file (mp4 or byte stream) (alternative to sps and pps in hex format)")
-	fs.StringVar(&opts.codec, "c", "avc", "Codec to parse (avc or hevc)")
+	fs.StringVar(&opts.codec, "c", "avc", "Codec of bytestream or hex input (avc or hevc). The codec of an mp4 file is detected")
 	fs.StringVar(&opts.vpsHex, "vps", "", "VPS in hex format (HEVC only)")
 	fs.StringVar(&opts.spsHex, "sps", "", "SPS in hex format, alternative to infile")
 	fs.StringVar(&opts.ppsHex, "pps", "", "PPS in hex format")
@@ -89,6 +90,9 @@ func run(args []string, stdout io.Writer) error {
 
 	if o.vpsHex != "" {
 		o.codec = "hevc"
+	}
+	if o.codec != "avc" && o.codec != "hevc" {
+		return fmt.Errorf("unsupported codec %q, -c must be avc or hevc", o.codec)
 	}
 
 	if o.spsHex != "" {
@@ -263,6 +267,7 @@ func parseMp4File(w io.Writer, r io.Reader, codec string, verbose bool) error {
 }
 
 func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint32, codec string, foundPS bool, err error) {
+	unsupported := "" // sample entry type of the first video track with another codec
 	for _, trak := range parsedMp4.Moov.Traks {
 		if trak.Tkhd == nil || trak.Mdia == nil || trak.Mdia.Hdlr == nil || trak.Mdia.Minf == nil ||
 			trak.Mdia.Minf.Stbl == nil || trak.Mdia.Minf.Stbl.Stsd == nil {
@@ -277,6 +282,9 @@ func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint3
 			} else if stsd.Av01 != nil {
 				codec = "av1"
 			} else {
+				if unsupported == "" && len(stsd.Children) > 0 {
+					unsupported = stsd.Children[0].Type()
+				}
 				continue
 			}
 			trackID = trak.Tkhd.TrackID
@@ -318,6 +326,9 @@ func parseMp4Init(w io.Writer, parsedMp4 *mp4.File, verbose bool) (trackID uint3
 				return trackID, codec, true, err
 			}
 		}
+	}
+	if unsupported != "" {
+		return 0, codec, false, fmt.Errorf("video sample entry %s is not supported, only AVC, HEVC and AV1", unsupported)
 	}
 	return 0, codec, false, fmt.Errorf("no parsable video track found")
 }
