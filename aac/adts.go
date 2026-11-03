@@ -21,7 +21,8 @@ type ADTSHeader struct {
 	BufferFullness         uint16
 }
 
-// NewADTSHeader - create a new ADTS header
+// NewADTSHeader - create a new ADTS header.
+// The payload length must be at most 8184 bytes to fit with the 7-byte header in the 13-bit frame length.
 func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, plLen uint16) (*ADTSHeader, error) {
 	if objectType != AAClc {
 		return nil, fmt.Errorf("must use AAC-LC (type 2) not %d", objectType)
@@ -29,6 +30,9 @@ func NewADTSHeader(samplingFrequency int, channelConfig byte, objectType byte, p
 	sfi, ok := ReverseFrequencies[samplingFrequency]
 	if !ok {
 		return nil, fmt.Errorf("sampling frequency %d not supported", samplingFrequency)
+	}
+	if plLen > 8184 {
+		return nil, fmt.Errorf("payload length %d exceeds ADTS maximum of 8184 bytes", plLen)
 	}
 	return &ADTSHeader{
 		ObjectType:             objectType,

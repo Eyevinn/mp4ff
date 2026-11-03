@@ -55,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `avc.GetParameterSetsFromByteStream` and `hevc.GetParameterSetsFromByteStream` include the final parameter set
   when an Annex-B stream ends before video, and appending to a returned parameter set leaves the other sets unchanged
+- `aac.NewADTSHeader` returns an error for payloads above 8184 bytes, the maximum that fits with the 7-byte header
+  in the 13-bit ADTS frame length
 - `DecodeFile` and the other decoders accept QuickTime files with the text atoms `©nam`, `©ART`, `©too` or `©cpy`
   in `udta`
 - `SencBox.ParseReadBox` returns an error for a senc box with fewer IVs than samples, instead of allocating memory
