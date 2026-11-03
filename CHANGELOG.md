@@ -95,6 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ivf.Reader.ReadFrame` allocates memory as the frame is read, not for the size in the frame header
 - `sei.ExtractSEIData` allocates memory only as payload bytes are read, and `sei.DecodePicTimingHevcSEI` decodes
   decoding-unit timing instead of panicking
+- `DecodeFile`, `DecodeFileSR` and the other decoders decode nested QuickTime `gmhd`, `tapt` and `tmcd` atoms, and audio
+  sample entries that claim QuickTime version 1 or 2, in linear instead of exponential time
 
 ## [0.61.0] - 2026-10-27
 
