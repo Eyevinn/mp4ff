@@ -527,6 +527,24 @@ func makebuf(b Box) []byte {
 	return make([]byte, b.Size()-boxHeaderSize)
 }
 
+// maxPreallocatedPayload is the largest payload that readPayload allocates in full before reading it.
+const maxPreallocatedPayload = 1 << 20
+
+// readPayload reads n bytes from r, or all that r has if that is fewer, which the caller checks by the length of the
+// result. A payload of at most maxPreallocatedPayload bytes is read into one buffer of its size. A larger one is read
+// into buffers that grow as data arrives, so that a box that claims more data than r has does not allocate it all.
+func readPayload(r io.Reader, n uint64) ([]byte, error) {
+	if n <= maxPreallocatedPayload {
+		data := make([]byte, n)
+		nRead, err := io.ReadFull(r, data)
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = nil
+		}
+		return data[:nRead], err
+	}
+	return io.ReadAll(io.LimitReader(r, int64(min(n, math.MaxInt64))))
+}
+
 // readBoxBody reads complete box body. Returns error if not possible
 func readBoxBody(r io.Reader, h BoxHeader) ([]byte, error) {
 	hdrLen := uint64(h.Hdrlen)
@@ -534,7 +552,7 @@ func readBoxBody(r io.Reader, h BoxHeader) ([]byte, error) {
 		return nil, nil
 	}
 	bodyLen := h.Size - hdrLen
-	body, err := io.ReadAll(io.LimitReader(r, int64(bodyLen)))
+	body, err := readPayload(r, bodyLen)
 	if err != nil {
 		return nil, err
 	}

@@ -78,7 +78,7 @@ func moovWithChildren(startPos uint64, children []Box) *MoovBox {
 
 // DecodeMoov - box-specific decode
 func DecodeMoov(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := io.ReadAll(io.LimitReader(r, int64(hdr.payloadLen())))
+	data, err := readPayload(r, uint64(hdr.payloadLen()))
 	if err != nil {
 		return nil, err
 	}

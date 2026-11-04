@@ -3,6 +3,7 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -151,5 +152,30 @@ func TestDecodeFileSRTruncatedMdat(t *testing.T) {
 	data := append(bytes.Clone(ftyp), mdat[:20]...)
 	if got := topLevelTypes(t, data); len(got) != 2 || got[1] != "mdat" {
 		t.Errorf("got top-level boxes %v, want [ftyp mdat]", got)
+	}
+}
+
+// TestDecodeBoxPayloadAroundPreallocationLimit checks that boxes decoded from an io.Reader, with payloads up to and
+// just above the 1 MiB that is read into one buffer of its size, decode, and are errors when their data ends one byte
+// early.
+func TestDecodeBoxPayloadAroundPreallocationLimit(t *testing.T) {
+	const limit = 1 << 20
+	for _, size := range []int{100, limit, limit + 1} {
+		for _, data := range [][]byte{
+			rawBox("free", make([]byte, size)),
+			rawBox("udta", rawBox("free", make([]byte, size-8))),
+			rawBox("moov", rawBox("free", make([]byte, size-8))),
+		} {
+			name := fmt.Sprintf("%s with %d-byte payload", data[4:8], size)
+			box, err := mp4.DecodeBox(0, bytes.NewReader(data))
+			if err != nil {
+				t.Errorf("%s: %v", name, err)
+			} else if box.Size() != uint64(len(data)) {
+				t.Errorf("%s: decoded size %d, want %d", name, box.Size(), len(data))
+			}
+			if _, err := mp4.DecodeBox(0, bytes.NewReader(data[:len(data)-1])); err == nil {
+				t.Errorf("%s: no error when the data ends one byte early", name)
+			}
+		}
 	}
 }

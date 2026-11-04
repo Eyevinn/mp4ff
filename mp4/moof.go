@@ -22,7 +22,7 @@ type MoofBox struct {
 
 // DecodeMoof - box-specific decode
 func DecodeMoof(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
-	data, err := io.ReadAll(io.LimitReader(r, int64(hdr.payloadLen())))
+	data, err := readPayload(r, uint64(hdr.payloadLen()))
 	if err != nil {
 		return nil, err
 	}
