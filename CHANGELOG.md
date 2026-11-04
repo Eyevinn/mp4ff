@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `DecodeBoxSR` from a `bits.SliceReader` that is not a `bits.FixedSliceReader` reads the fields of the QuickTime and
+  3GPP text boxes that fall back to `UnknownBox`, such as `alis`, `chan`, `tmcd` and `tx3g`, from that reader again
+
 ## [0.62.0] - 2026-11-04
 
 ### Added
