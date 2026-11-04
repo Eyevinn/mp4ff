@@ -48,20 +48,20 @@ The allocations are the heap allocations inside the benchmark loop. Most benchma
 
 ### Current
 
-Master at f60dbde, Go 1.27.1, Apple M4 Pro, n=6:
+Master at 0558cfb, Go 1.27.3, Apple M4 Pro, n=6:
 
 | Benchmark | time | bytes | allocations |
 |---|---|---|---|
-| `DecodeFileSR/1.m4s` | 922 ns | 2.3 KiB | 21 |
-| `DecodeFileSR/prog_8s.mp4` | 5.3 µs | 12.6 KiB | 124 |
-| `DecodeFile/1.m4s` | 6.7 µs | 60.2 KiB | 49 |
-| `DecodeFile/prog_8s.mp4` | 45.2 µs | 460 KiB | 166 |
-| `EncodeFileSW/1.m4s` | 1.2 µs | 64 B | 1 |
-| `EncodeFileSW/prog_8s.mp4` | 11.4 µs | 64 B | 1 |
-| `EncodeFile/1.m4s` | 880 ns | 88 B | 2 |
-| `EncodeFile/prog_8s.mp4` | 11.6 µs | 8.6 KiB | 87 |
+| `DecodeFileSR/1.m4s` | 965 ns | 2.4 KiB | 21 |
+| `DecodeFileSR/prog_8s.mp4` | 5.2 µs | 11.1 KiB | 109 |
+| `DecodeFile/1.m4s` | 3.0 µs | 27.7 KiB | 30 |
+| `DecodeFile/prog_8s.mp4` | 20.4 µs | 202 KiB | 120 |
+| `EncodeFileSW/1.m4s` | 754 ns | 64 B | 1 |
+| `EncodeFileSW/prog_8s.mp4` | 12.5 µs | 64 B | 1 |
+| `EncodeFile/1.m4s` | 809 ns | 88 B | 2 |
+| `EncodeFile/prog_8s.mp4` | 12.1 µs | 8.7 KiB | 88 |
 
-### Box payloads read into one buffer (unreleased)
+### Box payloads read into one buffer (v0.62.0)
 
 Decoding from an `io.Reader` reads each box payload of up to 1 MiB into one buffer of its size, instead of buffers
 that grow as data arrives. The `SliceReader` decoders and the stream decoder are unchanged. Go 1.27.3, Apple M4 Pro,
