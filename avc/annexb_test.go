@@ -46,6 +46,16 @@ func TestNaluExtraction(t *testing.T) {
 			[]byte{0, 0, 1, 2, 0, 0, 0, 1, 1, 0, 3, 0, 0},
 			[][]byte{{2}, {1, 0, 3}},
 		},
+		{
+			"3-byte start code ending the stream",
+			[]byte{0, 0, 1, 2, 3, 0, 0, 1},
+			[][]byte{{2, 3}},
+		},
+		{
+			"4-byte start code ending the stream",
+			[]byte{0, 0, 1, 2, 3, 0, 0, 0, 1},
+			[][]byte{{2, 3}},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -81,6 +91,21 @@ func TestByteStreamToNaluSampleConversion(t *testing.T) {
 			"Two 3-byte start-codes",
 			[]byte{0, 0, 1, 2, 3, 0, 0, 1, 7},
 			[]byte{0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 7},
+		},
+		{
+			"4-byte start code ending the stream",
+			[]byte{0, 0, 0, 1, 2, 3, 0, 0, 0, 1},
+			[]byte{0, 0, 0, 2, 2, 3},
+		},
+		{
+			"3-byte start code ending the stream",
+			[]byte{0, 0, 0, 1, 2, 3, 0, 0, 1},
+			[]byte{0, 0, 0, 2, 2, 3},
+		},
+		{
+			"Only a start code",
+			[]byte{0, 0, 0, 1},
+			[]byte{},
 		},
 	}
 
@@ -211,10 +236,14 @@ func TestGetParameterSetsFromByteStreamEOF(t *testing.T) {
 			t.Fatalf("no %s in test stream", naluType)
 		}
 		for _, prefix := range [][]byte{{0, 0, 1}, {0, 0, 0, 1}} {
-			for _, padding := range []int{0, 2} {
-				t.Run(fmt.Sprintf("%s/prefix%d/padding%d", naluType, len(prefix), padding), func(t *testing.T) {
+			// The stream ends with the parameter set, zero bytes, or a start code with nothing after it.
+			for _, suffix := range [][]byte{{}, {0, 0}, {0, 0, 1}, {0, 0, 0, 1}} {
+				t.Run(fmt.Sprintf("%s/prefix%d/suffix%x", naluType, len(prefix), suffix), func(t *testing.T) {
 					input := append(append([]byte{}, prefix...), nalus[0]...)
-					input = append(input, make([]byte, padding)...)
+					input = append(input, suffix...)
+					if diff := deep.Equal(ExtractNalusOfTypeFromByteStream(naluType, input, false), nalus[:1]); diff != nil {
+						t.Errorf("ExtractNalusOfTypeFromByteStream: %v", diff)
+					}
 					var want [2][][]byte
 					want[index] = [][]byte{nalus[0]}
 					spss, ppss := GetParameterSetsFromByteStream(input)
@@ -352,6 +381,11 @@ func TestGetFirstAVCVideoNALUFromByteStream(t *testing.T) {
 			[]byte{5, 0, 1, 1},
 		},
 		{
+			"Only IDR, with a start code ending the stream",
+			[]byte{0, 0, 0, 1, 5, 0, 1, 1, 0, 0, 0, 1},
+			[]byte{5, 0, 1, 1},
+		},
+		{
 			"NoVideo",
 			[]byte{0, 0, 0, 1, 12, 0, 1, 1, 1, 1, 1},
 			nil,
@@ -381,9 +415,13 @@ func TestConvertByteStreamToNaluSample(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
+	withStartCode := append(bytes.Clone(data), 0, 0, 0, 1)
 	sample := ConvertByteStreamToNaluSample(data)
 	if len(sample) != len(data) {
 		t.Errorf("got %d, wanted %d", len(sample), len(data))
+	}
+	if got := ConvertByteStreamToNaluSample(withStartCode); !bytes.Equal(got, sample) {
+		t.Errorf("with a start code ending the stream: got %d bytes, want the %d without it", len(got), len(sample))
 	}
 }
 

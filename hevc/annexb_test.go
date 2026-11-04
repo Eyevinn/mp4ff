@@ -120,10 +120,14 @@ func TestGetParameterSetsFromByteStreamEOF(t *testing.T) {
 			t.Fatalf("no %s in test stream", naluType)
 		}
 		for _, prefix := range [][]byte{{0, 0, 1}, {0, 0, 0, 1}} {
-			for _, padding := range []int{0, 2} {
-				t.Run(fmt.Sprintf("%s/prefix%d/padding%d", naluType, len(prefix), padding), func(t *testing.T) {
+			// The stream ends with the parameter set, zero bytes, or a start code with nothing after it.
+			for _, suffix := range [][]byte{{}, {0, 0}, {0, 0, 1}, {0, 0, 0, 1}} {
+				t.Run(fmt.Sprintf("%s/prefix%d/suffix%x", naluType, len(prefix), suffix), func(t *testing.T) {
 					input := append(append([]byte{}, prefix...), nalus[0]...)
-					input = append(input, make([]byte, padding)...)
+					input = append(input, suffix...)
+					if diff := deep.Equal(ExtractNalusOfTypeFromByteStream(naluType, input, false), nalus[:1]); diff != nil {
+						t.Errorf("ExtractNalusOfTypeFromByteStream: %v", diff)
+					}
 					var want [3][][]byte
 					want[index] = [][]byte{nalus[0]}
 					vpss, spss, ppss := GetParameterSetsFromByteStream(input)

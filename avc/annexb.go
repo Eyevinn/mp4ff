@@ -9,13 +9,13 @@ import (
 )
 
 // ExtractNalusFromByteStream extracts NALUs without startcode from ByteStream.
-// Zero bytes after a NALU, also after the last one, are not part of it.
+// Zero bytes after a NALU, also after the last one, and a start code that ends the stream, are not part of it.
 // This function is codec agnostic.
 func ExtractNalusFromByteStream(data []byte) [][]byte {
 	currNaluStart := -1
 	n := len(data)
 	var nalus [][]byte
-	for i := 0; i < n-3; i++ {
+	for i := 0; i < n-2; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			if currNaluStart > 0 {
 				currNaluEnd := trimTrailingZeros(data, currNaluStart, i)
@@ -24,8 +24,8 @@ func ExtractNalusFromByteStream(data []byte) [][]byte {
 			currNaluStart = i + 3
 		}
 	}
-	if currNaluStart < 0 {
-		return nil
+	if currNaluStart < 0 || currNaluStart == n {
+		return nalus
 	}
 	nalus = append(nalus, extractSlice(data, currNaluStart, trimTrailingZeros(data, currNaluStart, n)))
 	return nalus
@@ -51,11 +51,15 @@ type scNalu struct {
 	startPos        int
 }
 
-// ConvertByteStreamToNaluSample changes start codes to 4-byte length fields.
-// This function is codec agnostic.
+// ConvertByteStreamToNaluSample changes start codes to 4-byte length fields, and drops a start code that ends the
+// stream. This function is codec agnostic.
 func ConvertByteStreamToNaluSample(stream []byte) []byte {
-	streamLen := len(stream)
 	scNalus, minStartCodeLength := getStartCodePositions(stream)
+	streamLen := len(stream)
+	if last := len(scNalus) - 1; last >= 0 && scNalus[last].startPos == streamLen {
+		streamLen -= scNalus[last].startCodeLength
+		scNalus = scNalus[:last]
+	}
 
 	lengthField := make([]byte, 4)
 	var naluLength int
@@ -66,12 +70,12 @@ func ConvertByteStreamToNaluSample(stream []byte) []byte {
 			if i+1 < len(scNalus) {
 				naluLength = scNalus[i+1].startPos - s.startPos - 4
 			} else {
-				naluLength = len(stream) - scNalus[i].startPos
+				naluLength = streamLen - scNalus[i].startPos
 			}
 			binary.BigEndian.PutUint32(lengthField, uint32(naluLength))
 			copy(stream[s.startPos-4:s.startPos], lengthField)
 		}
-		return stream
+		return stream[:streamLen]
 	}
 	// Build new output slice with one extra byte per NALU
 	out := make([]byte, 0, streamLen+len(scNalus))
@@ -79,7 +83,7 @@ func ConvertByteStreamToNaluSample(stream []byte) []byte {
 		if i+1 < len(scNalus) {
 			naluLength = scNalus[i+1].startPos - s.startPos - scNalus[i+1].startCodeLength
 		} else {
-			naluLength = len(stream) - scNalus[i].startPos
+			naluLength = streamLen - scNalus[i].startPos
 		}
 		binary.BigEndian.PutUint32(lengthField, uint32(naluLength))
 		out = append(out, lengthField...)
@@ -147,7 +151,7 @@ func getStartCodePositions(stream []byte) (scNalus []scNalu, minStartCodeLength 
 		}
 	}
 	// We should check remain bytes with old approach.
-	for ; i < streamLen-3; i++ {
+	for ; i < streamLen-2; i++ {
 		if stream[i] == 0 && stream[i+1] == 0 && stream[i+2] == 1 {
 			startCodeLength := 3
 			startPos := i + 3
@@ -188,7 +192,7 @@ func GetParameterSetsFromByteStream(data []byte) (spss, ppss [][]byte) {
 	currNaluStart := -1
 	totSize := 0
 	addParameterSet := func(end int) {
-		if currNaluStart < 0 {
+		if currNaluStart < 0 || currNaluStart >= end {
 			return
 		}
 		naluType := GetNaluType(data[currNaluStart])
@@ -203,12 +207,11 @@ func GetParameterSetsFromByteStream(data []byte) (spss, ppss [][]byte) {
 		}
 		totSize += end - currNaluStart
 	}
-	for i := 0; i < n-3; i++ {
+	for i := 0; i < n-2; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			addParameterSet(i)
 			currNaluStart = i + 3
-			nextNaluType := GetNaluType(data[currNaluStart])
-			if nextNaluType < 6 { // Video NALU types are below 6
+			if currNaluStart < n && GetNaluType(data[currNaluStart]) < 6 { // Video NALU types are below 6
 				break
 			}
 		}
@@ -235,7 +238,7 @@ func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo b
 	currNaluStart := -1
 	n := len(data)
 	var nalus [][]byte
-	for i := 0; i < n-3; i++ {
+	for i := 0; i < n-2; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			if currNaluStart > 0 {
 				currNaluEnd := trimTrailingZeros(data, currNaluStart, i)
@@ -256,7 +259,7 @@ func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo b
 	if currNaluStart < 0 {
 		return nil
 	}
-	if GetNaluType(data[currNaluStart]) == nType {
+	if currNaluStart < n && GetNaluType(data[currNaluStart]) == nType {
 		nalus = append(nalus, extractSlice(data, currNaluStart, trimTrailingZeros(data, currNaluStart, n)))
 	}
 	return nalus
@@ -268,7 +271,7 @@ func GetFirstAVCVideoNALUFromByteStream(data []byte) []byte {
 	currNaluStart := -1
 	n := len(data)
 	naluStart, naluEnd := 0, 0
-	for i := 0; i < n-3; i++ {
+	for i := 0; i < n-2; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			if currNaluStart > 0 {
 				currNaluEnd := trimTrailingZeros(data, currNaluStart, i)
@@ -282,7 +285,7 @@ func GetFirstAVCVideoNALUFromByteStream(data []byte) []byte {
 			currNaluStart = i + 3
 		}
 	}
-	if currNaluStart > 0 && naluStart == 0 {
+	if currNaluStart > 0 && currNaluStart < n && naluStart == 0 {
 		naluType := GetNaluType(data[currNaluStart])
 		if IsVideoNaluType(naluType) {
 			naluStart = currNaluStart
