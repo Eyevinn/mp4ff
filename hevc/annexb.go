@@ -7,7 +7,7 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 	currNaluStart := -1
 	totSize := 0
 	addParameterSet := func(end int) {
-		if currNaluStart < 0 {
+		if currNaluStart < 0 || currNaluStart >= end {
 			return
 		}
 		naluType := GetNaluType(data[currNaluStart])
@@ -30,12 +30,11 @@ func GetParameterSetsFromByteStream(data []byte) (vpss [][]byte, spss [][]byte, 
 			totSize += end - currNaluStart
 		}
 	}
-	for i := 0; i < n-3; i++ {
+	for i := 0; i < n-2; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			addParameterSet(i)
 			currNaluStart = i + 3
-			nextNaluType := GetNaluType(data[currNaluStart])
-			if nextNaluType < 32 { // Video NALU types are below 32
+			if currNaluStart < n && GetNaluType(data[currNaluStart]) < 32 { // Video NALU types are below 32
 				break
 			}
 		}
@@ -67,7 +66,7 @@ func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo b
 	currNaluStart := -1
 	n := len(data)
 	var nalus [][]byte
-	for i := 0; i < n-3; i++ {
+	for i := 0; i < n-2; i++ {
 		if data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 {
 			if currNaluStart > 0 {
 				currNaluEnd := trimTrailingZeros(data, currNaluStart, i)
@@ -88,7 +87,7 @@ func ExtractNalusOfTypeFromByteStream(nType NaluType, data []byte, stopAtVideo b
 	if currNaluStart < 0 {
 		return nil
 	}
-	if GetNaluType(data[currNaluStart]) == nType {
+	if currNaluStart < n && GetNaluType(data[currNaluStart]) == nType {
 		nalus = append(nalus, extractSlice(data, currNaluStart, trimTrailingZeros(data, currNaluStart, n)))
 	}
 	return nalus

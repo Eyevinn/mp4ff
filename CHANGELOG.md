@@ -87,6 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   8184 bytes, which do not fit in the ADTS header fields
 - `avc.GetParameterSetsFromByteStream` and `hevc.GetParameterSetsFromByteStream` include the final parameter set
   when an Annex-B stream ends before video, and appending to a returned parameter set leaves the other sets unchanged
+- The Annex B functions of `avc` and `hevc`, such as `GetParameterSetsFromByteStream`,
+  `ExtractNalusOfTypeFromByteStream` and `ConvertByteStreamToNaluSample`, no longer add a start code that ends the
+  stream to the last NAL unit
 - `DecodeFile` and the other decoders accept QuickTime files with the text atoms `©nam`, `©ART`, `©too` or `©cpy`
   in `udta`
 - `SencBox.ParseReadBox` returns an error for a senc box with fewer IVs than samples, instead of allocating memory
