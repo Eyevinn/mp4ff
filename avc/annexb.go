@@ -51,43 +51,48 @@ type scNalu struct {
 	startPos        int
 }
 
-// ConvertByteStreamToNaluSample changes start codes to 4-byte length fields, and drops a start code that ends the
-// stream. This function is codec agnostic.
+// ConvertByteStreamToNaluSample changes start codes to 4-byte length fields. Zero bytes after a NALU, also after the
+// last one, bytes before the first start code, and a start code that ends the stream, are not part of a NALU and are
+// dropped. A stream without start codes is returned as it is. With only 4-byte start codes, the stream is converted in
+// place. This function is codec agnostic.
 func ConvertByteStreamToNaluSample(stream []byte) []byte {
 	scNalus, minStartCodeLength := getStartCodePositions(stream)
+	if len(scNalus) == 0 {
+		return stream
+	}
 	streamLen := len(stream)
-	if last := len(scNalus) - 1; last >= 0 && scNalus[last].startPos == streamLen {
+	if last := len(scNalus) - 1; scNalus[last].startPos == streamLen {
 		streamLen -= scNalus[last].startCodeLength
 		scNalus = scNalus[:last]
 	}
-
-	lengthField := make([]byte, 4)
-	var naluLength int
-	if minStartCodeLength == 4 {
-		// In-place replacement of startcodes for length fields
-		for i, s := range scNalus {
-
-			if i+1 < len(scNalus) {
-				naluLength = scNalus[i+1].startPos - s.startPos - 4
-			} else {
-				naluLength = streamLen - scNalus[i].startPos
-			}
-			binary.BigEndian.PutUint32(lengthField, uint32(naluLength))
-			copy(stream[s.startPos-4:s.startPos], lengthField)
+	// naluEnd returns the end of NALU i without the zero bytes after it.
+	naluEnd := func(i int) int {
+		end := streamLen
+		if i+1 < len(scNalus) {
+			end = scNalus[i+1].startPos - scNalus[i+1].startCodeLength
 		}
-		return stream[:streamLen]
+		return trimTrailingZeros(stream, scNalus[i].startPos, end)
+	}
+	if minStartCodeLength == 4 {
+		// Each length field fits where the start code was, so the NALUs only move down, over dropped bytes.
+		w := 0
+		for i, s := range scNalus {
+			end := naluEnd(i)
+			binary.BigEndian.PutUint32(stream[w:], uint32(end-s.startPos))
+			w += 4
+			if w != s.startPos {
+				copy(stream[w:], stream[s.startPos:end])
+			}
+			w += end - s.startPos
+		}
+		return stream[:w]
 	}
 	// Build new output slice with one extra byte per NALU
 	out := make([]byte, 0, streamLen+len(scNalus))
 	for i, s := range scNalus {
-		if i+1 < len(scNalus) {
-			naluLength = scNalus[i+1].startPos - s.startPos - scNalus[i+1].startCodeLength
-		} else {
-			naluLength = streamLen - scNalus[i].startPos
-		}
-		binary.BigEndian.PutUint32(lengthField, uint32(naluLength))
-		out = append(out, lengthField...)
-		out = append(out, stream[s.startPos:s.startPos+naluLength]...)
+		end := naluEnd(i)
+		out = binary.BigEndian.AppendUint32(out, uint32(end-s.startPos))
+		out = append(out, stream[s.startPos:end]...)
 	}
 	return out
 }

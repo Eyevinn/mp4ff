@@ -107,6 +107,21 @@ func TestByteStreamToNaluSampleConversion(t *testing.T) {
 			[]byte{0, 0, 0, 1},
 			[]byte{},
 		},
+		{
+			"Zero bytes after NALUs",
+			[]byte{0, 0, 0, 1, 2, 3, 0, 0, 0, 0, 0, 1, 7, 0, 0},
+			[]byte{0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 7},
+		},
+		{
+			"A byte before the first start code",
+			[]byte{9, 0, 0, 0, 1, 2},
+			[]byte{0, 0, 0, 1, 2},
+		},
+		{
+			"No start code",
+			[]byte{0, 0, 0, 2, 2, 3},
+			[]byte{0, 0, 0, 2, 2, 3},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -410,18 +425,38 @@ func TestGetFirstAVCVideoNALUFromByteStream(t *testing.T) {
 	}
 }
 
+// TestConvertByteStreamToNaluSample checks that a byte stream made from a sample converts back to that sample, also
+// with zero bytes around its NALUs and a start code that ends it. The sample is long enough for the word-at-a-time
+// start code search.
 func TestConvertByteStreamToNaluSample(t *testing.T) {
-	data, err := os.ReadFile("testdata/two-frames.264")
+	sample, err := os.ReadFile("testdata/two-frames.264")
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
-	withStartCode := append(bytes.Clone(data), 0, 0, 0, 1)
-	sample := ConvertByteStreamToNaluSample(data)
-	if len(sample) != len(data) {
-		t.Errorf("got %d, wanted %d", len(sample), len(data))
+	nalus, err := GetNalusFromSample(sample)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := ConvertByteStreamToNaluSample(withStartCode); !bytes.Equal(got, sample) {
-		t.Errorf("with a start code ending the stream: got %d bytes, want the %d without it", len(got), len(sample))
+	testCases := []struct {
+		desc                            string
+		prefix, startCode, padding, end []byte
+	}{
+		{desc: "4-byte start codes", startCode: []byte{0, 0, 0, 1}},
+		{desc: "3-byte start codes", startCode: []byte{0, 0, 1}},
+		{desc: "4-byte start codes, zero bytes around NALUs and a start code at the end", prefix: []byte{0, 0},
+			startCode: []byte{0, 0, 0, 1}, padding: []byte{0, 0, 0}, end: []byte{0, 0, 0, 1}},
+		{desc: "3-byte start codes, zero bytes after NALUs and a start code at the end",
+			startCode: []byte{0, 0, 1}, padding: []byte{0, 0}, end: []byte{0, 0, 1}},
+	}
+	for _, tc := range testCases {
+		stream := bytes.Clone(tc.prefix)
+		for _, nalu := range nalus {
+			stream = append(append(append(stream, tc.startCode...), nalu...), tc.padding...)
+		}
+		stream = append(stream, tc.end...)
+		if got := ConvertByteStreamToNaluSample(stream); !bytes.Equal(got, sample) {
+			t.Errorf("%s: got %d bytes, want the %d of the sample", tc.desc, len(got), len(sample))
+		}
 	}
 }
 
