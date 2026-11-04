@@ -62,6 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bits.ErrExpGolombTooLong` for codes with more than 31 leading zero bits, the longest in AVC, HEVC and VVC
 - `avc.SPS.OffsetForNonRefPic`, `OffsetForTopToBottomField` and `RefFramesInPicOrderCntCycle` are signed (`int`),
   holding the se(v) values of the SPS. This is a breaking change
+- `aac.ADTSHeader.Frequency` returns an `int`, so that it gives 88200 and 96000 Hz instead of wrapping them around
+  in a `uint16`. This is a breaking change
 - README.md is a shorter overview with a complete codec list; tool installation moved to cmd/README.md, contribution
   rules to CONTRIBUTING.md, and the library guide is the `mp4` package documentation
 - The logo is an SVG with the Go gopher, and `images/social-preview.png` is the social preview of the repository

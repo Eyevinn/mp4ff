@@ -146,7 +146,8 @@ func DecodeADTSHeader(r io.Reader) (header *ADTSHeader, offset int, err error) {
 	return ah, offset, nil
 }
 
-// Frequency looks up the sampling frequency for index in ADTSHeader
-func (a ADTSHeader) Frequency() uint16 {
-	return uint16(FrequencyTable[a.SamplingFrequencyIndex])
+// Frequency returns the sampling frequency in Hz of the sampling frequency index in a, or 0 for an index that has
+// no frequency.
+func (a ADTSHeader) Frequency() int {
+	return FrequencyTable[a.SamplingFrequencyIndex]
 }

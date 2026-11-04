@@ -22,7 +22,7 @@ func TestADTS(t *testing.T) {
 		adtsBytes       []byte
 		wantedHdr       *ADTSHeader
 		wantedOffset    int
-		wantedFrequency uint16
+		wantedFrequency int
 		wantedError     error
 	}{
 		{
@@ -154,6 +154,8 @@ func TestNewADTSHeader(t *testing.T) {
 		{desc: "AAC Main mono", frequency: 44100, channelConfig: 1, objectType: AACMain, payloadLength: 4096},
 		{desc: "channel layout in PCE", frequency: 48000, channelConfig: 0, objectType: AAClc, payloadLength: 768},
 		{desc: "7.1, largest payload", frequency: 7350, channelConfig: 7, objectType: AAClc, payloadLength: 8184},
+		{desc: "highest sampling frequency", frequency: 96000, channelConfig: 2, objectType: AAClc, payloadLength: 512},
+		{desc: "88.2 kHz", frequency: 88200, channelConfig: 2, objectType: AAClc, payloadLength: 512},
 		{desc: "payload too large for the frame length", frequency: 48000, channelConfig: 2, objectType: AAClc,
 			payloadLength: 8185, wantedErr: "payload length 8185 exceeds the ADTS maximum 8184"},
 		{desc: "largest uint16 payload", frequency: 48000, channelConfig: 2, objectType: AAClc,
@@ -185,7 +187,7 @@ func TestNewADTSHeader(t *testing.T) {
 			if diff := deep.Equal(got, hdr); diff != nil {
 				t.Error(diff)
 			}
-			if int(got.Frequency()) != tc.frequency {
+			if got.Frequency() != tc.frequency {
 				t.Errorf("got frequency %d, want %d", got.Frequency(), tc.frequency)
 			}
 		})
