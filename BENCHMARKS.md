@@ -61,6 +61,18 @@ Master at f60dbde, Go 1.27.1, Apple M4 Pro, n=6:
 | `EncodeFile/1.m4s` | 880 ns | 88 B | 2 |
 | `EncodeFile/prog_8s.mp4` | 11.6 µs | 8.6 KiB | 87 |
 
+### Box payloads read into one buffer (unreleased)
+
+Decoding from an `io.Reader` reads each box payload of up to 1 MiB into one buffer of its size, instead of buffers
+that grow as data arrives. The `SliceReader` decoders and the stream decoder are unchanged. Go 1.27.3, Apple M4 Pro,
+n=8:
+
+| Benchmark | time | bytes | allocations |
+|---|---|---|---|
+| `DecodeFile/1.m4s` | 6.6 µs → 3.0 µs | 60.2 KiB → 27.7 KiB | 49 → 30 |
+| `DecodeFile/prog_8s.mp4` | 46.3 µs → 20.1 µs | 459 KiB → 202 KiB | 151 → 120 |
+| `DecodeFragments/DecodeFile` | 38.9 µs → 30.7 µs | 154 KiB → 94 KiB | 1321 → 1161 |
+
 ### Fewer allocations per fragment (v0.58.0)
 
 These changes reduce the fixed cost of every fragment and sample, which dominates for low-latency streams with fragments

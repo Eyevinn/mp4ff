@@ -67,6 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The logo is an SVG with the Go gopher, and `images/social-preview.png` is the social preview of the repository
 - Container boxes decoded from an `io.Reader` read their payload into memory before decoding their children, as `moov`
   and `moof` already did
+- `DecodeFile`, `DecodeBox` and the other `io.Reader` decoders read box payloads of up to 1 MiB into one buffer of
+  their size, allocating less and decoding faster
 
 ### Fixed
 

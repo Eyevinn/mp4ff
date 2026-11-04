@@ -3,7 +3,6 @@ package mp4
 import (
 	"fmt"
 	"io"
-	"math"
 	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -112,7 +111,7 @@ func decodeContainerChildren(hdr BoxHeader, startPos, endPos uint64, r io.Reader
 		return nil, fmt.Errorf("%s: box size %d is too small, needs at least %d bytes",
 			hdr.Name, hdr.Size, hdr.Size+(startPos-endPos))
 	}
-	data, err := io.ReadAll(io.LimitReader(r, int64(min(endPos-startPos, math.MaxInt64))))
+	data, err := readPayload(r, endPos-startPos)
 	if err != nil {
 		return nil, err
 	}
