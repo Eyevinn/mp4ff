@@ -89,18 +89,41 @@ func (b *UnknownBox) Info(w io.Writer, specificBoxLevels, indent, indentStep str
 // payload if decode fails or does not read the whole payload. It is for box types that decoded as UnknownBox
 // before mp4ff decoded them, so that files with boxes of such a type in another layout still decode.
 //
-// The payload is decoded once, from a reader of its own, so that a failed decode leaves sr after the box.
+// From a bits.FixedSliceReader, the payload is decoded once, from a reader of its own, so that a failed decode
+// leaves sr after the box. From another bits.SliceReader, such as one that records the reads, the payload is
+// decoded from a copy first, and then, if that works, again from sr, so that sr sees the reads of the fields.
 // Boxes nested deeper than MaxBoxDepth give ErrBoxTooDeep instead of an UnknownBox.
 func decodeOrUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader, decode BoxDecoderSR) (Box, error) {
 	if sr.NrRemainingBytes() < hdr.payloadLen() {
 		return nil, fmt.Errorf("%s: payload of %d bytes, but %d bytes left", hdr.Name, hdr.payloadLen(),
 			sr.NrRemainingBytes())
 	}
+	if _, ok := sr.(*bits.FixedSliceReader); !ok {
+		return decodeCopyOrUnknownSR(hdr, startPos, sr, decode)
+	}
 	data := sr.ReadBytes(hdr.payloadLen())
 	if err := sr.AccError(); err != nil {
 		return nil, err
 	}
 	return decodeDataOrUnknown(hdr, startPos, data, childReader(sr, data), decode)
+}
+
+// decodeCopyOrUnknownSR is decodeOrUnknownSR for an sr that is not a bits.FixedSliceReader. The copy is
+// decoded from a bits.FixedSliceReader, which decodes the boxes below once each, so decoding from sr takes time
+// that grows with the square of the nesting.
+func decodeCopyOrUnknownSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader, decode BoxDecoderSR) (Box, error) {
+	data := make([]byte, hdr.payloadLen())
+	if err := sr.LookAhead(0, data); err != nil {
+		return nil, err
+	}
+	box, err := decodeDataOrUnknown(hdr, startPos, data, bits.NewFixedSliceReader(data), decode)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := box.(*UnknownBox); ok {
+		return DecodeUnknownSR(hdr, startPos, sr)
+	}
+	return decode(hdr, startPos, sr)
 }
 
 // decodeOrUnknown is decodeOrUnknownSR for the payload in data.
