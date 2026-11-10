@@ -26,6 +26,9 @@ box that cannot be decoded. With -json, it prints that tree as JSON.
 With -brands, it instead checks the brands of the ftyp and styp boxes against
 the content, prints the issues found, and fails if any of them is an error.
 
+To browse the boxes, their fields and bytes interactively, in a terminal or a web
+browser, use mp4lens: https://github.com/Eyevinn/mp4lens
+
 Usage of %s:
 `
 

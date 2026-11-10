@@ -4,7 +4,7 @@ The tools are built with the mp4ff library. Run a tool with `-h` to see all its 
 
 | Tool | Description |
 | ---- | ----------- |
-| [mp4ff-info](mp4ff-info) | Prints the box tree of an mp4 file with information about each box. With `-tree` or `-json`, and for files that cannot be decoded completely, the tree has box positions and errors. With `-brands`, it instead checks the ftyp and styp brands against the content. |
+| [mp4ff-info](mp4ff-info) | Prints the box tree of an mp4 file with information about each box. With `-tree` or `-json`, and for files that cannot be decoded completely, the tree has box positions and errors. With `-brands`, it instead checks the ftyp and styp brands against the content. For an interactive view, see [mp4lens](https://github.com/Eyevinn/mp4lens). |
 | [mp4ff-pslister](mp4ff-pslister) | Extracts and displays the parameter sets of AVC and HEVC (SPS, PPS, VPS) from an mp4 file, an Annex B byte stream or hex input, and the AV1 sequence header from an mp4 file. VVC is not supported. |
 | [mp4ff-nallister](mp4ff-nallister) | Lists NAL units and picture types of AVC, HEVC or VVC video in a progressive or fragmented mp4 file, or in an Annex B byte stream. It can also print SEI messages. Video codecs without NAL units, such as AV1 and VP9, are not supported. |
 | [mp4ff-subslister](mp4ff-subslister) | Lists details of wvtt, wvtc, stpp or stpc (WebVTT or TTML in ISOBMFF) subtitle samples. |
