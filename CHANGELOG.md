@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.62.1] - 2026-11-10
+
+### Changed
+
+- README.md, cmd/README.md and `mp4ff-info -h` point to [mp4lens](https://github.com/Eyevinn/mp4lens), an interactive
+  box viewer built on mp4ff, for the terminal and the web browser
+
 ### Fixed
 
 - `DecodeBoxSR` from a `bits.SliceReader` that is not a `bits.FixedSliceReader` reads the fields of the QuickTime and
@@ -1662,7 +1669,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.62.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.62.1...HEAD
+[0.62.1]: https://github.com/Eyevinn/mp4ff/compare/v0.62.0...v0.62.1
 [0.62.0]: https://github.com/Eyevinn/mp4ff/compare/v0.61.0...v0.62.0
 [0.61.0]: https://github.com/Eyevinn/mp4ff/compare/v0.60.0...v0.61.0
 [0.60.0]: https://github.com/Eyevinn/mp4ff/compare/v0.59.0...v0.60.0
