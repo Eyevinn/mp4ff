@@ -42,6 +42,10 @@ Install them with `brew install mp4ff`, with `go install`, or from the Linux pac
 See [cmd/README.md](cmd/README.md) for more about each tool, all ways to install them,
 and how to run them in [Eyevinn Open Source Cloud](https://app.osaas.io/browse/eyevinn-mp4ff?utm_source=github&utm_medium=readme&utm_campaign=mp4ff).
 
+To look inside a file interactively, use [mp4lens](https://github.com/Eyevinn/mp4lens), a box viewer built on
+mp4ff. It runs in the terminal and as a web page that decodes files in the browser, and shows the box tree with
+decode errors, the fields and bytes of each box, and search.
+
 ## Codec support
 
 The supported codecs and their boxes are
