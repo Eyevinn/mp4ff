@@ -822,7 +822,8 @@ func parseBitstreamRestrictions(r *bits.EBSPReader) *BitstreamRestrictions {
 
 // ShortTermRPS - Short term Reference Picture Set
 type ShortTermRPS struct {
-	// Delta Picture Order Count
+	// Positive distances between successive negative or positive picture order counts,
+	// starting at zero, in order of increasing distance from the current picture.
 	DeltaPocS0      []uint32
 	DeltaPocS1      []uint32
 	UsedByCurrPicS0 []bool
@@ -867,8 +868,7 @@ const (
 	maxRPSEntries = 2 * maxSTRefPics
 )
 
-// parseShortTermRPS - short-term reference pictures with syntax from 7.3.7.
-// Focus is on reading/parsing beyond this structure in SPS (and possibly in slice header)
+// parseShortTermRPS parses short-term reference pictures (7.3.7 and 7.4.8).
 func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS) ShortTermRPS {
 	stps := ShortTermRPS{}
 
@@ -893,18 +893,28 @@ func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS) 
 				idx, refIdx, len(sps.ShortTermRefPicSets)))
 			return stps
 		}
-		/* deltaRpsSign */ _ = r.Read(1)
-		/* absDeltaRpsMinus1*/ _ = r.ReadExpGolomb()
-		//deltaRps := (1 - (deltaRpsSign << 1)) * (absDeltaRpsMinus1 + 1)
-		refNumDeltaPocs := int(sps.ShortTermRefPicSets[refIdx].NumDeltaPocs)
+		deltaRpsSign := r.ReadFlag()
+		deltaRps := int64(r.ReadExpGolomb()) + 1
+		if deltaRpsSign {
+			deltaRps = -deltaRps
+		}
+		ref := sps.ShortTermRefPicSets[refIdx]
+		refNumDeltaPocs := int(ref.NumDeltaPocs)
+		if refNumDeltaPocs > maxRPSEntries ||
+			int(ref.NumNegativePics)+int(ref.NumPositivePics) != refNumDeltaPocs ||
+			len(ref.DeltaPocS0) != int(ref.NumNegativePics) || len(ref.DeltaPocS1) != int(ref.NumPositivePics) {
+			r.SetError(fmt.Errorf("inconsistent short-term RPS %d", refIdx))
+			return stps
+		}
+		var used, useDelta [maxRPSEntries + 1]bool
 		numDeltaPocs := 0
 		for j := 0; j <= refNumDeltaPocs && r.AccError() == nil; j++ {
-			usedByCurrPicFlag := r.ReadFlag()
-			useDeltaFlag := true
-			if !usedByCurrPicFlag {
-				useDeltaFlag = r.ReadFlag()
+			used[j] = r.ReadFlag()
+			useDelta[j] = true
+			if !used[j] {
+				useDelta[j] = r.ReadFlag()
 			}
-			if usedByCurrPicFlag || useDeltaFlag {
+			if useDelta[j] {
 				numDeltaPocs++
 			}
 		}
@@ -913,7 +923,80 @@ func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS) 
 				idx, numDeltaPocs, maxRPSEntries))
 			return stps
 		}
-		stps.NumDeltaPocs = byte(numDeltaPocs)
+		if r.AccError() != nil {
+			return stps
+		}
+
+		// Reconstruct signed POCs from the stored distances, then shift them.
+		var pocs [maxRPSEntries + 1]int64
+		var poc int64
+		for j, distance := range ref.DeltaPocS0 {
+			poc -= int64(distance)
+			pocs[j] = poc + deltaRps
+		}
+		poc = 0
+		for j, distance := range ref.DeltaPocS1 {
+			poc += int64(distance)
+			pocs[int(ref.NumNegativePics)+j] = poc + deltaRps
+		}
+		pocs[refNumDeltaPocs] = deltaRps
+
+		var distances [maxRPSEntries]uint32
+		var flags [maxRPSEntries]bool
+		var count int
+		var prevNegative, prevPositive int64
+		add := func(j int, negative bool) {
+			poc := pocs[j]
+			if !useDelta[j] || poc == 0 || (poc < 0) != negative {
+				return
+			}
+			var distance int64
+			if negative {
+				distance = prevNegative - poc
+			} else {
+				distance = poc - prevPositive
+			}
+			if distance > int64(^uint32(0)) {
+				r.SetError(fmt.Errorf("short-term RPS %d distance %d exceeds uint32", idx, distance))
+				return
+			}
+			distances[count] = uint32(distance)
+			flags[count] = used[j]
+			count++
+			if negative {
+				prevNegative = poc
+			} else {
+				prevPositive = poc
+			}
+		}
+		// 7.4.8: negative POCs in decreasing order, positive POCs in increasing order.
+		for j := refNumDeltaPocs - 1; j >= int(ref.NumNegativePics); j-- {
+			add(j, true)
+		}
+		add(refNumDeltaPocs, true)
+		for j := 0; j < int(ref.NumNegativePics); j++ {
+			add(j, true)
+		}
+		numNegative := count
+		for j := int(ref.NumNegativePics) - 1; j >= 0; j-- {
+			add(j, false)
+		}
+		add(refNumDeltaPocs, false)
+		for j := int(ref.NumNegativePics); j < refNumDeltaPocs; j++ {
+			add(j, false)
+		}
+		deltaPocs := make([]uint32, count)
+		copy(deltaPocs, distances[:count])
+		usedFlags := make([]bool, count)
+		copy(usedFlags, flags[:count])
+		// Cap the negative slices so appending cannot overwrite the positive pictures.
+		stps.DeltaPocS0 = deltaPocs[:numNegative:numNegative]
+		stps.DeltaPocS1 = deltaPocs[numNegative:]
+		stps.UsedByCurrPicS0 = usedFlags[:numNegative:numNegative]
+		stps.UsedByCurrPicS1 = usedFlags[numNegative:]
+		stps.NumNegativePics = byte(numNegative)
+		stps.NumPositivePics = byte(count - numNegative)
+		stps.NumDeltaPocs = byte(count)
 	} else {
 		numNegativePics := r.ReadExpGolomb()
 		numPositivePics := r.ReadExpGolomb()
