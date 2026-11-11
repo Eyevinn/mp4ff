@@ -104,7 +104,7 @@ func (b *GminBox) EncodeSW(sw bits.SliceWriter) error {
 // Info - write box-specific information
 func (b *GminBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
-	bd.write(" - graphicsMode: %#x", b.GraphicsMode)
+	bd.write(" - graphicsMode: %s", graphicsModeInfo(b.GraphicsMode))
 	bd.write(" - opcolor: %d %d %d", b.Opcolor[0], b.Opcolor[1], b.Opcolor[2])
 	bd.write(" - balance: %d", b.Balance)
 	return bd.err

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -107,6 +108,41 @@ func (q *QuickTimeV2SoundDescription) IsBigEndian() bool {
 // IsSignedInteger - whether FormatSpecificFlags marks the integer samples as signed.
 func (q *QuickTimeV2SoundDescription) IsSignedInteger() bool {
 	return q.FormatSpecificFlags&QuickTimeFormatFlagIsSignedInteger != 0
+}
+
+// lpcmFlagsInfo describes the linear-PCM format flags of an lpcm entry, such as "signed integer, little-endian, packed".
+func lpcmFlagsInfo(flags uint32) string {
+	var parts []string
+	switch {
+	case flags&QuickTimeFormatFlagIsFloat != 0:
+		parts = append(parts, "float")
+	case flags&QuickTimeFormatFlagIsSignedInteger != 0:
+		parts = append(parts, "signed integer")
+	default:
+		parts = append(parts, "unsigned integer")
+	}
+	if flags&QuickTimeFormatFlagIsBigEndian != 0 {
+		parts = append(parts, "big-endian")
+	} else {
+		parts = append(parts, "little-endian")
+	}
+	for _, f := range []struct {
+		flag uint32
+		name string
+	}{
+		{QuickTimeFormatFlagIsPacked, "packed"},
+		{QuickTimeFormatFlagIsAlignedHigh, "aligned high"},
+		{QuickTimeFormatFlagIsNonInterleaved, "non-interleaved"},
+		{QuickTimeFormatFlagIsNonMixable, "non-mixable"},
+	} {
+		if flags&f.flag != 0 {
+			parts = append(parts, f.name)
+		}
+	}
+	if other := flags &^ 0x7f; other != 0 {
+		parts = append(parts, fmt.Sprintf("other flags %#x", other))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // NewAudioSampleEntryBox - Create new empty mp4a box
@@ -501,8 +537,12 @@ func (a *AudioSampleEntryBox) Info(w io.Writer, specificBoxLevels, indent, inden
 			bd.write(" - sample_size: %d", a.SampleSize)
 		}
 		bd.write(" - sample_rate: %g", q.AudioSampleRate)
-		bd.write(" - size_of_struct_only: %d, always_7f000000: %#x, format_specific_flags: %#x",
-			q.SizeOfStructOnly, q.Always7F000000, q.FormatSpecificFlags)
+		flags := fmt.Sprintf("%#x", q.FormatSpecificFlags)
+		if a.Type() == "lpcm" {
+			flags += " (" + lpcmFlagsInfo(q.FormatSpecificFlags) + ")"
+		}
+		bd.write(" - size_of_struct_only: %d, always_7f000000: %#x, format_specific_flags: %s",
+			q.SizeOfStructOnly, q.Always7F000000, flags)
 		bd.write(" - const_bytes_per_audio_packet: %d, const_lpcm_frames_per_audio_packet: %d",
 			q.ConstBytesPerAudioPacket, q.ConstLPCMFramesPerAudioPacket)
 	} else {

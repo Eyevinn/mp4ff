@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -289,6 +290,24 @@ func setBox(n *Node, box mp4.Box, data []byte, infoLevels string) {
 			n.ChildErr = true
 		}
 		off = end
+	}
+	if meta, ok := box.(*mp4.MetaBox); ok && meta.Keys != nil {
+		addItemKeys(n.Children, meta.Keys)
+	}
+}
+
+// addItemKeys adds a line with the key to the Info of each item in the ilst box among nodes whose type is the
+// index of a key in keys, as the Info method of mp4.MetaBox does.
+func addItemKeys(nodes []*Node, keys *mp4.KeysBox) {
+	for _, n := range nodes {
+		if _, ok := n.Box.(*mp4.IlstBox); !ok {
+			continue
+		}
+		for _, item := range n.Children {
+			if key, ok := keys.KeyOfItem(item.Type); ok && len(item.Info) > 0 {
+				item.Info = slices.Insert(item.Info, 1, " - key: "+key.String())
+			}
+		}
 	}
 }
 

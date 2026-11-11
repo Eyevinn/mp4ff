@@ -151,6 +151,8 @@ func (b *MetaBox) EncodeSW(sw bits.SliceWriter) error {
 }
 
 // Info writes box-specific info
+//
+// With a keys box, each item in ilst whose type is the index of a key gets a line with that key.
 func (b *MetaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	if bd.err != nil {
@@ -161,7 +163,11 @@ func (b *MetaBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	}
 	var err error
 	for _, c := range b.Children {
-		err = c.Info(w, specificBoxLevels, indent+indentStep, indentStep)
+		if ilst, ok := c.(*IlstBox); ok && b.Keys != nil {
+			err = ilst.infoWithKeys(w, b.Keys, specificBoxLevels, indent+indentStep, indentStep)
+		} else {
+			err = c.Info(w, specificBoxLevels, indent+indentStep, indentStep)
+		}
 		if err != nil {
 			return err
 		}

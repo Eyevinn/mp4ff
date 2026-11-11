@@ -60,8 +60,28 @@ func TestColrInfo(t *testing.T) {
 				MatrixCoefficients:      16,
 				FullRangeFlag:           true,
 			},
-			wanted: ("[colr] size=19\n - colorType: nclx\n - ColorPrimaries: 9, " +
-				"TransferCharacteristics: 9, MatrixCoefficients: 16, FullRange: true\n"),
+			wanted: ("[colr] size=19\n - colorType: nclx\n - ColorPrimaries: 9 (BT.2020), " +
+				"TransferCharacteristics: 9 (logarithmic 100:1), MatrixCoefficients: 16, FullRange: true\n"),
+		},
+		{
+			cb: mp4.ColrBox{
+				ColorType:               mp4.QuickTimeColorParameters,
+				ColorPrimaries:          9,
+				TransferCharacteristics: 16,
+				MatrixCoefficients:      9,
+			},
+			wanted: ("[colr] size=18\n - colorType: nclc\n - ColorPrimaries: 9 (BT.2020), " +
+				"TransferCharacteristics: 16 (SMPTE ST 2084 PQ), MatrixCoefficients: 9 (BT.2020 non-constant luminance)\n"),
+		},
+		{
+			cb: mp4.ColrBox{
+				ColorType:               mp4.ColorTypeOnScreenColors,
+				ColorPrimaries:          23,
+				TransferCharacteristics: 18,
+				MatrixCoefficients:      0,
+			},
+			wanted: ("[colr] size=19\n - colorType: nclx\n - ColorPrimaries: 23, " +
+				"TransferCharacteristics: 18 (ARIB STD-B67 HLG), MatrixCoefficients: 0 (identity), FullRange: false\n"),
 		},
 		{
 			cb: mp4.ColrBox{

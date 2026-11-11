@@ -438,3 +438,41 @@ func TestDecodeSencSampleCount(t *testing.T) {
 		t.Errorf("allocated %d bytes for a file of %d bytes", allocated, len(data))
 	}
 }
+
+// TestItemKeys checks that the items of a QuickTime meta box with keys have the line with their key that the
+// Info output has.
+func TestItemKeys(t *testing.T) {
+	be32 := func(v uint32) []byte { return binary.BigEndian.AppendUint32(nil, v) }
+	hdlr := makeBox("hdlr", append(append(make([]byte, 8), "mdta"...), make([]byte, 13)...))
+	key := append(be32(8+17), "mdtacom.example.title"...)
+	keys := makeBox("keys", append(append(be32(0), be32(1)...), key...))
+	data := makeBox("data", append(append(be32(1), be32(0)...), "Title"...))
+	// The second item refers to key 2, which does not exist.
+	ilst := makeBox("ilst", append(makeBox("\x00\x00\x00\x01", data), makeBox("\x00\x00\x00\x02", data)...))
+	meta := makeBox("meta", append(append(hdlr, keys...), ilst...))
+	tree, err := Decode(bytes.NewReader(meta), int64(len(meta)), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if errs := tree.Errors(); len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	f, err := mp4.DecodeFile(bytes.NewReader(meta))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, got bytes.Buffer
+	if err := f.Info(&want, "", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	if err := tree.Fprint(&got); err != nil {
+		t.Fatal(err)
+	}
+	if gotInfo := posRegexp.ReplaceAllString(got.String(), "\n"); gotInfo != want.String() {
+		t.Errorf("tree output without positions differs from Info output:\n%s", firstDiff(want.String(), gotInfo))
+	}
+	if items := tree.Boxes[0].Children[2].Children; len(items) != 2 || len(items[0].Info) != 2 ||
+		items[0].Info[1] != ` - key: mdta "com.example.title"` || len(items[1].Info) != 1 {
+		t.Errorf("items: %+v", items)
+	}
+}
