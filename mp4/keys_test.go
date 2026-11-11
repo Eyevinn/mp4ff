@@ -3,6 +3,8 @@ package mp4_test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -90,4 +92,34 @@ func TestItunesItemsAreContainers(t *testing.T) {
 	trkn.AddChild(&mp4.DataBox{DataType: 0, Data: []byte{0, 0, 0, 3, 0, 12, 0, 0}})
 	ilst.AddChild(trkn)
 	boxDiffAfterEncodeAndDecode(t, ilst)
+}
+
+func TestItemKeysInInfo(t *testing.T) {
+	hdlr := "0000002168646c7200000000000000006d647461" + strings.Repeat("00", 13)
+	// The fourth item refers to key 5, which does not exist.
+	ilst := strings.Replace(iPhoneIlst, "0000003000000004", "0000003000000005", 1)
+	payload := hdlr + iPhoneKeys + ilst
+	box, _ := decodeHex(t, fmt.Sprintf("%08x6d657461", 8+len(payload)/2)+payload)
+	var info bytes.Buffer
+	if err := box.Info(&info, "", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"\n    [\\x00\\x00\\x00\\x01] size=29\n     - key: mdta \"com.apple.quicktime.make\"\n      [data] size=21\n",
+		"\n    [\\x00\\x00\\x00\\x05] size=48\n      [data] size=40\n",
+	} {
+		if !strings.Contains(info.String(), want) {
+			t.Errorf("Info lacks %q:\n%s", want, info.String())
+		}
+	}
+
+	// Without a keys box, the items have no keys.
+	box, _ = decodeHex(t, iPhoneIlst)
+	info.Reset()
+	if err := box.Info(&info, "", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(info.String(), "key:") {
+		t.Errorf("Info of ilst without keys has keys:\n%s", info.String())
+	}
 }

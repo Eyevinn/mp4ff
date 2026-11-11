@@ -604,3 +604,38 @@ func TestNormalizeQuickTime(t *testing.T) {
 		}
 	})
 }
+
+func TestLpcmFormatFlagsInfo(t *testing.T) {
+	cases := []struct {
+		name  string
+		flags uint32
+		want  string
+	}{
+		{"lpcm", 0xc, "format_specific_flags: 0xc (signed integer, little-endian, packed)\n"},
+		{"lpcm", 0x3, "format_specific_flags: 0x3 (float, big-endian)\n"},
+		{"lpcm", 0x0, "format_specific_flags: 0x0 (unsigned integer, little-endian)\n"},
+		{"lpcm", 0xff, "format_specific_flags: 0xff (float, big-endian, packed, aligned high, non-interleaved, " +
+			"non-mixable, other flags 0x80)\n"},
+		{"mp4a", 0x2, "format_specific_flags: 0x2\n"},
+	}
+	for _, c := range cases {
+		ext := make([]byte, 0, 36)
+		ext = binary.BigEndian.AppendUint32(ext, 72)
+		ext = binary.BigEndian.AppendUint64(ext, math.Float64bits(48000))
+		for _, val := range []uint32{2, mp4.QuickTimeV2Marker, 24, c.flags, 6, 1} {
+			ext = binary.BigEndian.AppendUint32(ext, val)
+		}
+		data := quickTimeSoundDescriptionBytes(c.name, 2, ext, nil)
+		box, err := mp4.DecodeBox(0, bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var info bytes.Buffer
+		if err := box.Info(&info, "", "", "  "); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(info.String(), ", "+c.want) {
+			t.Errorf("%s flags %#x: Info lacks %q:\n%s", c.name, c.flags, c.want, info.String())
+		}
+	}
+}

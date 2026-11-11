@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -132,15 +133,83 @@ func (c *ColrBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	bd.write(" - colorType: %s", c.ColorType)
 	switch c.ColorType {
 	case ColorTypeOnScreenColors:
-		bd.write(" - ColorPrimaries: %d, TransferCharacteristics: %d, MatrixCoefficients: %d, FullRange: %t",
-			c.ColorPrimaries, c.TransferCharacteristics, c.MatrixCoefficients, c.FullRangeFlag)
+		bd.write(" - %s, FullRange: %t", c.codePointsInfo(), c.FullRangeFlag)
 	case ColorTypeRestrictedICCProfile, ColorTypeUnrestrictedICCTProfile:
 		bd.write(" - ICCProfile: %s", hex.EncodeToString(c.ICCProfile))
 	case QuickTimeColorParameters:
-		bd.write(" - ColorPrimaries: %d, TransferCharacteristics: %d, MatrixCoefficients: %d",
-			c.ColorPrimaries, c.TransferCharacteristics, c.MatrixCoefficients)
+		bd.write(" - %s", c.codePointsInfo())
 	default:
 		bd.write(" - Payload: %s", hex.EncodeToString(c.UnknownPayload))
 	}
 	return bd.err
 }
+
+// codePointsInfo returns the colour primaries, transfer characteristics and matrix coefficients with their names,
+// such as "ColorPrimaries: 9 (BT.2020), TransferCharacteristics: 16 (SMPTE ST 2084 PQ), ...".
+func (c *ColrBox) codePointsInfo() string {
+	return fmt.Sprintf("ColorPrimaries: %s, TransferCharacteristics: %s, MatrixCoefficients: %s",
+		codePointInfo(c.ColorPrimaries, colorPrimariesNames),
+		codePointInfo(c.TransferCharacteristics, transferCharacteristicsNames),
+		codePointInfo(c.MatrixCoefficients, matrixCoefficientsNames))
+}
+
+// codePointInfo returns value with its name in names, if there is one.
+func codePointInfo(value uint16, names map[uint16]string) string {
+	if name, ok := names[value]; ok {
+		return fmt.Sprintf("%d (%s)", value, name)
+	}
+	return fmt.Sprintf("%d", value)
+}
+
+// Names of the code points of ISO/IEC 23091-2 (ITU-T H.273), Tables 3, 4 and 5. Reserved values have no name.
+var (
+	colorPrimariesNames = map[uint16]string{
+		1:  "BT.709",
+		2:  "unspecified",
+		4:  "BT.470 System M",
+		5:  "BT.601 625",
+		6:  "BT.601 525",
+		7:  "SMPTE ST 240",
+		8:  "generic film",
+		9:  "BT.2020",
+		10: "SMPTE ST 428-1 XYZ",
+		11: "SMPTE RP 431-2 DCI-P3",
+		12: "SMPTE EG 432-1 P3-D65",
+		22: "EBU Tech. 3213-E",
+	}
+	transferCharacteristicsNames = map[uint16]string{
+		1:  "BT.709",
+		2:  "unspecified",
+		4:  "BT.470 System M",
+		5:  "BT.470 System B, G",
+		6:  "BT.601",
+		7:  "SMPTE ST 240",
+		8:  "linear",
+		9:  "logarithmic 100:1",
+		10: "logarithmic 316:1",
+		11: "IEC 61966-2-4 xvYCC",
+		12: "BT.1361 extended",
+		13: "IEC 61966-2-1 sRGB",
+		14: "BT.2020 10-bit",
+		15: "BT.2020 12-bit",
+		16: "SMPTE ST 2084 PQ",
+		17: "SMPTE ST 428-1",
+		18: "ARIB STD-B67 HLG",
+	}
+	matrixCoefficientsNames = map[uint16]string{
+		0:  "identity",
+		1:  "BT.709",
+		2:  "unspecified",
+		4:  "FCC 73.682",
+		5:  "BT.601 625",
+		6:  "BT.601 525",
+		7:  "SMPTE ST 240",
+		8:  "YCgCo",
+		9:  "BT.2020 non-constant luminance",
+		10: "BT.2020 constant luminance",
+		11: "SMPTE ST 2085",
+		12: "chromaticity-derived non-constant luminance",
+		13: "chromaticity-derived constant luminance",
+		14: "BT.2100 ICtCp",
+	}
+)

@@ -28,6 +28,11 @@ type MetadataKey struct {
 	Value string
 }
 
+// String returns the namespace and the quoted value of the key, such as mdta "com.apple.quicktime.title".
+func (k MetadataKey) String() string {
+	return fmt.Sprintf("%s %q", k.Namespace, k.Value)
+}
+
 // DecodeKeys - box-specific decode
 func DecodeKeys(hdr BoxHeader, startPos uint64, r io.Reader) (Box, error) {
 	data, err := readBoxBody(r, hdr)
@@ -128,7 +133,7 @@ func (b *KeysBox) EncodeSW(sw bits.SliceWriter) error {
 func (b *KeysBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	for i, k := range b.Keys {
-		bd.write(" - key[%d]: %s %q", i+1, k.Namespace, k.Value)
+		bd.write(" - key[%d]: %s", i+1, k)
 	}
 	return bd.err
 }

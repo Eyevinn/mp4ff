@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `HdlrBox.QuickTimeComponentType` and `HdlrBox.QuickTimeComponentName` read a QuickTime handler's component type
+  (`mhlr`, `dhlr`) and counted-string name; `MetadataKey.String`
+- Info, and so `mp4ff-info`, shows QuickTime handler fields and names, `vmhd` and `gmin` graphics modes, `lpcm` format
+  flags, `colr` code point names, and the key of each keyed `ilst` item
+
 ### Fixed
 
 - `hevc.ParseSPSNALUnit` and `hevc.ParseSliceHeader` derive inter-predicted short-term reference picture sets,

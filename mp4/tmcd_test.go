@@ -1,7 +1,9 @@
 package mp4_test
 
 import (
+	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/bits"
@@ -24,7 +26,14 @@ func TestTimecodeMediaInformation(t *testing.T) {
 	}
 	gmin, ok := gmhd.Children[0].(*mp4.GminBox)
 	if !ok || gmin.GraphicsMode != 0x40 || gmin.Opcolor != [3]uint16{0x8000, 0x8000, 0x8000} {
-		t.Errorf("gmin: %T %+v", gmhd.Children[0], gmhd.Children[0])
+		t.Fatalf("gmin: %T %+v", gmhd.Children[0], gmhd.Children[0])
+	}
+	var info bytes.Buffer
+	if err := gmin.Info(&info, "", "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(info.String(), "\n - graphicsMode: 0x40 (dither copy)\n") {
+		t.Errorf("gmin Info: %s", info.String())
 	}
 	tmcd, ok := gmhd.Children[1].(*mp4.GenericContainerBox)
 	if !ok || tmcd.Type() != "tmcd" || len(tmcd.Children) != 1 {
