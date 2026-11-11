@@ -187,7 +187,8 @@ func TestShortTermRPSPrediction(t *testing.T) {
 			r := bits.NewEBSPReaderFromSlice(b.truncated())
 			r.Read(16)
 			sps := &SPS{ShortTermRefPicSets: []ShortTermRPS{usedRPS([]uint32{1, 2}, []uint32{2, 3})}}
-			got := parseShortTermRPS(r, 1, 2, sps)
+			var storage shortTermRPSStorage
+			got := parseShortTermRPS(r, 1, 2, sps, &storage)
 			if r.AccError() != nil {
 				t.Fatalf("parseShortTermRPS: %v", r.AccError())
 			}

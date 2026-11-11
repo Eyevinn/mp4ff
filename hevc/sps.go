@@ -475,8 +475,9 @@ func ParseSPSNALUnitWithVPS(data []byte, vpsMap map[byte]*VPS) (*SPS, error) {
 	sps.NumShortTermRefPicSets = byte(numShortTermRefPicSets)
 	if sps.NumShortTermRefPicSets > 0 {
 		sps.ShortTermRefPicSets = make([]ShortTermRPS, sps.NumShortTermRefPicSets)
+		var storage shortTermRPSStorage
 		for idx := byte(0); idx < sps.NumShortTermRefPicSets; idx++ {
-			sps.ShortTermRefPicSets[idx] = parseShortTermRPS(r, idx, sps.NumShortTermRefPicSets, sps)
+			sps.ShortTermRefPicSets[idx] = parseShortTermRPS(r, idx, sps.NumShortTermRefPicSets, sps, &storage)
 			if r.AccError() != nil { // Don't continue if we have an issue
 				return sps, r.AccError()
 			}
@@ -868,8 +869,14 @@ const (
 	maxRPSEntries = 2 * maxSTRefPics
 )
 
+// shortTermRPSStorage supplies disjoint, capped slices for one SPS or slice header.
+type shortTermRPSStorage struct {
+	deltaPocs []uint32
+	usedFlags []bool
+}
+
 // parseShortTermRPS parses short-term reference pictures (7.3.7 and 7.4.8).
-func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS) ShortTermRPS {
+func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS, storage *shortTermRPSStorage) ShortTermRPS {
 	stps := ShortTermRPS{}
 
 	interRPSPredFlag := false
@@ -985,9 +992,18 @@ func parseShortTermRPS(r *bits.EBSPReader, idx, numSTRefPicSets byte, sps *SPS) 
 		for j := int(ref.NumNegativePics); j < refNumDeltaPocs; j++ {
 			add(j, false)
 		}
-		deltaPocs := make([]uint32, count)
+		if len(storage.deltaPocs) < count || storage.deltaPocs == nil {
+			// Reserve similarly sized sets. If later sets grow, keep the earlier
+			// slices intact and start another block.
+			size := count * max(1, int(numSTRefPicSets)-int(idx))
+			storage.deltaPocs = make([]uint32, size)
+			storage.usedFlags = make([]bool, size)
+		}
+		deltaPocs := storage.deltaPocs[:count:count]
+		usedFlags := storage.usedFlags[:count:count]
+		storage.deltaPocs = storage.deltaPocs[count:]
+		storage.usedFlags = storage.usedFlags[count:]
 		copy(deltaPocs, distances[:count])
-		usedFlags := make([]bool, count)
 		copy(usedFlags, flags[:count])
 		// Cap the negative slices so appending cannot overwrite the positive pictures.
 		stps.DeltaPocS0 = deltaPocs[:numNegative:numNegative]

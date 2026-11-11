@@ -201,8 +201,9 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 			sh.ShortTermRefPicSetSpsFlag = r.ReadFlag()
 
 			if !sh.ShortTermRefPicSetSpsFlag {
+				var storage shortTermRPSStorage
 				sh.ShortTermRefPicSet = parseShortTermRPS(r, sps.NumShortTermRefPicSets,
-					sps.NumShortTermRefPicSets, sps)
+					sps.NumShortTermRefPicSets, sps, &storage)
 				if r.AccError() != nil {
 					return sh, r.AccError()
 				}
