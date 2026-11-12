@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `hevc.ParseSPSNALUnit` and `hevc.ParseSliceHeader` derive inter-predicted short-term reference picture sets,
+  including the used-picture flags needed to parse reference-list modifications and locate the slice payload.
+
 ## [0.62.1] - 2026-11-10
 
 ### Changed
