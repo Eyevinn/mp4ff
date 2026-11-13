@@ -1,6 +1,7 @@
 # Contributing to mp4ff
 
 Contributions are welcome, as issues and as pull requests against the `master` branch.
+Coding agents follow these conventions too, with the additions in [AGENTS.md](AGENTS.md).
 
 ## Setting up
 
@@ -83,3 +84,12 @@ move into CHANGELOG.md when a version is released.
 The guide to the library is the package documentation in [mp4/doc.go](mp4/doc.go), shown on
 [pkg.go.dev](https://pkg.go.dev/github.com/Eyevinn/mp4ff/mp4). Preview documentation changes
 locally with `make open-docs`.
+
+## Releases
+
+Maintainers prepare a release in a pull request `chore: prepare vX.Y.Z release` from a branch
+`release-vX.Y.Z`. It moves the changelog entries into CHANGELOG.md as described in
+[changelog.d/README.md](changelog.d/README.md), and renames a BENCHMARKS.md section titled
+"(unreleased)" to the version. Before 1.0, a new API or a breaking change gives a minor version and
+fixes only a patch version. A tag is permanent for Go modules, since the module proxy caches it, so
+never move or reuse one.
