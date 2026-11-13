@@ -602,3 +602,31 @@ func TestInitDecodeStreamIncompleteFirstTrack(t *testing.T) {
 		})
 	}
 }
+
+func TestStreamSampleUsesTheTrexOfItsTrack(t *testing.T) {
+	f, err := os.Open("testdata/prog_8s_dec_dashinit.mp4") // both tracks take sample durations from trex
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	var sf *mp4.StreamFile
+	sf, err = mp4.InitDecodeStream(f, mp4.WithFragmentCallback(func(frag *mp4.Fragment, sa mp4.SampleAccessor) error {
+		for _, traf := range frag.Moof.Trafs {
+			trex, _ := sf.Moov.Mvex.GetTrex(traf.Tfhd.TrackID)
+			s, err := sa.GetSample(traf.Tfhd.TrackID, 1)
+			if err != nil {
+				return err
+			}
+			if s.Dur != trex.DefaultSampleDuration {
+				t.Errorf("track %d: duration %d, want %d", traf.Tfhd.TrackID, s.Dur, trex.DefaultSampleDuration)
+			}
+		}
+		return nil
+	}))
+	if err == nil {
+		err = sf.ProcessFragments()
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
