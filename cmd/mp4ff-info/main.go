@@ -6,7 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/Eyevinn/mp4ff/boxtree"
 	"github.com/Eyevinn/mp4ff/internal"
@@ -22,6 +25,11 @@ var usg = `%s prints the box tree of input mp4 (ISOBMFF) file.
 With -tree, or if the file cannot be decoded completely, it prints the box tree with
 the position of each box, decodes as much as it can, and adds an error line for each
 box that cannot be decoded. With -json, it prints that tree as JSON.
+
+With -l, boxes show more details, such as the entries of sample tables, for all
+boxes with all:1 or for some box types with trun:1,subs:1. Unless -json is set, the
+output ends with a line that tells which levels show more details of the boxes in
+the file.
 
 With -brands, it instead checks the brands of the ftyp and styp boxes against
 the content, prints the issues found, and fails if any of them is an error.
@@ -128,7 +136,64 @@ func run(args []string, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("could not print info: %w", err)
 	}
+	more := make(map[string]int)
+	addMoreInfoLevels(more, parsedMp4.Children, opts.levels)
+	if err := printMoreDetails(w, opts.levels, more); err != nil {
+		return err
+	}
 	return parseErr
+}
+
+// addMoreInfoLevels adds the lowest level with more details of boxes, and of the boxes in them, to more, by box type.
+func addMoreInfoLevels(more map[string]int, boxes []mp4.Box, levels string) {
+	for _, b := range boxes {
+		addMoreInfoLevel(more, b.Type(), mp4.MoreInfoLevel(b, levels))
+		if c, ok := b.(mp4.ContainerBox); ok {
+			addMoreInfoLevels(more, c.GetChildren(), levels)
+		}
+	}
+}
+
+// addTreeMoreInfoLevels adds the lowest level with more details of nodes, and of the nodes in them, to more, by
+// box type.
+func addTreeMoreInfoLevels(more map[string]int, nodes []*boxtree.Node) {
+	for _, n := range nodes {
+		addMoreInfoLevel(more, n.Type, n.MoreInfoLevel)
+		addTreeMoreInfoLevels(more, n.Children)
+	}
+}
+
+func addMoreInfoLevel(more map[string]int, boxType string, level int) {
+	if level > 0 && (more[boxType] == 0 || level < more[boxType]) {
+		more[boxType] = level
+	}
+}
+
+// printMoreDetails writes a line that tells which levels show more details than levels, by box type in more.
+// The line keeps the entries of levels for the box types that are not in more.
+func printMoreDetails(w io.Writer, levels string, more map[string]int) error {
+	if len(more) == 0 {
+		return nil
+	}
+	maxLevel := 0
+	var specific []string
+	for _, boxType := range slices.Sorted(maps.Keys(more)) {
+		specific = append(specific, fmt.Sprintf("%s:%d", boxType, more[boxType]))
+		maxLevel = max(maxLevel, more[boxType])
+	}
+	for _, bl := range strings.Split(levels, ",") {
+		boxType, _, _ := strings.Cut(bl, ":")
+		if _, ok := more[boxType]; ok || bl == "" {
+			continue
+		}
+		specific = append(specific, bl)
+	}
+	_, err := fmt.Fprintf(w, "\nMore details with -l all:%d, or for some boxes with -l %s\n", maxLevel,
+		strings.Join(specific, ","))
+	if err != nil {
+		return fmt.Errorf("could not print info: %w", err)
+	}
+	return nil
 }
 
 // printTree prints the box tree of f, as text or JSON, and returns an error if a box could not be decoded.
@@ -147,6 +212,11 @@ func printTree(w io.Writer, f *os.File, opts *options) error {
 		err = enc.Encode(tree)
 	} else {
 		err = tree.Fprint(w)
+		if err == nil {
+			more := make(map[string]int)
+			addTreeMoreInfoLevels(more, tree.Boxes)
+			err = printMoreDetails(w, opts.levels, more)
+		}
 	}
 	if err != nil {
 		return fmt.Errorf("could not print box tree: %w", err)

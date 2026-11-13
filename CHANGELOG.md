@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flags, `colr` code point names, and the key of each keyed `ilst` item
 - `DecodeWidevinePsshData` and `DecodePlayReadyObject` decode the data of Widevine and PlayReady `pssh` boxes.
   `PsshBox.Info` shows the decoded data from level 1, as with `mp4ff-info -l pssh:1`, and their hex data from level 2
+- `MoreInfoLevel` gives the next Info level with more details of a box, also as `boxtree.Node.MoreInfoLevel` and
+  `moreInfoLevel` in JSON; `InfoLines` gives the Info lines of a box without its child boxes
+- `mp4ff-info` ends its output with the `-l` levels that show more details of the boxes in the file
 
 ### Fixed
 

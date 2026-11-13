@@ -476,3 +476,57 @@ func TestItemKeys(t *testing.T) {
 		t.Errorf("items: %+v", items)
 	}
 }
+
+// TestMoreInfoLevel checks the level with more details of the boxes, also in the JSON output.
+func TestMoreInfoLevel(t *testing.T) {
+	data, err := os.ReadFile("../mp4/testdata/prog_8s.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		levels                       string
+		wantMoov, wantStts, wantJSON int
+	}{
+		{levels: "", wantStts: 1, wantJSON: 1},
+		{levels: "all:1"},
+	} {
+		tree, err := Decode(bytes.NewReader(data), int64(len(data)), c.levels)
+		if err != nil {
+			t.Fatal(err)
+		}
+		moov, stts := findNode(tree.Boxes, "moov"), findNode(tree.Boxes, "stts")
+		if moov == nil || stts == nil {
+			t.Fatal("no moov or stts box")
+		}
+		if moov.MoreInfoLevel != c.wantMoov || stts.MoreInfoLevel != c.wantStts {
+			t.Errorf("levels %q: moov and stts have more details at %d and %d, want %d and %d", c.levels,
+				moov.MoreInfoLevel, stts.MoreInfoLevel, c.wantMoov, c.wantStts)
+		}
+		j, err := json.Marshal(stts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got struct {
+			MoreInfoLevel int `json:"moreInfoLevel"`
+		}
+		if err := json.Unmarshal(j, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.MoreInfoLevel != c.wantJSON {
+			t.Errorf("levels %q: JSON of stts has moreInfoLevel %d, want %d", c.levels, got.MoreInfoLevel, c.wantJSON)
+		}
+	}
+}
+
+// findNode returns the first node of type boxType in nodes and the nodes in them, depth first, or nil.
+func findNode(nodes []*Node, boxType string) *Node {
+	for _, n := range nodes {
+		if n.Type == boxType {
+			return n
+		}
+		if c := findNode(n.Children, boxType); c != nil {
+			return c
+		}
+	}
+	return nil
+}
