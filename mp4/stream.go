@@ -221,7 +221,16 @@ func WithMaxFragments(max int) StreamOption {
 type fragmentSampleAccessor struct {
 	fragment      *Fragment
 	boxSeekReader io.ReadSeeker
-	trex          *TrexBox
+	mvex          *MvexBox
+}
+
+// trex returns the trex box of the track, or nil if there is none.
+func (fsa *fragmentSampleAccessor) trex(trackID uint32) *TrexBox {
+	if fsa.mvex == nil {
+		return nil
+	}
+	trex, _ := fsa.mvex.GetTrex(trackID)
+	return trex
 }
 
 // GetSample retrieves a specific sample by track ID and sample number (1-based).
@@ -253,7 +262,7 @@ func (fsa *fragmentSampleAccessor) GetSample(trackID uint32, sampleNr uint32) (*
 	// Find which trun contains this sample and the sample's position
 	sampleIdx := uint32(1)
 	for _, trun := range traf.Truns {
-		trun.AddSampleDefaultValues(tfhd, fsa.trex)
+		trun.AddSampleDefaultValues(tfhd, fsa.trex(tfhd.TrackID))
 		samples := trun.GetSamples()
 
 		if sampleIdx+uint32(len(samples)) <= sampleNr {
@@ -345,7 +354,7 @@ func (fsa *fragmentSampleAccessor) GetSampleRange(trackID uint32, startSampleNr,
 	rangeStarted := false
 
 	for _, trun := range traf.Truns {
-		trun.AddSampleDefaultValues(tfhd, fsa.trex)
+		trun.AddSampleDefaultValues(tfhd, fsa.trex(tfhd.TrackID))
 		samples := trun.GetSamples()
 
 		// Calculate base offset for this trun
@@ -429,7 +438,7 @@ func (fsa *fragmentSampleAccessor) GetSamples(trackID uint32) ([]FullSample, err
 
 	var samples []FullSample
 	for _, trun := range traf.Truns {
-		trun.AddSampleDefaultValues(tfhd, fsa.trex)
+		trun.AddSampleDefaultValues(tfhd, fsa.trex(tfhd.TrackID))
 		baseOffset := moofStartPos
 		if tfhd.HasBaseDataOffset() {
 			baseOffset = tfhd.BaseDataOffset
@@ -499,7 +508,7 @@ func (fsa *fragmentSampleAccessor) appendSamples(dst []FullSample, buf []byte, t
 	var nrBytes uint64
 	sampleNr := uint32(1)
 	for _, trun := range traf.Truns {
-		trun.AddSampleDefaultValues(tfhd, fsa.trex)
+		trun.AddSampleDefaultValues(tfhd, fsa.trex(tfhd.TrackID))
 		for _, s := range trun.Samples {
 			if sampleNr >= startSampleNr && sampleNr <= endSampleNr {
 				nrSamples++
@@ -794,14 +803,14 @@ func (sf *StreamFile) processFragment(moof *MoofBox, moofStartPos uint64, preFra
 
 	// Invoke callback if set
 	if sf.onFragmentReady != nil {
-		var trex *TrexBox
-		if sf.Moov != nil && sf.Moov.Mvex != nil {
-			trex = sf.Moov.Mvex.Trex
+		var mvex *MvexBox
+		if sf.Moov != nil {
+			mvex = sf.Moov.Mvex
 		}
 		accessor := &fragmentSampleAccessor{
 			fragment:      frag,
 			boxSeekReader: sf.boxSeekReader,
-			trex:          trex,
+			mvex:          mvex,
 		}
 		err = sf.onFragmentReady(frag, accessor)
 		if err != nil {

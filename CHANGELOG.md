@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including the used-picture flags needed to parse reference-list modifications and locate the slice payload.
 - `mp4.UUIDMssSm` has the dash it lacked, so it parses as a UUID
 - `SttsBox.GetTimeCode` gives the right time for samples that start more than 2^32 ticks into a track
+- The `SampleAccessor` of `InitDecodeStream` fills in sample defaults from the `trex` of the sample's own track
 
 ## [0.62.1] - 2026-11-10
 
