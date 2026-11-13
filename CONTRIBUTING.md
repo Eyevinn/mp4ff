@@ -73,8 +73,10 @@ specifications should say in their doc comment where they are defined, with the 
 Code comments describe the current behaviour. What was broken before and why it changed belongs
 in the commit message and the pull request description.
 
-Add an entry to the Unreleased section of [CHANGELOG.md](CHANGELOG.md) for each change that users
-will notice. Keep it to one or two lines that say what changed and name the affected API or tool.
+For each change that users will notice, add a file to [changelog.d](changelog.d/) instead of editing
+[CHANGELOG.md](CHANGELOG.md), as described in [changelog.d/README.md](changelog.d/README.md). Keep
+each entry to one or two lines that say what changed and name the affected API or tool. The entries
+move into CHANGELOG.md when a version is released.
 
 ### Documentation
 

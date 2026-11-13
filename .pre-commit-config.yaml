@@ -15,6 +15,14 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+  - repo: local
+    hooks:
+      - id: check-changelog
+        name: check changelog entries
+        entry: scripts/check-changelog.sh
+        language: script
+        pass_filenames: false
+        files: ^(CHANGELOG\.md|changelog\.d/)
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
     rev: v9.18.0
     hooks:

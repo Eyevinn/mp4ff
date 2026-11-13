@@ -16,6 +16,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check changelog
+        run: scripts/check-changelog.sh "$GITHUB_REF_NAME"
+
       - uses: actions/setup-go@v6
         with:
           go-version: stable
