@@ -89,9 +89,7 @@ func InitDecodeStream(r io.Reader, options ...StreamOption) (*StreamFile, error)
 			return nil, fmt.Errorf("read %s box at %d: %w", boxType, boxStartPos, err)
 		}
 
-		// Parse box from buffer using DecodeBoxSR
-		sr := bits.NewFixedSliceReader(boxData)
-		box, err := DecodeBoxSR(boxStartPos, sr)
+		box, err := decodeBufferedBox(boxStartPos, boxData)
 		if err != nil {
 			return nil, fmt.Errorf("decode %s box at %d: %w", boxType, boxStartPos, err)
 		}
@@ -673,9 +671,7 @@ func (sf *StreamFile) ProcessFragments() error {
 				return fmt.Errorf("read %s box at %d: %w", boxType, boxStartPos, err)
 			}
 
-			// Parse box from buffer using DecodeBoxSR
-			sr := bits.NewFixedSliceReader(boxData)
-			box, err := DecodeBoxSR(boxStartPos, sr)
+			box, err := decodeBufferedBox(boxStartPos, boxData)
 			if err != nil {
 				return fmt.Errorf("decode %s box at %d: %w", boxType, boxStartPos, err)
 			}
@@ -699,9 +695,7 @@ func (sf *StreamFile) ProcessFragments() error {
 			return fmt.Errorf("read moof box at %d: %w", boxStartPos, err)
 		}
 
-		// Parse moof from buffer using DecodeBoxSR
-		sr := bits.NewFixedSliceReader(moofData)
-		moofBox, err := DecodeBoxSR(boxStartPos, sr)
+		moofBox, err := decodeBufferedBox(boxStartPos, moofData)
 		if err != nil {
 			return fmt.Errorf("decode moof box at %d: %w", boxStartPos, err)
 		}
@@ -745,6 +739,13 @@ func (sf *StreamFile) ProcessFragments() error {
 		return &TrailingBoxesError{BoxNames: names}
 	}
 	return nil
+}
+
+// decodeBufferedBox decodes a box from a copy of data read into the BoxSeekReader buffer.
+// Decoded boxes can keep slices of the bytes they were decoded from, and the buffer is reused
+// for the next box and for sample data.
+func decodeBufferedBox(startPos uint64, data []byte) (Box, error) {
+	return DecodeBoxSR(startPos, bits.NewFixedSliceReader(slices.Clone(data)))
 }
 
 // processFragment handles a complete fragment (moof + mdat).

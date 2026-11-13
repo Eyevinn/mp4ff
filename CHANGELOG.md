@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mp4.UUIDMssSm` has the dash it lacked, so it parses as a UUID
 - `SttsBox.GetTimeCode` gives the right time for samples that start more than 2^32 ticks into a track
 - The `SampleAccessor` of `InitDecodeStream` fills in sample defaults from the `trex` of the sample's own track
+- Boxes decoded by `InitDecodeStream` and `StreamFile.ProcessFragments` keep their data, such as `avcC`, `senc`
+  and `emsg` bytes, while later boxes and samples are read
 
 ## [0.62.1] - 2026-11-10
 
