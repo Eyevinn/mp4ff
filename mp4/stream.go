@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -741,11 +742,40 @@ func (sf *StreamFile) ProcessFragments() error {
 	return nil
 }
 
-// decodeBufferedBox decodes a box from a copy of data read into the BoxSeekReader buffer.
-// Decoded boxes can keep slices of the bytes they were decoded from, and the buffer is reused
-// for the next box and for sample data.
+// decodeBufferedBox decodes a box read into the BoxSeekReader buffer, which is reused for the next box and for
+// sample data. Decoded boxes can keep slices of the bytes they were decoded from, so the box is decoded from a copy
+// unless keepsSlices finds only box types that keep none.
 func decodeBufferedBox(startPos uint64, data []byte) (Box, error) {
-	return DecodeBoxSR(startPos, bits.NewFixedSliceReader(slices.Clone(data)))
+	if keepsSlices(data) {
+		data = slices.Clone(data)
+	}
+	return DecodeBoxSR(startPos, bits.NewFixedSliceReader(data))
+}
+
+// keepsSlices reports whether boxes decoded from data may keep slices of it. That is false only if data consists of
+// boxes, at any depth, whose types keep no slices when decoded, such as those of a fragment without encryption.
+// Other types, extended sizes and bytes that are not part of a box all count as keeping slices.
+func keepsSlices(data []byte) bool {
+	for len(data) > 0 {
+		if len(data) < boxHeaderSize {
+			return true
+		}
+		size := binary.BigEndian.Uint32(data)
+		if size < boxHeaderSize || uint64(size) > uint64(len(data)) {
+			return true
+		}
+		switch string(data[4:8]) {
+		case "moof", "traf":
+			if keepsSlices(data[boxHeaderSize:size]) {
+				return true
+			}
+		case "styp", "sidx", "prft", "mfhd", "tfhd", "tfdt", "trun", "saiz", "saio", "sbgp", "subs":
+		default:
+			return true
+		}
+		data = data[size:]
+	}
+	return false
 }
 
 // processFragment handles a complete fragment (moof + mdat).
