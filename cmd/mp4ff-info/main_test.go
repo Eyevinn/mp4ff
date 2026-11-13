@@ -155,3 +155,44 @@ type badWriter struct{}
 func (w *badWriter) Write(p []byte) (n int, err error) {
 	return 0, os.ErrClosed
 }
+
+func TestMoreDetails(t *testing.T) {
+	const file = "../../mp4/testdata/prog_8s.mp4"
+	const boxes = "ctts:1,esds:1,iods:1,sdtp:1,stco:1,stsc:1,stss:1,stsz:1,stts:1"
+	cases := []struct {
+		desc string
+		args []string
+		want string // the last line, or "" if there is no line about more details
+	}{
+		{desc: "default", args: []string{appName, file},
+			want: "More details with -l all:1, or for some boxes with -l " + boxes},
+		{desc: "tree", args: []string{appName, "-tree", file},
+			want: "More details with -l all:1, or for some boxes with -l " + boxes},
+		{desc: "some levels set", args: []string{appName, "-l", "stsz:1,trun:1", file},
+			want: "More details with -l all:1, or for some boxes with -l " +
+				"ctts:1,esds:1,iods:1,sdtp:1,stco:1,stsc:1,stss:1,stts:1,stsz:1,trun:1"},
+		{desc: "set level replaced", args: []string{appName, "-l", "pssh:1,trun:1", "../../mp4/testdata/cbcs.mp4"},
+			want: "More details with -l all:2, or for some boxes with -l " +
+				"c608:1,chrm:1,pssh:2,senc:1,swre:1,uuid:1,trun:1"},
+		{desc: "all details", args: []string{appName, "-l", "all:1", file}},
+		{desc: "json", args: []string{appName, "-json", file}},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := run(c.args, &buf); err != nil {
+				t.Fatal(err)
+			}
+			out := buf.String()
+			if c.want == "" {
+				if strings.Contains(out, "More details") {
+					t.Errorf("output has a line about more details:\n%s", out)
+				}
+				return
+			}
+			if !strings.HasSuffix(out, "\n\n"+c.want+"\n") {
+				t.Errorf("output does not end with an empty line and\n%s\n%s", c.want, out)
+			}
+		})
+	}
+}

@@ -10,7 +10,6 @@
 package boxtree
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -51,6 +50,9 @@ type Node struct {
 	Box mp4.Box
 	// Info is the output of the Info method of the box, without the lines of its child boxes.
 	Info []string
+	// MoreInfoLevel is the lowest level above the one used for Info at which the Info method writes more details
+	// of the box, as given by mp4.MoreInfoLevel, or 0 if there is none.
+	MoreInfoLevel int
 	// Err tells why the box could not be decoded. It is nil if the error is in a child box.
 	Err error
 	// ChildErr is true if a child box, or a box further down, could not be decoded.
@@ -87,7 +89,7 @@ func Decode(r io.ReaderAt, size int64, infoLevels string) (*Tree, error) {
 				if err != nil {
 					n.Err = err
 				} else {
-					n.Box, n.Info = box, info(box, infoLevels)
+					setInfo(n, box, infoLevels)
 				}
 			}
 		case avail > maxReadSize:
@@ -258,7 +260,7 @@ func decodeNode(n *Node, data []byte, infoLevels string, depth int) {
 // setBox sets the decoded box of n and makes the nodes of its children, if any.
 // data holds the bytes of the box.
 func setBox(n *Node, box mp4.Box, data []byte, infoLevels string) {
-	n.Box, n.Info = box, info(box, infoLevels)
+	setInfo(n, box, infoLevels)
 	c, ok := box.(mp4.ContainerBox)
 	if !ok {
 		return
@@ -279,7 +281,7 @@ func setBox(n *Node, box mp4.Box, data []byte, infoLevels string) {
 		n.Children = append(n.Children, cn)
 		end := off + child.Size()
 		if end > uint64(len(data)) || !hasHeader(data[off:end], cn) {
-			cn.Box, cn.Info = child, info(child, infoLevels)
+			setInfo(cn, child, infoLevels)
 			cn.Err = errors.New("the box is not at the position given by the box sizes")
 			n.ChildErr = true
 			off = end
@@ -368,44 +370,9 @@ func childOffset(boxType string, payload []byte) (int, bool) {
 	return 0, false
 }
 
-// errChildInfo stops an Info method when it gets to its child boxes.
-var errChildInfo = errors.New("info of child box")
-
-// infoWriter keeps the lines written by an Info method, up to the first line of a child box.
-type infoWriter struct {
-	lines []string
-	buf   []byte
-	done  bool
-}
-
-func (w *infoWriter) Write(p []byte) (int, error) {
-	if w.done {
-		return 0, errChildInfo
-	}
-	w.buf = append(w.buf, p...)
-	for {
-		i := bytes.IndexByte(w.buf, '\n')
-		if i < 0 {
-			return len(p), nil
-		}
-		line := string(w.buf[:i])
-		w.buf = w.buf[i+1:]
-		if len(w.lines) > 0 && strings.HasPrefix(line, indentStep+"[") {
-			w.done = true
-			return len(p), errChildInfo
-		}
-		w.lines = append(w.lines, line)
-	}
-}
-
-// info returns the Info lines of box, without the lines of its child boxes.
-func info(box mp4.Box, infoLevels string) []string {
-	w := infoWriter{}
-	_ = box.Info(&w, infoLevels, "", indentStep)
-	if len(w.buf) > 0 && !w.done {
-		w.lines = append(w.lines, string(w.buf))
-	}
-	return w.lines
+// setInfo sets the decoded box of n, its Info lines and the level with more details.
+func setInfo(n *Node, box mp4.Box, infoLevels string) {
+	n.Box, n.Info, n.MoreInfoLevel = box, mp4.InfoLines(box, infoLevels), mp4.MoreInfoLevel(box, infoLevels)
 }
 
 // Fprint writes the tree in the format of the Info methods of the mp4 boxes, with the position of
@@ -494,12 +461,13 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		Size     uint64   `json:"size"`
 		HdrLen   int      `json:"hdrLen"`
 		Info     []string `json:"info,omitempty"`
+		More     int      `json:"moreInfoLevel,omitempty"`
 		Err      string   `json:"error,omitempty"`
 		ChildErr bool     `json:"childError,omitempty"`
 		Children []*Node  `json:"children,omitempty"`
 	}
 	j := jsonNode{Type: displayType(n.Type), Pos: n.Pos, Size: n.Size, HdrLen: n.HdrLen, Info: n.Info,
-		ChildErr: n.ChildErr, Children: n.Children}
+		More: n.MoreInfoLevel, ChildErr: n.ChildErr, Children: n.Children}
 	if n.Err != nil {
 		j.Err = n.Err.Error()
 	}

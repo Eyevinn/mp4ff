@@ -5,6 +5,11 @@ With -tree, or if the file cannot be decoded completely, it prints the box tree 
 the position of each box, decodes as much as it can, and adds an error line for each
 box that cannot be decoded. With -json, it prints that tree as JSON.
 
+With -l, boxes show more details, such as the entries of sample tables, for all
+boxes with all:1 or for some box types with trun:1,subs:1. Unless -json is set, the
+output ends with a line that tells which levels show more details of the boxes in
+the file.
+
 With -brands, it instead checks the brands of the ftyp and styp boxes against
 the content, prints the issues found, and fails if any of them is an error.
 
