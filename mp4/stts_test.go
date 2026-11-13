@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Eyevinn/mp4ff/mp4"
 )
@@ -63,6 +64,24 @@ func TestGetSampleNrAtTime(t *testing.T) {
 		}
 		if gotNr != tc.sampleNr {
 			t.Errorf("Got sampleNr %d instead of %d for %d", gotNr, tc.sampleNr, tc.startTime)
+		}
+	}
+}
+
+func TestGetTimeCode(t *testing.T) {
+	// 50400 samples of 1 s and then 1000 samples of 1 h, with timescale 90000
+	stts := mp4.SttsBox{SampleCount: []uint32{50400, 1000}, SampleTimeDelta: []uint32{90000, 3600 * 90000}}
+	for _, c := range []struct {
+		sample uint32
+		want   time.Duration
+	}{
+		{1, 0},
+		{47723, 47722 * time.Second}, // first sample starting after 2^32 ticks
+		{50401, 50400 * time.Second}, // after an entry of more than 2^32 ticks
+		{51400, 50400*time.Second + 999*time.Hour}, // more ticks than time.Duration can multiply by 1e9
+	} {
+		if got := stts.GetTimeCode(c.sample, 90000); got != c.want {
+			t.Errorf("sample %d: got %v, want %v", c.sample, got, c.want)
 		}
 	}
 }

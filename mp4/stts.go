@@ -82,19 +82,20 @@ func (b *SttsBox) expectedSize(entryCount uint32) uint64 {
 // of the beginning of a sample
 func (b *SttsBox) GetTimeCode(sample, timescale uint32) time.Duration {
 	sample--
-	var units uint32
+	var units uint64
 	i := 0
 	for sample > 0 && i < len(b.SampleCount) {
 		if sample >= b.SampleCount[i] {
-			units += b.SampleCount[i] * b.SampleTimeDelta[i]
+			units += uint64(b.SampleCount[i]) * uint64(b.SampleTimeDelta[i])
 			sample -= b.SampleCount[i]
 		} else {
-			units += sample * b.SampleTimeDelta[i]
+			units += uint64(sample) * uint64(b.SampleTimeDelta[i])
 			sample = 0
 		}
 		i++
 	}
-	return time.Second * time.Duration(units) / time.Duration(timescale)
+	ts := uint64(timescale)
+	return time.Duration(units/ts)*time.Second + time.Duration(units%ts)*time.Second/time.Duration(ts)
 }
 
 // GetDecodeTime - decode time and duration for (one-based) sampleNr in track timescale.
