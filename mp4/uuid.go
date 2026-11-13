@@ -36,9 +36,9 @@ const (
 	// The following UUIDs belong to Microsoft Smooth Streaming Protocol (MSS)
 
 	// UUIDMssSm - MSS StreamManifest UUID [MS-SSTR 2.2.7.2]
-	UUIDMssSm = "3c2fe51b-efee-40a3-ae815300199dc348"
+	UUIDMssSm = "3c2fe51b-efee-40a3-ae81-5300199dc348"
 
-	// UUIDMssLs - MSS LiveServerManifest UUID [MS-SSTR 2.2.7.3]
+	// UUIDMssLsm - MSS LiveServerManifest UUID [MS-SSTR 2.2.7.3]
 	UUIDMssLsm = "a5d40b30-e814-11dd-ba2f-0800200c9a66"
 
 	// UUIDTfxd - MSS tfxd UUID [MS-SSTR 2.2.4.4]
