@@ -199,7 +199,9 @@ The gopher in the logo is adapted from the Go gopher, created by
 
 ## ChangeLog and Versions
 
-See [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](CHANGELOG.md). Changes since the latest release are listed in
+[changelog.d](changelog.d/), one file per change, and move into CHANGELOG.md when the next version
+is released.
 
 ## Support
 
