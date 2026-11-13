@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`mhlr`, `dhlr`) and counted-string name; `MetadataKey.String`
 - Info, and so `mp4ff-info`, shows QuickTime handler fields and names, `vmhd` and `gmin` graphics modes, `lpcm` format
   flags, `colr` code point names, and the key of each keyed `ilst` item
-- `DecodeWidevinePsshData` and `DecodePlayReadyObject` decode the data of Widevine and PlayReady `pssh` boxes, and
-  `PsshBox.Info` shows the decoded data from level 1, as with `mp4ff-info -l pssh:1`
+- `DecodeWidevinePsshData` and `DecodePlayReadyObject` decode the data of Widevine and PlayReady `pssh` boxes.
+  `PsshBox.Info` shows the decoded data from level 1, as with `mp4ff-info -l pssh:1`, and their hex data from level 2
 
 ### Fixed
 

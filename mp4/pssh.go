@@ -162,7 +162,9 @@ func (b *PsshBox) EncodeSW(sw bits.SliceWriter) error {
 	return sw.AccError()
 }
 
-// Info - write box info to w
+// Info - write box info to w. From level 1, it writes the decoded data of a Widevine or PlayReady pssh box, and the
+// data in hex of other pssh boxes and of data that cannot be decoded. From level 2, it writes the data in hex of
+// all pssh boxes.
 func (b *PsshBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) (err error) {
 	bd := newInfoDumper(w, indent, b, int(b.Version), b.Flags)
 	bd.write(" - systemID: %s (%s)", b.SystemID, ProtectionSystemName(b.SystemID))
@@ -172,41 +174,48 @@ func (b *PsshBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		}
 	}
 	level := getInfoLevel(b, specificBoxLevels)
-	if level > 0 {
+	if level == 0 {
+		return bd.err
+	}
+	name, data, err := b.decodeData()
+	if data == nil || level > 1 {
 		bd.write(" - data: %s", hex.EncodeToString(b.Data))
+	}
+	switch {
+	case err != nil:
+		bd.write(" - %s: %v", name, err)
+	case data != nil:
+		bd.write(" - %s:", name)
 		if bd.err == nil {
-			bd.err = b.dataInfo(w, indent)
+			bd.err = data.Info(w, indent+"  ")
 		}
 	}
 	return bd.err
 }
 
-// dataInfo writes the decoded data of a Widevine or PlayReady pssh box to w.
-func (b *PsshBox) dataInfo(w io.Writer, indent string) error {
-	bd := &infoDumper{w: w, indent: indent}
+// psshData is the decoded data of a pssh box.
+type psshData interface {
+	Info(w io.Writer, indent string) error
+}
+
+// decodeData decodes the data of a Widevine or PlayReady pssh box, and returns the name of the decoded structure
+// and the decoded data. The data is nil for other pssh boxes and on error.
+func (b *PsshBox) decodeData() (string, psshData, error) {
 	switch b.SystemID.String() {
 	case UUIDWidevine:
 		d, err := DecodeWidevinePsshData(b.Data)
 		if err != nil {
-			bd.write(" - WidevinePsshData: %v", err)
-			return bd.err
+			return "WidevinePsshData", nil, err
 		}
-		bd.write(" - WidevinePsshData:")
-		if bd.err == nil {
-			bd.err = d.Info(w, indent+"  ")
-		}
+		return "WidevinePsshData", d, nil
 	case UUIDPlayReady:
 		p, err := DecodePlayReadyObject(b.Data)
 		if err != nil {
-			bd.write(" - PlayReadyObject: %v", err)
-			return bd.err
+			return "PlayReadyObject", nil, err
 		}
-		bd.write(" - PlayReadyObject:")
-		if bd.err == nil {
-			bd.err = p.Info(w, indent+"  ")
-		}
+		return "PlayReadyObject", p, nil
 	}
-	return bd.err
+	return "", nil, nil
 }
 
 // PsshBoxesFromBytes extracts pssh boxes from slice of bytes

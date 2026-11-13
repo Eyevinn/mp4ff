@@ -229,21 +229,51 @@ func TestDecodeWidevinePsshDataErrors(t *testing.T) {
 	}
 }
 
-func TestPsshInfoDecodeError(t *testing.T) {
-	pssh, err := mp4.NewPsshBox(mp4.UUIDWidevine, nil, []byte{0x80})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	if err := pssh.Info(&buf, "pssh:1", "", ""); err != nil {
-		t.Fatal(err)
-	}
-	want := `[pssh] size=33 version=0 flags=000000
+func TestPsshInfoLevels(t *testing.T) {
+	cases := []struct {
+		desc     string
+		systemID string
+		data     []byte
+		levels   string
+		want     string
+	}{
+		{"decoded at level 0", mp4.UUIDWidevine, pbVarint(9, 0x63656e63), "", `[pssh] size=38 version=0 flags=000000
+ - systemID: edef8ba9-79d6-4ace-a3c8-27dcd51d21ed (Widevine)
+`},
+		{"decoded at level 1", mp4.UUIDWidevine, pbVarint(9, 0x63656e63), "pssh:1", `[pssh] size=38 version=0 flags=000000
+ - systemID: edef8ba9-79d6-4ace-a3c8-27dcd51d21ed (Widevine)
+ - WidevinePsshData:
+   - protectionScheme: cenc
+`},
+		{"decoded at level 2", mp4.UUIDWidevine, pbVarint(9, 0x63656e63), "pssh:2", `[pssh] size=38 version=0 flags=000000
+ - systemID: edef8ba9-79d6-4ace-a3c8-27dcd51d21ed (Widevine)
+ - data: 48e3dc959b06
+ - WidevinePsshData:
+   - protectionScheme: cenc
+`},
+		{"decode error at level 1", mp4.UUIDWidevine, []byte{0x80}, "pssh:1", `[pssh] size=33 version=0 flags=000000
  - systemID: edef8ba9-79d6-4ace-a3c8-27dcd51d21ed (Widevine)
  - data: 80
  - WidevinePsshData: widevine pssh data: bad field key
-`
-	if diff := deep.Equal(buf.String(), want); diff != nil {
-		t.Error(diff)
+`},
+		{"other system at level 1", mp4.UUIDFairPlay, []byte{0x01}, "pssh:1", `[pssh] size=33 version=0 flags=000000
+ - systemID: 94ce86fb-07ff-4f43-adb8-93d2fa968ca2 (FairPlay)
+ - data: 01
+`},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			pssh, err := mp4.NewPsshBox(c.systemID, nil, c.data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			if err := pssh.Info(&buf, c.levels, "", ""); err != nil {
+				t.Fatal(err)
+			}
+			if diff := deep.Equal(buf.String(), c.want); diff != nil {
+				t.Error(diff)
+			}
+		})
 	}
 }
