@@ -122,6 +122,15 @@ func TestSetUUID(t *testing.T) {
 	}
 }
 
+func TestUUIDConstants(t *testing.T) {
+	for _, s := range []string{mp4.UUIDMssSm, mp4.UUIDMssLsm, mp4.UUIDTfxd, mp4.UUIDTfrf,
+		mp4.UUIDPiffSenc, mp4.UUIDPiffTenc, mp4.UUIDSphericalVideoV1} {
+		if u, err := mp4.NewUUIDFromString(s); err != nil || u.String() != s {
+			t.Errorf("UUID constant %q: got %q, err %v", s, u, err)
+		}
+	}
+}
+
 func TestUUIDEncodeDecoder(t *testing.T) {
 
 	tfrf := mp4.NewTfrfBox(1, []uint64{0}, []uint64{1000000})
