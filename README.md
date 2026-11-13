@@ -86,7 +86,8 @@ The supported codecs and their boxes are
 Video sample entries can also carry the HDR metadata boxes `clli` and `mdcv`.
 Encrypted sample entries keep the original sample entry type in the `frma` box inside `sinf`,
 which also has the `schm` box and the `schi` box with `tenc`.
-The `pssh`, `senc`, `saiz` and `saio` boxes are supported as well.
+The `pssh`, `senc`, `saiz` and `saio` boxes are supported as well, and the data of Widevine and PlayReady
+`pssh` boxes is decoded.
 
 ## Using the library
 

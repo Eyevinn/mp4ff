@@ -174,6 +174,37 @@ func (b *PsshBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 	level := getInfoLevel(b, specificBoxLevels)
 	if level > 0 {
 		bd.write(" - data: %s", hex.EncodeToString(b.Data))
+		if bd.err == nil {
+			bd.err = b.dataInfo(w, indent)
+		}
+	}
+	return bd.err
+}
+
+// dataInfo writes the decoded data of a Widevine or PlayReady pssh box to w.
+func (b *PsshBox) dataInfo(w io.Writer, indent string) error {
+	bd := &infoDumper{w: w, indent: indent}
+	switch b.SystemID.String() {
+	case UUIDWidevine:
+		d, err := DecodeWidevinePsshData(b.Data)
+		if err != nil {
+			bd.write(" - WidevinePsshData: %v", err)
+			return bd.err
+		}
+		bd.write(" - WidevinePsshData:")
+		if bd.err == nil {
+			bd.err = d.Info(w, indent+"  ")
+		}
+	case UUIDPlayReady:
+		p, err := DecodePlayReadyObject(b.Data)
+		if err != nil {
+			bd.write(" - PlayReadyObject: %v", err)
+			return bd.err
+		}
+		bd.write(" - PlayReadyObject:")
+		if bd.err == nil {
+			bd.err = p.Info(w, indent+"  ")
+		}
 	}
 	return bd.err
 }
