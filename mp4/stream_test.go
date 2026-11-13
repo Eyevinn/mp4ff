@@ -630,3 +630,55 @@ func TestStreamSampleUsesTheTrexOfItsTrack(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestStreamBoxesKeepTheirData(t *testing.T) {
+	data, err := os.ReadFile("testdata/prog_8s_enc_dashinit.mp4") // has avcC, senc and pssh data
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := mp4.DecodeFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	emsg := &mp4.EmsgBox{Version: 1, TimeScale: 1, SchemeIDURI: "urn:x", MessageData: []byte{1, 2, 3, 4}}
+	moofPos := ref.Segments[0].Fragments[0].Moof.StartPos
+	var buf bytes.Buffer
+	buf.Write(data[:moofPos])
+	if err := emsg.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	buf.Write(data[moofPos:])
+	in := buf.Bytes()
+	unchanged := func(b mp4.Box, pos uint64) bool {
+		var out bytes.Buffer
+		return b.Encode(&out) == nil && bytes.Equal(out.Bytes(), in[pos:pos+b.Size()])
+	}
+	nrEmsgs := 0
+	sf, err := mp4.InitDecodeStream(bytes.NewReader(in), mp4.WithFragmentCallback(
+		func(f *mp4.Fragment, sa mp4.SampleAccessor) error {
+			for _, traf := range f.Moof.Trafs {
+				if _, err := sa.GetSamples(traf.Tfhd.TrackID); err != nil {
+					return err
+				}
+			}
+			if !unchanged(f.Moof, f.Moof.StartPos) {
+				t.Errorf("moof at %d changed", f.Moof.StartPos)
+			}
+			for _, e := range f.Emsgs {
+				nrEmsgs++
+				if !bytes.Equal(e.MessageData, emsg.MessageData) {
+					t.Errorf("emsg data %x, want %x", e.MessageData, emsg.MessageData)
+				}
+			}
+			return nil
+		}))
+	if err == nil {
+		err = sf.ProcessFragments()
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nrEmsgs != 1 || !unchanged(sf.Moov, sf.Moov.StartPos) {
+		t.Errorf("got %d emsg boxes, moov unchanged=%v", nrEmsgs, unchanged(sf.Moov, sf.Moov.StartPos))
+	}
+}
