@@ -207,14 +207,15 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 				if r.AccError() != nil {
 					return sh, r.AccError()
 				}
-			} else if sps.NumShortTermRefPicSets > 1 {
-				sh.ShortTermRefPicSetIdx = byte(r.Read(bits.CeilLog2(uint(sps.NumShortTermRefPicSets))))
+			} else if sps.NumShortTermRefPicSets > 0 {
+				if sps.NumShortTermRefPicSets > 1 {
+					sh.ShortTermRefPicSetIdx = byte(r.Read(bits.CeilLog2(uint(sps.NumShortTermRefPicSets))))
+				}
 				if int(sh.ShortTermRefPicSetIdx) >= len(sps.ShortTermRefPicSets) {
 					return sh, fmt.Errorf("short_term_ref_pic_set_idx > num_short_term_ref_pic_sets")
 				}
 				sh.ShortTermRefPicSet = sps.ShortTermRefPicSets[sh.ShortTermRefPicSetIdx]
 			}
-			NumPicTotalCurr += sh.ShortTermRefPicSet.countInUsePics()
 
 			if sps.LongTermRefPicsPresentFlag {
 				if sps.NumLongTermRefPics > 0 {
@@ -235,13 +236,14 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 				for i := uint(0); i < uint(sh.NumLongTermSps)+sh.NumLongTermPics && r.AccError() == nil; i++ {
 					var lt LongTermRPS
 					if i < uint(sh.NumLongTermSps) {
+						LtIdxSps := uint(0)
 						if sps.NumLongTermRefPics > 1 {
-							LtIdxSps := r.Read(bits.CeilLog2(uint(sps.NumLongTermRefPics)))
-							if int(LtIdxSps) >= len(sps.LongTermRefPicSets) {
-								return sh, fmt.Errorf("lt_idx_sps > num_long_term_ref_pics_sps")
-							}
-							lt = sps.LongTermRefPicSets[LtIdxSps]
+							LtIdxSps = r.Read(bits.CeilLog2(uint(sps.NumLongTermRefPics)))
 						}
+						if int(LtIdxSps) >= len(sps.LongTermRefPicSets) {
+							return sh, fmt.Errorf("lt_idx_sps > num_long_term_ref_pics_sps")
+						}
+						lt = sps.LongTermRefPicSets[LtIdxSps]
 					} else {
 						lt.PocLsbLt = uint16(r.Read(int(sps.Log2MaxPicOrderCntLsbMinus4 + 4)))
 						lt.UsedByCurrPicLtFlag = r.ReadFlag()
@@ -288,6 +290,7 @@ func ParseSliceHeader(nalu []byte, spsMap map[uint32]*SPS, ppsMap map[uint32]*PP
 			}
 
 			if pps.ListsModificationPresentFlag {
+				NumPicTotalCurr += sh.ShortTermRefPicSet.countInUsePics()
 				if pps.SccExtension != nil && pps.SccExtension.CurrPicRefEnabledFlag {
 					NumPicTotalCurr++
 				}
