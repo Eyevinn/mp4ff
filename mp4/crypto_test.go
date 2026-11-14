@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/avc"
@@ -1796,5 +1797,131 @@ func TestDecryptFragmentWithoutMdat(t *testing.T) {
 	frag.Mdat = nil
 	if err := mp4.DecryptFragment(frag, di, make([]byte, 16)); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCBCSConstantIV(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	for _, c := range []struct {
+		name      string
+		ivHex     string
+		shortTenc bool
+	}{
+		{"iv8", "a0a1a2a3a4a5a6a7", false},
+		{"iv16", "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf", false},
+		{"tenc8", "a0a1a2a3a4a5a6a7", true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			iv, _ := hex.DecodeString(c.ivHex)
+			init, err := mp4.ReadMP4File("testdata/init.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ipd, err := mp4.InitProtect(init.Init, key, iv, "cbcs", kid, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.shortTenc {
+				ipd.Tenc.DefaultConstantIV = bytes.Clone(iv)
+			}
+			var initBuf bytes.Buffer
+			if err := init.Encode(&initBuf); err != nil {
+				t.Fatal(err)
+			}
+			readerInit, err := mp4.DecodeFile(bytes.NewReader(initBuf.Bytes()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			decInfo, err := mp4.DecryptInit(readerInit.Init)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, route := range []struct {
+				name    string
+				encrypt func(*mp4.Fragment, []byte) error
+			}{
+				{"EncryptFragment", func(f *mp4.Fragment, iv []byte) error {
+					_, err := mp4.EncryptFragment(f, key, iv, ipd)
+					return err
+				}},
+				{"FragmentEncryptor", func(f *mp4.Fragment, iv []byte) error {
+					e, err := ipd.NewFragmentEncryptor(key, iv)
+					if err != nil {
+						return err
+					}
+					return e.EncryptFragment(f)
+				}},
+			} {
+				for _, matching := range []bool{true, false} {
+					t.Run(fmt.Sprintf("%s/matching=%t", route.name, matching), func(t *testing.T) {
+						seg, err := mp4.ReadMP4File("testdata/1.m4s")
+						if err != nil {
+							t.Fatal(err)
+						}
+						frag := seg.Segments[0].Fragments[0]
+						clear := bytes.Clone(frag.Mdat.Data)
+						inputIV := bytes.Clone(iv)
+						if !matching {
+							inputIV[len(inputIV)-1]++
+						}
+						if err := route.encrypt(frag, inputIV); err != nil {
+							if matching {
+								t.Fatalf("encryption with matching IV failed: %v", err)
+							}
+							if !strings.Contains(err.Error(), "cbcs iv must match tenc constant IV") {
+								t.Fatalf("unexpected rejection: %v", err)
+							}
+							return
+						}
+						if !matching {
+							t.Error("encryption with differing IV succeeded")
+						}
+						if err := mp4.DecryptFragment(frag, decInfo, key); err != nil {
+							t.Fatalf("accepted encryption cannot be decrypted: %v", err)
+						}
+						if !bytes.Equal(frag.Mdat.Data, clear) {
+							t.Error("decrypted mdat differs from clear input")
+						}
+					})
+				}
+			}
+		})
+	}
+}
+
+func TestCBCSWithoutConstantIV(t *testing.T) {
+	key, _ := hex.DecodeString("00112233445566778899aabbccddeeff")
+	iv := make([]byte, 16)
+	kid, _ := mp4.NewUUIDFromString("11112222333344445555666677778888")
+	for _, ivSize := range []byte{0, 8, 16} {
+		t.Run(fmt.Sprintf("perSampleIVSize=%d", ivSize), func(t *testing.T) {
+			init, err := mp4.ReadMP4File("testdata/init.mp4")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ipd, err := mp4.InitProtect(init.Init, key, iv, "cbcs", kid, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ipd.Tenc.DefaultConstantIV = nil
+			ipd.Tenc.DefaultPerSampleIVSize = ivSize
+			var buf bytes.Buffer
+			if err := init.Encode(&buf); err != nil {
+				t.Fatal(err)
+			}
+			stored, err := mp4.DecodeFile(bytes.NewReader(buf.Bytes()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			ipd, err = mp4.ExtractInitProtectData(stored.Init)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ipd.NewFragmentEncryptor(key, iv); err == nil ||
+				!strings.Contains(err.Error(), "cbcs encryption requires a tenc constant IV") {
+				t.Errorf("expected constant-IV error, got %v", err)
+			}
+		})
 	}
 }

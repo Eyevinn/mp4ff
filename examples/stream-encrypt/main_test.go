@@ -162,14 +162,24 @@ func TestStep2_Refragmentation(t *testing.T) {
 }
 
 func TestStep3_Encryption(t *testing.T) {
+	for _, scheme := range []string{"cenc", "cbcs"} {
+		for _, iv := range []string{"0000000000000000", "00000000000000000000000000000000"} {
+			t.Run(scheme+"/"+iv, func(t *testing.T) {
+				testStep3Encryption(t, scheme, iv)
+			})
+		}
+	}
+}
+
+func testStep3Encryption(t *testing.T, scheme, iv string) {
 	inputFile := "../../mp4/testdata/v300_multiple_segments.mp4"
 	opts := options{
 		inputFile:      inputFile,
 		samplesPerFrag: 30,
 		key:            "11223344556677889900aabbccddeeff",
 		keyID:          "00112233445566778899aabbccddeeff",
-		iv:             "00000000000000000000000000000000",
-		scheme:         "cenc",
+		iv:             iv,
+		scheme:         scheme,
 	}
 
 	originalData, err := os.ReadFile(inputFile)
@@ -204,6 +214,9 @@ func TestStep3_Encryption(t *testing.T) {
 	if parsedFile.Init == nil {
 		t.Fatal("No init segment")
 	}
+	if len(parsedFile.Segments) == 0 {
+		t.Fatal("No encrypted segments")
+	}
 
 	hasPssh := false
 	for _, child := range parsedFile.Init.Moov.Children {
@@ -224,8 +237,19 @@ func TestStep3_Encryption(t *testing.T) {
 		t.Errorf("Sample entry not encrypted: %s", sampleEntry.Type())
 	}
 
+	var lastIV []byte
 	for _, seg := range parsedFile.Segments {
 		for _, frag := range seg.Fragments {
+			if scheme == "cenc" && frag.Moof.Traf.Senc != nil {
+				ivs := frag.Moof.Traf.Senc.IVs
+				if len(ivs) == 0 || len(ivs[0]) != len(iv)/2 {
+					t.Fatal("Missing or wrong-sized sample IVs")
+				}
+				if lastIV != nil && bytes.Compare(ivs[0], lastIV) < 0 {
+					t.Errorf("Fragment IV %x precedes previous fragment's final sample IV %x", ivs[0], lastIV)
+				}
+				lastIV = ivs[len(ivs)-1]
+			}
 			hasSenc := false
 			for _, child := range frag.Moof.Traf.Children {
 				if child.Type() == "senc" {
