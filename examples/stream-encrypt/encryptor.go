@@ -18,6 +18,7 @@ type StreamEncryptor struct {
 	config        EncryptConfig
 	ipd           *mp4.InitProtectData
 	fragNum       uint32
+	iv            []byte
 	encryptedInit *mp4.InitSegment
 }
 
@@ -57,31 +58,18 @@ func (se *StreamEncryptor) GetEncryptedInit() *mp4.InitSegment {
 func (se *StreamEncryptor) EncryptFragment(frag *mp4.Fragment) error {
 	se.fragNum++
 
-	iv := se.deriveIV(se.fragNum)
+	if se.iv == nil {
+		se.iv = se.config.IV
+	}
 
-	_, err := mp4.EncryptFragment(frag, se.config.Key, iv, se.ipd)
+	next, err := mp4.EncryptFragment(frag, se.config.Key, se.iv, se.ipd)
 	if err != nil {
 		return fmt.Errorf("encrypt fragment %d: %w", se.fragNum, err)
 	}
 
+	se.iv = next
+
 	return nil
-}
-
-func (se *StreamEncryptor) deriveIV(fragNum uint32) []byte {
-	iv := make([]byte, 16)
-	copy(iv, se.config.IV)
-
-	for i := 15; i >= 12; i-- {
-		carry := fragNum & 0xFF
-		sum := uint32(iv[i]) + carry
-		iv[i] = byte(sum & 0xFF)
-		fragNum = fragNum >> 8
-		if fragNum == 0 {
-			break
-		}
-	}
-
-	return iv
 }
 
 func ParseHexKey(s string) ([]byte, error) {
