@@ -93,7 +93,7 @@ Input File → StreamFile.InitDecodeStream() →
 ### Encryption
 
 - **Schemes**: CENC (AES-CTR) or CBCS (AES-CBC)
-- **IV Derivation**: Incremental IV per fragment based on fragment number
+- **IV Derivation**: The IV continues from fragment to fragment; for cbcs it is the init's constant IV
 - **Metadata**: Adds `senc`, `saiz`, `saio` boxes to fragments
 - **Init Modification**: Converts sample entries to `encv`/`enca`, adds `sinf` structure
 

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/Eyevinn/mp4ff/mp4"
@@ -180,5 +181,64 @@ func TestEncryptedOutputMatchesDirectEncode(t *testing.T) {
 	}
 	if _, err := mp4.DecodeFile(bytes.NewReader(written)); err != nil {
 		t.Errorf("encrypted output does not decode: %v", err)
+	}
+}
+
+func TestCBCSConstantIV(t *testing.T) {
+	key := "00112233445566778899aabbccddeeff"
+	keyBytes, err := mp4.UnpackKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initPath := "../../mp4/testdata/init.mp4"
+	segPath := "../../mp4/testdata/1.m4s"
+	clearSeg, err := mp4.ReadMP4File(segPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clear := clearSeg.Segments[0].Fragments[0].Mdat.Data
+	iv := "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+	tmpDir := t.TempDir()
+	initOut := path.Join(tmpDir, "init.mp4")
+	if err := run([]string{appName, "-scheme", "cbcs", "-key", key, "-kid", key,
+		"-iv", iv, initPath, initOut}); err != nil {
+		t.Fatal(err)
+	}
+	init, err := mp4.ReadMP4File(initOut)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decInfo, err := mp4.DecryptInit(init.Init)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, inputIV := range []string{iv, iv[:len(iv)-2] + "b0"} {
+		t.Run(inputIV, func(t *testing.T) {
+			out := path.Join(tmpDir, "segment.m4s")
+			if err := run([]string{appName, "-key", key, "-iv", inputIV,
+				"-init", initOut, segPath, out}); err != nil {
+				if inputIV == iv {
+					t.Fatalf("encryption with matching IV failed: %v", err)
+				}
+				if !strings.Contains(err.Error(), "cbcs iv must match tenc constant IV") {
+					t.Fatalf("unexpected rejection: %v", err)
+				}
+				return
+			}
+			if inputIV != iv {
+				t.Error("encryption with differing IV succeeded")
+			}
+			seg, err := mp4.ReadMP4File(out)
+			if err != nil {
+				t.Fatalf("accepted encryption cannot be decoded: %v", err)
+			}
+			frag := seg.Segments[0].Fragments[0]
+			if err := mp4.DecryptFragment(frag, decInfo, keyBytes); err != nil {
+				t.Fatalf("accepted encryption cannot be decrypted: %v", err)
+			}
+			if !bytes.Equal(frag.Mdat.Data, clear) {
+				t.Error("decrypted mdat differs from clear input")
+			}
+		})
 	}
 }

@@ -985,6 +985,7 @@ type FragmentEncryptor struct {
 
 // NewFragmentEncryptor validates the key/iv against the scheme and builds a fresh sample protector
 // for one decode sequence. The iv is copied, so the caller may reuse its buffer afterwards.
+// For cbcs, Tenc must signal a constant IV, and iv must match it after zero-padding both to 16 bytes.
 func (ipd *InitProtectData) NewFragmentEncryptor(key, iv []byte) (*FragmentEncryptor, error) {
 	if ipd == nil {
 		return nil, fmt.Errorf("no protection data")
@@ -1006,6 +1007,16 @@ func (ipd *InitProtectData) NewFragmentEncryptor(key, iv []byte) (*FragmentEncry
 		}
 		if len(iv) != 16 {
 			return nil, fmt.Errorf("iv must be 16 bytes")
+		}
+	}
+	if ipd.Scheme == "cbcs" {
+		if ipd.Tenc == nil || ipd.Tenc.DefaultPerSampleIVSize != 0 || len(ipd.Tenc.DefaultConstantIV) == 0 {
+			return nil, fmt.Errorf("cbcs encryption requires a tenc constant IV")
+		}
+		var constantIV [16]byte
+		copy(constantIV[:], ipd.Tenc.DefaultConstantIV)
+		if !bytes.Equal(iv, constantIV[:]) {
+			return nil, fmt.Errorf("cbcs iv must match tenc constant IV")
 		}
 	}
 	if ipd.newProtector == nil {
