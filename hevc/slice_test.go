@@ -2,6 +2,7 @@ package hevc
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"testing"
@@ -123,6 +124,119 @@ func TestParseSliceHeader(t *testing.T) {
 	}
 	if diff := deep.Equal(wantedHdr, gotHdr); diff != nil {
 		t.Errorf("Got Slice Headers: %+v\n Diff is %v", gotHdr, diff)
+	}
+}
+
+// TestParseSliceHeaderLongTermSPS checks inheritance when lt_idx_sps is absent
+// because the SPS has one long-term reference (Section 7.4.7.1).
+func TestParseSliceHeaderLongTermSPS(t *testing.T) {
+	spsNalu, err := hex.DecodeString("42010101600000030090000003000003005da02081059657aa481ae55a6484")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sps, err := ParseSPSNALUnit(spsNalu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spsMap := map[uint32]*SPS{0: sps}
+	cases := []struct {
+		name, pps, slice string
+		qpDelta          int
+		listsPresent     bool
+	}{
+		{"without list modification syntax", "4401c0718012", "0201d02ca208c0a55a80", -8, false},
+		{"with list modification syntax", "4401c0718032", "0201d02ca10f80a55a80", -7, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ppsNalu, err := hex.DecodeString(c.pps)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pps, err := ParsePPSNALUnit(ppsNalu, spsMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			nalu, err := hex.DecodeString(c.slice)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sh, err := ParseSliceHeader(nalu, spsMap, map[uint32]*PPS{0: pps})
+			if err != nil {
+				t.Fatalf("ParseSliceHeader: %v", err)
+			}
+			want := []LongTermRPS{{PocLsbLt: 100, UsedByCurrPicLtFlag: true}}
+			if diff := deep.Equal(sh.LongTermRefPicSets, want); diff != nil {
+				t.Errorf("LongTermRefPicSets: %v", diff)
+			}
+			// One short-term and one long-term picture are in use. The PPS flag
+			// therefore determines whether ref_pic_list_modification_flag_l0 is read.
+			if (sh.RefPicListsModification != nil) != c.listsPresent {
+				t.Errorf("RefPicListsModification = %+v, want present %t", sh.RefPicListsModification, c.listsPresent)
+			}
+			if sh.QpDelta != c.qpDelta || sh.Size != 7 {
+				t.Errorf("QpDelta = %d, Size = %d, want %d and 7", sh.QpDelta, sh.Size, c.qpDelta)
+			}
+		})
+	}
+}
+
+// TestParseSliceHeaderShortTermSPS checks inferred and signaled SPS set indexes.
+func TestParseSliceHeaderShortTermSPS(t *testing.T) {
+	rps := ShortTermRPS{
+		DeltaPocS0: []uint32{1}, DeltaPocS1: []uint32{2},
+		UsedByCurrPicS0: []bool{true}, UsedByCurrPicS1: []bool{true},
+		NumNegativePics: 1, NumPositivePics: 1, NumDeltaPocs: 2,
+	}
+	// With no SPS sets, retain the parser's empty-set behavior for sps_flag = 1.
+	for _, count := range []byte{0, 1, 2} {
+		t.Run(fmt.Sprintf("%d SPS sets", count), func(t *testing.T) {
+			sps := &SPS{NumShortTermRefPicSets: count}
+			var want ShortTermRPS
+			var index byte
+			if count > 0 {
+				index = count - 1
+				sps.ShortTermRefPicSets = make([]ShortTermRPS, count)
+				sps.ShortTermRefPicSets[index] = rps
+				want = rps
+			}
+			b := newNalBuilder(NALU_TRAIL_R)
+			b.flag(true) // first_slice_segment_in_pic_flag
+			b.ue(0)      // slice_pic_parameter_set_id
+			b.ue(1)      // slice_type P
+			b.u(0, 4)    // slice_pic_order_cnt_lsb
+			b.flag(true) // short_term_ref_pic_set_sps_flag
+			if count > 1 {
+				b.u(uint(index), 1) // short_term_ref_pic_set_idx
+			}
+			b.flag(false) // num_ref_idx_active_override_flag
+			if count > 0 {
+				b.flag(true) // ref_pic_list_modification_flag_l0
+				b.u(1, 1)    // list_entry_l0[0]
+			}
+			b.ue(0)  // five_minus_max_num_merge_cand
+			b.ue(10) // slice_qp_delta = -5
+			nalu := b.trailingBits()
+			sh, err := ParseSliceHeader(nalu, map[uint32]*SPS{0: sps},
+				map[uint32]*PPS{0: {ListsModificationPresentFlag: true}})
+			if err != nil {
+				t.Fatalf("ParseSliceHeader: %v", err)
+			}
+			if diff := deep.Equal(sh.ShortTermRefPicSet, want); diff != nil {
+				t.Errorf("ShortTermRefPicSet: %v", diff)
+			}
+			var lists *RefPicListsModification
+			if count > 0 {
+				lists = &RefPicListsModification{RefPicListModificationFlagL0: true, ListEntryL0: []uint8{1}}
+			}
+			if diff := deep.Equal(sh.RefPicListsModification, lists); diff != nil {
+				t.Errorf("RefPicListsModification: %v", diff)
+			}
+			if sh.ShortTermRefPicSetIdx != index || sh.QpDelta != -5 || sh.Size != 5 {
+				t.Errorf("ShortTermRefPicSetIdx = %d, QpDelta = %d, Size = %d, want %d, -5 and 5",
+					sh.ShortTermRefPicSetIdx, sh.QpDelta, sh.Size, index)
+			}
+		})
 	}
 }
 
