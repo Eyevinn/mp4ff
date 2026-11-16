@@ -572,7 +572,10 @@ func cropStsc(b *mp4.StscBox, lastSampleNr uint32) error {
 	samplesLeft := lastSampleNr - lastEntry.FirstSampleNr + 1
 	nrChunksInLast := samplesLeft / lastEntry.SamplesPerChunk
 	nrLeft := samplesLeft - nrChunksInLast*lastEntry.SamplesPerChunk
-	if nrLeft > 0 {
+	if nrLeft > 0 && nrChunksInLast == 0 {
+		// The last kept sample is in the entry's first chunk, so that chunk is the last one
+		b.Entries[entryIdx].SamplesPerChunk = nrLeft
+	} else if nrLeft > 0 {
 		sdid := b.GetSampleDescriptionID(int(lastEntry.FirstChunk))
 		err := b.AddEntry(lastEntry.FirstChunk+nrChunksInLast, nrLeft, sdid)
 		if err != nil {

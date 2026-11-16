@@ -80,6 +80,13 @@ func TestStscCrop(t *testing.T) {
 			wantSDIDs: []uint32{1, 2, 2},
 		},
 		{
+			desc:         "partly kept first chunk of an entry",
+			lastSampleNr: 5,
+			wantEntries: []mp4.StscEntry{{FirstChunk: 1, SamplesPerChunk: 2, FirstSampleNr: 1},
+				{FirstChunk: 3, SamplesPerChunk: 1, FirstSampleNr: 5}},
+			wantSDIDs: []uint32{1, 2},
+		},
+		{
 			desc:         "partly kept chunk in last entry",
 			lastSampleNr: 11,
 			wantEntries: []mp4.StscEntry{{FirstChunk: 1, SamplesPerChunk: 2, FirstSampleNr: 1},
