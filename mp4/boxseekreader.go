@@ -219,25 +219,20 @@ func (bsr *BoxSeekReader) Seek(offset int64, whence int) (int64, error) {
 			newPos, bufferStart, len(bsr.buffer))
 	}
 
-	// Forward seek beyond buffer - read data directly into buffer
-	if newPos > int64(bsr.currentPos) {
-		toRead := newPos - int64(bsr.currentPos)
-
-		currentLen := len(bsr.buffer)
-		if toRead > int64(math.MaxInt-currentLen) {
-			return 0, fmt.Errorf("seek of %d bytes ahead does not fit in buffer of %d bytes", toRead, currentLen)
-		}
-		var err error
-		bsr.buffer, err = appendRead(bsr.buffer, bsr.reader, int(toRead))
-		bsr.currentPos += uint64(len(bsr.buffer) - currentLen)
-		if err != nil {
-			return int64(bsr.currentPos), err
-		}
-		return newPos, nil
+	// Forward seek beyond buffer. The underlying reader is at the end of the buffer,
+	// so the bytes from there up to newPos are appended to the buffer.
+	toRead := newPos - bufferEnd
+	currentLen := len(bsr.buffer)
+	if toRead > int64(math.MaxInt-currentLen) {
+		return 0, fmt.Errorf("seek of %d bytes ahead does not fit in buffer of %d bytes", toRead, currentLen)
 	}
-
-	return 0, fmt.Errorf("seek position %d not reachable from current position %d",
-		newPos, bsr.currentPos)
+	var err error
+	bsr.buffer, err = appendRead(bsr.buffer, bsr.reader, int(toRead))
+	bsr.currentPos = bsr.bufferPos + uint64(len(bsr.buffer))
+	if err != nil {
+		return int64(bsr.currentPos), err
+	}
+	return newPos, nil
 }
 
 // GetBufferInfo returns current buffer state for debugging.

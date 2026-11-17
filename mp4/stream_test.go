@@ -687,3 +687,57 @@ func TestStreamBoxesKeepTheirData(t *testing.T) {
 		})
 	}
 }
+
+func TestStreamSampleAccessInAnyOrder(t *testing.T) {
+	data, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := mp4.DecodeFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refFrags []*mp4.Fragment
+	for _, seg := range ref.Segments {
+		refFrags = append(refFrags, seg.Fragments...)
+	}
+	nrFrags := 0
+	// Going back to sample 1 leaves the read position inside the buffered data of samples 1 to 3.
+	sf, err := mp4.InitDecodeStream(bytes.NewReader(data), mp4.WithFragmentCallback(
+		func(f *mp4.Fragment, sa mp4.SampleAccessor) error {
+			if nrFrags >= len(refFrags) {
+				return errors.New("more fragments than in file")
+			}
+			trackID := f.Moof.Trafs[0].Tfhd.TrackID
+			trex, _ := ref.Moov.Mvex.GetTrex(trackID)
+			want, err := refFrags[nrFrags].GetFullSamples(trex)
+			if err != nil {
+				return err
+			}
+			nrFrags++
+			samples, err := sa.GetSampleRange(trackID, 1, 3)
+			if err != nil {
+				return err
+			}
+			sample, err := sa.GetSample(trackID, 1)
+			if err != nil {
+				return err
+			}
+			samples = append(samples, *sample)
+			for i, s := range samples {
+				if !bytes.Equal(s.Data, want[i%3].Data) {
+					t.Errorf("fragment %d: sample %d data differs", nrFrags, i%3+1)
+				}
+			}
+			return nil
+		}))
+	if err == nil {
+		err = sf.ProcessFragments()
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nrFrags != len(refFrags) {
+		t.Errorf("got %d fragments, want %d", nrFrags, len(refFrags))
+	}
+}

@@ -769,3 +769,47 @@ func TestBoxSeekReaderSeekBeyondInt(t *testing.T) {
 		t.Error("expected an error for a seek of more than math.MaxInt bytes ahead")
 	}
 }
+
+func TestSeekForwardAfterBackwardSeek(t *testing.T) {
+	testData := make([]byte, 100)
+	for i := range testData {
+		testData[i] = byte(i)
+	}
+	bsr := mp4.NewBoxSeekReader(bytes.NewReader(testData), 64)
+	buf := make([]byte, 90)
+	if _, err := io.ReadFull(bsr, buf); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bsr.Seek(10, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	// The underlying reader is at 90, so only the last 10 bytes are read.
+	newPos, err := bsr.Seek(100, io.SeekStart)
+	if err != nil {
+		t.Fatalf("forward seek to end of data: %v", err)
+	}
+	if bufferStart, bufferLen, currentPos := bsr.GetBufferInfo(); newPos != 100 || bufferStart != 0 ||
+		bufferLen != 100 || currentPos != 100 {
+		t.Errorf("Seek returned %d, buffer start %d, length %d and position %d, want 100, 0, 100 and 100",
+			newPos, bufferStart, bufferLen, currentPos)
+	}
+
+	bsr = mp4.NewBoxSeekReader(bytes.NewReader(testData), 64)
+	if _, err := io.ReadFull(bsr, buf[:20]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bsr.Seek(5, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bsr.Seek(50, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	// After ResetBuffer, the next read comes from the underlying reader.
+	bsr.ResetBuffer()
+	if _, err := io.ReadFull(bsr, buf[:10]); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(buf[:10], testData[50:60]) {
+		t.Errorf("read %v after forward seek to 50, want %v", buf[:10], testData[50:60])
+	}
+}
