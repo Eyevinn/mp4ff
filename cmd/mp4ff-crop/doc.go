@@ -1,5 +1,6 @@
 /*
 mp4ff-crop crops a (progressive) mp4 file to just before a sync frame after specified number of milliseconds.
+If there is no sync frame after that time, all samples are kept.
 The goal is to leave the file structure intact except for cropping of samples and
 moving mdat to the end of the file, if not already there.
 
