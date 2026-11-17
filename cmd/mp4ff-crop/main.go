@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"sort"
 
@@ -18,6 +19,7 @@ const (
 )
 
 var usg = `%s crops a (progressive) mp4 file to just before a sync frame after specified number of milliseconds.
+If there is no sync frame after that time, all samples are kept.
 The goal is to leave the file structure intact except for cropping of samples and
 moving mdat to the end of the file, if not already there.
 
@@ -116,27 +118,29 @@ func cropMP4(inMP4 *mp4.File, durationMS uint, w io.Writer, ifh io.ReadSeeker) e
 	inMoovDur := float64(inMoov.Mvhd.Duration) / float64(inMoov.Mvhd.Timescale)
 	fmt.Printf("input moov duration = %.3fs\n", inMoovDur)
 
-	endTime, endTimescale, err := findEndTime(inMoov, durationMS)
+	syncTrak, lastSampleNr, err := findSyncTrakEnd(inMoov, durationMS)
 	if err != nil {
 		return err
 	}
 
-	err = cropToTime(inMP4, endTime, endTimescale, w, ifh)
+	err = cropToSample(inMP4, syncTrak, lastSampleNr, w, ifh)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("wrote output with endTime=%dms\n", (endTime*1000)/endTimescale)
+	fmt.Printf("wrote output with duration=%dms\n", inMoov.Mvhd.Duration*1000/uint64(inMoov.Mvhd.Timescale))
 	return nil
-
 }
 
-// checkMoov returns an error if moov lacks a box that cropping needs, or has a track with timescale 0.
+// checkMoov returns an error if moov lacks a box that cropping needs, or has a timescale 0.
 func checkMoov(moov *mp4.MoovBox) error {
 	if moov == nil {
 		return fmt.Errorf("no moov box found")
 	}
 	if moov.Mvhd == nil {
 		return fmt.Errorf("no mvhd box found")
+	}
+	if moov.Mvhd.Timescale == 0 {
+		return fmt.Errorf("mvhd has timescale 0")
 	}
 	for i, trak := range moov.Traks {
 		if missing := missingTrakBox(trak); missing != "" {
@@ -180,9 +184,11 @@ func missingTrakBox(trak *mp4.TrakBox) string {
 	return ""
 }
 
-// findEndTime - find closest video sync frame, or audio frame if no video
-func findEndTime(moov *mp4.MoovBox, durationMS uint) (endTime, endTimescale uint64, err error) {
-	var syncTrak *mp4.TrakBox
+// findSyncTrakEnd returns the track that decides where to crop, the first video track or else the first
+// audio track, and the number of its last sample to keep. The kept samples end just before the first
+// sync sample after the first sample that is presented at or after durationMS. Without stss, every
+// sample is a sync sample. If there is no such sync sample, all samples are kept.
+func findSyncTrakEnd(moov *mp4.MoovBox, durationMS uint) (syncTrak *mp4.TrakBox, lastSampleNr uint32, err error) {
 	for _, trak := range moov.Traks {
 		if trak.Mdia.Hdlr.HandlerType == "vide" {
 			syncTrak = trak
@@ -199,131 +205,307 @@ func findEndTime(moov *mp4.MoovBox, durationMS uint) (endTime, endTimescale uint
 		}
 	}
 	if syncTrak == nil {
-		return 0, 0, fmt.Errorf("did not find any video or audio track")
+		return nil, 0, fmt.Errorf("did not find any video or audio track")
 	}
-
-	//trakDur := float64(trak.Tkhd.Duration) / float64(moov.Mvhd.Timescale)
-	//fmt.Printf("video trak %d duration = %.3fs\n", trak.Tkhd.TrackID, trakDur)
-	endTimescale = uint64(syncTrak.Mdia.Mdhd.Timescale)
-	endTime = uint64(durationMS) * endTimescale / 1000
-
+	trackID := syncTrak.Tkhd.TrackID
 	stbl := syncTrak.Mdia.Minf.Stbl
-	stts := stbl.Stts // TimeToSampleBox
-	lastSampleNr, err := stts.GetSampleNrAtTime(endTime)
-	if err != nil {
-		return 0, 0, err
+	nrSamples := stbl.Stsz.SampleNumber
+	if nrSamples == 0 {
+		return nil, 0, fmt.Errorf("track %d has no samples", trackID)
 	}
-	stss := stbl.Stss
-	if stss != nil {
-		foundSyncFrame := false
-		var lastSyncSampleNr uint32
-		if len(stss.SampleNumber) > 0 {
-			lastSyncSampleNr = stss.SampleNumber[len(stss.SampleNumber)-1]
-		}
-		for sampleNr := lastSampleNr; sampleNr <= lastSyncSampleNr; sampleNr++ {
-			if stss.IsSyncSample(sampleNr) {
-				lastSampleNr = sampleNr - 1
-				foundSyncFrame = true
-				break
-			}
-		}
-		if !foundSyncFrame {
-			return 0, 0, fmt.Errorf("did not find any syncframe at or after time")
-		}
+	if stbl.Stss != nil && len(stbl.Stss.SampleNumber) == 0 {
+		return nil, 0, fmt.Errorf("did not find any syncframe in track %d", trackID)
 	}
-	lastTime, lastDur, err := stts.GetDecodeTime(lastSampleNr)
-	if err != nil {
-		return 0, 0, err
-	}
-	endTime = lastTime + uint64(lastDur)
-
-	return endTime, endTimescale, nil
+	movieTimescale := moov.Mvhd.Timescale
+	movieTime := scaleTime(uint64(durationMS), movieTimescale, 1000)
+	mediaTime := mediaTimeAt(trakEdits(syncTrak), movieTime, syncTrak.Mdia.Mdhd.Timescale, movieTimescale)
+	return syncTrak, firstSyncSampleNrAtOrAfter(stbl, mediaTime) - 1, nil
 }
 
-func cropToTime(inMP4 *mp4.File, endTime, endTimescale uint64, w io.Writer, ifh io.ReadSeeker) error {
-	traks := inMP4.Moov.Traks
-	for _, trak := range traks {
+// firstSyncSampleNrAtOrAfter returns the number of the first sync sample after the first sample whose
+// composition time is at or after t, or the number after the last sample if there is none.
+// Without stss, every sample is a sync sample.
+func firstSyncSampleNrAtOrAfter(stbl *mp4.StblBox, t uint64) uint32 {
+	nrSamples := stbl.Stsz.SampleNumber
+	var syncNrs []uint32
+	if stbl.Stss != nil {
+		syncNrs = stbl.Stss.SampleNumber
+	}
+	var decTime int64
+	sampleNr := uint32(1)
+	for i, count := range stbl.Stts.SampleCount {
+		dur := int64(stbl.Stts.SampleTimeDelta[i])
+		for j := uint32(0); j < count && sampleNr <= nrSamples; j++ {
+			for len(syncNrs) > 0 && syncNrs[0] < sampleNr {
+				syncNrs = syncNrs[1:]
+			}
+			if stbl.Stss != nil && len(syncNrs) == 0 {
+				return nrSamples + 1
+			}
+			if sampleNr > 1 && (stbl.Stss == nil || syncNrs[0] == sampleNr) {
+				compTime := decTime
+				if stbl.Ctts != nil {
+					compTime += int64(stbl.Ctts.GetCompositionTimeOffset(sampleNr))
+				}
+				if compTime >= int64(t) {
+					return sampleNr
+				}
+			}
+			decTime += dur
+			sampleNr++
+		}
+	}
+	return nrSamples + 1
+}
+
+// firstSampleNrAtOrAfter returns the number of the first sample that starts at or after time t,
+// or nrSamples+1 if no sample does.
+func firstSampleNrAtOrAfter(stts *mp4.SttsBox, t uint64, nrSamples uint32) uint32 {
+	sampleNr, err := stts.GetSampleNrAtTime(t)
+	if err != nil || sampleNr > nrSamples {
+		return nrSamples + 1
+	}
+	return sampleNr
+}
+
+// cropToSample crops syncTrak after its sample lastSampleNr and the other tracks at the same
+// presentation time, and writes the result to w.
+func cropToSample(inMP4 *mp4.File, syncTrak *mp4.TrakBox, lastSampleNr uint32, w io.Writer, ifh io.ReadSeeker) error {
+	moov := inMP4.Moov
+	for _, trak := range moov.Traks {
 		if err := trak.CheckDataIsSelfContained(); err != nil {
 			return err
 		}
+		if stbl := trak.Mdia.Minf.Stbl; stbl.Saiz != nil || stbl.Saio != nil {
+			return fmt.Errorf("track %d has sample auxiliary information (saiz/saio), which cropping does not support",
+				trak.Tkhd.TrackID)
+		}
 	}
-	tos, err := findTrakEnds(traks, endTime, endTimescale)
+	tos, movieEnd, err := findTrakEnds(moov, syncTrak, lastSampleNr)
 	if err != nil {
 		return err
 	}
 	byteRanges := createByteRanges()
-	firstOffset, err := fillTrakOutsAndByteRanges(traks, tos, byteRanges)
+	firstOffset, err := fillTrakOutsAndByteRanges(moov.Traks, tos, byteRanges)
 	if err != nil {
 		return err
 	}
 
-	err = cropStblChildren(traks, tos)
+	err = cropStblChildren(moov.Traks, tos)
 	if err != nil {
 		return err
 	}
+	updateDurations(moov, tos, movieEnd)
+	// The chunk offsets depend on the size of moov, so they are updated after all other changes to it.
 	updateChunkOffsets(inMP4, firstOffset)
 
-	err = writeUptoMdat(inMP4, endTime, endTimescale, w)
+	err = writeUptoMdat(inMP4, w)
 	if err != nil {
 		return err
 	}
-
-	err = writeMdat(byteRanges, inMP4.Mdat, w, ifh)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return writeMdat(byteRanges, inMP4.Mdat, w, ifh)
 }
 
 type trakOut struct {
 	lastSampleNr  uint32
-	endTime       uint64
+	endTime       uint64 // decode end time of the kept samples in the media timescale
+	compEnd       uint64 // largest composition end time of the kept samples in the media timescale
 	lastChunk     mp4.Chunk
 	nextInChunkNr uint32
 	chunkOffsets  []uint64
 }
 
-// findTrakEnds - find where traks end in form of last chunk, lastSampleNr and endTime
-func findTrakEnds(traks []*mp4.TrakBox, endTime, endTimescale uint64) (map[uint32]*trakOut, error) {
-	tos := make(map[uint32]*trakOut, len(traks))
-	for _, trak := range traks {
-		trackID := trak.Tkhd.TrackID
-		stbl := trak.Mdia.Minf.Stbl
-		tos[trackID] = &trakOut{
-			nextInChunkNr: 1,
-		}
-		to := tos[trackID]
-		trackTimeScale := trak.Mdia.Mdhd.Timescale
-		trackEndTime := endTime
-		if trackTimeScale != uint32(endTimescale) {
-			trackEndTime = endTime * uint64(trackTimeScale) / endTimescale
-		}
-		stts := stbl.Stts
-		endSampleNr, err := stts.GetSampleNrAtTime(trackEndTime)
-		if err != nil {
-			return nil, err
-		}
-		endSampleNr--
-		to.lastSampleNr = endSampleNr
-		decTime, dur, err := stts.GetDecodeTime(endSampleNr)
-		if err != nil {
-			return nil, err
-		}
-		trackEndTime = decTime + uint64(dur)
-		tos[trackID].endTime = trackEndTime
-		stsc := stbl.Stsc
-		chunkNr, _, err := stsc.ChunkNrFromSampleNr(int(endSampleNr))
-		if err != nil {
-			return nil, err
-		}
-		chunk, err := stsc.GetChunk(uint32(chunkNr))
-		if err != nil {
-			return nil, fmt.Errorf("stsc GetChunk: %w", err)
-		}
-		to.lastChunk = chunk
+// findTrakEnds finds where each track ends. syncTrak ends with its sample syncLastSampleNr, and the end
+// of its presentation, movieEnd in the movie timescale, is the end of the movie. Every other track keeps
+// the samples that start before the media time that its edit list presents at movieEnd, and at least one.
+func findTrakEnds(moov *mp4.MoovBox, syncTrak *mp4.TrakBox, syncLastSampleNr uint32) (
+	tos map[uint32]*trakOut, movieEnd uint64, err error) {
+	movieTimescale := moov.Mvhd.Timescale
+	syncTo, err := newTrakOut(syncTrak, syncLastSampleNr)
+	if err != nil {
+		return nil, 0, fmt.Errorf("track %d: %w", syncTrak.Tkhd.TrackID, err)
 	}
-	return tos, nil
+	movieEnd = presentationDuration(syncTrak, syncTo, movieTimescale, math.MaxUint64)
+	tos = make(map[uint32]*trakOut, len(moov.Traks))
+	for _, trak := range moov.Traks {
+		trackID := trak.Tkhd.TrackID
+		if trak == syncTrak {
+			tos[trackID] = syncTo
+			continue
+		}
+		stbl := trak.Mdia.Minf.Stbl
+		mediaEnd := mediaTimeAt(trakEdits(trak), movieEnd, trak.Mdia.Mdhd.Timescale, movieTimescale)
+		lastSampleNr := max(firstSampleNrAtOrAfter(stbl.Stts, mediaEnd, stbl.Stsz.SampleNumber)-1, 1)
+		to, err := newTrakOut(trak, lastSampleNr)
+		if err != nil {
+			return nil, 0, fmt.Errorf("track %d: %w", trackID, err)
+		}
+		tos[trackID] = to
+	}
+	return tos, movieEnd, nil
+}
+
+// newTrakOut returns the trakOut for keeping the samples of trak up to lastSampleNr.
+func newTrakOut(trak *mp4.TrakBox, lastSampleNr uint32) (*trakOut, error) {
+	stbl := trak.Mdia.Minf.Stbl
+	decTime, dur, err := stbl.Stts.GetDecodeTime(lastSampleNr)
+	if err != nil {
+		return nil, err
+	}
+	to := &trakOut{
+		lastSampleNr:  lastSampleNr,
+		endTime:       decTime + uint64(dur),
+		nextInChunkNr: 1,
+	}
+	to.compEnd = to.endTime
+	if stbl.Ctts != nil {
+		to.compEnd = compositionEnd(stbl.Stts, stbl.Ctts, lastSampleNr)
+	}
+	chunkNr, _, err := stbl.Stsc.ChunkNrFromSampleNr(int(lastSampleNr))
+	if err != nil {
+		return nil, err
+	}
+	to.lastChunk, err = stbl.Stsc.GetChunk(uint32(chunkNr))
+	if err != nil {
+		return nil, fmt.Errorf("stsc GetChunk: %w", err)
+	}
+	return to, nil
+}
+
+// compositionEnd returns the largest composition end time, composition time plus duration,
+// of the samples up to lastSampleNr.
+func compositionEnd(stts *mp4.SttsBox, ctts *mp4.CttsBox, lastSampleNr uint32) uint64 {
+	var end, decTime int64
+	sampleNr := uint32(1)
+	for i, count := range stts.SampleCount {
+		dur := int64(stts.SampleTimeDelta[i])
+		for j := uint32(0); j < count; j++ {
+			if sampleNr > lastSampleNr {
+				return uint64(end)
+			}
+			end = max(end, decTime+int64(ctts.GetCompositionTimeOffset(sampleNr))+dur)
+			decTime += dur
+			sampleNr++
+		}
+	}
+	return uint64(end)
+}
+
+// trakEdits returns the entries of the edit list of trak, or nil if it has none.
+func trakEdits(trak *mp4.TrakBox) []mp4.ElstEntry {
+	if trak.Edts == nil || len(trak.Edts.Elst) == 0 {
+		return nil
+	}
+	return trak.Edts.Elst[0].Entries
+}
+
+// mediaTimeAt returns the media time that edits present at movieTime. Before the first media edit,
+// it is the start of that edit, and after the last edit, the end of the last media edit.
+// Without edits, media time and movie time are the same.
+func mediaTimeAt(edits []mp4.ElstEntry, movieTime uint64, mediaTimescale, movieTimescale uint32) uint64 {
+	if len(edits) == 0 {
+		return scaleTime(movieTime, mediaTimescale, movieTimescale)
+	}
+	var presStart, mediaTime uint64
+	for _, e := range edits {
+		if e.MediaTime < 0 { // empty edit
+			presStart += e.SegmentDuration
+			continue
+		}
+		if movieTime <= presStart {
+			return uint64(e.MediaTime)
+		}
+		elapsed := movieTime - presStart
+		if e.SegmentDuration != 0 {
+			elapsed = min(elapsed, e.SegmentDuration)
+		}
+		if e.MediaRateInteger == 0 { // dwell
+			elapsed = 0
+		}
+		mediaTime = uint64(e.MediaTime) + scaleTime(elapsed, mediaTimescale, movieTimescale)
+		if e.SegmentDuration == 0 || movieTime <= presStart+e.SegmentDuration {
+			return mediaTime
+		}
+		presStart += e.SegmentDuration
+	}
+	return mediaTime
+}
+
+// cropEdits returns edits cropped so that no edit presents media after compEnd, rounded up to the
+// movie timescale, and so that the presentation ends at maxDur at the latest. It also returns the
+// duration of the presentation. mediaTimescale applies to compEnd and the media times of the edits,
+// and movieTimescale to maxDur and the segment durations. A media edit with segment duration 0
+// lasts to compEnd.
+func cropEdits(edits []mp4.ElstEntry, compEnd uint64, mediaTimescale, movieTimescale uint32,
+	maxDur uint64) ([]mp4.ElstEntry, uint64) {
+	var out []mp4.ElstEntry
+	var dur uint64
+	for _, e := range edits {
+		if dur >= maxDur {
+			break
+		}
+		segDur := e.SegmentDuration
+		last := false
+		if e.MediaTime >= 0 {
+			if uint64(e.MediaTime) >= compEnd {
+				break
+			}
+			if e.MediaRateInteger != 0 {
+				avail := scaleTime(compEnd-uint64(e.MediaTime), movieTimescale, mediaTimescale)
+				if segDur == 0 || segDur >= avail {
+					segDur = avail
+					last = true
+				}
+			}
+		}
+		if segDur >= maxDur-dur {
+			segDur = maxDur - dur
+			last = true
+		}
+		if segDur > 0 {
+			e.SegmentDuration = segDur
+			out = append(out, e)
+			dur += segDur
+		}
+		if last {
+			break
+		}
+	}
+	return out, dur
+}
+
+// presentationDuration returns the duration in the movie timescale of the presentation of the samples
+// that trak keeps, rounded up and at most maxDur. Without edit list, it is the sum of the sample durations.
+func presentationDuration(trak *mp4.TrakBox, to *trakOut, movieTimescale uint32, maxDur uint64) uint64 {
+	mediaTimescale := trak.Mdia.Mdhd.Timescale
+	if edits := trakEdits(trak); edits != nil {
+		_, dur := cropEdits(edits, to.compEnd, mediaTimescale, movieTimescale, maxDur)
+		return dur
+	}
+	return min(scaleTime(to.endTime, movieTimescale, mediaTimescale), maxDur)
+}
+
+// updateDurations sets the durations in mvhd, tkhd and mdhd, and crops the edit lists, to the samples
+// that the tracks keep and a movie that ends at movieEnd.
+func updateDurations(moov *mp4.MoovBox, tos map[uint32]*trakOut, movieEnd uint64) {
+	movieTimescale := moov.Mvhd.Timescale
+	moov.Mvhd.Duration = movieEnd
+	for _, trak := range moov.Traks {
+		to := tos[trak.Tkhd.TrackID]
+		trak.Tkhd.Duration = presentationDuration(trak, to, movieTimescale, movieEnd)
+		trak.Mdia.Mdhd.Duration = to.endTime
+		if trak.Edts == nil {
+			continue
+		}
+		for _, elst := range trak.Edts.Elst {
+			elst.Entries, _ = cropEdits(elst.Entries, to.compEnd, trak.Mdia.Mdhd.Timescale, movieTimescale, movieEnd)
+		}
+	}
+}
+
+// scaleTime converts t from timescale from to timescale to, rounding up.
+func scaleTime(t uint64, to, from uint32) uint64 {
+	return (t*uint64(to) + uint64(from) - 1) / uint64(from)
 }
 
 func fillTrakOutsAndByteRanges(traks []*mp4.TrakBox, tos map[uint32]*trakOut, byteRanges *byteRanges) (firstOffset uint64, err error) {
@@ -408,32 +590,10 @@ func updateChunkOffsets(inMP4 *mp4.File, firstOffset uint64) {
 	}
 }
 
-func writeUptoMdat(inMP4 *mp4.File, endTime, endTimescale uint64, w io.Writer) error {
-	pos := uint64(0)
-	mvhd := inMP4.Moov.Mvhd
-	newDur := endTime * uint64(mvhd.Timescale) / endTimescale
-	mvhd.Duration = newDur
-	for _, trak := range inMP4.Moov.Traks {
-		prevDur := trak.Tkhd.Duration
-		trak.Tkhd.Duration = newDur
-		if newDur > prevDur {
-			return fmt.Errorf("new duration %d larger than previous %d", newDur, prevDur)
-		}
-		durDiff := prevDur - newDur
-		if trak.Edts != nil {
-			for i := range trak.Edts.Elst {
-				for j := range trak.Edts.Elst[i].Entries {
-					prevDur := trak.Edts.Elst[i].Entries[j].SegmentDuration
-					if prevDur > durDiff {
-						trak.Edts.Elst[i].Entries[j].SegmentDuration -= durDiff
-					}
-				}
-			}
-		}
-	}
+// writeUptoMdat writes all top-level boxes except mdat.
+func writeUptoMdat(inMP4 *mp4.File, w io.Writer) error {
 	for _, box := range inMP4.Children {
 		if box.Type() != "mdat" {
-			pos += box.Size()
 			err := box.Encode(w)
 			if err != nil {
 				return err
@@ -494,6 +654,12 @@ func cropStblChildren(traks []*mp4.TrakBox, trakOuts map[uint32]*trakOut) (err e
 				err = cropStsz(ch.(*mp4.StszBox), to.lastSampleNr)
 			case "sdtp":
 				cropSdtp(ch.(*mp4.SdtpBox), to.lastSampleNr)
+			case "sbgp":
+				cropSbgp(ch.(*mp4.SbgpBox), to.lastSampleNr)
+			case "subs":
+				cropSubs(ch.(*mp4.SubsBox), to.lastSampleNr)
+			case "cslg":
+				cropCslg(ch.(*mp4.CslgBox), to.compEnd)
 			case "stco":
 				updateStco(ch.(*mp4.StcoBox), to.chunkOffsets)
 			case "co64":
@@ -556,6 +722,7 @@ func cropCtts(b *mp4.CttsBox, lastSampleNr uint32) error {
 	return nil
 }
 
+// cropStsc keeps the chunks up to the one with sample lastSampleNr, which becomes the last chunk.
 func cropStsc(b *mp4.StscBox, lastSampleNr uint32) error {
 	entryIdx := b.FindEntryNrForSampleNr(lastSampleNr, 0)
 	if entryIdx >= uint32(len(b.Entries)) {
@@ -570,19 +737,41 @@ func cropStsc(b *mp4.StscBox, lastSampleNr uint32) error {
 		b.SampleDescriptionID = b.SampleDescriptionID[:entryIdx+1]
 	}
 	samplesLeft := lastSampleNr - lastEntry.FirstSampleNr + 1
-	nrChunksInLast := samplesLeft / lastEntry.SamplesPerChunk
-	nrLeft := samplesLeft - nrChunksInLast*lastEntry.SamplesPerChunk
-	if nrLeft > 0 && nrChunksInLast == 0 {
-		// The last kept sample is in the entry's first chunk, so that chunk is the last one
+	nrWholeChunks := samplesLeft / lastEntry.SamplesPerChunk
+	nrLeft := samplesLeft % lastEntry.SamplesPerChunk
+	switch {
+	case nrLeft == 0:
+		// The kept samples end with a whole chunk of the entry.
+	case nrWholeChunks == 0:
+		// The last kept sample is in the entry's first chunk, which becomes the last chunk.
 		b.Entries[entryIdx].SamplesPerChunk = nrLeft
-	} else if nrLeft > 0 {
+		mergeLastStscEntry(b)
+	default:
 		sdid := b.GetSampleDescriptionID(int(lastEntry.FirstChunk))
-		err := b.AddEntry(lastEntry.FirstChunk+nrChunksInLast, nrLeft, sdid)
+		err := b.AddEntry(lastEntry.FirstChunk+nrWholeChunks, nrLeft, sdid)
 		if err != nil {
 			return fmt.Errorf("stsc AddEntry: %w", err)
 		}
 	}
 	return nil
+}
+
+// mergeLastStscEntry removes the last entry if the entry before it has the same samples per chunk
+// and sample description ID, since that entry then also describes the chunks of the last one.
+func mergeLastStscEntry(b *mp4.StscBox) {
+	n := len(b.Entries)
+	if n < 2 {
+		return
+	}
+	last, prev := b.Entries[n-1], b.Entries[n-2]
+	if last.SamplesPerChunk != prev.SamplesPerChunk ||
+		b.GetSampleDescriptionID(int(last.FirstChunk)) != b.GetSampleDescriptionID(int(prev.FirstChunk)) {
+		return
+	}
+	b.Entries = b.Entries[:n-1]
+	if len(b.SampleDescriptionID) > 0 {
+		b.SampleDescriptionID = b.SampleDescriptionID[:n-1]
+	}
 }
 
 func cropStsz(b *mp4.StszBox, lastSampleNr uint32) error {
@@ -600,6 +789,37 @@ func cropSdtp(b *mp4.SdtpBox, lastSampleNr uint32) {
 	if len(b.Entries) > int(lastSampleNr) {
 		b.Entries = b.Entries[:lastSampleNr]
 	}
+}
+
+// cropSbgp maps only the samples up to lastSampleNr to sample groups.
+func cropSbgp(b *mp4.SbgpBox, lastSampleNr uint32) {
+	var sampleNr uint64 // samples mapped by the entries before entry i
+	for i, count := range b.SampleCounts {
+		if sampleNr+uint64(count) >= uint64(lastSampleNr) {
+			b.SampleCounts[i] = lastSampleNr - uint32(sampleNr)
+			b.SampleCounts = b.SampleCounts[:i+1]
+			b.GroupDescriptionIndices = b.GroupDescriptionIndices[:i+1]
+			return
+		}
+		sampleNr += uint64(count)
+	}
+}
+
+// cropSubs removes the entries for samples after lastSampleNr.
+func cropSubs(b *mp4.SubsBox, lastSampleNr uint32) {
+	var sampleNr uint64
+	for i, e := range b.Entries {
+		sampleNr += uint64(e.SampleDelta)
+		if sampleNr > uint64(lastSampleNr) {
+			b.Entries = b.Entries[:i]
+			return
+		}
+	}
+}
+
+// cropCslg sets the composition end time to compEnd, that of the kept samples.
+func cropCslg(b *mp4.CslgBox, compEnd uint64) {
+	b.CompositionEndTime = int64(compEnd)
 }
 
 func updateStco(b *mp4.StcoBox, offsets []uint64) {
