@@ -3,6 +3,7 @@ package mp4_test
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"sync"
@@ -305,44 +306,60 @@ func ExampleFragment_AppendFullSamples() {
 }
 
 func BenchmarkStreamSamples(b *testing.B) {
-	data, err := os.ReadFile("testdata/v300_multiple_segments.mp4")
+	const path = "testdata/v300_multiple_segments.mp4"
+	data, err := os.ReadFile(path)
 	if err != nil {
 		b.Fatal(err)
 	}
-	run := func(b *testing.B, get func(sa mp4.SampleAccessor, trackID uint32) error) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			sf, err := mp4.InitDecodeStream(bytes.NewReader(data),
-				mp4.WithFragmentCallback(func(f *mp4.Fragment, sa mp4.SampleAccessor) error {
-					for _, traf := range f.Moof.Trafs {
-						if err := get(sa, traf.Tfhd.TrackID); err != nil {
-							return err
-						}
+	for _, source := range []string{"", "File/"} {
+		run := func(b *testing.B, get func(sa mp4.SampleAccessor, trackID uint32) error) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				var r io.Reader = bytes.NewReader(data)
+				var f *os.File
+				if source == "File/" {
+					if f, err = os.Open(path); err != nil {
+						b.Fatal(err)
 					}
-					return nil
-				}))
-			if err != nil {
-				b.Fatal(err)
-			}
-			if err := sf.ProcessFragments(); err != nil {
-				b.Fatal(err)
+					r = f
+				}
+				sf, err := mp4.InitDecodeStream(r,
+					mp4.WithFragmentCallback(func(frag *mp4.Fragment, sa mp4.SampleAccessor) error {
+						for _, traf := range frag.Moof.Trafs {
+							if err := get(sa, traf.Tfhd.TrackID); err != nil {
+								return err
+							}
+						}
+						return nil
+					}))
+				if err == nil {
+					err = sf.ProcessFragments()
+				}
+				if f != nil {
+					if closeErr := f.Close(); err == nil {
+						err = closeErr
+					}
+				}
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
 		}
+		b.Run(source+"GetSamples", func(b *testing.B) {
+			run(b, func(sa mp4.SampleAccessor, trackID uint32) error {
+				_, err := sa.GetSamples(trackID)
+				return err
+			})
+		})
+		var samples []mp4.FullSample
+		var buf []byte
+		b.Run(source+"AppendSamples", func(b *testing.B) {
+			run(b, func(sa mp4.SampleAccessor, trackID uint32) (err error) {
+				samples, buf, err = sa.AppendSamples(samples[:0], buf[:0], trackID)
+				return err
+			})
+		})
 	}
-	b.Run("GetSamples", func(b *testing.B) {
-		run(b, func(sa mp4.SampleAccessor, trackID uint32) error {
-			_, err := sa.GetSamples(trackID)
-			return err
-		})
-	})
-	var samples []mp4.FullSample
-	var buf []byte
-	b.Run("AppendSamples", func(b *testing.B) {
-		run(b, func(sa mp4.SampleAccessor, trackID uint32) (err error) {
-			samples, buf, err = sa.AppendSamples(samples[:0], buf[:0], trackID)
-			return err
-		})
-	})
 }
 
 func BenchmarkFragmentFullSamples(b *testing.B) {

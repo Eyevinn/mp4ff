@@ -36,7 +36,7 @@ The allocations are the heap allocations inside the benchmark loop. Most benchma
 | `BenchmarkFragmentFullSamples` | `mp4/append_samples_test.go` | Getting the samples of a decoded fragment with `GetFullSamples`, `AppendFullSamples` and `Samples` |
 | `BenchmarkInterleavedFragmentSamples` | `mp4/append_samples_test.go` | Getting both tracks' samples of a two-track fragment with one trun per sample, as built with `AddFullSampleToTrack` and as decoded |
 | `BenchmarkMdatReadData` | `mp4/mdat_test.go` | Reading one sample from an in-memory mdat with `ReadData` and `CopyData` |
-| `BenchmarkStreamSamples` | `mp4/append_samples_test.go` | Getting samples in the stream decoder with `GetSamples` and `AppendSamples` |
+| `BenchmarkStreamSamples` | `mp4/append_samples_test.go` | Getting samples in the stream decoder with `GetSamples` and `AppendSamples`, from memory and from a file |
 | `BenchmarkDecodeStsz`, `Ctts`, `Stco`, `Stss` | `mp4/benchmarks_table_test.go` | Decoding large sample tables |
 | `BenchmarkDefragmentOverlapChain` | `mp4/defragmenter_test.go` | That defragmenting overlapping input stays linear |
 | `BenchmarkParseNALUnits` | `avc/slice_test.go` | Parsing an AVC SPS and slice header, and `SliceHeaderSize` |
