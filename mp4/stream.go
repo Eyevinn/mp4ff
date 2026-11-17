@@ -367,19 +367,22 @@ func (fsa *fragmentSampleAccessor) GetSampleRange(trackID uint32, startSampleNr,
 			baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 		}
 
+		for len(samples) > 0 && sampleIdx < startSampleNr {
+			baseTime += uint64(samples[0].Dur)
+			baseOffset += uint64(samples[0].Size)
+			sampleIdx++
+			samples = samples[1:]
+		}
+		if sampleIdx <= endSampleNr {
+			fsa.prefetchSampleRun(baseOffset, samples[:min(uint64(len(samples)), uint64(endSampleNr-sampleIdx)+1)])
+		}
+
 		for i, sample := range samples {
 			currentSampleNr := sampleIdx + uint32(i)
 
 			// If we're past the end of the range, we're done
 			if currentSampleNr > endSampleNr {
 				return result, nil
-			}
-
-			// If we haven't reached the start yet, skip this sample
-			if currentSampleNr < startSampleNr {
-				baseTime += uint64(sample.Dur)
-				baseOffset += uint64(sample.Size)
-				continue
 			}
 
 			rangeStarted = true
@@ -448,6 +451,7 @@ func (fsa *fragmentSampleAccessor) GetSamples(trackID uint32) ([]FullSample, err
 			baseOffset = uint64(int64(trun.DataOffset) + int64(baseOffset))
 		}
 
+		fsa.prefetchSampleRun(baseOffset, trun.GetSamples())
 		offsetInFile := baseOffset
 		for _, sample := range trun.GetSamples() {
 			if err := fsa.checkInMdat(offsetInFile, uint64(sample.Size)); err != nil {
@@ -468,6 +472,22 @@ func (fsa *fragmentSampleAccessor) GetSamples(trackID uint32) ([]FullSample, err
 	}
 
 	return samples, nil
+}
+
+// prefetchSampleRun reads the data of a contiguous run of more than three samples into the stream
+// buffer with one forward seek, so that the per-sample reads that follow are served from memory.
+// After a read error, the bytes read stay in the buffer and the per-sample reads report the error.
+func (fsa *fragmentSampleAccessor) prefetchSampleRun(start uint64, samples []Sample) {
+	if len(samples) <= 3 {
+		return
+	}
+	end := start
+	for _, s := range samples {
+		end += uint64(s.Size)
+	}
+	if fsa.checkInMdat(start, end-start) == nil {
+		_, _ = fsa.boxSeekReader.Seek(int64(end), io.SeekStart)
+	}
 }
 
 // AppendSamples appends all samples of a track to dst and their data to buf. See SampleAccessor.
