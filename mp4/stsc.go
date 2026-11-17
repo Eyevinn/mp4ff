@@ -152,7 +152,12 @@ func (b *StscBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 }
 
 // AddEntry adds a new entry and calculates helper values.
+// It returns an error, and leaves the box unchanged, if firstChunk is not larger than
+// the firstChunk of the previous entry, or if sampleDescriptionID is 0.
 func (b *StscBox) AddEntry(firstChunk, samplesPerChunk, sampleDescriptionID uint32) error {
+	if sampleDescriptionID == 0 {
+		return fmt.Errorf("stsc sample description ID 0 is not valid")
+	}
 	switch {
 	case len(b.Entries) == 0:
 		if firstChunk != 1 {
@@ -161,6 +166,9 @@ func (b *StscBox) AddEntry(firstChunk, samplesPerChunk, sampleDescriptionID uint
 		b.Entries = append(b.Entries, StscEntry{firstChunk, samplesPerChunk, 1})
 		b.singleSampleDescriptionID = sampleDescriptionID
 	default:
+		if prev := b.Entries[len(b.Entries)-1].FirstChunk; firstChunk <= prev {
+			return fmt.Errorf("stsc entry firstChunk %d is not larger than the previous %d", firstChunk, prev)
+		}
 		nrEntries := len(b.Entries)
 		if sampleDescriptionID != b.singleSampleDescriptionID {
 			if b.singleSampleDescriptionID != 0 {

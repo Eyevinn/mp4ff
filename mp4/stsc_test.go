@@ -245,6 +245,65 @@ func TestStscGetChunkBeforeFirstEntry(t *testing.T) {
 	}
 }
 
+// decodeStsc decodes an stsc box with entries of firstChunk, samplesPerChunk and sampleDescriptionID.
+// Unlike AddEntry, decoding accepts entries that repeat a firstChunk.
+func decodeStsc(t *testing.T, entries [][3]uint32) *mp4.StscBox {
+	t.Helper()
+	size := 16 + 12*len(entries)
+	sw := bits.NewFixedSliceWriter(size)
+	sw.WriteUint32(uint32(size))
+	sw.WriteString("stsc", false)
+	sw.WriteUint32(0) // version and flags
+	sw.WriteUint32(uint32(len(entries)))
+	for _, e := range entries {
+		for _, v := range e {
+			sw.WriteUint32(v)
+		}
+	}
+	box, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(sw.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return box.(*mp4.StscBox)
+}
+
+// TestStscAddEntryErrors checks that AddEntry rejects entries that would give an invalid table,
+// and leaves the box unchanged.
+func TestStscAddEntryErrors(t *testing.T) {
+	cases := []struct {
+		desc                                       string
+		firstChunk, samplesPerChunk, sampleDescrID uint32
+	}{
+		{desc: "same firstChunk", firstChunk: 3, samplesPerChunk: 1, sampleDescrID: 1},
+		{desc: "smaller firstChunk", firstChunk: 2, samplesPerChunk: 1, sampleDescrID: 1},
+		{desc: "sample description ID 0", firstChunk: 4, samplesPerChunk: 1, sampleDescrID: 0},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			stsc := &mp4.StscBox{}
+			for _, e := range [][3]uint32{{1, 2, 1}, {3, 4, 2}} {
+				if err := stsc.AddEntry(e[0], e[1], e[2]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			want := []mp4.StscEntry{{FirstChunk: 1, SamplesPerChunk: 2, FirstSampleNr: 1},
+				{FirstChunk: 3, SamplesPerChunk: 4, FirstSampleNr: 5}}
+			if err := stsc.AddEntry(c.firstChunk, c.samplesPerChunk, c.sampleDescrID); err == nil {
+				t.Error("expected an error, got nil")
+			}
+			if diff := deep.Equal(stsc.Entries, want); diff != nil {
+				t.Errorf("entries changed: %v", diff)
+			}
+			if diff := deep.Equal(stsc.SampleDescriptionID, []uint32{1, 2}); diff != nil {
+				t.Errorf("sample description IDs changed: %v", diff)
+			}
+		})
+	}
+	if err := (&mp4.StscBox{}).AddEntry(1, 1, 0); err == nil {
+		t.Error("first entry with sample description ID 0: expected an error, got nil")
+	}
+}
+
 func TestStscGetChunkZero(t *testing.T) {
 	stsc := &mp4.StscBox{}
 	if err := stsc.AddEntry(1, 2, 1); err != nil {
@@ -259,12 +318,7 @@ func TestStscGetChunkZero(t *testing.T) {
 // that the last entry continues to any later chunk, and that of entries sharing a firstChunk,
 // the last one applies, as in GetChunk.
 func TestStscGetSampleDescriptionID(t *testing.T) {
-	stsc := &mp4.StscBox{}
-	for _, e := range []struct{ firstChunk, samplesPerChunk, sdid uint32 }{{1, 2, 1}, {3, 2, 2}, {5, 1, 3}, {5, 2, 4}} {
-		if err := stsc.AddEntry(e.firstChunk, e.samplesPerChunk, e.sdid); err != nil {
-			t.Fatal(err)
-		}
-	}
+	stsc := decodeStsc(t, [][3]uint32{{1, 2, 1}, {3, 2, 2}, {5, 1, 3}, {5, 2, 4}})
 	for chunkNr, wanted := range map[int]uint32{-1: 0, 0: 0, 1: 1, 2: 1, 3: 2, 4: 2, 5: 4, 6: 4, 1000: 4} {
 		if sdid := stsc.GetSampleDescriptionID(chunkNr); sdid != wanted {
 			t.Errorf("chunkNr %d: got sampleDescriptionID %d instead of %d", chunkNr, sdid, wanted)
@@ -301,12 +355,7 @@ func TestStscGetSampleDescriptionIDBeforeFirstEntry(t *testing.T) {
 // TestGetContainingChunksDuplicateFirstChunk checks that of entries sharing a firstChunk, the last
 // one applies to the chunks that follow, as in GetChunk.
 func TestGetContainingChunksDuplicateFirstChunk(t *testing.T) {
-	stsc := &mp4.StscBox{}
-	for _, e := range [][2]uint32{{1, 1}, {3, 100}, {3, 1}} {
-		if err := stsc.AddEntry(e[0], e[1], 1); err != nil {
-			t.Fatal(err)
-		}
-	}
+	stsc := decodeStsc(t, [][3]uint32{{1, 1, 1}, {3, 100, 1}, {3, 1, 1}})
 	chunks, err := stsc.GetContainingChunks(1, 20)
 	if err != nil {
 		t.Fatal(err)
