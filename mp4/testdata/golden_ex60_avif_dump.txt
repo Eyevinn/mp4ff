@@ -1,0 +1,47 @@
+[ftyp] size=28
+ - majorBrand: avif
+ - minorVersion: 0
+ - compatibleBrand: mif1
+ - compatibleBrand: avif
+ - compatibleBrand: miaf
+[meta] size=214 version=0 flags=000000
+  [hdlr] size=33 version=0 flags=000000
+   - handlerType: pict
+   - handlerName: ""
+  [pitm] size=14 version=0 flags=000000
+   - itemID: 1
+  [iloc] size=34 version=0 flags=000000
+   - offsetSize: 4
+   - lengthSize: 4
+   - baseOffsetSize: 4
+   - itemCount: 1
+   - item[1]: itemID=1 dataReferenceIndex=0 baseOffset=250 extentCount=1
+     - extent[1]: offset=0 length=10235
+  [iinf] size=35 version=0 flags=000000
+    [infe] size=21 version=2 flags=000000
+     - itemID: 1
+     - itemProtectionIndex: 0
+     - itemType: av01
+     - itemName: ""
+  [iprp] size=86
+    [ipco] size=56
+      [av1C] size=12
+       - codecString: av01.0.01M.08
+       - SeqProfile: 0
+       - SeqLevelIdx0: 1
+       - SeqTier0: 0
+       - HighBitdepth: 0
+       - TwelveBit: 0
+       - MonoChrome: 0
+       - ChromaSubsamplingX: 1
+       - ChromaSubsamplingY: 1
+       - ChromaSamplePosition: 0
+      [ispe] size=20 version=0 flags=000000
+       - imageWidth: 600
+       - imageHeight: 338
+      [pixi] size=16 version=0 flags=000000
+       - bitsPerChannel: [8 8 8]
+    [ipma] size=22 version=0 flags=000000
+     - entryCount: 1
+     - entry[1]: itemID=1 propertyIndexes=[1(essential) 2 3]
+[mdat] size=10243

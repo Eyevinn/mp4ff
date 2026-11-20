@@ -20,7 +20,7 @@ import (
 func testFiles(t *testing.T) []string {
 	t.Helper()
 	var files []string
-	for _, pattern := range []string{"*.mp4", "*.m4s", "*.cmfv", "*.m4i", "*.isma", "*.m4v", "*.mov"} {
+	for _, pattern := range []string{"*.mp4", "*.m4s", "*.cmfv", "*.m4i", "*.isma", "*.m4v", "*.mov", "*.avif"} {
 		matches, err := filepath.Glob(filepath.Join("..", "mp4", "testdata", pattern))
 		if err != nil {
 			t.Fatal(err)
@@ -126,7 +126,7 @@ func TestChildOffset(t *testing.T) {
 		}
 		check(data, tree.Boxes)
 	}
-	for _, boxType := range []string{"moov", "trak", "stsd", "dref", "avc1", "mp4a", "meta", "udta"} {
+	for _, boxType := range []string{"moov", "trak", "stsd", "dref", "avc1", "mp4a", "meta", "udta", "iinf", "iprp", "ipco"} {
 		if !checked[boxType] {
 			t.Errorf("no %s box with children in the test files", boxType)
 		}
