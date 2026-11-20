@@ -342,10 +342,16 @@ func hasHeader(data []byte, n *Node) bool {
 // be decoded, following the decoders of the mp4 package. It returns false for other box types.
 func childOffset(boxType string, payload []byte) (int, bool) {
 	switch boxType {
-	case "dinf", "edts", "ilst", "ludt", "mdia", "mfra", "minf", "moof", "moov", "mvex", "schi", "sinf",
-		"stbl", "traf", "trak", "tref", "trgr", "udta", "vexu", "desc", "\xa9ART", "\xa9nam", "\xa9too", "\xa9cpy":
+	case "dinf", "edts", "ilst", "ipco", "iprp", "ludt", "mdia", "mfra", "minf", "moof", "moov", "mvex", "schi",
+		"sinf", "stbl", "traf", "trak", "tref", "trgr", "udta", "vexu", "desc", "\xa9ART", "\xa9nam", "\xa9too",
+		"\xa9cpy":
 		return 0, true
 	case "dref", "stsd", "trep", "wvtt", "wvtc":
+		return 8, true
+	case "iinf":
+		if len(payload) > 0 && payload[0] == 0 {
+			return 6, true // version 0, with a 16-bit entry count
+		}
 		return 8, true
 	case "meta":
 		if len(payload) >= 8 && string(payload[4:8]) == "hdlr" {

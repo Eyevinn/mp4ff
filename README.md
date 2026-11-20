@@ -89,6 +89,9 @@ which also has the `schm` box and the `schi` box with `tenc`.
 The `pssh`, `senc`, `saiz` and `saio` boxes are supported as well, and the data of Widevine and PlayReady
 `pssh` boxes is decoded.
 
+For still images in HEIF and AVIF files, the item boxes in `meta` are supported: `pitm`, `iloc`, `iinf` with
+`infe`, and `iprp` with `ipco` and `ipma`, together with the item properties `ispe` and `pixi`.
+
 ## Using the library
 
 Add the module to your project with

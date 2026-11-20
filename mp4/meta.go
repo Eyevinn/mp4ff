@@ -13,6 +13,8 @@ import (
 
 // MPEG box defined in ISO/IEC 14496-12 Ed. 6 2020 Section 8.11
 //
+// Pitm, Iloc, Iinf and Iprp describe the items of the box, such as the images of a HEIF or AVIF file.
+//
 // Note. QuickTime meta atom has no version and flags field.
 // https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/Metadata/Metadata.html#//apple_ref/doc/uid/TP40000939-CH1-SW10
 type MetaBox struct {
@@ -20,6 +22,10 @@ type MetaBox struct {
 	Flags       uint32
 	Hdlr        *HdlrBox
 	Keys        *KeysBox
+	Pitm        *PitmBox
+	Iloc        *IlocBox
+	Iinf        *IinfBox
+	Iprp        *IprpBox
 	Children    []Box
 	isQuickTime bool // Has no version and flags
 }
@@ -46,6 +52,14 @@ func (b *MetaBox) AddChild(child Box) {
 		b.Hdlr = box
 	case *KeysBox:
 		b.Keys = box
+	case *PitmBox:
+		b.Pitm = box
+	case *IlocBox:
+		b.Iloc = box
+	case *IinfBox:
+		b.Iinf = box
+	case *IprpBox:
+		b.Iprp = box
 	}
 	b.Children = append(b.Children, child)
 }
