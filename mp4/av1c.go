@@ -60,6 +60,8 @@ func (b *Av1CBox) EncodeSW(sw bits.SliceWriter) error {
 }
 
 // Info - box-specific Info
+//
+// The ConfigOBUs line is only written if there are config OBUs.
 func (b *Av1CBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string) error {
 	bd := newInfoDumper(w, indent, b, -1, 0)
 	bd.write(" - codecString: %s", b.CodecString("av01"))
@@ -85,6 +87,8 @@ func (b *Av1CBox) Info(w io.Writer, specificBoxLevels, indent, indentStep string
 		bd.write(" - fullRange: %t", sh.ColorRange)
 		bd.write(" - fullCodecString: %s", sh.CodecString("av01"))
 	}
-	bd.write("   - ConfigOBUs: %s", hex.EncodeToString(b.ConfigOBUs))
+	if len(b.ConfigOBUs) > 0 {
+		bd.write("   - ConfigOBUs: %s", hex.EncodeToString(b.ConfigOBUs))
+	}
 	return bd.err
 }
