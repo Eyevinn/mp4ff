@@ -92,7 +92,8 @@ The `pssh`, `senc`, `saiz` and `saio` boxes are supported as well, and the data 
 
 For still images in HEIF, HEIC and AVIF files, the item boxes in `meta` are supported: `pitm`, `iloc`, `iinf`
 with `infe`, `iref` with its item references, `idat`, and `iprp` with `ipco` and `ipma`, together with the item
-properties `ispe`, `pixi`, `irot`, `imir` and `auxC`.
+properties `ispe`, `pixi`, `irot`, `imir` and `auxC`. The package gives the properties, the references and the
+data of each item, but does not decode the pixels.
 
 ## Using the library
 
