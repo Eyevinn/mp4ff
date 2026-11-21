@@ -353,6 +353,8 @@ func childOffset(boxType string, payload []byte) (int, bool) {
 			return 6, true // version 0, with a 16-bit entry count
 		}
 		return 8, true
+	case "iref":
+		return 4, true
 	case "meta":
 		if len(payload) >= 8 && string(payload[4:8]) == "hdlr" {
 			return 0, true // QuickTime meta, without version and flags

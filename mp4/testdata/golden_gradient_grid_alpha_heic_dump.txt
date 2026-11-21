@@ -1,0 +1,184 @@
+[ftyp] size=40
+ - majorBrand: heic
+ - minorVersion: 0
+ - compatibleBrand: mif1
+ - compatibleBrand: MiHE
+ - compatibleBrand: MiPr
+ - compatibleBrand: miaf
+ - compatibleBrand: MiHB
+ - compatibleBrand: heic
+[meta] size=1010 version=0 flags=000000
+  [hdlr] size=33 version=0 flags=000000
+   - handlerType: pict
+   - handlerName: ""
+  [dinf] size=36
+    [dref] size=28 version=0 flags=000000
+      [url ] size=12 version=0 flags=000001
+  [pitm] size=14 version=0 flags=000000
+   - itemID: 3
+  [iinf] size=202 version=0 flags=000000
+    [infe] size=21 version=2 flags=000001
+     - itemID: 1
+     - itemProtectionIndex: 0
+     - itemType: hvc1
+     - itemName: ""
+     - hidden: true
+    [infe] size=21 version=2 flags=000001
+     - itemID: 2
+     - itemProtectionIndex: 0
+     - itemType: hvc1
+     - itemName: ""
+     - hidden: true
+    [infe] size=21 version=2 flags=000000
+     - itemID: 3
+     - itemProtectionIndex: 0
+     - itemType: grid
+     - itemName: ""
+    [infe] size=21 version=2 flags=000001
+     - itemID: 4
+     - itemProtectionIndex: 0
+     - itemType: hvc1
+     - itemName: ""
+     - hidden: true
+    [infe] size=21 version=2 flags=000001
+     - itemID: 5
+     - itemProtectionIndex: 0
+     - itemType: hvc1
+     - itemName: ""
+     - hidden: true
+    [infe] size=21 version=2 flags=000001
+     - itemID: 6
+     - itemProtectionIndex: 0
+     - itemType: grid
+     - itemName: ""
+     - hidden: true
+    [infe] size=21 version=2 flags=000001
+     - itemID: 7
+     - itemProtectionIndex: 0
+     - itemType: Exif
+     - itemName: ""
+     - hidden: true
+    [infe] size=41 version=2 flags=000001
+     - itemID: 8
+     - itemProtectionIndex: 0
+     - itemType: mime
+     - itemName: ""
+     - contentType: "application/rdf+xml"
+     - hidden: true
+  [iref] size=86 version=0 flags=000000
+    [dimg] size=16
+     - fromItemID: 3
+     - toItemIDs: [1 2]
+    [dimg] size=16
+     - fromItemID: 6
+     - toItemIDs: [4 5]
+    [auxl] size=14
+     - fromItemID: 6
+     - toItemIDs: [3]
+    [cdsc] size=14
+     - fromItemID: 7
+     - toItemIDs: [3]
+    [cdsc] size=14
+     - fromItemID: 8
+     - toItemIDs: [3]
+  [iprp] size=459
+    [ipco] size=396
+      [colr] size=19
+       - colorType: nclx
+       - ColorPrimaries: 2 (unspecified), TransferCharacteristics: 2 (unspecified), MatrixCoefficients: 6 (BT.601 525), FullRange: true
+      [clli] size=12
+       - maxContentLightLevel: 203
+       - maxPicAverageLightLevel: 64
+      [ispe] size=20 version=0 flags=000000
+       - imageWidth: 512
+       - imageHeight: 512
+      [ispe] size=20 version=0 flags=000000
+       - imageWidth: 1024
+       - imageHeight: 64
+      [irot] size=9
+       - angle: 0 (0 degrees anti-clockwise)
+      [pixi] size=16 version=0 flags=000000
+       - bitsPerChannel: [8 8 8]
+      [pixi] size=14 version=0 flags=000000
+       - bitsPerChannel: [8]
+      [auxC] size=55 version=0 flags=000000
+       - auxType: "urn:mpeg:hevc:2015:auxid:1"
+       - auxSubtype: 0000000c000000084e01a5040001fe40
+      [hvcC] size=112
+       - GeneralProfileSpace: 0
+       - GeneralTierFlag: false
+       - GeneralProfileIDC: 3
+       - GeneralProfileCompatibilityFlags: 70000000
+       - GeneralConstraintIndicatorFlags: b00000000000
+       - GeneralLevelIDC: 90
+       - MinSpatialSegmentationIDC: 0
+       - ParallellismType: 0
+       - ChromaFormatIDC: 1
+       - BitDepthLuma: 8
+       - BitDepthChroma: 8
+       - AvgFrameRate/256: 0
+       - ConstantFrameRate: 0
+       - NumTemporalLayers: 1
+       - temporalIDNested: 0
+         - VPS_32 complete: 1
+          40010c01ffff037000000300b0000003000003005a7024
+         - SPS_33 complete: 1
+          420101037000000300b0000003000003005aa0040200805887b91655370202060080
+         - PPS_34 complete: 1
+          4401c06172c8445364
+      [hvcC] size=111
+       - GeneralProfileSpace: 0
+       - GeneralTierFlag: false
+       - GeneralProfileIDC: 4
+       - GeneralProfileCompatibilityFlags: 08000000
+       - GeneralConstraintIndicatorFlags: bfc800000000
+       - GeneralLevelIDC: 90
+       - MinSpatialSegmentationIDC: 0
+       - ParallellismType: 0
+       - ChromaFormatIDC: 0
+       - BitDepthLuma: 8
+       - BitDepthChroma: 8
+       - AvgFrameRate/256: 0
+       - ConstantFrameRate: 0
+       - NumTemporalLayers: 1
+       - temporalIDNested: 0
+         - VPS_32 complete: 1
+          40010c01ffff040800000300bfc800000300005a170240
+         - SPS_33 complete: 1
+          420101040800000300bfc800000300005ac0100802016205ee45954dc080808020
+         - PPS_34 complete: 1
+          4401c061d2c8445364
+    [ipma] size=55 version=0 flags=000000
+     - entryCount: 6
+     - entry[1]: itemID=1 propertyIndexes=[3(essential) 1(essential) 2 9(essential)]
+     - entry[2]: itemID=2 propertyIndexes=[3(essential) 1(essential) 2 9(essential)]
+     - entry[3]: itemID=3 propertyIndexes=[1(essential) 2 4 6 5(essential)]
+     - entry[4]: itemID=4 propertyIndexes=[3(essential) 10(essential)]
+     - entry[5]: itemID=5 propertyIndexes=[3(essential) 10(essential)]
+     - entry[6]: itemID=6 propertyIndexes=[4 7 8(essential) 5(essential)]
+  [idat] size=24
+   - dataSize: 16
+   - data: 00000001040000400000000104000040
+  [iloc] size=144 version=1 flags=000000
+   - offsetSize: 4
+   - lengthSize: 4
+   - baseOffsetSize: 0
+   - indexSize: 0
+   - itemCount: 8
+   - item[1]: itemID=1 constructionMethod=0 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=1710 length=738
+   - item[2]: itemID=2 constructionMethod=0 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=2448 length=348
+   - item[3]: itemID=3 constructionMethod=1 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=0 length=8
+   - item[4]: itemID=4 constructionMethod=0 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=2796 length=161
+   - item[5]: itemID=5 constructionMethod=0 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=2957 length=187
+   - item[6]: itemID=6 constructionMethod=1 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=8 length=8
+   - item[7]: itemID=7 constructionMethod=0 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=1066 length=72
+   - item[8]: itemID=8 constructionMethod=0 dataReferenceIndex=0 baseOffset=0 extentCount=1
+     - extent[1]: offset=1138 length=572
+[mdat] size=2094
