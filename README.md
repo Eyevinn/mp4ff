@@ -170,6 +170,8 @@ Example code for some common use cases is in the [examples](examples) directory:
 * [multitrack](examples/multitrack) parses a fragmented file with multiple tracks
 * [combine-segs](examples/combine-segs) combines single-track init and media segments into multi-track segments
 * [add-sidx](examples/add-sidx) adds a top-level sidx box describing the segments of a fragmented file
+* [image-items](examples/image-items) lists and extracts the items of a HEIF, HEIC or AVIF image, and reads
+  the movie of an iPhone Live Photo
 * [ivf-to-mp4](examples/ivf-to-mp4) muxes an AV1, VP9 or VP8 IVF bitstream into a fragmented mp4
   (one fragment per GOP)
 * [stream-encrypt](examples/stream-encrypt) is an HTTP server that encrypts and refragments an mp4 file

@@ -15,9 +15,9 @@ mp4ff-crop mp4ff-decrypt mp4ff-defragment mp4ff-encrypt mp4ff-info mp4ff-mvhevc 
 	go build -ldflags "-X github.com/Eyevinn/mp4ff/internal.commitVersion=$$(git describe --tags HEAD) -X github.com/Eyevinn/mp4ff/internal.commitDate=$$(git log -1 --format=%ct)" -o out/$@ ./cmd/$@
 
 .PHONY: examples
-examples: add-sidx combine-segs initcreator multitrack resegmenter segmenter
+examples: add-sidx combine-segs image-items initcreator multitrack resegmenter segmenter
 
-add-sidx combine-segs initcreator multitrack resegmenter segmenter:
+add-sidx combine-segs image-items initcreator multitrack resegmenter segmenter:
 	go build -o examples-out/$@  ./examples/$@
 
 .PHONY: test
