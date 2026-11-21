@@ -135,6 +135,7 @@ func TestNestedBoxesOnOtherReader(t *testing.T) {
 		{boxType: "gmhd"},
 		{boxType: "tapt"},
 		{boxType: "tmcd", fields: make([]byte, 26)},
+		{boxType: "mebx", fields: make([]byte, 8)},
 	}
 	decode := func(data []byte) error {
 		_, err := mp4.DecodeFileSR(newRecordingReader(data))

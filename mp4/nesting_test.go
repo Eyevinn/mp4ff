@@ -67,6 +67,7 @@ func TestNestedBoxesDecodeOnce(t *testing.T) {
 		{boxType: "gmhd"},
 		{boxType: "tapt"},
 		{boxType: "tmcd", fields: tmcdFields},
+		{boxType: "mebx", fields: make([]byte, 8)},
 		{boxType: "mp4a", fields: mp4aFields, bottom: badBox, wantErr: true},
 	}
 	for _, c := range cases {
@@ -113,6 +114,7 @@ func TestBoxDepthLimit(t *testing.T) {
 		{boxType: "avc1", fields: make([]byte, 78)},
 		{boxType: "mp4a", fields: make([]byte, 28)},
 		{boxType: "wave"},
+		{boxType: "mebx", fields: make([]byte, 8)},
 	}
 	for _, c := range cases {
 		for name, decode := range decoders {
@@ -123,6 +125,61 @@ func TestBoxDepthLimit(t *testing.T) {
 			if !errors.Is(err, mp4.ErrBoxTooDeep) {
 				t.Errorf("%s of %d %s boxes: got %v, want ErrBoxTooDeep", name, mp4.MaxBoxDepth+1, c.boxType, err)
 			}
+		}
+	}
+}
+
+// nestMebx returns depth boxes nested as a mebx box, its keys box, a key box of that, a mebx box in the key
+// box, and so on.
+func nestMebx(depth int) []byte {
+	var data []byte
+	for k := depth - 1; k >= 0; k-- {
+		boxType, fields := "mebx", make([]byte, 8)
+		switch k % 3 {
+		case 1:
+			boxType, fields = "keys", nil
+		case 2:
+			boxType, fields = "\x00\x00\x00\x01", nil
+		}
+		box := binary.BigEndian.AppendUint32(nil, uint32(8+len(fields)+len(data)))
+		data = append(append(append(box, boxType...), fields...), data...)
+	}
+	return data
+}
+
+// TestBoxDepthLimitMebx checks that the keys box and the key boxes of a mebx box, which mebx decodes without
+// the decoder table, count as box levels: MaxBoxDepth boxes decode, and one more gives ErrBoxTooDeep.
+func TestBoxDepthLimitMebx(t *testing.T) {
+	decoders := map[string]func(data []byte) (mp4.Box, error){
+		"DecodeBox": func(data []byte) (mp4.Box, error) {
+			return mp4.DecodeBox(0, bytes.NewReader(data))
+		},
+		"DecodeBoxSR": func(data []byte) (mp4.Box, error) {
+			return mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(data))
+		},
+	}
+	for name, decode := range decoders {
+		box, err := decode(nestMebx(mp4.MaxBoxDepth))
+		if err != nil {
+			t.Fatalf("%s of %d boxes: %v", name, mp4.MaxBoxDepth, err)
+		}
+		levels := 0
+		for box != nil {
+			levels++
+			c, ok := box.(mp4.ContainerBox)
+			if !ok {
+				t.Fatalf("%s: level %d is a %T", name, levels, box)
+			}
+			box = nil
+			if children := c.GetChildren(); len(children) > 0 {
+				box = children[0]
+			}
+		}
+		if levels != mp4.MaxBoxDepth {
+			t.Errorf("%s: %d levels of boxes, want %d", name, levels, mp4.MaxBoxDepth)
+		}
+		if _, err := decode(nestMebx(mp4.MaxBoxDepth + 1)); !errors.Is(err, mp4.ErrBoxTooDeep) {
+			t.Errorf("%s of %d boxes: got %v, want ErrBoxTooDeep", name, mp4.MaxBoxDepth+1, err)
 		}
 	}
 }

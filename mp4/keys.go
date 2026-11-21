@@ -12,8 +12,8 @@ import (
 // ilst atom of the same meta atom have the index of their key, from 1, as their type, such as \x00\x00\x00\x01
 // for the first key.
 //
-// A keys atom with another layout, such as the one in a timed metadata sample entry mebx, decodes as an
-// UnknownBox.
+// The keys box of a timed metadata sample entry mebx has another layout, and is a MetadataKeyTableBox.
+// A keys atom with another layout elsewhere decodes as an UnknownBox.
 type KeysBox struct {
 	Version byte
 	Flags   uint32

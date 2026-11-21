@@ -82,6 +82,7 @@ The supported codecs and their boxes are
 | Subtitles | Text (QuickTime) | text | - | - |
 | Events | Event message track | evte | silb | btrt |
 | Timecode | Timecode (QuickTime) | tmcd | - | gmhd, gmin, tcmi |
+| Metadata | Timed metadata with several keys | mebx | keys | keyd, dtyp, loca, setu, btrt |
 
 Video sample entries can also carry the HDR metadata boxes `clli` and `mdcv`.
 Encrypted sample entries keep the original sample entry type in the `frma` box inside `sinf`,
