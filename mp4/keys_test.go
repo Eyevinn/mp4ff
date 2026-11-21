@@ -70,6 +70,7 @@ func TestKeysAndItems(t *testing.T) {
 	}
 }
 
+// TestKeysOfMebxIsUnknown checks a keys box with the layout of a mebx sample entry that is not in a mebx box.
 func TestKeysOfMebxIsUnknown(t *testing.T) {
 	box, _ := decodeHex(t, mebxKeys)
 	if _, ok := box.(*mp4.UnknownBox); !ok {

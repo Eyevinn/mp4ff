@@ -65,6 +65,7 @@ func init() {
 		"ima4":    DecodeQuickTimeAudioSampleEntrySR,
 		"in24":    DecodeQuickTimeAudioSampleEntrySR,
 		"in32":    DecodeQuickTimeAudioSampleEntrySR,
+		"keyd":    DecodeKeydSR,
 		"keys":    DecodeKeysSR,
 		"MAC3":    DecodeQuickTimeAudioSampleEntrySR,
 		"MAC6":    DecodeQuickTimeAudioSampleEntrySR,
@@ -78,6 +79,7 @@ func init() {
 		"dinf":    DecodeDinfSR,
 		"dpnd":    DecodeTrefTypeSR,
 		"dref":    DecodeDrefSR,
+		"dtyp":    DecodeDtypSR,
 		"dvcC":    DecodeDoViConfigSR,
 		"dvh1":    DecodeVisualSampleEntrySR,
 		"dvhe":    DecodeVisualSampleEntrySR,
@@ -129,12 +131,14 @@ func init() {
 		"kind":    DecodeKindSR,
 		"labl":    DecodeLablSR,
 		"leva":    DecodeLevaSR,
+		"loca":    DecodeLocaSR,
 		"lpcm":    DecodeQuickTimeAudioSampleEntrySR,
 		"ludt":    DecodeLudtSR,
 		"mdat":    DecodeMdatSR,
 		"mdcv":    DecodeMdcvSR,
 		"mehd":    DecodeMehdSR,
 		"mdhd":    DecodeMdhdSR,
+		"mebx":    DecodeMebxSR,
 		"mdia":    DecodeMdiaSR,
 		"meta":    DecodeMetaSR,
 		"mfhd":    DecodeMfhdSR,
@@ -176,6 +180,7 @@ func init() {
 		"schi":    DecodeSchiSR,
 		"schm":    DecodeSchmSR,
 		"sdtp":    DecodeSdtpSR,
+		"setu":    DecodeSetuSR,
 		"senc":    DecodeSencSR,
 		"sgpd":    DecodeSgpdSR,
 		"sidx":    DecodeSidxSR,
@@ -392,6 +397,23 @@ func childReader(parent bits.SliceReader, data []byte) *bits.FixedSliceReader {
 	sr := bits.NewFixedSliceReader(data)
 	sr.SetDepth(boxDepth(parent))
 	return sr
+}
+
+// oneBoxDeeperSR runs decode for the box with header hdr at startPos, with the box depth of sr raised by one as
+// decodeBoxBodySR does. It is for a box that its parent decodes without the decoder table.
+func oneBoxDeeperSR(hdr BoxHeader, startPos uint64, sr bits.SliceReader, decode func() (Box, error)) (Box, error) {
+	fsr, counted := sr.(*bits.FixedSliceReader)
+	if !counted {
+		return decode()
+	}
+	depth := fsr.Depth() + 1
+	if depth > MaxBoxDepth {
+		return nil, fmt.Errorf("decode %s pos %d: %w", hdr.Name, startPos, ErrBoxTooDeep)
+	}
+	fsr.SetDepth(depth)
+	box, err := decode()
+	fsr.SetDepth(depth - 1)
+	return box, err
 }
 
 // ioBoxDepth is the box depth of a box decoded from an io.Reader. Boxes below it are decoded from a
