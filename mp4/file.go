@@ -30,6 +30,7 @@ type File struct {
 	Ftyp           *FtypBox
 	Moov           *MoovBox
 	Mdat           *MdatBox        // mdat box for non-fragmented files. Extra empty boxes allowed.
+	Meta           *MetaBox        // First top-level meta box, with the items of a HEIF or AVIF image file
 	Init           *InitSegment    // Init data (ftyp + moov for fragmented file)
 	Sidx           *SidxBox        // The first sidx box for a DASH OnDemand file
 	Sidxs          []*SidxBox      // All sidx boxes for a DASH OnDemand file
@@ -289,6 +290,9 @@ func (f *File) AddChild(child Box, boxStartPos uint64) {
 		lastChildType = f.Children[n-1].Type()
 	}
 	afterMfra := f.Mfra != nil
+	if meta, ok := child.(*MetaBox); ok && f.Meta == nil {
+		f.Meta = meta
+	}
 	switch box := child.(type) {
 	case *FtypBox:
 		f.Ftyp = box

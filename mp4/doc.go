@@ -144,6 +144,32 @@ such as [LocalFileResolver], from the other files:
 
 [examples/segmenter] segments such files this way.
 
+# Still images in HEIF, HEIC and AVIF files
+
+An image file has no [MoovBox]. Its images are items of the file-level meta box, [File.Meta], and so are
+their thumbnails, alpha planes, Exif and XMP metadata. The boxes of the [MetaBox] describe the items:
+[PitmBox] tells which item is the primary one, [IinfBox] the type of each item, [IprpBox] its properties,
+[IrefBox] how the items belong together and [IlocBox] where their data is.
+
+	parsedMp4, err := mp4.DecodeFile(ifd)
+	meta := parsedMp4.Meta
+	itemID := meta.Pitm.ItemID
+	itemType := meta.Iinf.GetInfe(itemID).ItemType
+	for _, p := range meta.Iprp.GetItemProperties(itemID) {
+		switch prop := p.Property.(type) {
+		case *mp4.IspeBox: // the size of the image
+		case *mp4.HvcCBox: // the decoder configuration of an item of type hvc1
+		case *mp4.Av1CBox: // the decoder configuration of an item of type av01
+		}
+	}
+	data, err := meta.GetItemData(itemID, parsedMp4.Mdat, nil)
+
+The data of an item of type hvc1 or av01 is a coded image, in the format of a video sample. An item of type
+grid is an image made of tiles: [DecodeImageGrid] decodes its data, and the tiles are the items that
+meta.Iref.GetToItemIDs("dimg", itemID) returns. In the other direction, [IrefBox.GetFromItemIDs] returns
+the thumbnails (thmb), the auxiliary images such as an alpha plane (auxl) and the metadata items (cdsc)
+of an image. The package does not decode the pixels.
+
 # More efficient I/O using SliceReader and SliceWriter
 
 The use of the interfaces [io.Reader] and [io.Writer] for reading and writing boxes gives a lot of
