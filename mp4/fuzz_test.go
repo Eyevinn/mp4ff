@@ -57,6 +57,7 @@ func FuzzDecodeBox(f *testing.F) {
 		".m4s":  true,
 		".cmfv": true,
 		".avif": true,
+		".heic": true,
 	}
 
 	for _, entry := range entries {
