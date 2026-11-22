@@ -1237,3 +1237,76 @@ func TestAddSampleIntervalIncompleteFragment(t *testing.T) {
 		})
 	}
 }
+
+func TestFragmentCommonSampleDurationDefaults(t *testing.T) {
+	type run struct {
+		durations []uint32
+		inherited bool
+	}
+	type fragment struct {
+		tfhd    uint32
+		hasTfhd bool
+		runs    []run
+	}
+	explicit := run{durations: []uint32{1}}
+	inherited := run{durations: []uint32{0}, inherited: true}
+	empty := run{inherited: true}
+	cases := []struct {
+		name      string
+		trex      uint32
+		fragments []fragment
+		want      uint32
+	}{
+		{name: "explicit overrides trex", trex: 2, fragments: []fragment{{runs: []run{explicit}}}, want: 1},
+		{name: "explicit overrides tfhd", fragments: []fragment{{tfhd: 2, hasTfhd: true, runs: []run{explicit}}}, want: 1},
+		{name: "tfhd overrides trex", trex: 2, fragments: []fragment{{tfhd: 1, hasTfhd: true, runs: []run{inherited}}}, want: 1},
+		{name: "tfhd zero overrides trex", trex: 2, fragments: []fragment{{hasTfhd: true, runs: []run{inherited}}}},
+		{name: "trex only", trex: 1, fragments: []fragment{{runs: []run{inherited}}}, want: 1},
+		{name: "unflagged tfhd ignored", trex: 1, fragments: []fragment{{tfhd: 2, runs: []run{inherited}}}, want: 1},
+		{name: "explicit then inherited zero", fragments: []fragment{{runs: []run{explicit, inherited}}}},
+		{name: "explicit and inherited differ", trex: 2, fragments: []fragment{{runs: []run{explicit, inherited}}}},
+		{name: "empty then explicit", trex: 2, fragments: []fragment{{runs: []run{empty, explicit}}}, want: 1},
+		{name: "only empty runs", trex: 2, fragments: []fragment{{runs: []run{empty}}}},
+		{name: "fragments agree", trex: 2, fragments: []fragment{
+			{tfhd: 1, hasTfhd: true, runs: []run{inherited}}, {runs: []run{explicit}},
+		}, want: 1},
+		{name: "fragments differ", trex: 2, fragments: []fragment{
+			{tfhd: 2, hasTfhd: true, runs: []run{inherited}}, {runs: []run{explicit}},
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			seg := mp4.NewMediaSegment()
+			before := make(map[*mp4.TrunBox][]mp4.Sample)
+			for _, f := range c.fragments {
+				traf := &mp4.TrafBox{Tfhd: mp4.CreateTfhd(1)}
+				traf.Tfhd.DefaultSampleDuration = f.tfhd
+				if f.hasTfhd {
+					traf.Tfhd.Flags |= mp4.TfhdDefaultSampleDurationPresentFlag
+				}
+				for _, r := range f.runs {
+					trun := mp4.CreateTrun(0)
+					if r.inherited {
+						trun.Flags &^= mp4.TrunSampleDurationPresentFlag
+					}
+					for _, dur := range r.durations {
+						trun.AddSample(mp4.Sample{Dur: dur})
+					}
+					before[trun] = slices.Clone(trun.Samples)
+					traf.Truns = append(traf.Truns, trun)
+				}
+				seg.AddFragment(&mp4.Fragment{Moof: &mp4.MoofBox{Trafs: []*mp4.TrafBox{traf}}})
+			}
+			trex := &mp4.TrexBox{TrackID: 1, DefaultSampleDuration: c.trex}
+			got, err := seg.CommonSampleDuration(trex)
+			if got != c.want || (err != nil) != (c.want == 0) {
+				t.Errorf("common duration = (%d, %v), want duration %d and error %t", got, err, c.want, c.want == 0)
+			}
+			for trun, samples := range before {
+				if !slices.Equal(trun.Samples, samples) {
+					t.Error("duration lookup changed the samples")
+				}
+			}
+		})
+	}
+}

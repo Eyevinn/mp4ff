@@ -940,19 +940,21 @@ func (f *Fragment) CommonSampleDuration(trex *TrexBox) (uint32, error) {
 	if traf == nil {
 		return 0, fmt.Errorf("no track with trex trackID=%d", trackID)
 	}
-	commonDur := trex.DefaultSampleDuration
+	defaultDur := trex.DefaultSampleDuration
 	if traf.Tfhd.HasDefaultSampleDuration() {
-		commonDur = traf.Tfhd.DefaultSampleDuration
+		defaultDur = traf.Tfhd.DefaultSampleDuration
 	}
+	var commonDur uint32
 	for _, trun := range traf.Truns {
-		cDur := trun.CommonSampleDuration(commonDur)
-		if commonDur != 0 {
-			if cDur != commonDur {
-				commonDur = 0
-			}
-		} else {
-			commonDur = cDur
+		if trun.SampleCount() == 0 {
+			continue
 		}
+		cDur := trun.CommonSampleDuration(defaultDur)
+		if commonDur != 0 && cDur != commonDur {
+			commonDur = 0
+			break
+		}
+		commonDur = cDur
 		if commonDur == 0 {
 			break
 		}
