@@ -969,6 +969,42 @@ func TestDefragmentElstWithNonzeroOriginRebasesExactly(t *testing.T) {
 	}
 }
 
+// With B-frames, encoders shift composition times by the reorder delay and
+// start the edit there (x264 defaults: two frames). The final "rest of the
+// media" edit must then run to the end of the composition timeline, not the
+// end of the decode timeline, or the last frames are cut.
+func TestDefragmentFinalEditCoversCompositionShift(t *testing.T) {
+	init := createDefragInit(t)
+	elst := init.Moov.Traks[0].Edts.Children[0].(*mp4.ElstBox)
+	elst.Entries = []mp4.ElstEntry{{SegmentDuration: 0, MediaTime: 1024, MediaRateInteger: 1}}
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	samples := make([]mp4.FullSample, 4)
+	for i := range samples {
+		samples[i] = mp4.FullSample{
+			Sample:     mp4.Sample{Flags: defragSyncFlags(), Dur: 512, Size: 10, CompositionTimeOffset: 1024},
+			DecodeTime: uint64(512 * i), Data: defragPayload(byte(i+1), 10),
+		}
+	}
+	addDefragFragment(t, &buf, 1, 1, samples)
+
+	out, err := defragment(t, buf.Bytes(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trak := decodeDefragOutput(t, out.Bytes()).Moov.Traks[0]
+	// 4 samples of 512 ticks presented from 1024 to 3072: 2048 ticks = 80 movie ticks
+	want := []mp4.ElstEntry{{SegmentDuration: 80, MediaTime: 1024, MediaRateInteger: 1}}
+	if diff := deep.Equal(trak.Edts.Elst[0].Entries, want); diff != nil {
+		t.Errorf("elst: %v", diff)
+	}
+	if trak.Tkhd.Duration != 80 {
+		t.Errorf("presentation duration %d, want 80", trak.Tkhd.Duration)
+	}
+}
+
 func TestDefragmentMultiTrackNonzeroOriginsRebaseInTrackTicks(t *testing.T) {
 	init := createDefragPlainAvInit(t)
 	for i, trak := range init.Moov.Traks {

@@ -114,6 +114,20 @@ type defragTrack struct {
 	extendedDurs []paddedDur      // durations before gap padding, by increasing sample index
 }
 
+// compositionEnd returns the end of the last presented sample relative to the
+// decode origin, and at least the decode duration.
+func (t *defragTrack) compositionEnd() uint64 {
+	end := t.endDts - t.origin
+	var dts uint64
+	for _, s := range t.samples {
+		if sEnd := int64(dts) + int64(s.cts) + int64(s.dur); sEnd > 0 && uint64(sEnd) > end {
+			end = uint64(sEnd)
+		}
+		dts += uint64(s.dur)
+	}
+	return end
+}
+
 // paddedDur remembers a sample's duration before a tfdt gap padded it.
 // Pushes happen at the then-last sample, so indexes increase down the stack
 // and truncation after a cut pops from the top.
@@ -961,13 +975,16 @@ func (d *defragmenter) rebuildMoov() error {
 			return fmt.Errorf("sample tables of track %d: %w", track.trak.Tkhd.TrackID, err)
 		}
 		mediaDur := track.endDts - track.origin
-		rebaseTrackEdits(track, mediaDur, d.moov.Mvhd.Timescale)
+		// With B-frames the composition timeline ends after the decode timeline,
+		// so edits that run to the end of the media are resolved against it.
+		presEnd := track.compositionEnd()
+		rebaseTrackEdits(track, presEnd, d.moov.Mvhd.Timescale)
 		mdhd := track.trak.Mdia.Mdhd
 		mdhd.Duration = mediaDur
 		if mediaDur > math.MaxUint32 {
 			mdhd.Version = 1
 		}
-		presDur := presentationDuration(track.trak, mediaDur, mdhd.Timescale, d.moov.Mvhd.Timescale)
+		presDur := presentationDuration(track.trak, presEnd, mdhd.Timescale, d.moov.Mvhd.Timescale)
 		track.trak.Tkhd.Duration = presDur
 		if presDur > math.MaxUint32 {
 			track.trak.Tkhd.Version = 1
