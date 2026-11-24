@@ -969,6 +969,119 @@ func TestDefragmentElstWithNonzeroOriginRebasesExactly(t *testing.T) {
 	}
 }
 
+// With B-frames, encoders shift composition times by the reorder delay and
+// start the edit there (x264 defaults: two frames). The final "rest of the
+// media" edit must then run to the end of the composition timeline, not the
+// end of the decode timeline, or the last frames are cut.
+func TestDefragmentFinalEditCoversCompositionShift(t *testing.T) {
+	init := createDefragInit(t)
+	elst := init.Moov.Traks[0].Edts.Children[0].(*mp4.ElstBox)
+	elst.Entries = []mp4.ElstEntry{{SegmentDuration: 0, MediaTime: 1024, MediaRateInteger: 1}}
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	samples := make([]mp4.FullSample, 4)
+	for i := range samples {
+		samples[i] = mp4.FullSample{
+			Sample:     mp4.Sample{Flags: defragSyncFlags(), Dur: 512, Size: 10, CompositionTimeOffset: 1024},
+			DecodeTime: uint64(512 * i), Data: defragPayload(byte(i+1), 10),
+		}
+	}
+	addDefragFragment(t, &buf, 1, 1, samples)
+
+	out, err := defragment(t, buf.Bytes(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trak := decodeDefragOutput(t, out.Bytes()).Moov.Traks[0]
+	// 4 samples of 512 ticks presented from 1024 to 3072: 2048 ticks = 80 movie ticks
+	want := []mp4.ElstEntry{{SegmentDuration: 80, MediaTime: 1024, MediaRateInteger: 1}}
+	if diff := deep.Equal(trak.Edts.Elst[0].Entries, want); diff != nil {
+		t.Errorf("elst: %v", diff)
+	}
+	if trak.Tkhd.Duration != 80 {
+		t.Errorf("presentation duration %d, want 80", trak.Tkhd.Duration)
+	}
+}
+
+// The final edit must reach the latest presentation end, which with I P B B
+// ordering is the P frame's, not the last decoded sample's.
+func TestDefragmentFinalEditCoversReorderedCompositionEnd(t *testing.T) {
+	init := createDefragInit(t)
+	elst := init.Moov.Traks[0].Edts.Children[0].(*mp4.ElstBox)
+	elst.Entries = []mp4.ElstEntry{{SegmentDuration: 0, MediaTime: 1024, MediaRateInteger: 1}}
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	offsets := []int32{1024, 2048, 512, 512}
+	samples := make([]mp4.FullSample, len(offsets))
+	for i, offset := range offsets {
+		flags := defragNonSyncFlags()
+		if i == 0 {
+			flags = defragSyncFlags()
+		}
+		samples[i] = mp4.FullSample{
+			Sample:     mp4.Sample{Flags: flags, Dur: 512, Size: 10, CompositionTimeOffset: offset},
+			DecodeTime: uint64(512 * i), Data: defragPayload(byte(i+1), 10),
+		}
+	}
+	addDefragFragment(t, &buf, 1, 1, samples)
+
+	out, err := defragment(t, buf.Bytes(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trak := decodeDefragOutput(t, out.Bytes()).Moov.Traks[0]
+	// The P frame is presented last, from 2560 to 3072: 2048 ticks after the
+	// edit start = 80 movie ticks.
+	want := []mp4.ElstEntry{{SegmentDuration: 80, MediaTime: 1024, MediaRateInteger: 1}}
+	if diff := deep.Equal(trak.Edts.Elst[0].Entries, want); diff != nil {
+		t.Errorf("elst: %v", diff)
+	}
+}
+
+// A later-starting track without an edit list gets a synthesized one whose
+// media edit runs to the end of the composition timeline.
+func TestDefragmentSynthesizedEditCoversCompositionShift(t *testing.T) {
+	init := createDefragPlainAvInit(t)
+	var buf bytes.Buffer
+	if err := init.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	// The video starts 1 s after the audio.
+	samples := make([]mp4.FullSample, 4)
+	for i := range samples {
+		samples[i] = mp4.FullSample{
+			Sample:     mp4.Sample{Flags: defragSyncFlags(), Dur: 512, Size: 10, CompositionTimeOffset: 1024},
+			DecodeTime: uint64(defragVideoTimescale + 512*i), Data: defragPayload(byte(i+1), 10),
+		}
+	}
+	addDefragFragment(t, &buf, 1, 1, samples)
+	addDefragFragment(t, &buf, 2, 2, []mp4.FullSample{
+		{Sample: mp4.Sample{Dur: 1024, Size: 10}, DecodeTime: 0, Data: defragPayload(5, 10)},
+		{Sample: mp4.Sample{Dur: 1024, Size: 10}, DecodeTime: 1024, Data: defragPayload(6, 10)},
+	})
+	out, err := defragment(t, buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	video := decodeDefragOutput(t, out.Bytes()).Moov.Traks[0]
+	if video.Edts == nil || len(video.Edts.Elst) != 1 {
+		t.Fatal("video track got no synthesized elst")
+	}
+	// 1 s = 600 movie ticks of delay, then the samples presented until
+	// 3072/15360 s = 120 movie ticks.
+	want := []mp4.ElstEntry{
+		{SegmentDuration: 600, MediaTime: -1, MediaRateInteger: 1},
+		{SegmentDuration: 120, MediaTime: 0, MediaRateInteger: 1},
+	}
+	if diff := deep.Equal(video.Edts.Elst[0].Entries, want); diff != nil {
+		t.Errorf("synthesized video elst: %v", diff)
+	}
+}
+
 func TestDefragmentMultiTrackNonzeroOriginsRebaseInTrackTicks(t *testing.T) {
 	init := createDefragPlainAvInit(t)
 	for i, trak := range init.Moov.Traks {

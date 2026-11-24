@@ -114,6 +114,20 @@ type defragTrack struct {
 	extendedDurs []paddedDur      // durations before gap padding, by increasing sample index
 }
 
+// compositionEnd returns the end of the last presented sample relative to the
+// decode origin, and at least the decode duration.
+func (t *defragTrack) compositionEnd() uint64 {
+	end := t.endDts - t.origin
+	var dts uint64
+	for _, s := range t.samples {
+		if sEnd := int64(dts) + int64(s.cts) + int64(s.dur); sEnd > 0 && uint64(sEnd) > end {
+			end = uint64(sEnd)
+		}
+		dts += uint64(s.dur)
+	}
+	return end
+}
+
 // paddedDur remembers a sample's duration before a tfdt gap padded it.
 // Pushes happen at the then-last sample, so indexes increase down the stack
 // and truncation after a cut pops from the top.
@@ -961,7 +975,9 @@ func (d *defragmenter) rebuildMoov() error {
 			return fmt.Errorf("sample tables of track %d: %w", track.trak.Tkhd.TrackID, err)
 		}
 		mediaDur := track.endDts - track.origin
-		rebaseTrackEdits(track, mediaDur, d.moov.Mvhd.Timescale)
+		// With B-frames the composition timeline ends after the decode timeline,
+		// so edits that run to the end of the media are resolved against it.
+		rebaseTrackEdits(track, track.compositionEnd(), d.moov.Mvhd.Timescale)
 		mdhd := track.trak.Mdia.Mdhd
 		mdhd.Duration = mediaDur
 		if mediaDur > math.MaxUint32 {
@@ -987,7 +1003,7 @@ func (d *defragmenter) rebuildMoov() error {
 // by shifting every nonempty media time down by the track's decode origin,
 // and records the track's alignment delay as an empty edit: merged into a
 // leading one, prepended, or as a synthesized edit list.
-func rebaseTrackEdits(track *defragTrack, mediaDur uint64, movieTs uint32) {
+func rebaseTrackEdits(track *defragTrack, compEnd uint64, movieTs uint32) {
 	trak := track.trak
 	if trak.Edts != nil {
 		for _, elst := range trak.Edts.Elst {
@@ -1005,7 +1021,7 @@ func rebaseTrackEdits(track *defragTrack, mediaDur uint64, movieTs uint32) {
 		case trak.Edts == nil || len(trak.Edts.Elst) == 0:
 			elst := &ElstBox{Entries: []ElstEntry{
 				emptyEdit,
-				{SegmentDuration: rescaleDur(mediaDur, trak.Mdia.Mdhd.Timescale, movieTs),
+				{SegmentDuration: rescaleDur(compEnd, trak.Mdia.Mdhd.Timescale, movieTs),
 					MediaTime: 0, MediaRateInteger: 1},
 			}}
 			if trak.Edts == nil {
@@ -1026,14 +1042,14 @@ func rebaseTrackEdits(track *defragTrack, mediaDur uint64, movieTs uint32) {
 	// A final entry with segment_duration 0 means "rest of the media" in a
 	// fragmented file, whose mvhd duration is unknown (0). The progressive
 	// output has a real movie duration, so readers apply the edit literally
-	// and a zero-length final edit would hide the whole track. Resolve it the
-	// same way presentationDuration does.
+	// and a zero-length final edit would hide the whole track. Resolve it
+	// against the end of the composition timeline.
 	if len(trak.Edts.Elst) > 0 {
 		elst := trak.Edts.Elst[0]
 		if n := len(elst.Entries); n > 0 {
 			last := &elst.Entries[n-1]
-			if last.SegmentDuration == 0 && last.MediaTime >= 0 && uint64(last.MediaTime) < mediaDur {
-				last.SegmentDuration = rescaleDur(mediaDur-uint64(last.MediaTime),
+			if last.SegmentDuration == 0 && last.MediaTime >= 0 && uint64(last.MediaTime) < compEnd {
+				last.SegmentDuration = rescaleDur(compEnd-uint64(last.MediaTime),
 					trak.Mdia.Mdhd.Timescale, movieTs)
 			}
 		}
