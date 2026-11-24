@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes since the latest release are listed in [changelog.d](changelog.d/).
 
+## [0.64.0] - 2026-11-24
+
+### Added
+
+- Item boxes of HEIF and AVIF images: `PitmBox`, `IlocBox`, `IinfBox`, `InfeBox`, `IprpBox`, `IpcoBox`,
+  `IpmaBox`, `IspeBox` and `PixiBox`, available as `Pitm`, `Iloc`, `Iinf` and `Iprp` in `MetaBox`
+- More item boxes of HEIF, HEIC and AVIF images: `IrefBox` with `IrefTypeBox` children, `IdatBox`, `IrotBox`,
+  `ImirBox` and `AuxCBox`, with `Iref` and `Idat` in `MetaBox`
+- Access to the items of HEIF, HEIC and AVIF images: `File.Meta`, `MetaBox.GetItemData`, `IprpBox.GetItemProperties`,
+  `IlocBox.GetItem`, `IrefBox.GetToItemIDs` and `GetFromItemIDs`, and `DecodeImageGrid` for grid items
+- Example `image-items` that lists and extracts the items of a HEIF, HEIC or AVIF image, and tells where in the
+  movie of an iPhone Live Photo the photo was taken
+- Timed metadata sample entry `mebx` as `MebxBox`, with `MetadataKeyTableBox`, `MetadataKeyBox`, `KeydBox`, `DtypBox`,
+  `LocaBox` and `SetuBox` for its keys, `StsdBox.Mebx`, and `DecodeMebxSample` for the values of a sample
+
+### Changed
+
+- `mp4ff-crop` ends just before the first sync sample presented at or after the duration, following
+  the edit list, and keeps all samples instead of failing when there is no such sample
+- Streaming `SampleAccessor.GetSamples` and `GetSampleRange` read contiguous sample runs together,
+  while keeping each sample's data in its own buffer
+
+### Fixed
+
+- `Defragment` and `mp4ff-defragment` keep the last frames of B-frame video: an edit that runs to the end of the media
+  now ends where the last frame is presented, not where the last frame is decoded
+- `InitProtectData.NewFragmentEncryptor`, `EncryptFragment`, `EncryptFragments` and `mp4ff-encrypt` reject
+  cbcs encryption when the IV differs from the init's `tenc` constant IV or the init has no constant IV
+- `hevc.ParseSliceHeader` infers index zero for sole SPS short- and long-term reference picture sets,
+  keeping reference-list parsing and the CBCS clear-header boundary aligned
+- `BoxSeekReader.Seek` reads only up to the target position on a forward seek after a backward seek, so
+  `StreamFile.ProcessFragments` keeps its place when the fragment callback reads samples out of order
+- `Fragment.CommonSampleDuration` uses effective sample durations independently of header defaults and ignores empty runs.
+  Fragments without samples return an error, also through `MediaSegment.CommonSampleDuration`
+- `StscBox.AddEntry` returns an error instead of writing an invalid table when `firstChunk` is not larger
+  than that of the previous entry, or the sample description ID is 0
+- `Av1CBox.Info` writes no `ConfigOBUs` line, which ended with a space, for a box without config OBUs
+- `examples/stream-encrypt` continues cenc IVs between fragments and supports 8-byte cenc IVs
+- `mp4ff-crop` crops `sbgp`, `subs` and `cslg`, and sets the `mdhd` duration, to the kept samples
+- `mp4ff-crop` ends the edit lists and `tkhd` durations of all tracks where the movie ends, and keeps the
+  samples of the other tracks up to that presentation time, without edits past the end of the media
+- `mp4ff-crop` no longer fails when the kept samples include the last sample of a track, and writes a valid
+  sample-to-chunk table when the crop ends inside the first chunk of a table entry, as for audio files
+- `mp4ff-crop` rejects tracks with sample auxiliary information (`saiz`/`saio`), which it cannot crop
+
 ## [0.63.0] - 2026-11-13
 
 ### Added
@@ -1695,7 +1740,8 @@ Changes since the latest release are listed in [changelog.d](changelog.d/).
 
 - New unique repo name: `mp4ff`
 
-[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.63.0...HEAD
+[Unreleased]: https://github.com/Eyevinn/mp4ff/compare/v0.64.0...HEAD
+[0.64.0]: https://github.com/Eyevinn/mp4ff/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/Eyevinn/mp4ff/compare/v0.62.1...v0.63.0
 [0.62.1]: https://github.com/Eyevinn/mp4ff/compare/v0.62.0...v0.62.1
 [0.62.0]: https://github.com/Eyevinn/mp4ff/compare/v0.61.0...v0.62.0
