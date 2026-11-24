@@ -977,14 +977,13 @@ func (d *defragmenter) rebuildMoov() error {
 		mediaDur := track.endDts - track.origin
 		// With B-frames the composition timeline ends after the decode timeline,
 		// so edits that run to the end of the media are resolved against it.
-		presEnd := track.compositionEnd()
-		rebaseTrackEdits(track, presEnd, d.moov.Mvhd.Timescale)
+		rebaseTrackEdits(track, track.compositionEnd(), d.moov.Mvhd.Timescale)
 		mdhd := track.trak.Mdia.Mdhd
 		mdhd.Duration = mediaDur
 		if mediaDur > math.MaxUint32 {
 			mdhd.Version = 1
 		}
-		presDur := presentationDuration(track.trak, presEnd, mdhd.Timescale, d.moov.Mvhd.Timescale)
+		presDur := presentationDuration(track.trak, mediaDur, mdhd.Timescale, d.moov.Mvhd.Timescale)
 		track.trak.Tkhd.Duration = presDur
 		if presDur > math.MaxUint32 {
 			track.trak.Tkhd.Version = 1
@@ -1004,7 +1003,7 @@ func (d *defragmenter) rebuildMoov() error {
 // by shifting every nonempty media time down by the track's decode origin,
 // and records the track's alignment delay as an empty edit: merged into a
 // leading one, prepended, or as a synthesized edit list.
-func rebaseTrackEdits(track *defragTrack, mediaDur uint64, movieTs uint32) {
+func rebaseTrackEdits(track *defragTrack, compEnd uint64, movieTs uint32) {
 	trak := track.trak
 	if trak.Edts != nil {
 		for _, elst := range trak.Edts.Elst {
@@ -1022,7 +1021,7 @@ func rebaseTrackEdits(track *defragTrack, mediaDur uint64, movieTs uint32) {
 		case trak.Edts == nil || len(trak.Edts.Elst) == 0:
 			elst := &ElstBox{Entries: []ElstEntry{
 				emptyEdit,
-				{SegmentDuration: rescaleDur(mediaDur, trak.Mdia.Mdhd.Timescale, movieTs),
+				{SegmentDuration: rescaleDur(compEnd, trak.Mdia.Mdhd.Timescale, movieTs),
 					MediaTime: 0, MediaRateInteger: 1},
 			}}
 			if trak.Edts == nil {
@@ -1043,14 +1042,14 @@ func rebaseTrackEdits(track *defragTrack, mediaDur uint64, movieTs uint32) {
 	// A final entry with segment_duration 0 means "rest of the media" in a
 	// fragmented file, whose mvhd duration is unknown (0). The progressive
 	// output has a real movie duration, so readers apply the edit literally
-	// and a zero-length final edit would hide the whole track. Resolve it the
-	// same way presentationDuration does.
+	// and a zero-length final edit would hide the whole track. Resolve it
+	// against the end of the composition timeline.
 	if len(trak.Edts.Elst) > 0 {
 		elst := trak.Edts.Elst[0]
 		if n := len(elst.Entries); n > 0 {
 			last := &elst.Entries[n-1]
-			if last.SegmentDuration == 0 && last.MediaTime >= 0 && uint64(last.MediaTime) < mediaDur {
-				last.SegmentDuration = rescaleDur(mediaDur-uint64(last.MediaTime),
+			if last.SegmentDuration == 0 && last.MediaTime >= 0 && uint64(last.MediaTime) < compEnd {
+				last.SegmentDuration = rescaleDur(compEnd-uint64(last.MediaTime),
 					trak.Mdia.Mdhd.Timescale, movieTs)
 			}
 		}
