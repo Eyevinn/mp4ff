@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -239,7 +240,7 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 	}
 	// With subsamples and known perSampleIVSize
 	if perSampleIVSize != 0 {
-		if ok := s.parseAndFillSamples(sr, perSampleIVSize); !ok {
+		if ok := s.parseAndFillSamples(perSampleIVSize); !ok {
 			return fmt.Errorf("error decoding senc with perSampleIVSize = %d", perSampleIVSize)
 		}
 		s.readButNotParsed = false
@@ -248,14 +249,12 @@ func (s *SencBox) ParseReadBox(perSampleIVSize byte, saiz *SaizBox) error {
 
 	// With subsamples and unknown perSampleIVSize, try to find a valid size.
 	// Use saiz sample sizes to quickly reject invalid candidates.
-	startPos := sr.GetPos()
 	ok := false
 	for _, candidate := range []byte{0, 8, 16} {
 		if saiz != nil && !saizMatchesIVSize(saiz, s.SampleCount, candidate) {
 			continue
 		}
-		sr.SetPos(startPos)
-		ok = s.parseAndFillSamples(sr, candidate)
+		ok = s.parseAndFillSamples(candidate)
 		if ok {
 			break
 		}
@@ -295,41 +294,50 @@ func saizMatchesIVSize(saiz *SaizBox, sampleCount uint32, ivSize byte) bool {
 	return true
 }
 
-// parseAndFillSamples - parse and fill senc samples given perSampleIVSize
-func (s *SencBox) parseAndFillSamples(sr bits.SliceReader, perSampleIVSize byte) (ok bool) {
-	ok = true
+// parseAndFillSamples validates the sample records before allocating their storage.
+func (s *SencBox) parseAndFillSamples(perSampleIVSize byte) bool {
+	s.perSampleIVSize = perSampleIVSize
+	data := s.rawData
+	ivSize := int(perSampleIVSize)
+	total := 0
+	for i := uint32(0); i < s.SampleCount; i++ {
+		if len(data) < ivSize+2 {
+			return false
+		}
+		count := int(binary.BigEndian.Uint16(data[ivSize : ivSize+2]))
+		data = data[ivSize+2:]
+		if count > len(data)/6 {
+			return false
+		}
+		total += count
+		data = data[count*6:]
+	}
+	if len(data) != 0 {
+		return false
+	}
+
+	if ivSize > 0 {
+		s.IVs = make([]InitializationVector, s.SampleCount)
+	}
 	s.SubSamples = make([][]SubSamplePattern, s.SampleCount)
-	for i := 0; i < int(s.SampleCount); i++ {
-		if perSampleIVSize > 0 {
-			if sr.NrRemainingBytes() < int(perSampleIVSize) {
-				ok = false
-				break
-			}
-			s.IVs = append(s.IVs, sr.ReadBytes(int(perSampleIVSize)))
+	patterns := make([]SubSamplePattern, total)
+	data = s.rawData
+	offset := 0
+	for i := range s.SubSamples {
+		if ivSize > 0 {
+			s.IVs[i] = data[:ivSize]
 		}
-		if sr.NrRemainingBytes() < 2 {
-			ok = false
-			break
+		count := int(binary.BigEndian.Uint16(data[ivSize : ivSize+2]))
+		data = data[ivSize+2:]
+		s.SubSamples[i] = patterns[offset : offset+count : offset+count]
+		for j := range s.SubSamples[i] {
+			s.SubSamples[i][j].BytesOfClearData = binary.BigEndian.Uint16(data[:2])
+			s.SubSamples[i][j].BytesOfProtectedData = binary.BigEndian.Uint32(data[2:6])
+			data = data[6:]
 		}
-		subsampleCount := int(sr.ReadUint16())
-		if sr.NrRemainingBytes() < subsampleCount*6 {
-			ok = false
-			break
-		}
-		s.SubSamples[i] = make([]SubSamplePattern, subsampleCount)
-		for j := 0; j < subsampleCount; j++ {
-			s.SubSamples[i][j].BytesOfClearData = sr.ReadUint16()
-			s.SubSamples[i][j].BytesOfProtectedData = sr.ReadUint32()
-		}
+		offset += count
 	}
-	if !ok || sr.NrRemainingBytes() != 0 {
-		// Cleanup the IVs and SubSamples which may have been partially set
-		s.IVs = nil
-		s.SubSamples = nil
-		ok = false
-	}
-	s.perSampleIVSize = byte(perSampleIVSize)
-	return ok
+	return true
 }
 
 // Type - box-specific type
