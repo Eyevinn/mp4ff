@@ -2,6 +2,7 @@ package mp4_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
@@ -404,10 +405,12 @@ func TestAddSamplesMixedSubSamples(t *testing.T) {
 	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234567")}))
 	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234568"),
 		SubSamples: []mp4.SubSamplePattern{{BytesOfClearData: 10, BytesOfProtectedData: 1000}}}))
-	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234569")}))
+	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234569"),
+		SubSamples: []mp4.SubSamplePattern{{BytesOfClearData: 20, BytesOfProtectedData: 2000}}}))
+	assertNoError(t, senc.AddSample(mp4.SencSample{IV: mp4.InitializationVector("01234570")}))
 
-	// fullbox header (12) + sampleCount (4) + 3 * (IV (8) + count (2)) + 1 * 6
-	wantedSize := uint64(12 + 4 + 3*(8+2) + 6)
+	// fullbox header (12) + sampleCount (4) + 4 * (IV (8) + count (2)) + 2 * 6
+	wantedSize := uint64(12 + 4 + 4*(8+2) + 2*6)
 	if senc.Size() != wantedSize {
 		t.Errorf("got size %d, expected %d", senc.Size(), wantedSize)
 	}
@@ -422,10 +425,10 @@ func TestAddSamplesMixedSubSamples(t *testing.T) {
 	if decSenc.ReadButNotParsed() {
 		assertNoError(t, decSenc.ParseReadBox(8, nil))
 	}
-	if len(decSenc.SubSamples) != 3 {
-		t.Fatalf("got %d subsample entries, expected 3", len(decSenc.SubSamples))
+	if len(decSenc.SubSamples) != 4 {
+		t.Fatalf("got %d subsample entries, expected 4", len(decSenc.SubSamples))
 	}
-	for i, wantedCount := range []int{0, 1, 0} {
+	for i, wantedCount := range []int{0, 1, 1, 0} {
 		if len(decSenc.SubSamples[i]) != wantedCount {
 			t.Errorf("sample %d: got %d subsamples, expected %d", i, len(decSenc.SubSamples[i]), wantedCount)
 		}
@@ -434,6 +437,13 @@ func TestAddSamplesMixedSubSamples(t *testing.T) {
 	assertNoError(t, decSenc.Encode(&buf2))
 	if !bytes.Equal(firstEnc, buf2.Bytes()) {
 		t.Error("re-encoded mixed-subsample senc differs from first encoding")
+	}
+	for i := 0; i < 2; i++ {
+		next := decSenc.SubSamples[i+1][0]
+		decSenc.SubSamples[i] = append(decSenc.SubSamples[i], mp4.SubSamplePattern{BytesOfClearData: 99})
+		if decSenc.SubSamples[i+1][0] != next {
+			t.Errorf("append to sample %d changed sample %d", i, i+1)
+		}
 	}
 }
 
@@ -451,5 +461,63 @@ func TestSencEncodeInconsistentSubSamples(t *testing.T) {
 	sw := bits.NewFixedSliceWriter(int(senc.Size()))
 	if err := senc.EncodeSW(sw); err == nil {
 		t.Error("expected error for subsample flag with missing entries")
+	}
+}
+
+func TestSencParseAllocations(t *testing.T) {
+	for _, n := range []int{16, 64, 256} {
+		for _, ivSize := range []byte{0, 8, 16} {
+			// Every record has a count, including the samples with no subsamples.
+			sw := bits.NewFixedSliceWriter(n * (int(ivSize) + 2 + 3*6))
+			saiz := &mp4.SaizBox{}
+			for i := 0; i < n; i++ {
+				sw.WriteZeroBytes(int(ivSize))
+				count := i % 4
+				sw.WriteUint16(uint16(count))
+				for j := 0; j < count; j++ {
+					sw.WriteUint16(uint16(j + 1))
+					sw.WriteUint32(uint32(i + 1))
+				}
+				saiz.SampleInfo = append(saiz.SampleInfo, uint32(int(ivSize)+2+count*6))
+			}
+			raw := boxOf("senc", be32(mp4.UseSubSampleEncryption), be32(uint32(n)), sw.Bytes())
+			for _, mode := range []string{"known", "guess", "saiz", "shortRecord", "truncated", "trailing"} {
+				t.Run(fmt.Sprintf("%d/iv%d/%s", n, ivSize, mode), func(t *testing.T) {
+					size := ivSize
+					var sizes *mp4.SaizBox
+					if mode == "guess" || mode == "saiz" {
+						size = 0
+					}
+					if mode == "saiz" {
+						sizes = saiz
+					}
+					input := raw
+					if mode == "shortRecord" {
+						input = boxOf("senc", be32(mp4.UseSubSampleEncryption), be32(uint32(n)), sw.Bytes()[:sw.Offset()-19])
+					}
+					if mode == "truncated" {
+						input = boxOf("senc", be32(mp4.UseSubSampleEncryption), be32(uint32(n)), sw.Bytes()[:sw.Offset()-1])
+					}
+					if mode == "trailing" {
+						input = boxOf("senc", be32(mp4.UseSubSampleEncryption), be32(uint32(n)), append(sw.Bytes(), 0xff))
+					}
+					box, err := mp4.DecodeBoxSR(0, bits.NewFixedSliceReader(input))
+					if err != nil {
+						t.Fatal(err)
+					}
+					unparsed := box.(*mp4.SencBox)
+					allocs := testing.AllocsPerRun(10, func() {
+						senc := *unparsed
+						err := senc.ParseReadBox(size, sizes)
+						if (err != nil) != (mode == "shortRecord" || mode == "truncated" || mode == "trailing") {
+							t.Fatalf("unexpected parse result: %v", err)
+						}
+					})
+					if allocs > 5 {
+						t.Errorf("ParseReadBox allocated %.1f objects for %d samples, want at most 5", allocs, n)
+					}
+				})
+			}
+		}
 	}
 }
