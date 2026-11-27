@@ -47,6 +47,24 @@ The allocations are the heap allocations inside the benchmark loop. Most benchma
 
 ## Results
 
+### Fragment splitting (unreleased)
+
+`MediaSegment.Fragmentify` reserves the first batch of each output's sample table and copied payload,
+and reuses sample scratch storage across input fragments. Local runs on committed `mp4/testdata/1.m4s`,
+Go 1.27.4, linux/amd64, 16 interleaved pairs with 200 ms per benchmark:
+
+| Benchmark | Base median (ns/op) | Patched median (ns/op) | Paired change (bounds, n=16) |
+|---|---:|---:|---|
+| `Fragmentify/single` | 30,239.5 | 9,573.5 | −68.9% (−82.9% to −62.7%) |
+| `Fragmentify/split` | 27,743.5 | 12,612.5 | −54.4% (−71.4% to −50.1%) |
+
+For `single`, allocated bytes fell from 109,080 to 29,480 B/op and allocations from 33 to 20 per call.
+For `split`, they fell from 72,088 to 32,376 B/op and from 106 to 76 allocations per call.
+The time bounds are sequential paired-median bounds scaled by the base median, not benchstat intervals.
+An output spanning input fragments reserves only its first batch; later batches use ordinary append growth.
+Peak RSS and production savings were not measured.
+
+
 ### Current
 
 Master at 0558cfb, Go 1.27.3, Apple M4 Pro, n=6:
