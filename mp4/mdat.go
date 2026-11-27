@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -24,7 +25,7 @@ type MdatBox struct {
 	DataParts    [][]byte
 	lazyDataSize uint64
 	LargeSize    bool
-	ownsData     bool // Data was allocated by AddSampleData, so Fragment.Reset may reuse it
+	ownsData     bool // Data was allocated by AddSampleData or reserveSampleData, so Fragment.Reset may reuse it
 }
 
 const maxNormalPayloadSize = (1 << 32) - 1 - 8
@@ -106,6 +107,14 @@ func (m *MdatBox) AddSampleData(s []byte) {
 		m.ownsData = true
 	}
 	m.Data = append(m.Data, s...)
+}
+
+// reserveSampleData makes room for n more bytes of AddSampleData data.
+func (m *MdatBox) reserveSampleData(n int) {
+	if m.Data == nil {
+		m.ownsData = true
+	}
+	m.Data = slices.Grow(m.Data, n)
 }
 
 // SetData - set the mdat data to given slice. No copying is done.

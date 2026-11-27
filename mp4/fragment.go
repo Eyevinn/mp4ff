@@ -63,9 +63,10 @@ func CreateFragment(seqNumber uint32, trackID uint32) (*Fragment, error) {
 // since is dropped: samples, sample data, emsg and prft boxes, and the senc, saiz and saio boxes that encryption
 // adds. The storage is kept, so that building, encrypting and encoding fragment after fragment in one Fragment
 // does not allocate it again: the boxes, the trun sample list, the mdat data-part list, the encryption boxes,
-// which FragmentEncryptor takes back, and the mdat payload if AddSampleData allocated it. The data parts are
-// cleared, so that the sample buffers they referenced can be garbage collected, and a payload that the box does
-// not own, such as a buffer given to SetData or the input of a decoded fragment, is dropped rather than reused.
+// which FragmentEncryptor takes back, and the mdat payload if AddSampleData or reserveSampleData allocated it.
+// The data parts are cleared, so that the sample buffers they referenced can be garbage collected, and a payload
+// that the box does not own, such as a buffer given to SetData or the input of a decoded fragment, is dropped
+// rather than reused.
 //
 // Since its boxes and storage are reused, nothing taken from the fragment before Reset, such as its moof, trun,
 // samples or the sample data copied into its mdat, may be used after it. Reset returns an error, and leaves the

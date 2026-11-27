@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/mp4"
 	"github.com/go-test/deep"
 )
@@ -101,6 +102,84 @@ func TestMediaSegmentFragmentation(t *testing.T) {
 		if diff != nil {
 			t.Errorf("Generated dump different from %s", goldenFragPath)
 		}
+	}
+}
+
+func TestFragmentifyOwnsData(t *testing.T) {
+	data, err := os.ReadFile("testdata/1.m4s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := mp4.DecodeFileSR(bits.NewFixedSliceReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fragments, err := f.Segments[0].Fragmentify(90000, nil, 45000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := make([][]byte, len(fragments))
+	for i, frag := range fragments {
+		want[i] = encodeFragment(t, frag)
+	}
+	clear(data)
+	for i, frag := range fragments {
+		if !bytes.Equal(encodeFragment(t, frag), want[i]) {
+			t.Errorf("fragment %d changed after overwriting the input", i)
+		}
+		capacity := cap(frag.Mdat.Data)
+		if err := frag.Reset(1); err != nil {
+			t.Fatal(err)
+		}
+		if cap(frag.Mdat.Data) != capacity {
+			t.Errorf("fragment %d lost its payload storage after Reset", i)
+		}
+	}
+}
+
+func TestFragmentifyReusesSamples(t *testing.T) {
+	want := fullSamplesFixture("contiguous", 4, 0)
+	seg := mp4.NewMediaSegment()
+	for _, samples := range [][]mp4.FullSample{want[:3], want[3:]} {
+		frag, err := mp4.CreateFragment(1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		frag.AddFullSamples(samples)
+		seg.AddFragment(frag)
+	}
+	out, err := seg.Fragmentify(90000, nil, ^uint32(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("got %d fragments, want 1", len(out))
+	}
+	got, err := out[0].GetFullSamples(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareFullSamples(t, got, want)
+}
+
+func TestFragmentifyAllocations(t *testing.T) {
+	allocs := func(nrSamples int) float64 {
+		frag, err := mp4.CreateFragment(1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		frag.AddFullSamples(fullSamplesFixture("contiguous", nrSamples, 0))
+		seg := mp4.NewMediaSegment()
+		seg.AddFragment(frag)
+		return testing.AllocsPerRun(10, func() {
+			if _, err := seg.Fragmentify(90000, nil, ^uint32(0)); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	one, many := allocs(1), allocs(64)
+	if many > one+2 {
+		t.Errorf("Fragmentify allocations grow with sample count: %.0f for one sample, %.0f for 64", one, many)
 	}
 }
 

@@ -3,6 +3,7 @@ package mp4
 import (
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/Eyevinn/mp4ff/bits"
 )
@@ -177,6 +178,7 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 	inFragments := s.Fragments
 	outFragments := make([]*Fragment, 0)
 	var of *Fragment
+	var samples []FullSample
 
 	var cumDur uint32 = 0
 
@@ -189,20 +191,38 @@ func (s *MediaSegment) Fragmentify(timescale uint64, trex *TrexBox, duration uin
 		}
 		trackID := inFrag.Moof.Traf.Tfhd.TrackID
 
-		samples, err := inFrag.GetFullSamples(trex)
+		var err error
+		samples, err = inFrag.AppendFullSamples(samples[:0], trex)
 		if err != nil {
 			return nil, err
 		}
-		for _, s := range samples {
+		for i, s := range samples {
 			if cumDur == 0 {
-				var err error
 				of, err = CreateFragment(inFrag.Moof.Mfhd.SequenceNumber, trackID)
 				if err != nil {
 					return nil, err
 				}
 				outFragments = append(outFragments, of)
 			}
-			//of.AddFullSample(s)
+			if cumDur == 0 && i+1 < len(samples) {
+				// Reserve the part of this input that fits in the new output fragment.
+				nrSamples, dataSize := 0, 0
+				var batchDur uint32
+				for _, next := range samples[i:] {
+					nrSamples++
+					dataSize += len(next.Data)
+					batchDur += next.Dur
+					// A zero cumulative duration also starts a new fragment in the append loop.
+					if batchDur == 0 || batchDur >= duration {
+						break
+					}
+				}
+				if nrSamples > 1 {
+					trun := of.Moof.Traf.Trun
+					trun.Samples = slices.Grow(trun.Samples, nrSamples)
+					of.Mdat.reserveSampleData(dataSize)
+				}
+			}
 			err = of.AddFullSampleToTrack(s, trackID)
 			if err != nil {
 				return nil, err
